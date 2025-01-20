@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+.pnpm-store/
+
+# Build outputs
+dist
+dist-ssr
+build
+*.local
+
+# Tauri
+src-tauri/target
+src-tauri/Cargo.lock
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+private
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage
+
+# Production
+/build
+
+# Debug
+.debug
