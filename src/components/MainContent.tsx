@@ -296,22 +296,27 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         </div>
         <div className="flex items-center gap-4">
           {renderModificationsBanner()}
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handlePublishSelected()}
-              disabled={selectedVersions.length === 0 || isPublishing}
-            >
-              Publish {selectedVersions.length} Selected
-            </Button>
-            <Button 
-              size="sm"
-              onClick={() => handlePublishAll()}
-              disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
-            >
-              Publish All Notes
-            </Button>
+          <div className="flex items-center gap-2">
+            {!settings.autoRefreshEnabled && (
+              <span className="text-sm text-gray-500">Auto Update Off</span>
+            )}
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handlePublishSelected()}
+                disabled={selectedVersions.length === 0 || isPublishing}
+              >
+                Publish {selectedVersions.length} Selected
+              </Button>
+              <Button 
+                size="sm"
+                onClick={() => handlePublishAll()}
+                disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
+              >
+                Publish All Notes
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import { CheckCircle2, XCircle } from 'lucide-react';
-import { useSettings } from '../hooks/useSettings';
+import { useSettings } from '../store/settingsStore';
 
 interface TopBarProps {
   children: React.ReactNode;

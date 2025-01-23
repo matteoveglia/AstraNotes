@@ -17,62 +17,42 @@ import type { FtrackSettings } from '../types';
 import { ftrackService } from '../services/ftrack';
 import { db } from '../store/db';
 import { playlistStore } from '../store/playlistStore';
+import { useSettings } from '../store/settingsStore';
 
 interface SettingsModalProps {
   onLoadPlaylists: () => void;
 }
 
-interface Settings extends FtrackSettings {
-  autoRefreshEnabled: boolean;
-}
-
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [settings, setSettings] = useState<Settings>({
-    serverUrl: '',
-    apiKey: '',
-    apiUser: '',
-    autoRefreshEnabled: true,
-  });
+  const { settings, setSettings } = useSettings();
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('ftrackSettings');
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      setSettings({
-        ...parsed,
-        autoRefreshEnabled: parsed.autoRefreshEnabled ?? true,
-      });
-    }
-  }, []);
-
   const handleSave = async () => {
-    localStorage.setItem('ftrackSettings', JSON.stringify(settings));
-    ftrackService.updateSettings(settings);
-    setIsOpen(false);
-    onLoadPlaylists();
+    try {
+      setIsLoading(true);
+      // Update service settings
+      ftrackService.updateSettings(settings);
+      
+      // Close modal
+      setIsOpen(false);
+      
+      // Reload playlists with new settings
+      onLoadPlaylists();
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      setError('Failed to save settings');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
     setError(null);
-
-    console.log('Testing connection with settings:', {
-      ...settings,
-      apiKey: settings.apiKey ? '***' : undefined
-    });
-
-    if (!settings.serverUrl || !settings.apiKey || !settings.apiUser) {
-      setError('Please fill in all fields');
-      setIsTesting(false);
-      setIsConnected(false);
-      return;
-    }
 
     try {
       // Update service settings before testing
@@ -91,8 +71,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
     }
   };
 
-  const handleInputChange = (field: keyof FtrackSettings) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSettings(prev => ({ ...prev, [field]: e.target.value }));
+  const handleInputChange = (field: keyof typeof settings) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSettings({ ...settings, [field]: e.target.value });
     // Reset connection status when settings change
     setIsConnected(false);
     setError(null);
@@ -129,11 +109,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[475px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
-        
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="serverUrl">Server URL</Label>
@@ -141,7 +120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
               id="serverUrl"
               value={settings.serverUrl}
               onChange={handleInputChange('serverUrl')}
-              placeholder="https://your-instance.ftrack.com"
+              placeholder="Your ftrack server URL"
             />
           </div>
           
