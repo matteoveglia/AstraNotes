@@ -31,6 +31,8 @@ interface CachedVersion extends StorableVersion {
 export class PlaylistStore {
   private static POLL_INTERVAL = 5000; // 5 seconds
   private pollingInterval: NodeJS.Timeout | null = null;
+  private currentPlaylistId: string | null = null;
+  private isPolling: boolean = false;
 
   private findNonSerializableProps(obj: any, path = ''): string[] {
     const nonSerializable: string[] = [];
@@ -184,20 +186,9 @@ export class PlaylistStore {
     try {
       log('Caching playlist:', playlist.id);
       const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
-      
-      // Only log if we still have non-serializable properties after cleaning
-      if (process.env.NODE_ENV === 'development') {
-        const nonSerializable = this.findNonSerializableProps(cleanedPlaylist);
-        if (nonSerializable.length > 0) {
-          log('Warning: Found non-serializable properties after cleaning:', nonSerializable);
-        }
-      }
 
       // Update the playlist in the cache
-      await db.playlists.put(cleanedPlaylist).catch(err => {
-        // If we can't cache the playlist but everything else works, that's okay
-        log('Warning: Failed to cache playlist:', err);
-      });
+      await db.playlists.put(cleanedPlaylist);
 
       // Get current versions to preserve draft content
       const existingVersions = await db.versions
@@ -211,51 +202,47 @@ export class PlaylistStore {
 
       // Cache versions, preserving draft content for existing versions
       if (playlist.versions) {
-        await Promise.all(
-          playlist.versions.map(async (version) => {
-            try {
-              const cleanVersion = this.cleanVersionForStorage({
-                ...version,
-                playlistId: playlist.id,
-              });
+        // Create a composite key for each version that includes the playlist ID
+        const versionUpdates = playlist.versions.map(version => {
+          const cleanVersion = this.cleanVersionForStorage({
+            ...version,
+            playlistId: playlist.id,
+          });
 
-              // Add draft content if it exists
-              const existingDraft = draftMap.get(version.id);
-              if (existingDraft) {
-                await db.versions.put({
-                  ...cleanVersion,
-                  draftContent: existingDraft
-                } as CachedVersion);
-              } else {
-                await db.versions.put(cleanVersion);
-              }
-            } catch (err) {
-              // If we can't cache a version but everything else works, that's okay
-              log('Warning: Failed to cache version:', version.id, err);
-            }
-          })
-        );
+          // Add draft content if it exists
+          const existingDraft = draftMap.get(version.id);
+          if (existingDraft) {
+            return {
+              ...cleanVersion,
+              draftContent: existingDraft
+            } as CachedVersion;
+          }
+          return cleanVersion;
+        });
+
+        // Bulk put all versions
+        await db.versions.bulkPut(versionUpdates);
 
         // Remove versions that are no longer in the playlist
         const currentVersionIds = new Set(playlist.versions.map(v => v.id));
-        const versionsToRemove = existingVersions
+        await db.versions
+          .where('playlistId')
+          .equals(playlist.id)
           .filter(v => !currentVersionIds.has(v.id))
-          .map(v => v.id);
-
-        if (versionsToRemove.length > 0) {
-          await db.versions.bulkDelete(versionsToRemove).catch(err => {
-            // If we can't delete old versions but everything else works, that's okay
-            log('Warning: Failed to delete old versions:', err);
-          });
-        }
+          .delete();
       }
     } catch (err) {
-      // Log the error but don't throw since the UI functionality still works
-      log('Warning: Error in cachePlaylist but UI should still work:', err);
+      log('Warning: Error in cachePlaylist:', err);
     }
   }
 
   async initializePlaylist(playlistId: string, playlist: Playlist) {
+    // Stop any existing polling before initializing
+    this.stopPolling();
+    
+    // Set as current playlist
+    this.currentPlaylistId = playlistId;
+    
     // Cache the playlist first to ensure we have the latest state
     await this.cachePlaylist(playlist);
     
@@ -317,20 +304,33 @@ export class PlaylistStore {
     ) => void
   ) {
     log('Starting polling for playlist:', playlistId);
-    this.stopPolling();
+    
+    // If we're already polling for a different playlist, stop that first
+    if (this.currentPlaylistId !== playlistId) {
+      this.stopPolling();
+    }
+    
+    this.currentPlaylistId = playlistId;
 
     // Set a small delay before starting the first poll to avoid race conditions
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const poll = async () => {
-      log('Polling for changes on playlist:', playlistId);
-      const cached = await this.getPlaylist(playlistId);
-      if (!cached) {
-        log('No cached playlist found:', playlistId);
+      // If we're already polling or this isn't the current playlist anymore, skip
+      if (this.isPolling || this.currentPlaylistId !== playlistId) {
         return;
       }
 
+      this.isPolling = true;
+      
       try {
+        log('Polling for changes on playlist:', playlistId);
+        const cached = await this.getPlaylist(playlistId);
+        if (!cached) {
+          log('No cached playlist found:', playlistId);
+          return;
+        }
+
         // Get fresh versions for the current playlist
         const freshVersions = await ftrackService.getPlaylistVersions(playlistId);
         
@@ -347,8 +347,10 @@ export class PlaylistStore {
           .filter(v => !freshVersionIds.has(v.id))
           .map(v => v.id);
 
-        // Only notify if there are actual changes
-        if (addedVersions.length > 0 || removedVersions.length > 0) {
+        // Only notify if there are actual changes and this is still the current playlist
+        if ((addedVersions.length > 0 || removedVersions.length > 0) && 
+            this.currentPlaylistId === playlistId) {
+          
           log('Found modifications:', { 
             playlistId,
             added: addedVersions.length, 
@@ -370,14 +372,18 @@ export class PlaylistStore {
         }
       } catch (error) {
         log('Error polling for changes:', error);
+      } finally {
+        this.isPolling = false;
       }
     };
 
     // Run the first poll
     await poll();
 
-    // Start the polling interval
-    this.pollingInterval = setInterval(poll, PlaylistStore.POLL_INTERVAL);
+    // Start the polling interval if this is still the current playlist
+    if (this.currentPlaylistId === playlistId) {
+      this.pollingInterval = setInterval(poll, PlaylistStore.POLL_INTERVAL);
+    }
   }
 
   stopPolling() {
@@ -386,6 +392,7 @@ export class PlaylistStore {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+    this.isPolling = false;
   }
 }
 
