@@ -221,32 +221,26 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     if (!pendingVersions) return;
 
     try {
-      // Create a clean playlist object for caching
-      const cleanPlaylist = {
+      // Create a new playlist object with the pending versions
+      const updatedPlaylist = {
         ...playlist,
-        versions: pendingVersions.map(v => ({
-          id: v.id,
-          name: v.name,
-          version: v.version,
-          reviewSessionObjectId: v.reviewSessionObjectId,
-          thumbnailUrl: v.thumbnailUrl,
-          createdAt: v.createdAt,
-          updatedAt: v.updatedAt
-        }))
+        versions: pendingVersions
       };
 
-      // Update playlist with pending versions
-      playlist.versions = pendingVersions;
-      if (onPlaylistUpdate) {
-        onPlaylistUpdate(playlist);
-      }
+      // Update the cache first
+      await playlistStore.cachePlaylist(updatedPlaylist);
 
-      // Cache the updated playlist to ensure polling uses the latest state
-      await playlistStore.cachePlaylist(cleanPlaylist);
+      // Then notify parent components of the update
+      if (onPlaylistUpdate) {
+        onPlaylistUpdate(updatedPlaylist);
+      }
 
       // Clear pending versions and modifications
       setPendingVersions(null);
       setModifications({ added: 0, removed: 0 });
+
+      // Force a re-fetch to ensure everything is in sync
+      await playlistStore.updatePlaylist(playlist.id);
     } catch (error) {
       console.error('Failed to apply changes:', error);
     }

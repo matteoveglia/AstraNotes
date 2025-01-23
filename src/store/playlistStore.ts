@@ -256,21 +256,17 @@ export class PlaylistStore {
   }
 
   async initializePlaylist(playlistId: string, playlist: Playlist) {
-    // Try to load from cache first
-    const cached = await this.getPlaylist(playlistId);
-    if (cached) {
-      // Restore drafts and statuses
-      const versions = cached.versions || [];
-      await Promise.all(versions.map(async (version) => {
-        const draftContent = await this.getDraftContent(version.id);
-        if (draftContent) {
-          await this.saveDraft(version.id, draftContent);
-        }
-      }));
-    } else {
-      // Cache the playlist if not found
-      await this.cachePlaylist(playlist);
-    }
+    // Cache the playlist first to ensure we have the latest state
+    await this.cachePlaylist(playlist);
+    
+    // Try to restore any existing drafts
+    const versions = playlist.versions || [];
+    await Promise.all(versions.map(async (version) => {
+      const draftContent = await this.getDraftContent(version.id);
+      if (draftContent) {
+        await this.saveDraft(version.id, draftContent);
+      }
+    }));
   }
 
   async updatePlaylist(playlistId: string): Promise<void> {
@@ -323,7 +319,10 @@ export class PlaylistStore {
     log('Starting polling for playlist:', playlistId);
     this.stopPolling();
 
-    this.pollingInterval = setInterval(async () => {
+    // Set a small delay before starting the first poll to avoid race conditions
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const poll = async () => {
       log('Polling for changes on playlist:', playlistId);
       const cached = await this.getPlaylist(playlistId);
       if (!cached) {
@@ -339,6 +338,7 @@ export class PlaylistStore {
         const cachedVersionIds = new Set((cached.versions || []).map(v => v.id));
         const freshVersionIds = new Set(freshVersions.map(v => v.id));
 
+        // Deep compare versions to avoid false positives
         const addedVersions = freshVersions
           .filter(v => !cachedVersionIds.has(v.id))
           .map(v => v.id);
@@ -347,6 +347,7 @@ export class PlaylistStore {
           .filter(v => !freshVersionIds.has(v.id))
           .map(v => v.id);
 
+        // Only notify if there are actual changes
         if (addedVersions.length > 0 || removedVersions.length > 0) {
           log('Found modifications:', { 
             playlistId,
@@ -370,7 +371,13 @@ export class PlaylistStore {
       } catch (error) {
         log('Error polling for changes:', error);
       }
-    }, PlaylistStore.POLL_INTERVAL);
+    };
+
+    // Run the first poll
+    await poll();
+
+    // Start the polling interval
+    this.pollingInterval = setInterval(poll, PlaylistStore.POLL_INTERVAL);
   }
 
   stopPolling() {
