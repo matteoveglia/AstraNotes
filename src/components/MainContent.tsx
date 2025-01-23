@@ -51,11 +51,15 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     playlistStore.initializePlaylist(playlist.id, playlist);
   }, [playlist]);
 
+  const { settings } = useSettings();
+
   useEffect(() => {
     if (playlist.isQuickNotes) return;
 
-    const { settings } = useSettings.getState();
-    if (!settings.autoRefreshEnabled) return;
+    if (!settings.autoRefreshEnabled) {
+      playlistStore.stopPolling();
+      return;
+    }
 
     // Start polling when component mounts
     playlistStore.startPolling(
@@ -76,7 +80,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
 
     // Stop polling when component unmounts or playlist changes
     return () => playlistStore.stopPolling();
-  }, [playlist.id, useSettings.getState()?.settings?.autoRefreshEnabled]); // Only restart polling when playlist ID changes
+  }, [playlist.id, settings.autoRefreshEnabled]); // Only restart polling when playlist ID or auto-refresh setting changes
 
   // Reset selections when switching playlists
   useEffect(() => {

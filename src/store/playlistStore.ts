@@ -32,28 +32,85 @@ export class PlaylistStore {
   private static POLL_INTERVAL = 5000; // 5 seconds
   private pollingInterval: NodeJS.Timeout | null = null;
 
+  private findNonSerializableProps(obj: any, path = ''): string[] {
+    const nonSerializable: string[] = [];
+    
+    if (!obj || typeof obj !== 'object') return nonSerializable;
+    
+    for (const key in obj) {
+      const value = obj[key];
+      const currentPath = path ? `${path}.${key}` : key;
+      
+      if (typeof value === 'function') {
+        nonSerializable.push(`Function at ${currentPath}: ${value.toString().slice(0, 100)}...`);
+      } else if (typeof value === 'object' && value !== null) {
+        if (value instanceof Date) continue; // Dates are fine
+        if (Array.isArray(value)) {
+          // Check array items
+          value.forEach((item, index) => {
+            if (typeof item === 'object' && item !== null) {
+              nonSerializable.push(...this.findNonSerializableProps(item, `${currentPath}[${index}]`));
+            } else if (typeof item === 'function') {
+              nonSerializable.push(`Function in array at ${currentPath}[${index}]: ${item.toString().slice(0, 100)}...`);
+            }
+          });
+        } else {
+          nonSerializable.push(...this.findNonSerializableProps(value, currentPath));
+        }
+      }
+    }
+    
+    return nonSerializable;
+  }
+
+  private cleanDate(date: any): string {
+    // If it's a Moment object (has format function), convert to ISO string
+    if (date && typeof date.format === 'function') {
+      return date.format();
+    }
+    // If it's already a string, return as is
+    if (typeof date === 'string') {
+      return date;
+    }
+    // If it's a Date object, convert to ISO string
+    if (date instanceof Date) {
+      return date.toISOString();
+    }
+    // Fallback
+    return new Date().toISOString();
+  }
+
   private cleanPlaylistForStorage(playlist: Playlist): CachedPlaylist {
     // Create a new object with only serializable properties
-    const cleanPlaylist = {
+    const cleanPlaylist: CachedPlaylist = {
       id: playlist.id,
       name: playlist.name,
       title: playlist.title,
-      createdAt: playlist.createdAt,
-      updatedAt: playlist.updatedAt,
+      createdAt: this.cleanDate(playlist.createdAt),
+      updatedAt: this.cleanDate(playlist.updatedAt),
       isQuickNotes: playlist.isQuickNotes,
+      versions: playlist.versions?.map(v => ({
+        id: v.id,
+        name: v.name,
+        version: v.version,
+        reviewSessionObjectId: v.reviewSessionObjectId,
+        thumbnailUrl: v.thumbnailUrl,
+        createdAt: this.cleanDate(v.createdAt),
+        updatedAt: this.cleanDate(v.updatedAt)
+      })),
+      notes: (playlist.notes || []).map(n => ({
+        id: n.id,
+        content: n.content,
+        createdAt: this.cleanDate(n.createdAt),
+        updatedAt: this.cleanDate(n.updatedAt),
+        createdById: n.createdById,
+        author: n.author
+      })),
       lastAccessed: Date.now(),
       lastChecked: Date.now(),
       hasModifications: false,
       addedVersions: [],
-      removedVersions: [],
-      notes: (playlist.notes || []).map(n => ({
-        id: n.id,
-        content: n.content,
-        createdAt: n.createdAt,
-        updatedAt: n.updatedAt,
-        createdById: n.createdById,
-        author: n.author
-      }))
+      removedVersions: []
     };
 
     return cleanPlaylist;
@@ -67,10 +124,22 @@ export class PlaylistStore {
       version: version.version,
       reviewSessionObjectId: version.reviewSessionObjectId,
       thumbnailUrl: version.thumbnailUrl,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
+      createdAt: this.cleanDate(version.createdAt),
+      updatedAt: this.cleanDate(version.updatedAt),
       playlistId: version.playlistId,
       lastModified: Date.now()
+    };
+  }
+
+  private cleanVersion(version: AssetVersion): AssetVersion {
+    return {
+      id: version.id,
+      name: version.name,
+      version: version.version,
+      reviewSessionObjectId: version.reviewSessionObjectId,
+      thumbnailUrl: version.thumbnailUrl,
+      createdAt: version.createdAt,
+      updatedAt: version.updatedAt
     };
   }
 
@@ -115,6 +184,14 @@ export class PlaylistStore {
     try {
       log('Caching playlist:', playlist.id);
       const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
+      
+      // Only log if we still have non-serializable properties after cleaning
+      if (process.env.NODE_ENV === 'development') {
+        const nonSerializable = this.findNonSerializableProps(cleanedPlaylist);
+        if (nonSerializable.length > 0) {
+          log('Warning: Found non-serializable properties after cleaning:', nonSerializable);
+        }
+      }
 
       // Update the playlist in the cache
       await db.playlists.put(cleanedPlaylist).catch(err => {
@@ -279,12 +356,15 @@ export class PlaylistStore {
             removedVersions
           });
 
+          // Clean versions before passing to callback
+          const cleanVersions = freshVersions.map(v => this.cleanVersion(v));
+
           onModificationsFound(
             addedVersions.length,
             removedVersions.length,
             addedVersions,
             removedVersions,
-            freshVersions
+            cleanVersions
           );
         }
       } catch (error) {

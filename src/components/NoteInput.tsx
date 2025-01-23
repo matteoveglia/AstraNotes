@@ -87,12 +87,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-gray-900 truncate">
-              {versionName}
-            </h3>
-            <p className="text-sm text-gray-500">
-              Version {versionNumber}
-            </p>
+            <div className="flex items-center gap-1">
+              <h3 className="font-medium text-gray-900 truncate">
+                {versionName}
+              </h3>
+              <span className="text-base text-gray-500">
+                - v{versionNumber}
+              </span>
+            </div>
           </div>
         </div>
         
