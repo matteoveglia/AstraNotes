@@ -112,53 +112,69 @@ export class PlaylistStore {
   }
 
   async cachePlaylist(playlist: Playlist): Promise<void> {
-    log('Caching playlist:', playlist.id);
-    const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
+    try {
+      log('Caching playlist:', playlist.id);
+      const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
 
-    // Update the playlist in the cache
-    await db.playlists.put(cleanedPlaylist);
+      // Update the playlist in the cache
+      await db.playlists.put(cleanedPlaylist).catch(err => {
+        // If we can't cache the playlist but everything else works, that's okay
+        log('Warning: Failed to cache playlist:', err);
+      });
 
-    // Get current versions to preserve draft content
-    const existingVersions = await db.versions
-      .where('playlistId')
-      .equals(playlist.id)
-      .toArray();
+      // Get current versions to preserve draft content
+      const existingVersions = await db.versions
+        .where('playlistId')
+        .equals(playlist.id)
+        .toArray();
 
-    const draftMap = new Map(
-      existingVersions.map(v => [v.id, (v as CachedVersion).draftContent])
-    );
-
-    // Cache versions, preserving draft content for existing versions
-    if (playlist.versions) {
-      await Promise.all(
-        playlist.versions.map(async (version) => {
-          const cleanVersion = this.cleanVersionForStorage({
-            ...version,
-            playlistId: playlist.id,
-          });
-
-          // Add draft content if it exists
-          const existingDraft = draftMap.get(version.id);
-          if (existingDraft) {
-            await db.versions.put({
-              ...cleanVersion,
-              draftContent: existingDraft
-            } as CachedVersion);
-          } else {
-            await db.versions.put(cleanVersion);
-          }
-        })
+      const draftMap = new Map(
+        existingVersions.map(v => [v.id, (v as CachedVersion).draftContent])
       );
 
-      // Remove versions that are no longer in the playlist
-      const currentVersionIds = new Set(playlist.versions.map(v => v.id));
-      const versionsToRemove = existingVersions
-        .filter(v => !currentVersionIds.has(v.id))
-        .map(v => v.id);
+      // Cache versions, preserving draft content for existing versions
+      if (playlist.versions) {
+        await Promise.all(
+          playlist.versions.map(async (version) => {
+            try {
+              const cleanVersion = this.cleanVersionForStorage({
+                ...version,
+                playlistId: playlist.id,
+              });
 
-      if (versionsToRemove.length > 0) {
-        await db.versions.bulkDelete(versionsToRemove);
+              // Add draft content if it exists
+              const existingDraft = draftMap.get(version.id);
+              if (existingDraft) {
+                await db.versions.put({
+                  ...cleanVersion,
+                  draftContent: existingDraft
+                } as CachedVersion);
+              } else {
+                await db.versions.put(cleanVersion);
+              }
+            } catch (err) {
+              // If we can't cache a version but everything else works, that's okay
+              log('Warning: Failed to cache version:', version.id, err);
+            }
+          })
+        );
+
+        // Remove versions that are no longer in the playlist
+        const currentVersionIds = new Set(playlist.versions.map(v => v.id));
+        const versionsToRemove = existingVersions
+          .filter(v => !currentVersionIds.has(v.id))
+          .map(v => v.id);
+
+        if (versionsToRemove.length > 0) {
+          await db.versions.bulkDelete(versionsToRemove).catch(err => {
+            // If we can't delete old versions but everything else works, that's okay
+            log('Warning: Failed to delete old versions:', err);
+          });
+        }
       }
+    } catch (err) {
+      // Log the error but don't throw since the UI functionality still works
+      log('Warning: Error in cachePlaylist but UI should still work:', err);
     }
   }
 

@@ -210,6 +210,20 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     if (!pendingVersions) return;
 
     try {
+      // Create a clean playlist object for caching
+      const cleanPlaylist = {
+        ...playlist,
+        versions: pendingVersions.map(v => ({
+          id: v.id,
+          name: v.name,
+          version: v.version,
+          reviewSessionObjectId: v.reviewSessionObjectId,
+          thumbnailUrl: v.thumbnailUrl,
+          createdAt: v.createdAt,
+          updatedAt: v.updatedAt
+        }))
+      };
+
       // Update playlist with pending versions
       playlist.versions = pendingVersions;
       if (onPlaylistUpdate) {
@@ -217,10 +231,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       }
 
       // Cache the updated playlist to ensure polling uses the latest state
-      await playlistStore.cachePlaylist({
-        ...playlist,
-        versions: pendingVersions
-      });
+      await playlistStore.cachePlaylist(cleanPlaylist);
 
       // Clear pending versions and modifications
       setPendingVersions(null);
