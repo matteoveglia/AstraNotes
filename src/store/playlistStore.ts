@@ -17,12 +17,15 @@ interface CachedPlaylist extends Playlist {
   removedVersions: string[];
 }
 
-interface CachedVersion extends AssetVersion {
+interface StorableVersion extends AssetVersion {
   playlistId: string;
-  isRemoved?: boolean;
-  lastChecked?: number;
   lastModified: number;
   draftContent?: string;
+}
+
+interface CachedVersion extends StorableVersion {
+  isRemoved?: boolean;
+  lastChecked?: number;
 }
 
 export class PlaylistStore {
@@ -32,63 +35,42 @@ export class PlaylistStore {
   private cleanPlaylistForStorage(playlist: Playlist): CachedPlaylist {
     // Create a new object with only serializable properties
     const cleanPlaylist = {
-      ...playlist,
-      versions: playlist.versions?.map(v => ({
-        id: v.id,
-        name: v.name,
-        version: v.version,
-        reviewSessionObjectId: v.reviewSessionObjectId,
-        thumbnailUrl: v.thumbnailUrl,
-        createdAt: v.createdAt,
-        updatedAt: v.updatedAt
-      })) || [],
-      notes: playlist.notes?.map(n => ({
+      id: playlist.id,
+      name: playlist.name,
+      title: playlist.title,
+      createdAt: playlist.createdAt,
+      updatedAt: playlist.updatedAt,
+      isQuickNotes: playlist.isQuickNotes,
+      lastAccessed: Date.now(),
+      lastChecked: Date.now(),
+      hasModifications: false,
+      addedVersions: [],
+      removedVersions: [],
+      notes: (playlist.notes || []).map(n => ({
         id: n.id,
         content: n.content,
         createdAt: n.createdAt,
         updatedAt: n.updatedAt,
         createdById: n.createdById,
-        author: n.author,
-        frameNumber: n.frameNumber
-      })) || [],
-      lastAccessed: Date.now(),
-      lastChecked: Date.now(),
-      hasModifications: false,
-      addedVersions: [],
-      removedVersions: []
+        author: n.author
+      }))
     };
 
-    // Remove any non-serializable properties
-    delete (cleanPlaylist as any).onModificationsFound;
-    
     return cleanPlaylist;
   }
 
-  private cleanVersionForStorage(version: AssetVersion & { playlistId: string }): CachedVersion {
-    // Create a clean copy without any functions or non-serializable data
-    const { 
-      id, 
-      name, 
-      version: versionNumber, 
-      reviewSessionObjectId, 
-      thumbnailUrl,
-      playlistId,
-      createdAt,
-      updatedAt
-    } = version;
-
+  private cleanVersionForStorage(version: AssetVersion & { playlistId: string }): StorableVersion {
+    // Create a new object with only serializable properties
     return {
-      id,
-      name,
-      version: versionNumber,
-      reviewSessionObjectId,
-      thumbnailUrl,
-      playlistId,
-      createdAt: createdAt || new Date().toISOString(),
-      updatedAt: updatedAt || new Date().toISOString(),
-      lastChecked: Date.now(),
-      isRemoved: false,
-      lastModified: Date.now(),
+      id: version.id,
+      name: version.name,
+      version: version.version,
+      reviewSessionObjectId: version.reviewSessionObjectId,
+      thumbnailUrl: version.thumbnailUrl,
+      createdAt: version.createdAt,
+      updatedAt: version.updatedAt,
+      playlistId: version.playlistId,
+      lastModified: Date.now()
     };
   }
 
@@ -132,20 +114,51 @@ export class PlaylistStore {
   async cachePlaylist(playlist: Playlist): Promise<void> {
     log('Caching playlist:', playlist.id);
     const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
+
+    // Update the playlist in the cache
     await db.playlists.put(cleanedPlaylist);
 
-    // Cache versions
+    // Get current versions to preserve draft content
+    const existingVersions = await db.versions
+      .where('playlistId')
+      .equals(playlist.id)
+      .toArray();
+
+    const draftMap = new Map(
+      existingVersions.map(v => [v.id, (v as CachedVersion).draftContent])
+    );
+
+    // Cache versions, preserving draft content for existing versions
     if (playlist.versions) {
       await Promise.all(
-        playlist.versions.map((version) =>
-          db.versions.put(
-            this.cleanVersionForStorage({
-              ...version,
-              playlistId: playlist.id,
-            })
-          )
-        )
+        playlist.versions.map(async (version) => {
+          const cleanVersion = this.cleanVersionForStorage({
+            ...version,
+            playlistId: playlist.id,
+          });
+
+          // Add draft content if it exists
+          const existingDraft = draftMap.get(version.id);
+          if (existingDraft) {
+            await db.versions.put({
+              ...cleanVersion,
+              draftContent: existingDraft
+            } as CachedVersion);
+          } else {
+            await db.versions.put(cleanVersion);
+          }
+        })
       );
+
+      // Remove versions that are no longer in the playlist
+      const currentVersionIds = new Set(playlist.versions.map(v => v.id));
+      const versionsToRemove = existingVersions
+        .filter(v => !currentVersionIds.has(v.id))
+        .map(v => v.id);
+
+      if (versionsToRemove.length > 0) {
+        await db.versions.bulkDelete(versionsToRemove);
+      }
     }
   }
 
@@ -229,7 +242,7 @@ export class PlaylistStore {
         // Get fresh versions for the current playlist
         const freshVersions = await ftrackService.getPlaylistVersions(playlistId);
         
-        // Compare with cached versions
+        // Compare with cached versions using a Set for O(1) lookups
         const cachedVersionIds = new Set((cached.versions || []).map(v => v.id));
         const freshVersionIds = new Set(freshVersions.map(v => v.id));
 

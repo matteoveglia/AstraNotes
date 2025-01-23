@@ -206,18 +206,28 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     }
   };
 
-  const applyPendingChanges = () => {
+  const applyPendingChanges = async () => {
     if (!pendingVersions) return;
 
-    // Update playlist with pending versions
-    playlist.versions = pendingVersions;
-    if (onPlaylistUpdate) {
-      onPlaylistUpdate(playlist);
-    }
+    try {
+      // Update playlist with pending versions
+      playlist.versions = pendingVersions;
+      if (onPlaylistUpdate) {
+        onPlaylistUpdate(playlist);
+      }
 
-    // Clear pending versions and modifications
-    setPendingVersions(null);
-    setModifications({ added: 0, removed: 0 });
+      // Cache the updated playlist to ensure polling uses the latest state
+      await playlistStore.cachePlaylist({
+        ...playlist,
+        versions: pendingVersions
+      });
+
+      // Clear pending versions and modifications
+      setPendingVersions(null);
+      setModifications({ added: 0, removed: 0 });
+    } catch (error) {
+      console.error('Failed to apply changes:', error);
+    }
   };
 
   const handleManualRefresh = async () => {
