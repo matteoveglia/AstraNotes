@@ -33,6 +33,24 @@ export class PlaylistStore {
     // Create a new object with only serializable properties
     const cleanPlaylist = {
       ...playlist,
+      versions: playlist.versions?.map(v => ({
+        id: v.id,
+        name: v.name,
+        version: v.version,
+        reviewSessionObjectId: v.reviewSessionObjectId,
+        thumbnailUrl: v.thumbnailUrl,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt
+      })) || [],
+      notes: playlist.notes?.map(n => ({
+        id: n.id,
+        content: n.content,
+        createdAt: n.createdAt,
+        updatedAt: n.updatedAt,
+        createdById: n.createdById,
+        author: n.author,
+        frameNumber: n.frameNumber
+      })) || [],
       lastAccessed: Date.now(),
       lastChecked: Date.now(),
       hasModifications: false,
@@ -214,17 +232,14 @@ export class PlaylistStore {
       }
 
       try {
-        const fresh = await ftrackService.getPlaylists();
-        const freshPlaylist = fresh.find(p => p.id === playlistId);
-        if (!freshPlaylist) {
-          log('No fresh playlist found:', playlistId);
-          return;
-        }
-
+        // Get fresh versions for the current playlist
+        const freshVersions = await ftrackService.getPlaylistVersions(playlistId);
+        
+        // Compare with cached versions
         const cachedVersionIds = new Set((cached.versions || []).map(v => v.id));
-        const freshVersionIds = new Set((freshPlaylist.versions || []).map(v => v.id));
+        const freshVersionIds = new Set(freshVersions.map(v => v.id));
 
-        const addedVersions = (freshPlaylist.versions || [])
+        const addedVersions = freshVersions
           .filter(v => !cachedVersionIds.has(v.id))
           .map(v => v.id);
 
@@ -248,6 +263,14 @@ export class PlaylistStore {
             removedVersions
           );
         }
+
+        // Update cache with fresh versions
+        const updatedPlaylist = {
+          ...cached,
+          versions: freshVersions,
+          lastChecked: Date.now()
+        };
+        await this.cachePlaylist(updatedPlaylist);
       } catch (error) {
         log('Error polling for changes:', error);
       }

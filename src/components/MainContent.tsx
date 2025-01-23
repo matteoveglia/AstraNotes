@@ -41,8 +41,8 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       if (nameCompare !== 0) return nameCompare;
       
       // Then by version number
-      const versionA = parseInt(a.version);
-      const versionB = parseInt(b.version);
+      const versionA = parseInt(a.version, 10);
+      const versionB = parseInt(b.version, 10);
       return versionA - versionB;
     });
   }, [playlist.versions]);
@@ -53,18 +53,28 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   }, [playlist]);
 
   useEffect(() => {
+    if (playlist.isQuickNotes) return;
+
     // Start polling when component mounts
     playlistStore.startPolling(
       playlist.id,
-      (added, removed, addedVersions, removedVersions) => {
+      async (added, removed, addedVersions, removedVersions) => {
+        // Get fresh versions from ftrack
+        const freshVersions = await ftrackService.getPlaylistVersions(playlist.id);
+        
+        // Update playlist with fresh versions
+        playlist.versions = freshVersions;
+        if (onPlaylistUpdate) {
+          onPlaylistUpdate(playlist);
+        }
+
+        // Update modifications state
         setModifications({
           added,
           removed,
           addedVersions,
           removedVersions
         });
-        // Refresh the playlist data when changes are found
-        handlePlaylistUpdate();
       }
     );
 
@@ -160,26 +170,38 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   };
 
   const handlePlaylistUpdate = async () => {
+    if (playlist.isQuickNotes) return;
+    
     setIsRefreshing(true);
     try {
-      await playlistStore.updatePlaylist(playlist.id);
-      const updatedPlaylist = await playlistStore.getPlaylist(playlist.id);
-      if (updatedPlaylist) {
-        // Create a clean copy of the versions to avoid function references
-        const cleanVersions = updatedPlaylist.versions?.map(version => ({
-          id: version.id,
-          name: version.name,
-          version: version.version,
-          reviewSessionObjectId: version.reviewSessionObjectId,
-          thumbnailUrl: version.thumbnailUrl,
-          createdAt: version.createdAt || new Date().toISOString(),
-          updatedAt: version.updatedAt || new Date().toISOString()
-        })) || [];
-        
-        // Update local state with clean data
-        playlist.versions = cleanVersions;
-        setModifications({ added: 0, removed: 0 });
+      // Get fresh versions directly from ftrack
+      const freshVersions = await ftrackService.getPlaylistVersions(playlist.id);
+
+      // Compare with current versions to find modifications
+      const currentVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
+      const freshVersionIds = new Set(freshVersions.map(v => v.id));
+      
+      const addedVersions = freshVersions
+        .filter(v => !currentVersionIds.has(v.id))
+        .map(v => v.id);
+      
+      const removedVersions = (playlist.versions || [])
+        .filter(v => !freshVersionIds.has(v.id))
+        .map(v => v.id);
+
+      // Update playlist with fresh versions
+      playlist.versions = freshVersions;
+      if (onPlaylistUpdate) {
+        onPlaylistUpdate(playlist);
       }
+
+      // Update modifications state
+      setModifications({
+        added: addedVersions.length,
+        removed: removedVersions.length,
+        addedVersions,
+        removedVersions
+      });
     } catch (error) {
       console.error('Failed to update playlist:', error);
     } finally {
@@ -198,14 +220,15 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
 
   useEffect(() => {
     const { settings } = useSettings.getState();
-    if (!settings.autoRefreshEnabled) return;
+    if (!settings.autoRefreshEnabled || playlist.isQuickNotes) return;
 
-    const interval = setInterval(() => {
-      handlePlaylistUpdate();
-    }, 5000);
+    // Start polling using playlistStore
+    playlistStore.startPolling(playlist.id, (added, removed, addedVersions, removedVersions) => {
+      setModifications({ added, removed, addedVersions, removedVersions });
+    });
 
-    return () => clearInterval(interval);
-  }, [useSettings.getState()?.settings?.autoRefreshEnabled]);
+    return () => playlistStore.stopPolling();
+  }, [playlist.id, useSettings.getState()?.settings?.autoRefreshEnabled]);
 
   return (
     <Card className="h-full flex flex-col rounded-none">

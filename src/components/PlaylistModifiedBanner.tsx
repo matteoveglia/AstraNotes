@@ -12,8 +12,8 @@ interface PlaylistModifiedBannerProps {
   addedCount: number;
   removedCount: number;
   onUpdate: () => void;
-  addedVersions: { name: string; version: string }[];
-  removedVersions: { name: string; version: string }[];
+  addedVersions: { name: string; version: number }[];
+  removedVersions: { name: string; version: number }[];
   isUpdating?: boolean;
 }
 
