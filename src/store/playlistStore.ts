@@ -293,6 +293,23 @@ export class PlaylistStore {
     await this.cachePlaylist(freshPlaylist);
   }
 
+  async updatePlaylistAndRestartPolling(
+    playlistId: string,
+    onModificationsFound: (
+      added: number,
+      removed: number,
+      addedVersions?: string[],
+      removedVersions?: string[],
+      freshVersions?: AssetVersion[]
+    ) => void
+  ): Promise<void> {
+    // Update the playlist first
+    await this.updatePlaylist(playlistId);
+    
+    // Restart polling with the same callback
+    await this.startPolling(playlistId, onModificationsFound);
+  }
+
   async startPolling(
     playlistId: string, 
     onModificationsFound: (

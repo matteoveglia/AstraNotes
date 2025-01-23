@@ -239,8 +239,21 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       setPendingVersions(null);
       setModifications({ added: 0, removed: 0 });
 
-      // Force a re-fetch to ensure everything is in sync
-      await playlistStore.updatePlaylist(playlist.id);
+      // Update playlist and restart polling
+      await playlistStore.updatePlaylistAndRestartPolling(
+        playlist.id,
+        (added, removed, addedVersions, removedVersions, freshVersions) => {
+          if (added > 0 || removed > 0) {
+            setModifications({
+              added,
+              removed,
+              addedVersions,
+              removedVersions
+            });
+            setPendingVersions(freshVersions || null);
+          }
+        }
+      );
     } catch (error) {
       console.error('Failed to apply changes:', error);
     }
