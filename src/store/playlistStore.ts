@@ -210,18 +210,12 @@ export class PlaylistStore {
       added: number, 
       removed: number, 
       addedVersions?: string[],
-      removedVersions?: string[]
+      removedVersions?: string[],
+      freshVersions?: AssetVersion[]
     ) => void
   ) {
     log('Starting polling for playlist:', playlistId);
     this.stopPolling();
-
-    // Don't start polling if auto-refresh is disabled
-    const settings = JSON.parse(localStorage.getItem('settings-storage') || '{}');
-    if (!settings?.state?.settings?.autoRefreshEnabled) {
-      log('Auto-refresh is disabled, not starting polling');
-      return;
-    }
 
     this.pollingInterval = setInterval(async () => {
       log('Polling for changes on playlist:', playlistId);
@@ -260,17 +254,10 @@ export class PlaylistStore {
             addedVersions.length,
             removedVersions.length,
             addedVersions,
-            removedVersions
+            removedVersions,
+            freshVersions
           );
         }
-
-        // Update cache with fresh versions
-        const updatedPlaylist = {
-          ...cached,
-          versions: freshVersions,
-          lastChecked: Date.now()
-        };
-        await this.cachePlaylist(updatedPlaylist);
       } catch (error) {
         log('Error polling for changes:', error);
       }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { NoteInput } from './NoteInput';
-import { Playlist, NoteStatus } from '../types';
+import { Playlist, NoteStatus, AssetVersion } from '../types';
 import { VersionSearch } from './VersionSearch';
 import { ftrackService } from '../services/ftrack';
 import { playlistStore } from '../store/playlistStore';
@@ -33,6 +33,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   }>({ added: 0, removed: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(null);
 
   const sortedVersions = useMemo(() => {
     return [...(playlist.versions || [])].sort((a, b) => {
@@ -41,9 +42,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       if (nameCompare !== 0) return nameCompare;
       
       // Then by version number
-      const versionA = parseInt(a.version, 10);
-      const versionB = parseInt(b.version, 10);
-      return versionA - versionB;
+      return a.version - b.version;
     });
   }, [playlist.versions]);
 
@@ -55,32 +54,29 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   useEffect(() => {
     if (playlist.isQuickNotes) return;
 
+    const { settings } = useSettings.getState();
+    if (!settings.autoRefreshEnabled) return;
+
     // Start polling when component mounts
     playlistStore.startPolling(
       playlist.id,
-      async (added, removed, addedVersions, removedVersions) => {
-        // Get fresh versions from ftrack
-        const freshVersions = await ftrackService.getPlaylistVersions(playlist.id);
-        
-        // Update playlist with fresh versions
-        playlist.versions = freshVersions;
-        if (onPlaylistUpdate) {
-          onPlaylistUpdate(playlist);
+      (added, removed, addedVersions, removedVersions, freshVersions) => {
+        if (added > 0 || removed > 0) {
+          setModifications({
+            added,
+            removed,
+            addedVersions,
+            removedVersions
+          });
+          // Store the fresh versions but don't apply them yet
+          setPendingVersions(freshVersions || null);
         }
-
-        // Update modifications state
-        setModifications({
-          added,
-          removed,
-          addedVersions,
-          removedVersions
-        });
       }
     );
 
     // Stop polling when component unmounts or playlist changes
     return () => playlistStore.stopPolling();
-  }, [playlist.id]); // Only restart polling when playlist ID changes
+  }, [playlist.id, useSettings.getState()?.settings?.autoRefreshEnabled]); // Only restart polling when playlist ID changes
 
   // Reset selections when switching playlists
   useEffect(() => {
@@ -174,8 +170,8 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     
     setIsRefreshing(true);
     try {
-      // Get fresh versions directly from ftrack
-      const freshVersions = await ftrackService.getPlaylistVersions(playlist.id);
+      // If we have pending versions, use those, otherwise fetch fresh ones
+      const freshVersions = pendingVersions || await ftrackService.getPlaylistVersions(playlist.id);
 
       // Compare with current versions to find modifications
       const currentVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
@@ -189,24 +185,39 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         .filter(v => !freshVersionIds.has(v.id))
         .map(v => v.id);
 
-      // Update playlist with fresh versions
-      playlist.versions = freshVersions;
-      if (onPlaylistUpdate) {
-        onPlaylistUpdate(playlist);
+      if (addedVersions.length > 0 || removedVersions.length > 0) {
+        setModifications({
+          added: addedVersions.length,
+          removed: removedVersions.length,
+          addedVersions,
+          removedVersions
+        });
+        // Store the fresh versions but don't apply them yet
+        setPendingVersions(freshVersions);
+      } else {
+        // No changes found, clear any pending versions
+        setPendingVersions(null);
+        setModifications({ added: 0, removed: 0 });
       }
-
-      // Update modifications state
-      setModifications({
-        added: addedVersions.length,
-        removed: removedVersions.length,
-        addedVersions,
-        removedVersions
-      });
     } catch (error) {
       console.error('Failed to update playlist:', error);
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const applyPendingChanges = () => {
+    if (!pendingVersions) return;
+
+    // Update playlist with pending versions
+    playlist.versions = pendingVersions;
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(playlist);
+    }
+
+    // Clear pending versions and modifications
+    setPendingVersions(null);
+    setModifications({ added: 0, removed: 0 });
   };
 
   const handleManualRefresh = async () => {
@@ -218,17 +229,20 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     }
   };
 
-  useEffect(() => {
-    const { settings } = useSettings.getState();
-    if (!settings.autoRefreshEnabled || playlist.isQuickNotes) return;
+  const renderModificationsBanner = () => {
+    if (modifications.added === 0 && modifications.removed === 0) return null;
 
-    // Start polling using playlistStore
-    playlistStore.startPolling(playlist.id, (added, removed, addedVersions, removedVersions) => {
-      setModifications({ added, removed, addedVersions, removedVersions });
-    });
-
-    return () => playlistStore.stopPolling();
-  }, [playlist.id, useSettings.getState()?.settings?.autoRefreshEnabled]);
+    return (
+      <PlaylistModifiedBanner
+        addedCount={modifications.added}
+        removedCount={modifications.removed}
+        onUpdate={applyPendingChanges}
+        isUpdating={isRefreshing}
+        addedVersions={pendingVersions?.filter(v => modifications.addedVersions?.includes(v.id)) || []}
+        removedVersions={playlist.versions?.filter(v => modifications.removedVersions?.includes(v.id)) || []}
+      />
+    );
+  };
 
   return (
     <Card className="h-full flex flex-col rounded-none">
@@ -249,16 +263,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
           </Button>
         </div>
         <div className="flex items-center gap-4">
-          {(modifications.added > 0 || modifications.removed > 0) && (
-            <PlaylistModifiedBanner
-              addedCount={modifications.added}
-              removedCount={modifications.removed}
-              onUpdate={handlePlaylistUpdate}
-              isUpdating={isRefreshing}
-              addedVersions={playlist.versions?.filter(v => modifications.addedVersions?.includes(v.id)) || []}
-              removedVersions={playlist.versions?.filter(v => modifications.removedVersions?.includes(v.id)) || []}
-            />
-          )}
+          {renderModificationsBanner()}
           <div className="flex gap-2">
             <Button 
               size="sm" 
@@ -298,7 +303,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
               <div key={version.id}>
                 <NoteInput
                   versionName={version.name}
-                  versionNumber={version.version}
+                  versionNumber={version.version.toString()}
                   thumbnailUrl={version.thumbnailUrl}
                   status={noteStatuses[version.id] || 'empty'}
                   selected={selectedVersions.includes(version.id)}

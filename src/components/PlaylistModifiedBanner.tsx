@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AssetVersion } from '../types';
 import {
   Tooltip,
   TooltipContent,
@@ -12,8 +13,8 @@ interface PlaylistModifiedBannerProps {
   addedCount: number;
   removedCount: number;
   onUpdate: () => void;
-  addedVersions: { name: string; version: number }[];
-  removedVersions: { name: string; version: number }[];
+  addedVersions: AssetVersion[];
+  removedVersions: AssetVersion[];
   isUpdating?: boolean;
 }
 
@@ -61,39 +62,29 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <AlertCircle className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0 cursor-help" />
+            <div className="flex items-center gap-1 cursor-help">
+              <AlertCircle className="w-4 h-4 text-yellow-500" />
+              <span>
+                {addedCount > 0 && `${addedCount} version${addedCount === 1 ? '' : 's'} added`}
+                {addedCount > 0 && removedCount > 0 && ', '}
+                {removedCount > 0 && `${removedCount} version${removedCount === 1 ? '' : 's'} removed`}
+              </span>
+            </div>
           </TooltipTrigger>
-          <TooltipContent side="bottom">
+          <TooltipContent>
             {tooltipContent}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <div className="font-medium flex items-center gap-2">
-        {addedCount > 0 && (
-          <span>
-            <span className="text-green-600 font-medium">{addedCount}</span>
-            <span className="text-gray-600 font-normal ml-1">Added</span>
-          </span>
-        )}
-        {addedCount > 0 && removedCount > 0 && (
-          <span className="text-gray-400">•</span>
-        )}
-        {removedCount > 0 && (
-          <span>
-            <span className="text-red-600 font-medium">{removedCount}</span>
-            <span className="text-gray-600 font-normal ml-1">Removed</span>
-          </span>
-        )}
-      </div>
       <Button
         size="sm"
         variant="ghost"
-        className="h-6 px-2 hover:bg-yellow-100/80 text-yellow-800 flex items-center gap-1"
+        className="h-7 px-2 hover:bg-yellow-100/80 text-yellow-800 flex items-center gap-1"
         onClick={onUpdate}
         disabled={isUpdating}
       >
-        <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-        Update
+        <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+        <span className="ml-1">Update</span>
       </Button>
     </div>
   );
