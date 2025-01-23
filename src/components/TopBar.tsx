@@ -33,8 +33,8 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
       </div>
       <div className="flex items-center gap-4">
         {!settings.autoRefreshEnabled && (
-          <span className="text-sm text-gray-500">
-            Auto-refresh Off
+          <span className="text-sm text-gray-400">
+            Auto Updates Off
           </span>
         )}
         {children}

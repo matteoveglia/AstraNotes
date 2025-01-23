@@ -297,9 +297,6 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         <div className="flex items-center gap-4">
           {renderModificationsBanner()}
           <div className="flex items-center gap-2">
-            {!settings.autoRefreshEnabled && (
-              <span className="text-sm text-gray-500">Auto Update Off</span>
-            )}
             <div className="flex gap-2">
               <Button 
                 size="sm" 
