@@ -1,114 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { NoteStatus } from '../types';
 import { cn } from '../lib/utils';
 
-interface NoteInputProps {
-  onSave: () => void;
-  onClear: () => void;
-  status: NoteStatus;
-  selected: boolean;
-  onSelectToggle: () => void;
+export interface NoteInputProps {
   versionName: string;
   versionNumber: string;
   thumbnailUrl?: string;
+  status: NoteStatus;
+  selected: boolean;
+  initialContent?: string;
+  onSave: (content: string) => void;
+  onClear: () => void;
+  onSelectToggle: () => void;
 }
 
-export function NoteInput({
-  onSave,
-  onClear,
-  status,
-  selected,
-  onSelectToggle,
+export const NoteInput: React.FC<NoteInputProps> = ({
   versionName,
   versionNumber,
   thumbnailUrl,
-}: NoteInputProps) {
-  const [content, setContent] = useState('');
-  const [isDirty, setIsDirty] = useState(false);
+  status,
+  selected,
+  initialContent = '',
+  onSave,
+  onClear,
+  onSelectToggle,
+}) => {
+  const [content, setContent] = useState(initialContent);
 
-  const getStatusColor = () => {
-    if (selected) return 'bg-blue-500'; // Blue for selected
-    if (isDirty) return 'bg-red-500'; // Red for unsaved changes
-    switch (status) {
-      case 'draft':
-        return 'bg-orange-500'; // Orange for draft saved but not published
-      case 'published':
-        return 'bg-green-500'; // Green for published
-      default:
-        return 'bg-transparent'; // Clear for no note entered
-    }
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    onSave(newContent);
   };
 
   const handleClear = () => {
     setContent('');
-    setIsDirty(false);
     onClear();
   };
 
-  const handleSave = () => {
-    if (content.trim()) {
-      setIsDirty(false);
-      onSave();
+  const getStatusColor = () => {
+    if (selected) return 'bg-blue-500 hover:bg-blue-600'; // Blue for selected
+    switch (status) {
+      case 'draft':
+        return 'bg-yellow-500 hover:bg-yellow-600'; // Yellow for draft
+      case 'published':
+        return 'bg-green-500 hover:bg-green-600'; // Green for published
+      default:
+        return 'bg-gray-200 hover:bg-gray-300'; // Gray for empty
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
-    setIsDirty(true);
+  const getStatusTitle = () => {
+    if (selected) return 'Selected';
+    switch (status) {
+      case 'draft':
+        return 'Draft saved';
+      case 'published':
+        return 'Published';
+      default:
+        return 'No note';
+    }
   };
 
   return (
-    <div className="w-full">
-      <div className="flex items-center gap-2 mb-2">
-        {thumbnailUrl && (
+    <div className="flex gap-4 p-4 bg-white rounded-lg border">
+      <div className="flex-shrink-0 w-32 h-18 bg-gray-100 rounded overflow-hidden">
+        {thumbnailUrl ? (
           <img 
             src={thumbnailUrl} 
-            alt={`Thumbnail for ${versionName}`}
-            className="w-12 h-12 object-cover rounded"
+            alt={versionName} 
+            className="w-full h-full object-cover"
           />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            No Preview
+          </div>
         )}
-        <div className="flex-1 truncate">
-          <span className="font-medium">{versionName}</span>
-          <span className="ml-2 text-gray-500">v{versionNumber}</span>
-        </div>
       </div>
-      <div className="flex gap-4 items-start">
-        <div className="flex-1">
-          <Textarea 
-            placeholder="Enter notes for given version here"
-            className="min-h-[100px] resize-none"
-            value={content}
-            onChange={handleChange}
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleClear}
-            >
-              Clear
-            </Button>
-            <Button 
-              size="sm"
-              onClick={handleSave}
-              disabled={!content.trim()}
-            >
-              Save As Draft
-            </Button>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-gray-900 truncate">
+              {versionName}
+            </h3>
+            <p className="text-sm text-gray-500">
+              Version {versionNumber}
+            </p>
           </div>
         </div>
-        <div
-          className={cn(
-            'w-6 h-full min-h-[100px] rounded cursor-pointer transition-colors',
-            getStatusColor(),
-            'border border-gray-200'
-          )}
-          onClick={onSelectToggle}
-          title={selected ? 'Selected' : status === 'empty' ? 'No note' : status === 'added' ? 'Note added' : status === 'draft' ? 'Draft saved' : 'Published'}
-        />
+        
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <Textarea
+              value={content}
+              onChange={handleChange}
+              placeholder="Add a note..."
+              className="min-h-[80px]"
+            />
+            {status !== 'empty' && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleClear}
+                className="text-gray-500 hover:text-gray-700 mt-2"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          
+          <div
+            onClick={onSelectToggle}
+            className={cn(
+              'w-3 rounded-full cursor-pointer transition-colors',
+              getStatusColor()
+            )}
+            title={getStatusTitle()}
+          />
+        </div>
       </div>
     </div>
   );
-}
+};

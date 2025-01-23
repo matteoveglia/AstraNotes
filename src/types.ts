@@ -8,16 +8,20 @@ export interface Note {
   id: string;
   content: string;
   createdAt: string;
+  updatedAt: string;
   createdById: string;
+  author?: string;
   frameNumber?: number;
 }
 
 export interface AssetVersion {
   id: string;
   name: string;
-  version: string;
+  version: number;
   reviewSessionObjectId: string;
   thumbnailUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type NoteStatus = 'empty' | 'added' | 'draft' | 'published';
@@ -27,15 +31,8 @@ export interface Playlist {
   name: string;
   versions?: AssetVersion[];
   isQuickNotes?: boolean;
-}
-
-export interface Playlist {
-  id: string;
-  name: string;
   title: string;
   notes: Note[];
   createdAt: string;
   updatedAt: string;
-  isQuickNotes?: boolean;
-  versions?: AssetVersion[];
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import {
   Dialog,
@@ -6,11 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { FtrackSettings } from '../types';
 import { ftrackService } from '../services/ftrack';
 
@@ -18,22 +20,44 @@ interface SettingsModalProps {
   onLoadPlaylists: () => void;
 }
 
+interface Settings extends FtrackSettings {
+  autoRefreshEnabled: boolean;
+}
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings>({
+    serverUrl: '',
+    apiKey: '',
+    apiUser: '',
+    autoRefreshEnabled: true,
+  });
   const [isConnected, setIsConnected] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<FtrackSettings>(() => {
+
+  useEffect(() => {
+    // Load settings from localStorage
     const savedSettings = localStorage.getItem('ftrackSettings');
-    return savedSettings ? JSON.parse(savedSettings) : {
-      serverUrl: '',
-      apiKey: '',
-      apiUser: ''
-    };
-  });
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setSettings({
+        ...parsed,
+        autoRefreshEnabled: parsed.autoRefreshEnabled ?? true,
+      });
+    }
+  }, []);
+
+  const handleSave = async () => {
+    localStorage.setItem('ftrackSettings', JSON.stringify(settings));
+    ftrackService.updateSettings(settings);
+    setIsOpen(false);
+    onLoadPlaylists();
+  };
 
   const handleTestConnection = async () => {
-    setIsLoading(true);
+    setIsTesting(true);
     setError(null);
 
     console.log('Testing connection with settings:', {
@@ -43,7 +67,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
 
     if (!settings.serverUrl || !settings.apiKey || !settings.apiUser) {
       setError('Please fill in all fields');
-      setIsLoading(false);
+      setIsTesting(false);
       setIsConnected(false);
       return;
     }
@@ -61,24 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
       setError('An error occurred while testing the connection');
       setIsConnected(false);
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!isConnected) {
-      setError('Please test the connection first');
-      return;
-    }
-
-    try {
-      ftrackService.updateSettings(settings);
-      setIsOpen(false);
-      // Don't reload, just trigger playlist load
-      onLoadPlaylists();
-    } catch (err) {
-      console.error('Save error:', err);
-      setError('Failed to save settings');
+      setIsTesting(false);
     }
   };
 
@@ -140,14 +147,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
               />
             </div>
 
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoRefresh"
+                checked={settings.autoRefreshEnabled}
+                onCheckedChange={(checked) => 
+                  setSettings({ ...settings, autoRefreshEnabled: checked as boolean })
+                }
+              />
+              <Label htmlFor="autoRefresh">
+                Auto-refresh playlists (checks for changes every 5 seconds)
+              </Label>
+            </div>
+
             <div className="flex items-center space-x-2 text-sm">
               <div className="font-medium">Connection Status:</div>
               <div className="flex items-center space-x-1">
                 <div className={`w-2 h-2 rounded-full ${
                   isConnected ? 'bg-green-500' : 
-                  isLoading ? 'bg-yellow-500' : 'bg-red-500'
+                  isTesting ? 'bg-yellow-500' : 'bg-red-500'
                 }`} />
-                <span className="capitalize">{isConnected ? 'Connected' : isLoading ? 'Testing' : 'Disconnected'}</span>
+                <span className="capitalize">{isConnected ? 'Connected' : isTesting ? 'Testing' : 'Disconnected'}</span>
               </div>
             </div>
 
@@ -156,10 +176,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
             )}
 
             <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={handleTestConnection} disabled={isLoading}>
-                {isLoading ? 'Testing...' : 'Test Connection'}
+              <Button
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting || isLoading}
+              >
+                {isTesting ? 'Testing...' : 'Test Connection'}
               </Button>
-              <Button onClick={handleSave} disabled={isLoading}>
+              <Button onClick={handleSave} disabled={isTesting || isLoading}>
                 Save Settings
               </Button>
             </div>

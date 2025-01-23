@@ -16,6 +16,17 @@ interface ReviewSession {
   end_date: string | null;
 }
 
+interface FtrackNote {
+  id: string;
+  content: string;
+  parent_id: string;
+}
+
+interface CreateResponse {
+  id: string;
+  [key: string]: any;
+}
+
 class FtrackService {
   private settings: FtrackSettings | null = null;
   private session: Session | null = null;
@@ -95,6 +106,39 @@ class FtrackService {
     }
   }
 
+  private mapNotesToPlaylist(notes: any[]): Note[] {
+    return notes.map(note => ({
+      id: note.id,
+      content: note.content,
+      createdAt: note.created_at || new Date().toISOString(),
+      updatedAt: note.updated_at || new Date().toISOString(),
+      createdById: note.created_by_id,
+      frameNumber: note.frame_number
+    }));
+  }
+
+  private mapVersionsToPlaylist(versions: any[]): AssetVersion[] {
+    return versions.map(version => {
+      // Extract thumbnail URL
+      let thumbnailUrl = '';
+      const thumbnail = version.asset_version.thumbnail;
+      if (thumbnail && thumbnail.component_locations && thumbnail.component_locations.length > 0) {
+        // Get the first available component location's URL
+        thumbnailUrl = thumbnail.component_locations[0].url;
+      }
+
+      return {
+        id: version.asset_version.id,
+        name: version.asset_version.asset.name,
+        version: version.asset_version.version,
+        reviewSessionObjectId: version.id,
+        thumbnailUrl,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }
+
   async getPlaylistNotes(playlistId: string): Promise<Note[]> {
     if (!this.session) {
       const session = await this.initSession();
@@ -109,12 +153,13 @@ class FtrackService {
       const query = `select 
         id,
         content,
-        date,
-        user_id,
+        created_at,
+        updated_at,
+        created_by_id,
         frame_number
       from Note 
       where review_session_object.review_session.id is "${playlistId}"
-      order by date desc`;
+      order by created_at desc`;
       
       log('Running notes query:', query);
       const result = await this.session!.query(query);
@@ -122,16 +167,7 @@ class FtrackService {
       log('Raw notes response:', result);
       log('Number of notes found:', result?.data?.length || 0);
 
-      return (result?.data || []).map(note => {
-        log('Processing note:', note);
-        return {
-          id: note.id,
-          content: note.content,
-          createdAt: note.date,
-          createdById: note.user_id,
-          frameNumber: note.frame_number
-        };
-      });
+      return this.mapNotesToPlaylist(result?.data || []);
     } catch (error) {
       log('Failed to fetch notes:', error);
       return [];
@@ -167,22 +203,7 @@ class FtrackService {
       log('Raw versions response:', result);
       log('Number of versions found:', result?.data?.length || 0);
 
-      return (result?.data || []).map(version => {
-        let thumbnailUrl = '';
-        const thumbnail = version.asset_version.thumbnail;
-        if (thumbnail && thumbnail.component_locations && thumbnail.component_locations.length > 0) {
-          // Get the first available component location's URL
-          thumbnailUrl = thumbnail.component_locations[0].url;
-        }
-
-        return {
-          id: version.asset_version.id,
-          name: version.asset_version.asset.name,
-          version: version.asset_version.version,
-          reviewSessionObjectId: version.id,
-          thumbnailUrl
-        };
-      });
+      return this.mapVersionsToPlaylist(result?.data || []);
     } catch (error) {
       log('Failed to fetch versions:', error);
       return [];
@@ -231,21 +252,49 @@ class FtrackService {
   }
 
   async publishNote(versionId: string, content: string): Promise<void> {
-    const session = await this.getSession();
-    // TODO: Implement actual note publishing to ftrack
-    // This is a placeholder that logs the action
-    console.log(`Publishing note for version ${versionId}:`, content);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
+    const session = await this.ensureSession();
+    
+    // Create note in ftrack
+    const response = await session.create('Note', {
+      content: content,
+      parent_id: versionId,
+    });
+
+    // Type guard to ensure response has an id
+    if (!response || typeof response !== 'object' || !('id' in response)) {
+      throw new Error('Failed to create note: Invalid response from server');
+    }
+
+    log('Published note:', { versionId, noteId: response.id });
   }
 
   async getSession(): Promise<Session> {
     if (!this.session) {
-      const session = await this.initSession();
-      if (!session) {
-        throw new Error('No active session');
+      this.session = await this.initSession();
+      if (!this.session) {
+        throw new Error('Failed to initialize ftrack session');
       }
     }
     return this.session;
+  }
+
+  async ensureSession(): Promise<Session> {
+    if (!this.session) {
+      this.session = await this.initSession();
+      if (!this.session) {
+        throw new Error('Failed to initialize ftrack session');
+      }
+    }
+    return this.session;
+  }
+
+  async testConnectionNew(): Promise<boolean> {
+    try {
+      await this.ensureSession();
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   updateSettings(settings: FtrackSettings) {

@@ -47,7 +47,7 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
   onCloseAll,
 }) => {
   return (
-    <div className="h-12 border-t flex items-center justify-between px-2 bg-white">
+    <div className="h-12 border-t bg-white flex items-center justify-between px-4 rounded-none">
       <div className="flex gap-1 overflow-x-auto">
         {playlists.map((playlist) => (
           <PlaylistTab
@@ -62,8 +62,13 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
         ))}
       </div>
       {playlists.length > 1 && (
-        <Button variant="ghost" size="sm" onClick={onCloseAll}>
-          Close All Playlists
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2"
+          onClick={onCloseAll}
+        >
+          Close All
         </Button>
       )}
     </div>

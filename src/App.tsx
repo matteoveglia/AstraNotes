@@ -81,6 +81,12 @@ export const App: React.FC = () => {
     setActivePlaylist('quick-notes');
   };
 
+  const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
+    setPlaylists(prev => prev.map(p => 
+      p.id === updatedPlaylist.id ? updatedPlaylist : p
+    ));
+  };
+
   const activePlaylistData = playlists.find(p => p.id === activePlaylist);
 
   return (
@@ -99,7 +105,10 @@ export const App: React.FC = () => {
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-hidden">
             {activePlaylistData ? (
-              <MainContent playlist={activePlaylistData} />
+              <MainContent 
+                playlist={activePlaylistData} 
+                onPlaylistUpdate={handlePlaylistUpdate}
+              />
             ) : (
               <div className="h-full flex items-center justify-center text-gray-500">
                 Loading playlist...
