@@ -48,7 +48,14 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
 
   // Initialize playlist in store and start polling
   useEffect(() => {
-    playlistStore.initializePlaylist(playlist.id, playlist);
+    const initializePlaylist = async () => {
+      await playlistStore.initializePlaylist(playlist.id, playlist);
+      // Reset modifications and pending versions when playlist is initialized
+      setModifications({ added: 0, removed: 0 });
+      setPendingVersions(null);
+    };
+    
+    initializePlaylist();
   }, [playlist]);
 
   const { settings } = useSettings();

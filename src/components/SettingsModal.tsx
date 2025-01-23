@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { FtrackSettings } from '../types';
 import { ftrackService } from '../services/ftrack';
 import { db } from '../store/db';
+import { playlistStore } from '../store/playlistStore';
 
 interface SettingsModalProps {
   onLoadPlaylists: () => void;
@@ -103,6 +104,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onLoadPlaylists })
       // Clear all tables
       await db.playlists.clear();
       await db.versions.clear();
+      
+      // Reset any polling that might be happening
+      playlistStore.stopPolling();
       
       // Reload playlists from FTrack
       onLoadPlaylists();
