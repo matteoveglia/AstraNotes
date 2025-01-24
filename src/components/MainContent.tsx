@@ -98,13 +98,23 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     try {
       await playlistStore.saveDraft(versionId, content);
       setNoteDrafts(prev => ({ ...prev, [versionId]: content }));
-      setNoteStatuses(prev => ({ ...prev, [versionId]: 'draft' }));
+      const isEmpty = content.trim() === '';
+      setNoteStatuses(prev => ({ 
+        ...prev, 
+        [versionId]: isEmpty ? 'empty' : 'draft' 
+      }));
+      // Unselect if empty
+      if (isEmpty) {
+        setSelectedVersions(prev => prev.filter(id => id !== versionId));
+      }
     } catch (error) {
       console.error('Failed to save note:', error);
     }
   };
 
   const handleNoteClear = async (versionId: string) => {
+    // Unselect the version when cleared
+    setSelectedVersions(prev => prev.filter(id => id !== versionId));
     setNoteStatuses(prev => {
       const newStatuses = { ...prev };
       delete newStatuses[versionId];
@@ -139,13 +149,18 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   const handlePublishSelected = async () => {
     try {
       setIsPublishing(true);
-      const publishPromises = selectedVersions.map(async (versionId) => {
-        const content = noteDrafts[versionId];
-        if (content) {
+      const publishPromises = selectedVersions
+        .filter(versionId => {
+          const content = noteDrafts[versionId];
+          const status = noteStatuses[versionId];
+          // Only publish non-empty drafts that haven't been published yet
+          return content && content.trim() !== '' && status !== 'published';
+        })
+        .map(async (versionId) => {
+          const content = noteDrafts[versionId];
           await ftrackService.publishNote(versionId, content);
           setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
-        }
-      });
+        });
       await Promise.all(publishPromises);
       setNoteDrafts(prev => {
         const next = { ...prev };
@@ -163,10 +178,13 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   const handlePublishAll = async () => {
     try {
       setIsPublishing(true);
-      const publishPromises = Object.entries(noteDrafts).map(async ([versionId, content]) => {
-        await ftrackService.publishNote(versionId, content);
-        setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
-      });
+      const publishPromises = Object.entries(noteDrafts)
+        .filter(([_, content]) => content && content.trim() !== '') // Filter out empty notes
+        .filter(([versionId]) => noteStatuses[versionId] !== 'published') // Filter out already published notes
+        .map(async ([versionId, content]) => {
+          await ftrackService.publishNote(versionId, content);
+          setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+        });
       await Promise.all(publishPromises);
       setNoteDrafts({});
     } catch (error) {

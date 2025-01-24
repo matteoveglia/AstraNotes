@@ -52,7 +52,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       case 'published':
         return 'bg-green-500 hover:bg-green-600'; // Green for published
       default:
-        return 'bg-gray-200 hover:bg-gray-300'; // Gray for empty
+        return 'bg-gray-200'; // Gray for empty
     }
   };
 
@@ -119,9 +119,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           </div>
           
           <div
-            onClick={onSelectToggle}
+            onClick={status === 'empty' ? undefined : onSelectToggle}
             className={cn(
-              'w-3 rounded-full cursor-pointer transition-colors',
+              'w-5 rounded-full transition-colors',
+              status === 'empty' ? 'cursor-default' : 'cursor-pointer',
               getStatusColor()
             )}
             title={getStatusTitle()}

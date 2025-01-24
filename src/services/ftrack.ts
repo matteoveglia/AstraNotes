@@ -258,6 +258,7 @@ class FtrackService {
     const response = await session.create('Note', {
       content: content,
       parent_id: versionId,
+      parent_type: 'AssetVersion'  // Specify the parent type
     });
 
     // Type guard to ensure response has an id
