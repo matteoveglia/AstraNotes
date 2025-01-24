@@ -157,14 +157,30 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
           return content && content.trim() !== '' && status !== 'published';
         })
         .map(async (versionId) => {
-          const content = noteDrafts[versionId];
-          await ftrackService.publishNote(versionId, content);
-          setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+          try {
+            const content = noteDrafts[versionId];
+            await ftrackService.publishNote(versionId, content);
+            setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+            return { success: true, versionId };
+          } catch (error) {
+            console.error(`Failed to publish note for version ${versionId}:`, error);
+            return { success: false, versionId, error };
+          }
         });
-      await Promise.all(publishPromises);
+
+      const results = await Promise.all(publishPromises);
+      const failures = results.filter(r => !r.success);
+      
+      if (failures.length > 0) {
+        console.error('Failed to publish some notes:', failures);
+        throw new Error(`Failed to publish ${failures.length} notes`);
+      }
+
+      // Only clear drafts for successfully published notes
+      const successfulVersions = results.filter(r => r.success).map(r => r.versionId);
       setNoteDrafts(prev => {
         const next = { ...prev };
-        selectedVersions.forEach(id => delete next[id]);
+        successfulVersions.forEach(id => delete next[id]);
         return next;
       });
       setSelectedVersions([]);
@@ -182,11 +198,31 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         .filter(([_, content]) => content && content.trim() !== '') // Filter out empty notes
         .filter(([versionId]) => noteStatuses[versionId] !== 'published') // Filter out already published notes
         .map(async ([versionId, content]) => {
-          await ftrackService.publishNote(versionId, content);
-          setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+          try {
+            await ftrackService.publishNote(versionId, content);
+            setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+            return { success: true, versionId };
+          } catch (error) {
+            console.error(`Failed to publish note for version ${versionId}:`, error);
+            return { success: false, versionId, error };
+          }
         });
-      await Promise.all(publishPromises);
-      setNoteDrafts({});
+
+      const results = await Promise.all(publishPromises);
+      const failures = results.filter(r => !r.success);
+      
+      if (failures.length > 0) {
+        console.error('Failed to publish some notes:', failures);
+        throw new Error(`Failed to publish ${failures.length} notes`);
+      }
+
+      // Only clear drafts for successfully published notes
+      const successfulVersions = results.filter(r => r.success).map(r => r.versionId);
+      setNoteDrafts(prev => {
+        const next = { ...prev };
+        successfulVersions.forEach(id => delete next[id]);
+        return next;
+      });
     } catch (error) {
       console.error('Failed to publish notes:', error);
     } finally {

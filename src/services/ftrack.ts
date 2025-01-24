@@ -254,19 +254,37 @@ class FtrackService {
   async publishNote(versionId: string, content: string): Promise<void> {
     const session = await this.ensureSession();
     
-    // Create note in ftrack
-    const response = await session.create('Note', {
-      content: content,
-      parent_id: versionId,
-      parent_type: 'AssetVersion'  // Specify the parent type
-    });
+    try {
+      log('Publishing note:', { versionId, content });
+      
+      // First verify the version exists
+      const versionQuery = `select id from AssetVersion where id is "${versionId}"`;
+      const versionResult = await session.query(versionQuery);
+      
+      if (!versionResult?.data?.length) {
+        throw new Error(`AssetVersion ${versionId} not found`);
+      }
 
-    // Type guard to ensure response has an id
-    if (!response || typeof response !== 'object' || !('id' in response)) {
-      throw new Error('Failed to create note: Invalid response from server');
+      // Create note in ftrack
+      const response = await session.create('Note', {
+        content: content,
+        parent_id: versionId,
+        parent_type: 'AssetVersion'
+      });
+
+      log('Create note response:', response);
+
+      // Check for successful response - ftrack returns {action: 'create', data: {id: '...'}}
+      if (!response?.data?.id) {
+        log('Invalid response:', response);
+        throw new Error('Failed to create note: Invalid response from server');
+      }
+
+      log('Successfully published note:', { versionId, noteId: response.data.id });
+    } catch (error) {
+      log('Error publishing note:', error);
+      throw error;
     }
-
-    log('Published note:', { versionId, noteId: response.id });
   }
 
   async getSession(): Promise<Session> {
