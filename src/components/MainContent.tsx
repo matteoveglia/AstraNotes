@@ -194,9 +194,14 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   const handlePublishAll = async () => {
     try {
       setIsPublishing(true);
+      
+      // Only get versions from the current playlist
+      const currentVersions = new Set(playlist?.versions.map(v => v.id) || []);
+      
       const publishPromises = Object.entries(noteDrafts)
-        .filter(([_, content]) => content && content.trim() !== '') // Filter out empty notes
+        .filter(([versionId, content]) => content && content.trim() !== '') // Filter out empty notes
         .filter(([versionId]) => noteStatuses[versionId] !== 'published') // Filter out already published notes
+        .filter(([versionId]) => currentVersions.has(versionId)) // Only publish notes for versions in current playlist
         .map(async ([versionId, content]) => {
           try {
             await ftrackService.publishNote(versionId, content);

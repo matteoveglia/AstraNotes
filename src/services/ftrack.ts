@@ -265,11 +265,21 @@ class FtrackService {
         throw new Error(`AssetVersion ${versionId} not found`);
       }
 
+      // Get current user id
+      const userQuery = 'select id from User where username is "' + this.settings?.apiUser + '"';
+      const userResult = await session.query(userQuery);
+      
+      if (!userResult?.data?.length) {
+        throw new Error('Could not find current user');
+      }
+      const userId = userResult.data[0].id;
+
       // Create note in ftrack
       const response = await session.create('Note', {
         content: content,
         parent_id: versionId,
-        parent_type: 'AssetVersion'
+        parent_type: 'AssetVersion',
+        user_id: userId
       });
 
       log('Create note response:', response);
