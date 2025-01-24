@@ -35,7 +35,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   error,
 }) => {
   return (
-    <div className="w-64 border-r p-4 overflow-y-auto">
+    <div className="w-72 border-r p-4 overflow-y-auto">
       {loading ? (
         <div className="flex items-center justify-center text-gray-500 h-full">
           <Loader2 className="w-6 h-6 animate-spin mr-2" />

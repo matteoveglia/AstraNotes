@@ -195,8 +195,8 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     try {
       setIsPublishing(true);
       
-      // Only get versions from the current playlist
-      const currentVersions = new Set(playlist?.versions.map(v => v.id) || []);
+      // Only get versions from the current playlist if it exists
+      const currentVersions = new Set(playlist?.versions?.map(v => v.id) || []);
       
       const publishPromises = Object.entries(noteDrafts)
         .filter(([versionId, content]) => content && content.trim() !== '') // Filter out empty notes
@@ -346,7 +346,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     <Card className="h-full flex flex-col rounded-none">
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
-          <CardTitle>
+          <CardTitle className="text-xl">
             {playlist.name}
           </CardTitle>
           <Button
@@ -385,7 +385,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto">
-        <div className="space-y-4 pb-4">
+        <div className="space-y-4 py-4">
           {sortedVersions.map((version) => {
             const versionHandlers: NoteInputHandlers = {
               onSave: (content: string) => handleNoteSave(version.id, content),

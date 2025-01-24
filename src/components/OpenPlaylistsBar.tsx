@@ -47,7 +47,7 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
   onCloseAll,
 }) => {
   return (
-    <div className="h-12 border-t bg-white flex items-center justify-between px-4 rounded-none">
+    <div className="h-[3.5rem] border-t bg-white flex items-center justify-between px-2 rounded-none">
       <div className="flex gap-1 overflow-x-auto">
         {playlists.map((playlist) => (
           <PlaylistTab
