@@ -1,6 +1,6 @@
-import React from 'react';
-import type { Playlist } from '../types';
-import { Loader2, AlertCircle } from 'lucide-react';
+import React from "react";
+import type { Playlist } from "../types";
+import { Loader2, AlertCircle } from "lucide-react";
 
 interface PlaylistItemProps {
   playlist: Playlist;
@@ -8,10 +8,14 @@ interface PlaylistItemProps {
   onClick: () => void;
 }
 
-const PlaylistItem: React.FC<PlaylistItemProps> = ({ playlist, isActive, onClick }) => (
+const PlaylistItem: React.FC<PlaylistItemProps> = ({
+  playlist,
+  isActive,
+  onClick,
+}) => (
   <div
     className={`p-2 rounded cursor-pointer mb-1 ${
-      isActive ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'
+      isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100"
     }`}
     onClick={onClick}
   >

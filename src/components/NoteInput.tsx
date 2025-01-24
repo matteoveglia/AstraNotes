@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Textarea } from './ui/textarea';
-import { Button } from './ui/button';
-import { NoteStatus } from '../types';
-import { cn } from '../lib/utils';
+import React, { useState, useEffect } from "react";
+import { Textarea } from "./ui/textarea";
+import { Button } from "./ui/button";
+import { NoteStatus } from "../types";
+import { cn } from "../lib/utils";
 
 export interface NoteInputProps {
   versionName: string;
@@ -22,7 +22,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   thumbnailUrl,
   status,
   selected,
-  initialContent = '',
+  initialContent = "",
   onSave,
   onClear,
   onSelectToggle,
@@ -40,31 +40,31 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   const handleClear = () => {
-    setContent('');
+    setContent("");
     onClear();
   };
 
   const getStatusColor = () => {
-    if (selected) return 'bg-blue-500 hover:bg-blue-600'; // Blue for selected
+    if (selected) return "bg-blue-500 hover:bg-blue-600"; // Blue for selected
     switch (status) {
-      case 'draft':
-        return 'bg-yellow-500 hover:bg-yellow-600'; // Yellow for draft
-      case 'published':
-        return 'bg-green-500 hover:bg-green-600'; // Green for published
+      case "draft":
+        return "bg-yellow-500 hover:bg-yellow-600"; // Yellow for draft
+      case "published":
+        return "bg-green-500 hover:bg-green-600"; // Green for published
       default:
-        return 'bg-gray-200'; // Gray for empty
+        return "bg-gray-200"; // Gray for empty
     }
   };
 
   const getStatusTitle = () => {
-    if (selected) return 'Selected';
+    if (selected) return "Selected";
     switch (status) {
-      case 'draft':
-        return 'Draft saved';
-      case 'published':
-        return 'Published';
+      case "draft":
+        return "Draft saved";
+      case "published":
+        return "Published";
       default:
-        return 'No note';
+        return "No note";
     }
   };
 
@@ -72,9 +72,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     <div className="flex gap-4 p-4 bg-white rounded-lg border">
       <div className="flex-shrink-0 w-32 h-18 bg-gray-100 rounded overflow-hidden">
         {thumbnailUrl ? (
-          <img 
-            src={thumbnailUrl} 
-            alt={versionName} 
+          <img
+            src={thumbnailUrl}
+            alt={versionName}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -83,7 +83,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           </div>
         )}
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 min-w-0">
@@ -97,7 +97,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-3">
           <div className="flex-1">
             <Textarea
@@ -106,9 +106,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               placeholder="Add a note..."
               className="min-h-[80px]"
             />
-            {status !== 'empty' && (
-              <Button 
-                variant="ghost" 
+            {status !== "empty" && (
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={handleClear}
                 className="text-gray-500 hover:text-gray-700 mt-2"
@@ -117,13 +117,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               </Button>
             )}
           </div>
-          
+
           <div
-            onClick={status === 'empty' ? undefined : onSelectToggle}
+            onClick={status === "empty" ? undefined : onSelectToggle}
             className={cn(
-              'w-5 rounded-full transition-colors',
-              status === 'empty' ? 'cursor-default' : 'cursor-pointer',
-              getStatusColor()
+              "w-5 rounded-full transition-colors",
+              status === "empty" ? "cursor-default" : "cursor-pointer",
+              getStatusColor(),
             )}
             title={getStatusTitle()}
           />

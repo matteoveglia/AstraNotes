@@ -1,5 +1,5 @@
-import Dexie, { type Table } from 'dexie';
-import type { Playlist, AssetVersion, NoteStatus } from '../types';
+import Dexie, { type Table } from "dexie";
+import type { Playlist, AssetVersion, NoteStatus } from "../types";
 
 interface CachedVersion extends AssetVersion {
   playlistId: string;
@@ -22,27 +22,24 @@ export class AstraNotesDB extends Dexie {
   versions!: Table<CachedVersion>;
 
   constructor() {
-    super('AstraNotesDB');
+    super("AstraNotesDB");
     this.version(1).stores({
-      playlists: 'id, lastAccessed, lastChecked',
-      versions: 'id, playlistId, lastModified, isRemoved'
+      playlists: "id, lastAccessed, lastChecked",
+      versions: "id, playlistId, lastModified, isRemoved",
     });
   }
 
   async cleanOldData() {
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    await this.playlists
-      .where('lastAccessed')
-      .below(sixtyDaysAgo)
-      .delete();
-    
+    await this.playlists.where("lastAccessed").below(sixtyDaysAgo).delete();
+
     // Get all active playlist IDs
     const activePlaylists = await this.playlists.toArray();
-    const activePlaylistIds = new Set(activePlaylists.map(p => p.id));
-    
+    const activePlaylistIds = new Set(activePlaylists.map((p) => p.id));
+
     // Delete versions from inactive playlists
     await this.versions
-      .where('playlistId')
+      .where("playlistId")
       .noneOf([...activePlaylistIds])
       .delete();
   }

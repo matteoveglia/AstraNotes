@@ -1,16 +1,17 @@
-import type { ContextCustomAttributeValue } from '../schemas/schema.ts';
+import type { ContextCustomAttributeValue } from "../schemas/schema.ts";
 
 // Core custom attribute interfaces
-export interface AssetVersionCustomAttributes extends ContextCustomAttributeValue {
-  key: 'Delivered';
+export interface AssetVersionCustomAttributes
+  extends ContextCustomAttributeValue {
+  key: "Delivered";
   value: boolean;
 }
 
 export interface FtrackDatetime {
-  __type__: 'datetime';
+  __type__: "datetime";
   value: {
-      __type__: 'datetime';
-      value: string | null;
+    __type__: "datetime";
+    value: string | null;
   };
 }
 
@@ -21,22 +22,26 @@ export interface BaseCustomAttribute {
 }
 
 // Type guards
-export function isDeliveredAttribute(attr: BaseCustomAttribute): attr is AssetVersionCustomAttributes {
-  return attr && 
-         typeof attr === 'object' && 
-         'key' in attr && 
-         attr.key === 'Delivered' &&
-         'value' in attr &&
-         typeof attr.value === 'boolean';
+export function isDeliveredAttribute(
+  attr: BaseCustomAttribute,
+): attr is AssetVersionCustomAttributes {
+  return (
+    attr &&
+    typeof attr === "object" &&
+    "key" in attr &&
+    attr.key === "Delivered" &&
+    "value" in attr &&
+    typeof attr.value === "boolean"
+  );
 }
 
 // Helpers
 export function createFtrackDatetime(value: string | null): FtrackDatetime {
   return {
-      __type__: 'datetime',
-      value: {
-          __type__: 'datetime',
-          value
-      }
+    __type__: "datetime",
+    value: {
+      __type__: "datetime",
+      value,
+    },
   };
 }

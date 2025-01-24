@@ -11,7 +11,7 @@ export interface Playlist {
 export interface Note {
   id: string;
   content: string;
-  status: 'draft' | 'published' | 'reviewed';
+  status: "draft" | "published" | "reviewed";
   selected: boolean;
   versionId: string;
   playlistId: string;

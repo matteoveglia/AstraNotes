@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { NoteInput } from './NoteInput';
-import { Playlist, NoteStatus, AssetVersion } from '../types';
-import { VersionSearch } from './VersionSearch';
-import { ftrackService } from '../services/ftrack';
-import { playlistStore } from '../store/playlistStore';
-import { PlaylistModifiedBanner } from './PlaylistModifiedBanner';
-import { RefreshCw } from 'lucide-react';
-import { useSettings } from '../store/settingsStore';
+import React, { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { NoteInput } from "./NoteInput";
+import { Playlist, NoteStatus, AssetVersion } from "../types";
+import { VersionSearch } from "./VersionSearch";
+import { ftrackService } from "../services/ftrack";
+import { playlistStore } from "../store/playlistStore";
+import { PlaylistModifiedBanner } from "./PlaylistModifiedBanner";
+import { RefreshCw } from "lucide-react";
+import { useSettings } from "../store/settingsStore";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -21,9 +21,14 @@ interface NoteInputHandlers {
   onSelectToggle: () => void;
 }
 
-export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUpdate }) => {
+export const MainContent: React.FC<MainContentProps> = ({
+  playlist,
+  onPlaylistUpdate,
+}) => {
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
-  const [noteStatuses, setNoteStatuses] = useState<Record<string, NoteStatus>>({});
+  const [noteStatuses, setNoteStatuses] = useState<Record<string, NoteStatus>>(
+    {},
+  );
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [modifications, setModifications] = useState<{
     added: number;
@@ -33,14 +38,16 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   }>({ added: 0, removed: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(null);
+  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(
+    null,
+  );
 
   const sortedVersions = useMemo(() => {
     return [...(playlist.versions || [])].sort((a, b) => {
       // First sort by name
       const nameCompare = a.name.localeCompare(b.name);
       if (nameCompare !== 0) return nameCompare;
-      
+
       // Then by version number
       return a.version - b.version;
     });
@@ -54,7 +61,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       setModifications({ added: 0, removed: 0 });
       setPendingVersions(null);
     };
-    
+
     initializePlaylist();
   }, [playlist]);
 
@@ -77,12 +84,12 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
             added,
             removed,
             addedVersions,
-            removedVersions
+            removedVersions,
           });
           // Store the fresh versions but don't apply them yet
           setPendingVersions(freshVersions || null);
         }
-      }
+      },
     );
 
     // Stop polling when component unmounts or playlist changes
@@ -97,42 +104,42 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   const handleNoteSave = async (versionId: string, content: string) => {
     try {
       await playlistStore.saveDraft(versionId, content);
-      setNoteDrafts(prev => ({ ...prev, [versionId]: content }));
-      const isEmpty = content.trim() === '';
-      setNoteStatuses(prev => ({ 
-        ...prev, 
-        [versionId]: isEmpty ? 'empty' : 'draft' 
+      setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
+      const isEmpty = content.trim() === "";
+      setNoteStatuses((prev) => ({
+        ...prev,
+        [versionId]: isEmpty ? "empty" : "draft",
       }));
       // Unselect if empty
       if (isEmpty) {
-        setSelectedVersions(prev => prev.filter(id => id !== versionId));
+        setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
       }
     } catch (error) {
-      console.error('Failed to save note:', error);
+      console.error("Failed to save note:", error);
     }
   };
 
   const handleNoteClear = async (versionId: string) => {
     // Unselect the version when cleared
-    setSelectedVersions(prev => prev.filter(id => id !== versionId));
-    setNoteStatuses(prev => {
+    setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
+    setNoteStatuses((prev) => {
       const newStatuses = { ...prev };
       delete newStatuses[versionId];
       return newStatuses;
     });
-    setNoteDrafts(prev => {
+    setNoteDrafts((prev) => {
       const newDrafts = { ...prev };
       delete newDrafts[versionId];
       return newDrafts;
     });
-    await playlistStore.saveDraft(versionId, '');
+    await playlistStore.saveDraft(versionId, "");
   };
 
   const handleClearAdded = () => {
-    setNoteStatuses(prev => {
+    setNoteStatuses((prev) => {
       const newStatuses = { ...prev };
-      Object.keys(newStatuses).forEach(key => {
-        if (newStatuses[key] === 'added') {
+      Object.keys(newStatuses).forEach((key) => {
+        if (newStatuses[key] === "added") {
           delete newStatuses[key];
         }
       });
@@ -150,42 +157,47 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     try {
       setIsPublishing(true);
       const publishPromises = selectedVersions
-        .filter(versionId => {
+        .filter((versionId) => {
           const content = noteDrafts[versionId];
           const status = noteStatuses[versionId];
           // Only publish non-empty drafts that haven't been published yet
-          return content && content.trim() !== '' && status !== 'published';
+          return content && content.trim() !== "" && status !== "published";
         })
         .map(async (versionId) => {
           try {
             const content = noteDrafts[versionId];
             await ftrackService.publishNote(versionId, content);
-            setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
             return { success: true, versionId };
           } catch (error) {
-            console.error(`Failed to publish note for version ${versionId}:`, error);
+            console.error(
+              `Failed to publish note for version ${versionId}:`,
+              error,
+            );
             return { success: false, versionId, error };
           }
         });
 
       const results = await Promise.all(publishPromises);
-      const failures = results.filter(r => !r.success);
-      
+      const failures = results.filter((r) => !r.success);
+
       if (failures.length > 0) {
-        console.error('Failed to publish some notes:', failures);
+        console.error("Failed to publish some notes:", failures);
         throw new Error(`Failed to publish ${failures.length} notes`);
       }
 
       // Only clear drafts for successfully published notes
-      const successfulVersions = results.filter(r => r.success).map(r => r.versionId);
-      setNoteDrafts(prev => {
+      const successfulVersions = results
+        .filter((r) => r.success)
+        .map((r) => r.versionId);
+      setNoteDrafts((prev) => {
         const next = { ...prev };
-        successfulVersions.forEach(id => delete next[id]);
+        successfulVersions.forEach((id) => delete next[id]);
         return next;
       });
       setSelectedVersions([]);
     } catch (error) {
-      console.error('Failed to publish selected notes:', error);
+      console.error("Failed to publish selected notes:", error);
     } finally {
       setIsPublishing(false);
     }
@@ -194,42 +206,49 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
   const handlePublishAll = async () => {
     try {
       setIsPublishing(true);
-      
+
       // Only get versions from the current playlist if it exists
-      const currentVersions = new Set(playlist?.versions?.map(v => v.id) || []);
-      
+      const currentVersions = new Set(
+        playlist?.versions?.map((v) => v.id) || [],
+      );
+
       const publishPromises = Object.entries(noteDrafts)
-        .filter(([versionId, content]) => content && content.trim() !== '') // Filter out empty notes
-        .filter(([versionId]) => noteStatuses[versionId] !== 'published') // Filter out already published notes
+        .filter(([versionId, content]) => content && content.trim() !== "") // Filter out empty notes
+        .filter(([versionId]) => noteStatuses[versionId] !== "published") // Filter out already published notes
         .filter(([versionId]) => currentVersions.has(versionId)) // Only publish notes for versions in current playlist
         .map(async ([versionId, content]) => {
           try {
             await ftrackService.publishNote(versionId, content);
-            setNoteStatuses(prev => ({ ...prev, [versionId]: 'published' }));
+            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
             return { success: true, versionId };
           } catch (error) {
-            console.error(`Failed to publish note for version ${versionId}:`, error);
+            console.error(
+              `Failed to publish note for version ${versionId}:`,
+              error,
+            );
             return { success: false, versionId, error };
           }
         });
 
       const results = await Promise.all(publishPromises);
-      const failures = results.filter(r => !r.success);
-      
+      const failures = results.filter((r) => !r.success);
+
       if (failures.length > 0) {
-        console.error('Failed to publish some notes:', failures);
+        console.error("Failed to publish some notes:", failures);
         throw new Error(`Failed to publish ${failures.length} notes`);
       }
 
       // Only clear drafts for successfully published notes
-      const successfulVersions = results.filter(r => r.success).map(r => r.versionId);
-      setNoteDrafts(prev => {
+      const successfulVersions = results
+        .filter((r) => r.success)
+        .map((r) => r.versionId);
+      setNoteDrafts((prev) => {
         const next = { ...prev };
-        successfulVersions.forEach(id => delete next[id]);
+        successfulVersions.forEach((id) => delete next[id]);
         return next;
       });
     } catch (error) {
-      console.error('Failed to publish notes:', error);
+      console.error("Failed to publish notes:", error);
     } finally {
       setIsPublishing(false);
     }
@@ -237,30 +256,34 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
 
   const handlePlaylistUpdate = async () => {
     if (playlist.isQuickNotes) return;
-    
+
     setIsRefreshing(true);
     try {
       // If we have pending versions, use those, otherwise fetch fresh ones
-      const freshVersions = pendingVersions || await ftrackService.getPlaylistVersions(playlist.id);
+      const freshVersions =
+        pendingVersions ||
+        (await ftrackService.getPlaylistVersions(playlist.id));
 
       // Compare with current versions to find modifications
-      const currentVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
-      const freshVersionIds = new Set(freshVersions.map(v => v.id));
-      
+      const currentVersionIds = new Set(
+        playlist.versions?.map((v) => v.id) || [],
+      );
+      const freshVersionIds = new Set(freshVersions.map((v) => v.id));
+
       const addedVersions = freshVersions
-        .filter(v => !currentVersionIds.has(v.id))
-        .map(v => v.id);
-      
+        .filter((v) => !currentVersionIds.has(v.id))
+        .map((v) => v.id);
+
       const removedVersions = (playlist.versions || [])
-        .filter(v => !freshVersionIds.has(v.id))
-        .map(v => v.id);
+        .filter((v) => !freshVersionIds.has(v.id))
+        .map((v) => v.id);
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
         setModifications({
           added: addedVersions.length,
           removed: removedVersions.length,
           addedVersions,
-          removedVersions
+          removedVersions,
         });
         // Store the fresh versions but don't apply them yet
         setPendingVersions(freshVersions);
@@ -270,7 +293,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         setModifications({ added: 0, removed: 0 });
       }
     } catch (error) {
-      console.error('Failed to update playlist:', error);
+      console.error("Failed to update playlist:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -283,7 +306,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
       // Create a new playlist object with the pending versions
       const updatedPlaylist = {
         ...playlist,
-        versions: pendingVersions
+        versions: pendingVersions,
       };
 
       // Update the cache first
@@ -307,14 +330,14 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
               added,
               removed,
               addedVersions,
-              removedVersions
+              removedVersions,
             });
             setPendingVersions(freshVersions || null);
           }
-        }
+        },
       );
     } catch (error) {
-      console.error('Failed to apply changes:', error);
+      console.error("Failed to apply changes:", error);
     }
   };
 
@@ -336,8 +359,16 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
         removedCount={modifications.removed}
         onUpdate={applyPendingChanges}
         isUpdating={isRefreshing}
-        addedVersions={pendingVersions?.filter(v => modifications.addedVersions?.includes(v.id)) || []}
-        removedVersions={playlist.versions?.filter(v => modifications.removedVersions?.includes(v.id)) || []}
+        addedVersions={
+          pendingVersions?.filter((v) =>
+            modifications.addedVersions?.includes(v.id),
+          ) || []
+        }
+        removedVersions={
+          playlist.versions?.filter((v) =>
+            modifications.removedVersions?.includes(v.id),
+          ) || []
+        }
       />
     );
   };
@@ -346,9 +377,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
     <Card className="h-full flex flex-col rounded-none">
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-xl">
-            {playlist.name}
-          </CardTitle>
+          <CardTitle className="text-xl">{playlist.name}</CardTitle>
           <Button
             size="sm"
             variant="ghost"
@@ -357,22 +386,24 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
             disabled={isRefreshing}
             title="Refresh playlist"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
           </Button>
         </div>
         <div className="flex items-center gap-4">
           {renderModificationsBanner()}
           <div className="flex items-center gap-2">
             <div className="flex gap-2">
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={() => handlePublishSelected()}
                 disabled={selectedVersions.length === 0 || isPublishing}
               >
                 Publish {selectedVersions.length} Selected
               </Button>
-              <Button 
+              <Button
                 size="sm"
                 onClick={() => handlePublishAll()}
                 disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
@@ -391,12 +422,12 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
               onSave: (content: string) => handleNoteSave(version.id, content),
               onClear: () => handleNoteClear(version.id),
               onSelectToggle: () => {
-                setSelectedVersions(prev =>
+                setSelectedVersions((prev) =>
                   prev.includes(version.id)
-                    ? prev.filter(id => id !== version.id)
-                    : [...prev, version.id]
+                    ? prev.filter((id) => id !== version.id)
+                    : [...prev, version.id],
                 );
-              }
+              },
             };
 
             return (
@@ -405,7 +436,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
                   versionName={version.name}
                   versionNumber={version.version.toString()}
                   thumbnailUrl={version.thumbnailUrl}
-                  status={noteStatuses[version.id] || 'empty'}
+                  status={noteStatuses[version.id] || "empty"}
                   selected={selectedVersions.includes(version.id)}
                   initialContent={noteDrafts[version.id]}
                   {...versionHandlers}
@@ -415,7 +446,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
           })}
           {!playlist.versions?.length && (
             <div className="text-center text-gray-500 py-8">
-              {playlist.isQuickNotes 
+              {playlist.isQuickNotes
                 ? "Select a version to add notes"
                 : "No versions found in this playlist"}
             </div>
@@ -425,7 +456,7 @@ export const MainContent: React.FC<MainContentProps> = ({ playlist, onPlaylistUp
 
       <div className="flex-none border-t bg-white shadow-md">
         <div className="p-4">
-          <VersionSearch 
+          <VersionSearch
             onClearAdded={handleClearAdded}
             onClearAll={handleClearAll}
           />

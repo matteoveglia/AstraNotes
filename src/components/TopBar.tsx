@@ -1,7 +1,7 @@
-import React from 'react';
-import { useConnectionStatus } from '../hooks/useConnectionStatus';
-import { CheckCircle2, XCircle } from 'lucide-react';
-import { useSettings } from '../store/settingsStore';
+import React from "react";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { useSettings } from "../store/settingsStore";
 
 interface TopBarProps {
   children: React.ReactNode;
@@ -14,9 +14,7 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
   return (
     <div className="h-12 border-b bg-white flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
-        <h1 className="text-lg font-semibold text-gray-900">
-          AstraNotes
-        </h1>
+        <h1 className="text-lg font-semibold text-gray-900">AstraNotes</h1>
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-sm">
           {isConnected ? (
             <>
@@ -33,9 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
       </div>
       <div className="flex items-center gap-4">
         {!settings.autoRefreshEnabled && (
-          <span className="text-sm text-gray-400">
-            Auto Updates Off
-          </span>
+          <span className="text-sm text-gray-400">Auto Updates Off</span>
         )}
         {children}
       </div>

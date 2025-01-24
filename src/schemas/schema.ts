@@ -1783,7 +1783,7 @@ export interface TypedCustomAttributeValueMap {
 }
 
 export type TypedCustomAttributeValue<
-  K extends keyof TypedCustomAttributeValueMap
+  K extends keyof TypedCustomAttributeValueMap,
 > = BaseCustomAttributeValue & {
   key: K;
   value: TypedCustomAttributeValueMap[K];
@@ -1800,7 +1800,9 @@ export type TypedContextCustomAttributesMap = {
   AssetCustomAttributeLinkFrom: never;
   AssetCustomAttributeValue: never;
   AssetType: never;
-  AssetVersion: TypedCustomAttributeValue<"Delivered"> | TypedCustomAttributeValue<"dateSent">;
+  AssetVersion:
+    | TypedCustomAttributeValue<"Delivered">
+    | TypedCustomAttributeValue<"dateSent">;
   AssetVersionCustomAttributeLink: never;
   AssetVersionCustomAttributeLinkFrom: never;
   AssetVersionCustomAttributeValue: never;

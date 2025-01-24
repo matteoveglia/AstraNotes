@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface Settings {
   serverUrl: string;
@@ -17,15 +17,15 @@ export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
       settings: {
-        serverUrl: '',
-        apiKey: '',
-        apiUser: '',
+        serverUrl: "",
+        apiKey: "",
+        apiUser: "",
         autoRefreshEnabled: true,
       },
       setSettings: (newSettings) => set({ settings: newSettings }),
     }),
     {
-      name: 'settings-storage',
-    }
-  )
+      name: "settings-storage",
+    },
+  ),
 );

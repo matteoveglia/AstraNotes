@@ -1,14 +1,17 @@
-import React from 'react';
-import { Button } from './ui/button';
-import { Playlist } from '../types';
-import { ftrackService } from '../services/ftrack';
+import React from "react";
+import { Button } from "./ui/button";
+import { Playlist } from "../types";
+import { ftrackService } from "../services/ftrack";
 
 interface PlaylistListProps {
   onSelect: (playlist: Playlist) => void;
   currentPlaylist: Playlist;
 }
 
-export const PlaylistList: React.FC<PlaylistListProps> = ({ onSelect, currentPlaylist }) => {
+export const PlaylistList: React.FC<PlaylistListProps> = ({
+  onSelect,
+  currentPlaylist,
+}) => {
   const [playlists, setPlaylists] = React.useState<Playlist[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -19,7 +22,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({ onSelect, currentPla
         const fetchedPlaylists = await ftrackService.getPlaylists();
         setPlaylists(fetchedPlaylists);
       } catch (error) {
-        console.error('Failed to load playlists:', error);
+        console.error("Failed to load playlists:", error);
       } finally {
         setLoading(false);
       }

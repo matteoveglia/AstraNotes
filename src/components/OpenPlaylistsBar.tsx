@@ -1,7 +1,7 @@
-import React from 'react';
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import type { Playlist } from '../types';
+import React from "react";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { Playlist } from "../types";
 
 interface PlaylistTabProps {
   playlist: Playlist;
@@ -10,7 +10,12 @@ interface PlaylistTabProps {
   onClose?: () => void;
 }
 
-const PlaylistTab: React.FC<PlaylistTabProps> = ({ playlist, isActive, onClick, onClose }) => (
+const PlaylistTab: React.FC<PlaylistTabProps> = ({
+  playlist,
+  isActive,
+  onClick,
+  onClose,
+}) => (
   <Button
     variant={isActive ? "default" : "ghost"}
     className="justify-start group relative min-w-[120px]"
@@ -56,7 +61,9 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
             isActive={playlist.id === activePlaylist}
             onClick={() => onPlaylistSelect(playlist.id)}
             onClose={
-              playlist.isQuickNotes ? undefined : () => onPlaylistClose(playlist.id)
+              playlist.isQuickNotes
+                ? undefined
+                : () => onPlaylistClose(playlist.id)
             }
           />
         ))}

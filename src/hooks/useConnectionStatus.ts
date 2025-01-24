@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { create } from 'zustand';
-import { ftrackService } from '../services/ftrack';
+import { useState, useEffect } from "react";
+import { create } from "zustand";
+import { ftrackService } from "../services/ftrack";
 
 interface ConnectionState {
   isConnected: boolean;
@@ -17,7 +17,8 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
 }));
 
 export const useConnectionStatus = () => {
-  const { isConnected, lastTested, setConnected, setLastTested } = useConnectionStore();
+  const { isConnected, lastTested, setConnected, setLastTested } =
+    useConnectionStore();
 
   useEffect(() => {
     // Only auto-test if we haven't tested in the last 5 minutes
@@ -43,9 +44,9 @@ export const useConnectionStatus = () => {
     }
   };
 
-  return { 
+  return {
     isConnected,
     testConnection,
-    lastTested 
+    lastTested,
   };
 };

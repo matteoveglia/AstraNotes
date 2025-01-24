@@ -1,7 +1,7 @@
-import React from 'react';
-import { Button } from './ui/button';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { AssetVersion } from '../types';
+import React from "react";
+import { Button } from "./ui/button";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { AssetVersion } from "../types";
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +34,7 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
         <div>
           <div className="font-medium text-green-600">Added:</div>
           <ul className="list-disc pl-4 text-sm">
-            {addedVersions.map(v => (
+            {addedVersions.map((v) => (
               <li key={`${v.name}-${v.version}`}>
                 {v.name} (v{v.version})
               </li>
@@ -46,7 +46,7 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
         <div>
           <div className="font-medium text-red-600">Removed:</div>
           <ul className="list-disc pl-4 text-sm">
-            {removedVersions.map(v => (
+            {removedVersions.map((v) => (
               <li key={`${v.name}-${v.version}`}>
                 {v.name} (v{v.version})
               </li>
@@ -65,15 +65,15 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
             <div className="flex items-center gap-1 cursor-help">
               <AlertCircle className="w-4 h-4 text-yellow-500" />
               <span>
-                {addedCount > 0 && `${addedCount} version${addedCount === 1 ? '' : 's'} added`}
-                {addedCount > 0 && removedCount > 0 && ', '}
-                {removedCount > 0 && `${removedCount} version${removedCount === 1 ? '' : 's'} removed`}
+                {addedCount > 0 &&
+                  `${addedCount} version${addedCount === 1 ? "" : "s"} added`}
+                {addedCount > 0 && removedCount > 0 && ", "}
+                {removedCount > 0 &&
+                  `${removedCount} version${removedCount === 1 ? "" : "s"} removed`}
               </span>
             </div>
           </TooltipTrigger>
-          <TooltipContent>
-            {tooltipContent}
-          </TooltipContent>
+          <TooltipContent>{tooltipContent}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <Button
@@ -83,7 +83,7 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
         onClick={onUpdate}
         disabled={isUpdating}
       >
-        <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`w-4 h-4 ${isUpdating ? "animate-spin" : ""}`} />
         <span className="ml-1">Update</span>
       </Button>
     </div>

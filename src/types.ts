@@ -24,7 +24,7 @@ export interface AssetVersion {
   updatedAt: string;
 }
 
-export type NoteStatus = 'empty' | 'added' | 'draft' | 'published';
+export type NoteStatus = "empty" | "added" | "draft" | "published";
 
 export interface Playlist {
   id: string;

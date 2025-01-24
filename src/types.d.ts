@@ -2,7 +2,7 @@ export interface Note {
   id: string;
   title: string;
   content: string;
-  status: 'draft' | 'published' | 'reviewed';
+  status: "draft" | "published" | "reviewed";
   createdAt: string;
   updatedAt: string;
   selected?: boolean;
@@ -21,7 +21,7 @@ export interface Playlist {
 export interface Settings {
   apiKey: string;
   serverUrl: string;
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
 }
 
 export interface FtrackSettings {
