@@ -365,6 +365,24 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
+  const handleVersionSelect = (version: AssetVersion) => {
+    if (!playlist.versions) return;
+    
+    // Add the version to the playlist if it's not already there
+    const existingVersion = playlist.versions.find(v => v.id === version.id);
+    if (!existingVersion) {
+      const updatedPlaylist = {
+        ...playlist,
+        versions: [...playlist.versions, version]
+      };
+
+      // Update the playlist in the store
+      if (onPlaylistUpdate) {
+        onPlaylistUpdate(updatedPlaylist);
+      }
+    }
+  };
+
   const renderModificationsBanner = () => {
     if (modifications.added === 0 && modifications.removed === 0) return null;
 
@@ -474,8 +492,11 @@ export const MainContent: React.FC<MainContentProps> = ({
       <div className="flex-none border-t bg-white shadow-md">
         <div className="p-4">
           <VersionSearch
+            onVersionSelect={handleVersionSelect}
             onClearAdded={handleClearAdded}
             onClearAll={handleClearAll}
+            hasManuallyAddedVersions={playlist.versions?.some(v => v.manuallyAdded)}
+            isQuickNotes={playlist.isQuickNotes}
           />
         </div>
       </div>

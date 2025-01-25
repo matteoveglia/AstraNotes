@@ -27,7 +27,12 @@ interface CreateResponse {
   [key: string]: any;
 }
 
-class FtrackService {
+interface SearchVersionsOptions {
+  searchTerm: string;
+  limit?: number;
+}
+
+export class FtrackService {
   private settings: FtrackSettings | null = null;
   private session: Session | null = null;
 
@@ -344,29 +349,61 @@ class FtrackService {
     }
   }
 
-  async searchVersions(searchTerm: string): Promise<AssetVersion[]> {
+  async searchVersions(options: SearchVersionsOptions): Promise<AssetVersion[]> {
+    const { searchTerm, limit = 50 } = options;
     const session = await this.ensureSession();
+    const cacheKey = JSON.stringify(options);
+  
+    // Check cache first
+    const cached = await this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     try {
-      log("Searching versions:", { searchTerm });
+      log("Searching versions:", options);
+      
+      // Parse search term to check if it includes a version number
+      const versionMatch = searchTerm.match(/v?(\d+)/i);
+      const nameSearch = searchTerm.replace(/v?\d+/i, '').trim();
+      
+      // Build where clause to search by name and/or version
+      let whereClause = '';
+      if (nameSearch) {
+        // Use contains instead of like for more flexible matching
+        whereClause += `contains(lower(asset.name), lower("${nameSearch}"))`;
+      }
+      if (versionMatch) {
+        if (whereClause) whereClause += ' and ';
+        whereClause += `version = ${versionMatch[1]}`;
+      }
+      // If no valid search criteria, return empty results
+      if (!whereClause) {
+        return [];
+      }
+
       const query = `select 
         id,
         version,
         asset.name,
         thumbnail.id,
         thumbnail.name,
-        thumbnail.component_locations
+        thumbnail.component_locations,
+        date
       from AssetVersion 
-      where asset.name like "%${searchTerm}%"
-      order by version desc`;
+      where ${whereClause}
+      order by date desc
+      limit ${limit}`;
 
       log("Running search query:", query);
       const result = await session.query(query);
 
-      log("Raw search response:", result);
-      log("Number of versions found:", result?.data?.length || 0);
+      log("Raw search response:", { 
+        count: result?.data?.length,
+        names: result?.data?.map(v => v.asset.name)
+      });
 
-      return result?.data?.map((version) => {
+      const versions = result?.data?.map((version) => {
         let thumbnailUrl = "";
         const thumbnail = version.thumbnail;
         if (
@@ -382,15 +419,42 @@ class FtrackService {
           name: version.asset.name,
           version: version.version,
           thumbnailUrl,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          manuallyAdded: true // Mark versions from search as manually added
+          createdAt: version.date || new Date().toISOString(),
+          updatedAt: version.date || new Date().toISOString(),
+          manuallyAdded: true
         };
       }) || [];
+
+      // Cache the results
+      await this.addToCache(cacheKey, versions);
+      
+      return versions;
     } catch (error) {
       log("Failed to search versions:", error);
       return [];
     }
+  }
+
+  private async getFromCache(key: string): Promise<AssetVersion[] | null> {
+    const cached = localStorage.getItem(`version_search_${key}`);
+    if (cached) {
+      const { versions, timestamp } = JSON.parse(cached);
+      // Cache expires after 5 minutes
+      if (Date.now() - timestamp < 5 * 60 * 1000) {
+        return versions;
+      }
+    }
+    return null;
+  }
+
+  private async addToCache(key: string, versions: AssetVersion[]): Promise<void> {
+    localStorage.setItem(
+      `version_search_${key}`,
+      JSON.stringify({
+        versions,
+        timestamp: Date.now()
+      })
+    );
   }
 
   updateSettings(settings: FtrackSettings) {
