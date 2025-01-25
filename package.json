@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "lint": "eslint ./src --ext .ts,.tsx",
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
@@ -42,6 +42,7 @@
     "@types/node": "^20.17.14",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
