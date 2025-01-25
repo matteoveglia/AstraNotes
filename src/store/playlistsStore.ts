@@ -2,6 +2,17 @@ import { create } from "zustand";
 import { Playlist, AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
 
+const QUICK_NOTES_PLAYLIST: Playlist = {
+  id: "quick-notes",
+  name: "Quick Notes",
+  title: "Quick Notes",
+  notes: [],
+  versions: [],
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  isQuickNotes: true,
+};
+
 interface PlaylistsState {
   playlists: Playlist[];
   activePlaylistId: string | null;
@@ -16,12 +27,18 @@ interface PlaylistsState {
 }
 
 export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
-  playlists: [],
-  activePlaylistId: null,
+  playlists: [QUICK_NOTES_PLAYLIST],
+  activePlaylistId: "quick-notes",
   isLoading: false,
   error: null,
 
-  setPlaylists: (playlists) => set({ playlists }),
+  setPlaylists: (playlists) => {
+    // Always ensure Quick Notes is in the list
+    const hasQuickNotes = playlists.some(p => p.id === "quick-notes");
+    const finalPlaylists = hasQuickNotes ? playlists : [QUICK_NOTES_PLAYLIST, ...playlists];
+    set({ playlists: finalPlaylists });
+  },
+  
   setActivePlaylist: (playlistId) => set({ activePlaylistId: playlistId }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -33,7 +50,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
     
     try {
       const fetchedPlaylists = await ftrackService.getPlaylists();
-      setPlaylists(fetchedPlaylists);
+      setPlaylists(fetchedPlaylists); // Quick Notes will be preserved by setPlaylists
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to load playlists");
       console.error("Failed to load playlists:", error);
@@ -43,6 +60,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   },
 
   updatePlaylist: async (playlistId) => {
+    // Don't update Quick Notes from Ftrack
+    if (playlistId === "quick-notes") return;
+
     const { setError, playlists, setPlaylists } = get();
     setError(null);
     

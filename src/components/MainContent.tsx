@@ -68,6 +68,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   const { settings } = useSettings();
 
   useEffect(() => {
+    // Don't poll for Quick Notes playlist
     if (playlist.isQuickNotes) return;
 
     if (!settings.autoRefreshEnabled) {
@@ -94,7 +95,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Stop polling when component unmounts or playlist changes
     return () => playlistStore.stopPolling();
-  }, [playlist.id, settings.autoRefreshEnabled]); // Only restart polling when playlist ID or auto-refresh setting changes
+  }, [playlist.id, playlist.isQuickNotes, settings.autoRefreshEnabled]); // Only restart polling when playlist ID, isQuickNotes, or auto-refresh setting changes
 
   // Reset selections when switching playlists
   useEffect(() => {
@@ -136,21 +137,34 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handleClearAdded = () => {
-    setNoteStatuses((prev) => {
-      const newStatuses = { ...prev };
-      Object.keys(newStatuses).forEach((key) => {
-        if (newStatuses[key] === "added") {
-          delete newStatuses[key];
-        }
-      });
-      return newStatuses;
-    });
+    if (!playlist.versions) return;
+    
+    // Keep only non-manually added versions
+    const updatedVersions = playlist.versions.filter(v => !v.manuallyAdded);
+    const updatedPlaylist = {
+      ...playlist,
+      versions: updatedVersions
+    };
+
+    // Update the playlist in the store
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(updatedPlaylist);
+    }
   };
 
   const handleClearAll = () => {
-    setNoteStatuses({});
-    setSelectedVersions([]);
-    setNoteDrafts({});
+    if (!playlist.isQuickNotes) return;
+
+    // Clear all versions from the playlist
+    const updatedPlaylist = {
+      ...playlist,
+      versions: []
+    };
+
+    // Update the playlist in the store
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(updatedPlaylist);
+    }
   };
 
   const handlePublishSelected = async () => {
@@ -255,6 +269,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handlePlaylistUpdate = async () => {
+    // Don't update Quick Notes playlist from Ftrack
     if (playlist.isQuickNotes) return;
 
     setIsRefreshing(true);
@@ -378,18 +393,20 @@ export const MainContent: React.FC<MainContentProps> = ({
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
           <CardTitle className="text-xl">{playlist.name}</CardTitle>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            title="Refresh playlist"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-          </Button>
+          {!playlist.isQuickNotes && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              title="Refresh playlist"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {renderModificationsBanner()}

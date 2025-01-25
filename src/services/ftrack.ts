@@ -344,6 +344,55 @@ class FtrackService {
     }
   }
 
+  async searchVersions(searchTerm: string): Promise<AssetVersion[]> {
+    const session = await this.ensureSession();
+
+    try {
+      log("Searching versions:", { searchTerm });
+      const query = `select 
+        id,
+        version,
+        asset.name,
+        thumbnail.id,
+        thumbnail.name,
+        thumbnail.component_locations
+      from AssetVersion 
+      where asset.name like "%${searchTerm}%"
+      order by version desc`;
+
+      log("Running search query:", query);
+      const result = await session.query(query);
+
+      log("Raw search response:", result);
+      log("Number of versions found:", result?.data?.length || 0);
+
+      return result?.data?.map((version) => {
+        let thumbnailUrl = "";
+        const thumbnail = version.thumbnail;
+        if (
+          thumbnail &&
+          thumbnail.component_locations &&
+          thumbnail.component_locations.length > 0
+        ) {
+          thumbnailUrl = thumbnail.component_locations[0].url;
+        }
+
+        return {
+          id: version.id,
+          name: version.asset.name,
+          version: version.version,
+          thumbnailUrl,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          manuallyAdded: true // Mark versions from search as manually added
+        };
+      }) || [];
+    } catch (error) {
+      log("Failed to search versions:", error);
+      return [];
+    }
+  }
+
   updateSettings(settings: FtrackSettings) {
     log("Updating settings:", {
       serverUrl: settings.serverUrl,

@@ -18,10 +18,11 @@ export interface AssetVersion {
   id: string;
   name: string;
   version: number;
-  reviewSessionObjectId: string;
   thumbnailUrl?: string;
+  reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
+  manuallyAdded?: boolean;
 }
 
 export type NoteStatus = "empty" | "added" | "draft" | "published";
