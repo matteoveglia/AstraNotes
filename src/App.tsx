@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
@@ -6,10 +6,23 @@ import { MainContent } from "./components/MainContent";
 import { SettingsModal } from "./components/SettingsModal";
 import type { Playlist } from "./types";
 import { ftrackService } from "./services/ftrack";
+import { usePlaylistsStore } from "./store/playlistsStore";
 
 export const App: React.FC = () => {
-  const [playlists, setPlaylists] = useState<Playlist[]>([
-    {
+  const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
+  const { 
+    playlists,
+    activePlaylistId,
+    isLoading,
+    error,
+    loadPlaylists,
+    setActivePlaylist,
+    setPlaylists,
+  } = usePlaylistsStore();
+
+  useEffect(() => {
+    // Initialize with Quick Notes
+    setPlaylists([{
       id: "quick-notes",
       name: "Quick Notes",
       title: "Quick Notes",
@@ -18,36 +31,9 @@ export const App: React.FC = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isQuickNotes: true,
-    },
-  ]);
-  const [activePlaylist, setActivePlaylist] = useState<string>("quick-notes");
-  const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadPlaylists = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const fetchedPlaylists = await ftrackService.getPlaylists();
-      setPlaylists((prev) => {
-        // Keep the Quick Notes playlist and add the fetched ones
-        const quickNotes = prev.find((p) => p.isQuickNotes);
-        return quickNotes
-          ? [quickNotes, ...fetchedPlaylists]
-          : fetchedPlaylists;
-      });
-    } catch (err) {
-      console.error("Failed to load playlists:", err);
-      setError("Failed to load playlists");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
+    }]);
     loadPlaylists();
-  }, [loadPlaylists]);
+  }, [loadPlaylists, setPlaylists]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     setActivePlaylist(playlistId);
@@ -59,11 +45,9 @@ export const App: React.FC = () => {
     if (playlistId !== "quick-notes") {
       try {
         const versions = await ftrackService.getPlaylistVersions(playlistId);
-        setPlaylists((prev) =>
-          prev.map((playlist) =>
-            playlist.id === playlistId ? { ...playlist, versions } : playlist,
-          ),
-        );
+        setPlaylists(playlists.map((playlist) =>
+          playlist.id === playlistId ? { ...playlist, versions } : playlist,
+        ));
       } catch (err) {
         console.error("Failed to load versions:", err);
       }
@@ -73,7 +57,7 @@ export const App: React.FC = () => {
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
-    if (activePlaylist === playlistId) {
+    if (activePlaylistId === playlistId) {
       setActivePlaylist("quick-notes");
     }
   };
@@ -84,12 +68,12 @@ export const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    setPlaylists((prev) =>
-      prev.map((p) => (p.id === updatedPlaylist.id ? updatedPlaylist : p)),
-    );
+    setPlaylists(playlists.map((p) => 
+      p.id === updatedPlaylist.id ? updatedPlaylist : p
+    ));
   };
 
-  const activePlaylistData = playlists.find((p) => p.id === activePlaylist);
+  const activePlaylistData = playlists.find((p) => p.id === activePlaylistId);
 
   return (
     <div className="h-screen flex flex-col">
@@ -99,9 +83,9 @@ export const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         <PlaylistPanel
           playlists={playlists}
-          activePlaylist={activePlaylist}
+          activePlaylist={activePlaylistId}
           onPlaylistSelect={handlePlaylistSelect}
-          loading={loading}
+          loading={isLoading}
           error={error}
         />
         <div className="flex-1 flex flex-col min-h-0">
@@ -119,7 +103,7 @@ export const App: React.FC = () => {
           </div>
           <OpenPlaylistsBar
             playlists={playlists.filter((p) => openPlaylists.includes(p.id))}
-            activePlaylist={activePlaylist}
+            activePlaylist={activePlaylistId}
             onPlaylistSelect={handlePlaylistSelect}
             onPlaylistClose={handlePlaylistClose}
             onCloseAll={handleCloseAll}

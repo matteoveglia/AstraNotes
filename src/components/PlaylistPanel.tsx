@@ -25,7 +25,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
 
 interface PlaylistPanelProps {
   playlists: Playlist[];
-  activePlaylist: string;
+  activePlaylist: string | null;
   onPlaylistSelect: (playlistId: string) => void;
   loading: boolean;
   error: string | null;
@@ -55,7 +55,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           <PlaylistItem
             key={playlist.id}
             playlist={playlist}
-            isActive={playlist.id === activePlaylist}
+            isActive={activePlaylist !== null && playlist.id === activePlaylist}
             onClick={() => onPlaylistSelect(playlist.id)}
           />
         ))

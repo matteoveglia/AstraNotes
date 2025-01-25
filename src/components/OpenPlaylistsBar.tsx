@@ -18,7 +18,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 }) => (
   <Button
     variant={isActive ? "default" : "ghost"}
-    className="justify-start group relative min-w-[120px]"
+    className="justify-start group relative min-w-[120px] flex-none"
     onClick={onClick}
   >
     <span className="truncate mr-6">{playlist.title}</span>
@@ -38,7 +38,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 
 interface OpenPlaylistsBarProps {
   playlists: Playlist[];
-  activePlaylist: string;
+  activePlaylist: string | null;
   onPlaylistSelect: (playlistId: string) => void;
   onPlaylistClose: (playlistId: string) => void;
   onCloseAll: () => void;
@@ -52,32 +52,40 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
   onCloseAll,
 }) => {
   return (
-    <div className="h-[3.5rem] border-t bg-white flex items-center justify-between px-2 rounded-none">
-      <div className="flex gap-1 overflow-x-auto">
-        {playlists.map((playlist) => (
-          <PlaylistTab
-            key={playlist.id}
-            playlist={playlist}
-            isActive={playlist.id === activePlaylist}
-            onClick={() => onPlaylistSelect(playlist.id)}
-            onClose={
-              playlist.isQuickNotes
-                ? undefined
-                : () => onPlaylistClose(playlist.id)
-            }
-          />
-        ))}
-      </div>
+    <div className="h-[3.5rem] border-t bg-white relative">
+      {/* Fixed Close All button container with gradient fade */}
       {playlists.length > 1 && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2"
-          onClick={onCloseAll}
-        >
-          Close All
-        </Button>
+        <div className="absolute right-0 top-0 bottom-0 flex items-center bg-white px-4 z-10">
+          <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-white" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2"
+            onClick={onCloseAll}
+          >
+            Close All
+          </Button>
+        </div>
       )}
+      
+      {/* Scrollable playlist container */}
+      <div className="absolute left-0 right-[100px] top-0 bottom-0 overflow-x-auto">
+        <div className="flex items-center gap-1 px-2 h-full">
+          {playlists.map((playlist) => (
+            <PlaylistTab
+              key={playlist.id}
+              playlist={playlist}
+              isActive={activePlaylist !== null && playlist.id === activePlaylist}
+              onClick={() => onPlaylistSelect(playlist.id)}
+              onClose={
+                playlist.isQuickNotes
+                  ? undefined
+                  : () => onPlaylistClose(playlist.id)
+              }
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
