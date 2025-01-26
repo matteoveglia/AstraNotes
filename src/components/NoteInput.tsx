@@ -120,22 +120,28 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 placeholder="Add a note..."
                 className="min-h-[80px]"
               />
-              <NoteLabelSelect
-                value={labelId}
-                onChange={handleLabelChange}
-                className="h-8 w-32"
-              />
             </div>
-            {status !== "empty" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClear}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                Clear
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {status !== "empty" && (
+                <div className="flex items-center justify-between w-full">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClear}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
+                  {content && (
+                    <NoteLabelSelect
+                      value={labelId}
+                      onChange={handleLabelChange}
+                      className="h-8 w-40 ml-auto"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div

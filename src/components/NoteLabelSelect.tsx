@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { ftrackService } from "../services/ftrack";
+import { cn } from "../lib/utils";
 
 interface NoteLabelSelectProps {
   value?: string;
@@ -40,20 +41,34 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
     };
 
     fetchLabels();
-  }, []); // Remove value and onChange from dependencies
+  }, []);
+
+  const selectedLabel = labels.find((label) => label.id === value);
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={className}>
-        <SelectValue>
-          {labels.find((label) => label.id === value)?.name || "Select Label"}
+      <SelectTrigger 
+        className={cn(className, "overflow-hidden")}
+        style={{
+          backgroundColor: selectedLabel?.color || 'white',
+          color: selectedLabel?.color 
+            ? getContrastColor(selectedLabel.color)
+            : 'inherit',
+        }}
+      >
+        <SelectValue className="truncate">
+          {selectedLabel?.name || "Select Label"}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="p-1">
         {labels.map((label) => (
           <SelectItem
             key={label.id}
             value={label.id}
+            className={cn(
+              "truncate mb-1 last:mb-0 cursor-pointer relative",
+              "py-2 pl-8 pr-3 rounded-sm flex items-center"
+            )}
             style={{
               backgroundColor: label.color,
               color: getContrastColor(label.color),
@@ -77,9 +92,16 @@ function getContrastColor(hexColor: string) {
   const g = parseInt(color.substr(2, 2), 16);
   const b = parseInt(color.substr(4, 2), 16);
   
-  // Calculate luminance
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  // Calculate relative luminance using sRGB
+  const sRGB = [r / 255, g / 255, b / 255].map(val => {
+    if (val <= 0.03928) {
+      return val / 12.92;
+    }
+    return Math.pow((val + 0.055) / 1.055, 2.4);
+  });
   
-  // Return black or white based on luminance
-  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+  const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+  
+  // Use a more aggressive threshold for better contrast
+  return luminance > 0.4 ? "#000000" : "#FFFFFF";
 }
