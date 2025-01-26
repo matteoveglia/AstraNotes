@@ -1,13 +1,52 @@
-import { ftrackService } from "../services/ftrack";
 import { db } from "./db";
-import { Playlist, AssetVersion } from "../types";
+import { Playlist } from "../types";
+import { UpdateSpec } from "dexie";
+import { FtrackService } from "../services/ftrack";
 
 const DEBUG = true;
-const log = (...args: any[]) => {
+function log(...args: any[]): void {
   if (DEBUG) {
-    console.log("[PlaylistStore]", ...args);
+    console.log(...args);
   }
-};
+}
+
+interface VersionModifications {
+  addedVersions: string[];
+  removedVersions: string[];
+}
+
+interface FtrackVersion {
+  id: string;
+  name: string;
+  version: number;
+  thumbnail_url?: URL;
+  createdAt: string;
+  updatedAt: string;
+  reviewSessionObjectId?: string;
+  thumbnailUrl?: string;
+}
+
+interface StorableVersion {
+  id: string;
+  playlistId: string;
+  lastModified: number;
+  draftContent?: string;
+  labelId: string;
+  name: string;
+  version: number;
+  thumbnail_url?: URL;
+  thumbnailUrl?: string;
+  reviewSessionObjectId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CachedVersion extends StorableVersion {
+  isRemoved?: boolean;
+  lastChecked?: number;
+}
+
+export type { CachedVersion };
 
 interface CachedPlaylist extends Playlist {
   lastAccessed: number;
@@ -17,22 +56,16 @@ interface CachedPlaylist extends Playlist {
   removedVersions: string[];
 }
 
-interface StorableVersion extends AssetVersion {
-  playlistId: string;
-  lastModified: number;
-  draftContent?: string;
-}
-
-interface CachedVersion extends StorableVersion {
-  isRemoved?: boolean;
-  lastChecked?: number;
-}
-
 export class PlaylistStore {
   private static POLL_INTERVAL = 5000; // 5 seconds
   private pollingInterval: NodeJS.Timeout | null = null;
   private currentPlaylistId: string | null = null;
-  private isPolling: boolean = false;
+  private isPolling = false;
+  private ftrackService: FtrackService;
+
+  constructor(ftrackService: FtrackService) {
+    this.ftrackService = ftrackService;
+  }
 
   private findNonSerializableProps(obj: any, path = ""): string[] {
     const nonSerializable: string[] = [];
@@ -129,32 +162,20 @@ export class PlaylistStore {
     return cleanPlaylist;
   }
 
-  private cleanVersionForStorage(
-    version: AssetVersion & { playlistId: string },
-  ): StorableVersion {
+  private cleanVersion(version: FtrackVersion, playlistId: string): StorableVersion {
     // Create a new object with only serializable properties
     return {
       id: version.id,
-      name: version.name,
-      version: version.version,
-      reviewSessionObjectId: version.reviewSessionObjectId,
-      thumbnailUrl: version.thumbnailUrl,
-      createdAt: this.cleanDate(version.createdAt),
-      updatedAt: this.cleanDate(version.updatedAt),
-      playlistId: version.playlistId,
+      playlistId,
       lastModified: Date.now(),
-    };
-  }
-
-  private cleanVersion(version: AssetVersion): AssetVersion {
-    return {
-      id: version.id,
       name: version.name,
       version: version.version,
-      reviewSessionObjectId: version.reviewSessionObjectId,
+      thumbnail_url: version.thumbnail_url,
       thumbnailUrl: version.thumbnailUrl,
+      reviewSessionObjectId: version.reviewSessionObjectId,
       createdAt: version.createdAt,
       updatedAt: version.updatedAt,
+      labelId: '',
     };
   }
 
@@ -177,21 +198,33 @@ export class PlaylistStore {
     };
   }
 
-  async getDraftContent(versionId: string): Promise<string | undefined> {
-    log("Getting draft content for version:", versionId);
-    const version = await db.versions.get(versionId);
-    return version?.draftContent;
+  async getDraftContent(versionId: string): Promise<{ content?: string; labelId?: string }> {
+    try {
+      const version = await db.versions.get(versionId);
+      return {
+        content: version?.draftContent,
+        labelId: version?.labelId,
+      };
+    } catch (error) {
+      console.error("Failed to get draft content:", error);
+      return {};
+    }
   }
 
-  async saveDraft(versionId: string, content: string): Promise<void> {
-    log("Saving draft for version:", versionId);
-    const version = await db.versions.get(versionId);
-    if (version) {
-      await db.versions.update(versionId, {
-        ...version,
-        draftContent: content,
-        lastModified: Date.now(),
-      });
+  async saveDraft(versionId: string, content: string, labelId: string = ''): Promise<void> {
+    try {
+      const version = await db.versions.get(versionId);
+      if (version) {
+        const updates: Partial<CachedVersion> = {
+          draftContent: content,
+          labelId,
+          lastModified: Date.now(),
+        };
+        await db.versions.update(versionId, updates);
+      }
+    } catch (error) {
+      console.error("Failed to save draft:", error);
+      throw error;
     }
   }
 
@@ -213,14 +246,15 @@ export class PlaylistStore {
         existingVersions.map((v) => [v.id, (v as CachedVersion).draftContent]),
       );
 
+      const labelIdMap = new Map(
+        existingVersions.map((v) => [v.id, (v as CachedVersion).labelId]),
+      );
+
       // Cache versions, preserving draft content for existing versions
       if (playlist.versions) {
         // Create a composite key for each version that includes the playlist ID
         const versionUpdates = playlist.versions.map((version) => {
-          const cleanVersion = this.cleanVersionForStorage({
-            ...version,
-            playlistId: playlist.id,
-          });
+          const cleanVersion = this.cleanVersion(version, playlist.id);
 
           // Add draft content if it exists
           const existingDraft = draftMap.get(version.id);
@@ -228,6 +262,14 @@ export class PlaylistStore {
             return {
               ...cleanVersion,
               draftContent: existingDraft,
+            } as CachedVersion;
+          }
+
+          const existingLabelId = labelIdMap.get(version.id);
+          if (existingLabelId) {
+            return {
+              ...cleanVersion,
+              labelId: existingLabelId,
             } as CachedVersion;
           }
           return cleanVersion;
@@ -264,8 +306,8 @@ export class PlaylistStore {
     await Promise.all(
       versions.map(async (version) => {
         const draftContent = await this.getDraftContent(version.id);
-        if (draftContent) {
-          await this.saveDraft(version.id, draftContent);
+        if (draftContent.content) {
+          await this.saveDraft(version.id, draftContent.content, draftContent.labelId);
         }
       }),
     );
@@ -273,7 +315,7 @@ export class PlaylistStore {
 
   async updatePlaylist(playlistId: string): Promise<void> {
     log("Updating playlist with fresh data:", playlistId);
-    const fresh = await ftrackService.getPlaylists();
+    const fresh = await this.ftrackService.getPlaylists();
     const freshPlaylist = fresh.find((p) => p.id === playlistId);
     if (!freshPlaylist) {
       log("No playlist found with id:", playlistId);
@@ -317,7 +359,7 @@ export class PlaylistStore {
       removed: number,
       addedVersions?: string[],
       removedVersions?: string[],
-      freshVersions?: AssetVersion[],
+      freshVersions?: FtrackVersion[],
     ) => void,
   ): Promise<void> {
     // Update the playlist first
@@ -334,7 +376,7 @@ export class PlaylistStore {
       removed: number,
       addedVersions?: string[],
       removedVersions?: string[],
-      freshVersions?: AssetVersion[],
+      freshVersions?: FtrackVersion[],
     ) => void,
   ) {
     log("Starting polling for playlist:", playlistId);
@@ -374,7 +416,7 @@ export class PlaylistStore {
 
         // Get fresh versions for the current playlist
         const freshVersions =
-          await ftrackService.getPlaylistVersions(playlistId);
+          await this.ftrackService.getPlaylistVersions(playlistId);
 
         // Compare with cached versions using a Set for O(1) lookups
         const cachedVersionIds = new Set(
@@ -405,7 +447,15 @@ export class PlaylistStore {
           });
 
           // Clean versions before passing to callback
-          const cleanVersions = freshVersions.map((v) => this.cleanVersion(v));
+          const cleanVersions = freshVersions.map((v) => ({
+            id: v.id,
+            name: v.name,
+            version: v.version,
+            reviewSessionObjectId: v.reviewSessionObjectId,
+            thumbnailUrl: v.thumbnailUrl,
+            createdAt: v.createdAt,
+            updatedAt: v.updatedAt,
+          }));
 
           onModificationsFound(
             addedVersions.length,
@@ -439,6 +489,90 @@ export class PlaylistStore {
     }
     this.isPolling = false;
   }
+
+  async updateVersions(versions: FtrackVersion[]): Promise<void> {
+    await Promise.all(
+      versions.map(async (version) => {
+        const draftContent = await this.getDraftContent(version.id);
+        if (draftContent.content) {
+          const storedVersion = await db.versions.get(version.id);
+          const updates: Partial<CachedVersion> = {
+            draftContent: draftContent.content,
+            labelId: draftContent.labelId || '',
+            lastModified: Date.now(),
+          };
+          if (storedVersion) {
+            await db.versions.update(version.id, updates);
+          }
+        }
+      }),
+    );
+  }
+
+  private async pollForChanges(
+    playlist: Playlist,
+    onModificationsFound: (
+      addedCount: number,
+      removedCount: number,
+      versions: FtrackVersion[],
+    ) => void,
+  ): Promise<void> {
+    if (this.isPolling) {
+      return;
+    }
+
+    this.isPolling = true;
+
+    try {
+      // Get fresh versions from ftrack
+      const freshVersions = await this.ftrackService.getVersions(playlist.id);
+
+      // Get existing versions from db
+      const existingVersions = await db.versions
+        .where("playlistId")
+        .equals(playlist.id)
+        .toArray();
+
+      // Create maps for easy lookup
+      const freshVersionMap = new Map(
+        freshVersions.map((v: FtrackVersion) => [v.id, v]),
+      );
+      const existingVersionMap = new Map(
+        existingVersions.map((v: CachedVersion) => [v.id, v]),
+      );
+
+      // Find added and removed versions
+      const addedVersions = freshVersions
+        .filter((v: FtrackVersion) => !existingVersionMap.has(v.id))
+        .map((v: FtrackVersion) => v.id);
+
+      const removedVersions = existingVersions
+        .filter((v: CachedVersion) => !freshVersionMap.has(v.id))
+        .map((v: CachedVersion) => v.id);
+
+      if (addedVersions.length > 0 || removedVersions.length > 0) {
+        // Clean versions before passing to callback
+        const cleanVersions = freshVersions.map((v: FtrackVersion) => ({
+          id: v.id,
+          name: v.name,
+          version: v.version,
+          reviewSessionObjectId: v.reviewSessionObjectId,
+          thumbnailUrl: v.thumbnailUrl,
+          createdAt: v.createdAt,
+          updatedAt: v.updatedAt,
+        }));
+
+        onModificationsFound(
+          addedVersions.length,
+          removedVersions.length,
+          cleanVersions,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to poll for changes:", error);
+    }
+    this.isPolling = false;
+  }
 }
 
-export const playlistStore = new PlaylistStore();
+export const playlistStore = new PlaylistStore(new FtrackService());

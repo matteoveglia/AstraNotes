@@ -6,6 +6,7 @@ interface CachedVersion extends AssetVersion {
   draftContent?: string;
   noteStatus?: NoteStatus;
   lastModified: number;
+  labelId: string;
   isRemoved?: boolean;
 }
 
@@ -25,7 +26,7 @@ export class AstraNotesDB extends Dexie {
     super("AstraNotesDB");
     this.version(1).stores({
       playlists: "id, lastAccessed, lastChecked",
-      versions: "id, playlistId, lastModified, isRemoved",
+      versions: "id, playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
     });
   }
 

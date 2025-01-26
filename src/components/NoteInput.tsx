@@ -3,6 +3,7 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { NoteStatus } from "../types";
 import { cn } from "../lib/utils";
+import { NoteLabelSelect } from "./NoteLabelSelect";
 
 export interface NoteInputProps {
   versionName: string;
@@ -11,7 +12,8 @@ export interface NoteInputProps {
   status: NoteStatus;
   selected: boolean;
   initialContent?: string;
-  onSave: (content: string) => void;
+  initialLabelId?: string;
+  onSave: (content: string, labelId: string) => void;
   onClear: () => void;
   onSelectToggle: () => void;
 }
@@ -23,20 +25,31 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   status,
   selected,
   initialContent = "",
+  initialLabelId,
   onSave,
   onClear,
   onSelectToggle,
 }) => {
   const [content, setContent] = useState(initialContent);
+  const [labelId, setLabelId] = useState(initialLabelId);
 
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
 
+  useEffect(() => {
+    setLabelId(initialLabelId);
+  }, [initialLabelId]);
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
-    onSave(newContent);
+    onSave(newContent, labelId || "");
+  };
+
+  const handleLabelChange = (newLabelId: string) => {
+    setLabelId(newLabelId);
+    onSave(content, newLabelId);
   };
 
   const handleClear = () => {
@@ -100,18 +113,25 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
         <div className="flex gap-3">
           <div className="flex-1">
-            <Textarea
-              value={content}
-              onChange={handleChange}
-              placeholder="Add a note..."
-              className="min-h-[80px]"
-            />
+            <div className="flex gap-2 mb-2">
+              <Textarea
+                value={content}
+                onChange={handleChange}
+                placeholder="Add a note..."
+                className="min-h-[80px]"
+              />
+              <NoteLabelSelect
+                value={labelId}
+                onChange={handleLabelChange}
+                className="h-8 w-32"
+              />
+            </div>
             {status !== "empty" && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClear}
-                className="text-gray-500 hover:text-gray-700 mt-2"
+                className="text-gray-500 hover:text-gray-700"
               >
                 Clear
               </Button>

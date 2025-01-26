@@ -16,7 +16,7 @@ interface MainContentProps {
 }
 
 interface NoteInputHandlers {
-  onSave: (content: string) => void;
+  onSave: (content: string, labelId: string) => void;
   onClear: () => void;
   onSelectToggle: () => void;
 }
@@ -30,6 +30,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     {},
   );
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [noteLabelIds, setNoteLabelIds] = useState<Record<string, string>>({});
   const [modifications, setModifications] = useState<{
     added: number;
     removed: number;
@@ -102,10 +103,42 @@ export const MainContent: React.FC<MainContentProps> = ({
     setSelectedVersions([]);
   }, [playlist.id]);
 
-  const handleNoteSave = async (versionId: string, content: string) => {
+  useEffect(() => {
+    const loadDrafts = async () => {
+      if (!playlist.versions) return;
+
+      const draftsMap: Record<string, string> = {};
+      const labelIdsMap: Record<string, string> = {};
+
+      await Promise.all(
+        playlist.versions.map(async (version) => {
+          try {
+            const { content, labelId } = await playlistStore.getDraftContent(version.id);
+            if (content) {
+              draftsMap[version.id] = content;
+            }
+            if (labelId) {
+              labelIdsMap[version.id] = labelId;
+            }
+          } catch (error) {
+            console.error(`Failed to load draft for version ${version.id}:`, error);
+          }
+        }),
+      );
+
+      setNoteDrafts(draftsMap);
+      setNoteLabelIds(labelIdsMap);
+    };
+
+    loadDrafts();
+  }, [playlist.versions]);
+
+  const handleNoteSave = async (versionId: string, content: string, labelId: string) => {
     try {
       await playlistStore.saveDraft(versionId, content);
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
+      setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
+
       const isEmpty = content.trim() === "";
       setNoteStatuses((prev) => ({
         ...prev,
@@ -132,6 +165,11 @@ export const MainContent: React.FC<MainContentProps> = ({
       const newDrafts = { ...prev };
       delete newDrafts[versionId];
       return newDrafts;
+    });
+    setNoteLabelIds((prev) => {
+      const newLabelIds = { ...prev };
+      delete newLabelIds[versionId];
+      return newLabelIds;
     });
     await playlistStore.saveDraft(versionId, "");
   };
@@ -180,7 +218,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         .map(async (versionId) => {
           try {
             const content = noteDrafts[versionId];
-            await ftrackService.publishNote(versionId, content);
+            const labelId = noteLabelIds[versionId];
+            await ftrackService.publishNote(versionId, content, labelId);
             setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
             return { success: true, versionId };
           } catch (error) {
@@ -209,6 +248,11 @@ export const MainContent: React.FC<MainContentProps> = ({
         successfulVersions.forEach((id) => delete next[id]);
         return next;
       });
+      setNoteLabelIds((prev) => {
+        const next = { ...prev };
+        successfulVersions.forEach((id) => delete next[id]);
+        return next;
+      });
       setSelectedVersions([]);
     } catch (error) {
       console.error("Failed to publish selected notes:", error);
@@ -232,7 +276,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         .filter(([versionId]) => currentVersions.has(versionId)) // Only publish notes for versions in current playlist
         .map(async ([versionId, content]) => {
           try {
-            await ftrackService.publishNote(versionId, content);
+            const labelId = noteLabelIds[versionId];
+            await ftrackService.publishNote(versionId, content, labelId);
             setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
             return { success: true, versionId };
           } catch (error) {
@@ -257,6 +302,11 @@ export const MainContent: React.FC<MainContentProps> = ({
         .filter((r) => r.success)
         .map((r) => r.versionId);
       setNoteDrafts((prev) => {
+        const next = { ...prev };
+        successfulVersions.forEach((id) => delete next[id]);
+        return next;
+      });
+      setNoteLabelIds((prev) => {
         const next = { ...prev };
         successfulVersions.forEach((id) => delete next[id]);
         return next;
@@ -454,7 +504,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         <div className="space-y-4 py-4">
           {sortedVersions.map((version) => {
             const versionHandlers: NoteInputHandlers = {
-              onSave: (content: string) => handleNoteSave(version.id, content),
+              onSave: (content: string, labelId: string) => handleNoteSave(version.id, content, labelId),
               onClear: () => handleNoteClear(version.id),
               onSelectToggle: () => {
                 setSelectedVersions((prev) =>
@@ -474,6 +524,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                   status={noteStatuses[version.id] || "empty"}
                   selected={selectedVersions.includes(version.id)}
                   initialContent={noteDrafts[version.id]}
+                  initialLabelId={noteLabelIds[version.id]}
                   {...versionHandlers}
                 />
               </div>
