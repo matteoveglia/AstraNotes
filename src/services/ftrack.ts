@@ -36,6 +36,7 @@ export class FtrackService {
   private settings: FtrackSettings | null = null;
   private session: Session | null = null;
   private noteLabels: Array<{ id: string; name: string; color: string }> | null = null;
+  private currentUserId: string | null = null;
 
   constructor() {
     const savedSettings = localStorage.getItem("ftrackSettings");
@@ -77,11 +78,22 @@ export class FtrackService {
         { autoConnectEventHub: false },
       );
       await this.session.initializing;
+      
+      // Get user ID during initialization
+      const userResult = await this.session.query(
+        `select id from User where username is "${this.settings.apiUser}"`
+      );
+      if (!userResult?.data?.length) {
+        throw new Error("Could not find current user");
+      }
+      this.currentUserId = userResult.data[0].id;
+      
       log("Successfully initialized ftrack session");
       return this.session;
     } catch (error) {
       log("Failed to initialize session:", error);
       this.session = null;
+      this.currentUserId = null;
       return null;
     }
   }
@@ -280,41 +292,19 @@ export class FtrackService {
     const session = await this.getSession();
 
     try {
-      // Get version info
-      const result = await session.query(
-        `select asset.name, asset.parent.name from AssetVersion where id = "${versionId}"`
-      );
-
-      if (!result?.data?.[0]) {
-        throw new Error("Version not found");
+      if (!this.currentUserId) {
+        throw new Error("No user ID available - session may not be properly initialized");
       }
-
-      const version = result.data[0];
-      const assetName = version.asset?.name;
-      const parentName = version.asset?.parent?.name;
-
-      if (!assetName || !parentName) {
-        throw new Error("Failed to get version info");
-      }
-
-      // Get current user id
-      const userQuery = `select id from User where username is "${this.settings?.apiUser}"`;
-      const userResult = await session.query(userQuery);
-
-      if (!userResult?.data?.length) {
-        throw new Error("Could not find current user");
-      }
-      const userId = userResult.data[0].id;
 
       // Create note
       const response = await session.create("Note", {
         content: content,
         parent_id: versionId,
         parent_type: "AssetVersion",
-        user_id: userId,
+        user_id: this.currentUserId,
       });
 
-      // Check for successful response - ftrack returns {action: 'create', data: {id: '...'}}
+      // Check for successful response
       if (!response?.data?.id) {
         log("Invalid response:", response);
         throw new Error("Failed to create note: Invalid response from server");
@@ -333,8 +323,6 @@ export class FtrackService {
       log("Successfully published note:", {
         noteId,
         versionId,
-        assetName,
-        parentName,
         labelId,
       });
     } catch (error) {
