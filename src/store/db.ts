@@ -26,7 +26,8 @@ export class AstraNotesDB extends Dexie {
     super("AstraNotesDB");
     this.version(1).stores({
       playlists: "id, lastAccessed, lastChecked",
-      versions: "id, playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
+      versions:
+        "id, playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
     });
   }
 

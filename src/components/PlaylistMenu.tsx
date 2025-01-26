@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,8 @@ import {
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { ftrackService } from "../services/ftrack";
+import { usePlaylistsStore } from "../store/playlistsStore";
+import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
 
 interface PlaylistMenuProps {
   onClearAllNotes: () => void;
@@ -22,11 +24,15 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   onClearAllNotes,
   onSetAllLabels,
 }) => {
-  const [labels, setLabels] = useState<Array<{
-    id: string;
-    name: string;
-    color: string;
-  }>>([]);
+  const [labels, setLabels] = useState<
+    Array<{
+      id: string;
+      name: string;
+      color: string;
+    }>
+  >([]);
+
+  const { playlists, activePlaylistId } = usePlaylistsStore();
 
   useEffect(() => {
     const fetchLabels = async () => {
@@ -41,18 +47,35 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     fetchLabels();
   }, []);
 
+  const handleExportClick = async () => {
+    if (!activePlaylistId) return;
+    
+    const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
+    if (!activePlaylist) return;
+
+    try {
+      await exportPlaylistNotesToCSV(activePlaylist);
+    } catch (error) {
+      console.error("Failed to export notes:", error);
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="px-2"
-        >
+        <Button variant="ghost" size="sm" className="px-2">
           <Menu className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          onClick={handleExportClick}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export Notes to CSV
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onClearAllNotes}>
           Clear All Notes
         </DropdownMenuItem>
@@ -66,7 +89,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
                 onClick={() => onSetAllLabels(label.id)}
                 className="truncate mb-1 last:mb-0 cursor-pointer relative py-2 px-3 rounded-sm flex items-center"
                 style={{
-                  backgroundColor: label.color || 'white',
+                  backgroundColor: label.color || "white",
                   color: getContrastColor(label.color),
                 }}
               >
@@ -84,22 +107,22 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
 function getContrastColor(hexColor: string) {
   // Remove the # if present
   const color = hexColor.replace("#", "");
-  
+
   // Convert to RGB
   const r = parseInt(color.substr(0, 2), 16);
   const g = parseInt(color.substr(2, 2), 16);
   const b = parseInt(color.substr(4, 2), 16);
-  
+
   // Calculate relative luminance using sRGB
-  const sRGB = [r / 255, g / 255, b / 255].map(val => {
+  const sRGB = [r / 255, g / 255, b / 255].map((val) => {
     if (val <= 0.03928) {
       return val / 12.92;
     }
     return Math.pow((val + 0.055) / 1.055, 2.4);
   });
-  
+
   const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
-  
+
   // Use a more aggressive threshold for better contrast
   return luminance > 0.4 ? "#000000" : "#FFFFFF";
 }

@@ -20,11 +20,13 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
   onChange,
   className,
 }) => {
-  const [labels, setLabels] = useState<Array<{
-    id: string;
-    name: string;
-    color: string;
-  }>>([]);
+  const [labels, setLabels] = useState<
+    Array<{
+      id: string;
+      name: string;
+      color: string;
+    }>
+  >([]);
 
   useEffect(() => {
     const fetchLabels = async () => {
@@ -47,13 +49,13 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
 
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger 
+      <SelectTrigger
         className={cn(className, "overflow-hidden")}
         style={{
-          backgroundColor: selectedLabel?.color || 'white',
-          color: selectedLabel?.color 
+          backgroundColor: selectedLabel?.color || "white",
+          color: selectedLabel?.color
             ? getContrastColor(selectedLabel.color)
-            : 'inherit',
+            : "inherit",
         }}
       >
         <SelectValue className="truncate">
@@ -67,7 +69,7 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
             value={label.id}
             className={cn(
               "truncate mb-1 last:mb-0 cursor-pointer relative",
-              "py-2 pl-8 pr-3 rounded-sm flex items-center"
+              "py-2 pl-8 pr-3 rounded-sm flex items-center",
             )}
             style={{
               backgroundColor: label.color,
@@ -86,22 +88,22 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
 function getContrastColor(hexColor: string) {
   // Remove the # if present
   const color = hexColor.replace("#", "");
-  
+
   // Convert to RGB
   const r = parseInt(color.substr(0, 2), 16);
   const g = parseInt(color.substr(2, 2), 16);
   const b = parseInt(color.substr(4, 2), 16);
-  
+
   // Calculate relative luminance using sRGB
-  const sRGB = [r / 255, g / 255, b / 255].map(val => {
+  const sRGB = [r / 255, g / 255, b / 255].map((val) => {
     if (val <= 0.03928) {
       return val / 12.92;
     }
     return Math.pow((val + 0.055) / 1.055, 2.4);
   });
-  
+
   const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
-  
+
   // Use a more aggressive threshold for better contrast
   return luminance > 0.4 ? "#000000" : "#FFFFFF";
 }

@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useDebounce } from '../hooks/useDebounce';
-import { AssetVersion } from '../types';
-import { ftrackService } from '../services/ftrack';
+import { useDebounce } from "../hooks/useDebounce";
+import { AssetVersion } from "../types";
+import { ftrackService } from "../services/ftrack";
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -13,14 +13,14 @@ interface VersionSearchProps {
   isQuickNotes?: boolean;
 }
 
-export const VersionSearch: React.FC<VersionSearchProps> = ({ 
-  onVersionSelect, 
-  onClearAdded, 
+export const VersionSearch: React.FC<VersionSearchProps> = ({
+  onVersionSelect,
+  onClearAdded,
   onClearAll,
   hasManuallyAddedVersions = false,
-  isQuickNotes = false
+  isQuickNotes = false,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<AssetVersion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,7 +39,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
       });
       setResults(versions);
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error("Search failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -58,17 +58,17 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1"
         />
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onClearAdded}
           disabled={!hasManuallyAddedVersions}
         >
           Clear Added Versions
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onClearAll}
           disabled={!isQuickNotes}
         >
@@ -87,7 +87,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
               onClick={() => {
                 if (onVersionSelect) {
                   onVersionSelect(version);
-                  setSearchTerm(''); // Clear search after selection
+                  setSearchTerm(""); // Clear search after selection
                   setResults([]); // Clear results after selection
                 }
               }}
@@ -100,14 +100,14 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                 />
               )}
               <div className="font-medium truncate">{version.name}</div>
-              <div className="text-gray-500">
-                v{version.version}
-              </div>
+              <div className="text-gray-500">v{version.version}</div>
             </div>
           ))}
         </div>
       ) : debouncedSearchTerm ? (
-        <div className="text-center py-2 text-sm text-gray-500">No results found</div>
+        <div className="text-center py-2 text-sm text-gray-500">
+          No results found
+        </div>
       ) : null}
     </div>
   );

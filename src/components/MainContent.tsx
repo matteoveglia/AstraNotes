@@ -114,7 +114,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       await Promise.all(
         playlist.versions.map(async (version) => {
           try {
-            const { content, labelId } = await playlistStore.getDraftContent(version.id);
+            const { content, labelId } = await playlistStore.getDraftContent(
+              version.id,
+            );
             if (content) {
               draftsMap[version.id] = content;
             }
@@ -122,7 +124,10 @@ export const MainContent: React.FC<MainContentProps> = ({
               labelIdsMap[version.id] = labelId;
             }
           } catch (error) {
-            console.error(`Failed to load draft for version ${version.id}:`, error);
+            console.error(
+              `Failed to load draft for version ${version.id}:`,
+              error,
+            );
           }
         }),
       );
@@ -134,7 +139,11 @@ export const MainContent: React.FC<MainContentProps> = ({
     loadDrafts();
   }, [playlist.versions]);
 
-  const handleNoteSave = async (versionId: string, content: string, labelId: string) => {
+  const handleNoteSave = async (
+    versionId: string,
+    content: string,
+    labelId: string,
+  ) => {
     try {
       await playlistStore.saveDraft(versionId, content);
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
@@ -177,12 +186,12 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   const handleClearAdded = () => {
     if (!playlist.versions) return;
-    
+
     // Keep only non-manually added versions
-    const updatedVersions = playlist.versions.filter(v => !v.manuallyAdded);
+    const updatedVersions = playlist.versions.filter((v) => !v.manuallyAdded);
     const updatedPlaylist = {
       ...playlist,
-      versions: updatedVersions
+      versions: updatedVersions,
     };
 
     // Update the playlist in the store
@@ -197,7 +206,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Clear all versions from the playlist
     const updatedPlaylist = {
       ...playlist,
-      versions: []
+      versions: [],
     };
 
     // Update the playlist in the store
@@ -418,13 +427,13 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   const handleVersionSelect = (version: AssetVersion) => {
     if (!playlist.versions) return;
-    
+
     // Add the version to the playlist if it's not already there
-    const existingVersion = playlist.versions.find(v => v.id === version.id);
+    const existingVersion = playlist.versions.find((v) => v.id === version.id);
     if (!existingVersion) {
       const updatedPlaylist = {
         ...playlist,
-        versions: [...playlist.versions, version]
+        versions: [...playlist.versions, version],
       };
 
       // Update the playlist in the store
@@ -437,14 +446,14 @@ export const MainContent: React.FC<MainContentProps> = ({
   const handleClearAllNotes = async () => {
     // Get all version IDs that have draft content
     const versionIds = Object.keys(noteDrafts);
-    
+
     // Clear all drafts from state
     setNoteDrafts({});
     setNoteLabelIds({});
-    
+
     // Update note statuses
     const updatedStatuses = { ...noteStatuses };
-    versionIds.forEach(id => {
+    versionIds.forEach((id) => {
       delete updatedStatuses[id];
     });
     setNoteStatuses(updatedStatuses);
@@ -453,18 +462,18 @@ export const MainContent: React.FC<MainContentProps> = ({
     try {
       await Promise.all(
         versionIds.map(async (versionId) => {
-          await playlistStore.saveDraft(versionId, '', '');
-        })
+          await playlistStore.saveDraft(versionId, "", "");
+        }),
       );
     } catch (error) {
-      console.error('Failed to clear drafts from database:', error);
+      console.error("Failed to clear drafts from database:", error);
     }
   };
 
   const handleSetAllLabels = async (labelId: string) => {
     // Update all drafts with the new label
     const updatedLabelIds = { ...noteLabelIds };
-    Object.keys(noteDrafts).forEach(versionId => {
+    Object.keys(noteDrafts).forEach((versionId) => {
       updatedLabelIds[versionId] = labelId;
     });
     setNoteLabelIds(updatedLabelIds);
@@ -548,7 +557,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         <div className="space-y-4 py-4">
           {sortedVersions.map((version) => {
             const versionHandlers: NoteInputHandlers = {
-              onSave: (content: string, labelId: string) => handleNoteSave(version.id, content, labelId),
+              onSave: (content: string, labelId: string) =>
+                handleNoteSave(version.id, content, labelId),
               onClear: () => handleNoteClear(version.id),
               onSelectToggle: () => {
                 setSelectedVersions((prev) =>
@@ -590,7 +600,9 @@ export const MainContent: React.FC<MainContentProps> = ({
             onVersionSelect={handleVersionSelect}
             onClearAdded={handleClearAdded}
             onClearAll={handleClearAll}
-            hasManuallyAddedVersions={playlist.versions?.some(v => v.manuallyAdded)}
+            hasManuallyAddedVersions={playlist.versions?.some(
+              (v) => v.manuallyAdded,
+            )}
             isQuickNotes={playlist.isQuickNotes}
           />
         </div>

@@ -10,7 +10,7 @@ import { usePlaylistsStore } from "./store/playlistsStore";
 
 export const App: React.FC = () => {
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
-  const { 
+  const {
     playlists,
     activePlaylistId,
     isLoading,
@@ -22,16 +22,18 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     // Initialize with Quick Notes
-    setPlaylists([{
-      id: "quick-notes",
-      name: "Quick Notes",
-      title: "Quick Notes",
-      notes: [],
-      versions: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isQuickNotes: true,
-    }]);
+    setPlaylists([
+      {
+        id: "quick-notes",
+        name: "Quick Notes",
+        title: "Quick Notes",
+        notes: [],
+        versions: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isQuickNotes: true,
+      },
+    ]);
     loadPlaylists();
   }, [loadPlaylists, setPlaylists]);
 
@@ -45,9 +47,11 @@ export const App: React.FC = () => {
     if (playlistId !== "quick-notes") {
       try {
         const versions = await ftrackService.getPlaylistVersions(playlistId);
-        setPlaylists(playlists.map((playlist) =>
-          playlist.id === playlistId ? { ...playlist, versions } : playlist,
-        ));
+        setPlaylists(
+          playlists.map((playlist) =>
+            playlist.id === playlistId ? { ...playlist, versions } : playlist,
+          ),
+        );
       } catch (err) {
         console.error("Failed to load versions:", err);
       }
@@ -68,9 +72,9 @@ export const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    setPlaylists(playlists.map((p) => 
-      p.id === updatedPlaylist.id ? updatedPlaylist : p
-    ));
+    setPlaylists(
+      playlists.map((p) => (p.id === updatedPlaylist.id ? updatedPlaylist : p)),
+    );
   };
 
   const activePlaylistData = playlists.find((p) => p.id === activePlaylistId);

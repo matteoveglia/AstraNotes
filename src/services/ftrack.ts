@@ -35,7 +35,11 @@ interface SearchVersionsOptions {
 export class FtrackService {
   private settings: FtrackSettings | null = null;
   private session: Session | null = null;
-  private noteLabels: Array<{ id: string; name: string; color: string }> | null = null;
+  private noteLabels: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }> | null = null;
   private currentUserId: string | null = null;
 
   constructor() {
@@ -78,16 +82,16 @@ export class FtrackService {
         { autoConnectEventHub: false },
       );
       await this.session.initializing;
-      
+
       // Get user ID during initialization
       const userResult = await this.session.query(
-        `select id from User where username is "${this.settings.apiUser}"`
+        `select id from User where username is "${this.settings.apiUser}"`,
       );
       if (!userResult?.data?.length) {
         throw new Error("Could not find current user");
       }
       this.currentUserId = userResult.data[0].id;
-      
+
       log("Successfully initialized ftrack session");
       return this.session;
     } catch (error) {
@@ -293,7 +297,9 @@ export class FtrackService {
 
     try {
       if (!this.currentUserId) {
-        throw new Error("No user ID available - session may not be properly initialized");
+        throw new Error(
+          "No user ID available - session may not be properly initialized",
+        );
       }
 
       // Create note
@@ -360,11 +366,13 @@ export class FtrackService {
     }
   }
 
-  async searchVersions(options: SearchVersionsOptions): Promise<AssetVersion[]> {
+  async searchVersions(
+    options: SearchVersionsOptions,
+  ): Promise<AssetVersion[]> {
     const { searchTerm, limit = 50 } = options;
     const session = await this.ensureSession();
     const cacheKey = JSON.stringify(options);
-  
+
     // Check cache first
     const cached = await this.getFromCache(cacheKey);
     if (cached) {
@@ -373,21 +381,21 @@ export class FtrackService {
 
     try {
       log("Searching versions:", options);
-      
+
       // Only parse version if it's explicitly marked with v or _v
       const versionMatch = searchTerm.match(/[_]?v(\d+)/i);
       // Remove the version part from search if found, otherwise use full search term
-      const nameSearch = versionMatch 
-        ? searchTerm.replace(/[_]?v\d+/i, '').trim()
+      const nameSearch = versionMatch
+        ? searchTerm.replace(/[_]?v\d+/i, "").trim()
         : searchTerm.trim();
-      
+
       // Build where clause to search by name and/or version
-      let whereClause = '';
+      let whereClause = "";
       if (nameSearch) {
         whereClause += `asset.name like "%${nameSearch}%"`;
       }
       if (versionMatch) {
-        if (whereClause) whereClause += ' and ';
+        if (whereClause) whereClause += " and ";
         whereClause += `version = ${versionMatch[1]}`;
       }
       // If no valid search criteria, return empty results
@@ -411,46 +419,47 @@ export class FtrackService {
       log("Running search query:", query);
       const result = await session.query(query);
 
-      log("Raw search response:", { 
+      log("Raw search response:", {
         count: result?.data?.length,
-        names: result?.data?.map(v => v.asset.name)
+        names: result?.data?.map((v) => v.asset.name),
       });
 
       // Filter results case-insensitively in JavaScript
-      const filteredData = nameSearch 
-        ? result?.data?.filter(v => 
-            v.asset.name.toLowerCase().includes(nameSearch.toLowerCase())
+      const filteredData = nameSearch
+        ? result?.data?.filter((v) =>
+            v.asset.name.toLowerCase().includes(nameSearch.toLowerCase()),
           )
         : result?.data;
 
       // Take only up to the requested limit after filtering
       const limitedData = filteredData?.slice(0, limit);
 
-      const versions = limitedData?.map((version) => {
-        let thumbnailUrl = "";
-        const thumbnail = version.thumbnail;
-        if (
-          thumbnail &&
-          thumbnail.component_locations &&
-          thumbnail.component_locations.length > 0
-        ) {
-          thumbnailUrl = thumbnail.component_locations[0].url;
-        }
+      const versions =
+        limitedData?.map((version) => {
+          let thumbnailUrl = "";
+          const thumbnail = version.thumbnail;
+          if (
+            thumbnail &&
+            thumbnail.component_locations &&
+            thumbnail.component_locations.length > 0
+          ) {
+            thumbnailUrl = thumbnail.component_locations[0].url;
+          }
 
-        return {
-          id: version.id,
-          name: version.asset.name,
-          version: version.version,
-          thumbnailUrl,
-          createdAt: version.date || new Date().toISOString(),
-          updatedAt: version.date || new Date().toISOString(),
-          manuallyAdded: true
-        };
-      }) || [];
+          return {
+            id: version.id,
+            name: version.asset.name,
+            version: version.version,
+            thumbnailUrl,
+            createdAt: version.date || new Date().toISOString(),
+            updatedAt: version.date || new Date().toISOString(),
+            manuallyAdded: true,
+          };
+        }) || [];
 
       // Cache the results
       await this.addToCache(cacheKey, versions);
-      
+
       return versions;
     } catch (error) {
       log("Failed to search versions:", error);
@@ -470,13 +479,16 @@ export class FtrackService {
     return null;
   }
 
-  private async addToCache(key: string, versions: AssetVersion[]): Promise<void> {
+  private async addToCache(
+    key: string,
+    versions: AssetVersion[],
+  ): Promise<void> {
     localStorage.setItem(
       `version_search_${key}`,
       JSON.stringify({
         versions,
-        timestamp: Date.now()
-      })
+        timestamp: Date.now(),
+      }),
     );
   }
 
@@ -484,11 +496,11 @@ export class FtrackService {
     try {
       const session = await this.getSession();
       const result = await session.query(
-        'select id, name, color from NoteLabel'
+        "select id, name, color from NoteLabel",
       );
 
       if (result?.data) {
-        this.noteLabels = result.data.map(label => ({
+        this.noteLabels = result.data.map((label) => ({
           id: label.id,
           name: label.name,
           color: label.color,
@@ -499,35 +511,39 @@ export class FtrackService {
     }
   }
 
-  async getNoteLabels(): Promise<Array<{ id: string; name: string; color: string }>> {
+  async getNoteLabels(): Promise<
+    Array<{ id: string; name: string; color: string }>
+  > {
     if (!this.noteLabels) {
       await this.fetchNoteLabels();
     }
     return this.noteLabels || [];
   }
 
-  async getVersions(playlistId: string): Promise<Array<{
-    id: string;
-    name: string;
-    version: number;
-    thumbnail_url?: URL;
-    createdAt: string;
-    updatedAt: string;
-    reviewSessionObjectId?: string;
-    thumbnailUrl?: string;
-  }>> {
+  async getVersions(playlistId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      version: number;
+      thumbnail_url?: URL;
+      createdAt: string;
+      updatedAt: string;
+      reviewSessionObjectId?: string;
+      thumbnailUrl?: string;
+    }>
+  > {
     const session = await this.getSession();
 
     try {
       const result = await session.query(
-        `select id, name, version, thumbnail_url, created_at, updated_at, review_session_object_id, thumbnail_url from AssetVersion where playlist_id = "${playlistId}"`
+        `select id, name, version, thumbnail_url, created_at, updated_at, review_session_object_id, thumbnail_url from AssetVersion where playlist_id = "${playlistId}"`,
       );
 
       if (!result?.data) {
         return [];
       }
 
-      return result.data.map(version => ({
+      return result.data.map((version) => ({
         id: version.id,
         name: version.name,
         version: version.version,

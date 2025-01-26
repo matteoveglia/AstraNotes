@@ -67,7 +67,7 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
           </Button>
         </div>
       )}
-      
+
       {/* Scrollable playlist container */}
       <div className="absolute left-0 right-[100px] top-0 bottom-0 overflow-x-auto">
         <div className="flex items-center gap-1 px-2 h-full">
@@ -75,7 +75,9 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
             <PlaylistTab
               key={playlist.id}
               playlist={playlist}
-              isActive={activePlaylist !== null && playlist.id === activePlaylist}
+              isActive={
+                activePlaylist !== null && playlist.id === activePlaylist
+              }
               onClick={() => onPlaylistSelect(playlist.id)}
               onClose={
                 playlist.isQuickNotes

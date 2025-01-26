@@ -162,7 +162,10 @@ export class PlaylistStore {
     return cleanPlaylist;
   }
 
-  private cleanVersion(version: FtrackVersion, playlistId: string): StorableVersion {
+  private cleanVersion(
+    version: FtrackVersion,
+    playlistId: string,
+  ): StorableVersion {
     // Create a new object with only serializable properties
     return {
       id: version.id,
@@ -175,7 +178,7 @@ export class PlaylistStore {
       reviewSessionObjectId: version.reviewSessionObjectId,
       createdAt: version.createdAt,
       updatedAt: version.updatedAt,
-      labelId: '',
+      labelId: "",
     };
   }
 
@@ -198,7 +201,9 @@ export class PlaylistStore {
     };
   }
 
-  async getDraftContent(versionId: string): Promise<{ content?: string; labelId?: string }> {
+  async getDraftContent(
+    versionId: string,
+  ): Promise<{ content?: string; labelId?: string }> {
     try {
       const version = await db.versions.get(versionId);
       return {
@@ -211,7 +216,11 @@ export class PlaylistStore {
     }
   }
 
-  async saveDraft(versionId: string, content: string, labelId: string = ''): Promise<void> {
+  async saveDraft(
+    versionId: string,
+    content: string,
+    labelId: string = "",
+  ): Promise<void> {
     try {
       const version = await db.versions.get(versionId);
       if (version) {
@@ -307,7 +316,11 @@ export class PlaylistStore {
       versions.map(async (version) => {
         const draftContent = await this.getDraftContent(version.id);
         if (draftContent.content) {
-          await this.saveDraft(version.id, draftContent.content, draftContent.labelId);
+          await this.saveDraft(
+            version.id,
+            draftContent.content,
+            draftContent.labelId,
+          );
         }
       }),
     );
@@ -498,7 +511,7 @@ export class PlaylistStore {
           const storedVersion = await db.versions.get(version.id);
           const updates: Partial<CachedVersion> = {
             draftContent: draftContent.content,
-            labelId: draftContent.labelId || '',
+            labelId: draftContent.labelId || "",
             lastModified: Date.now(),
           };
           if (storedVersion) {
