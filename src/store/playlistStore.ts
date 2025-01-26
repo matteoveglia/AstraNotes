@@ -344,11 +344,18 @@ export class PlaylistStore {
       this.stopPolling();
     }
 
+    // Clear any existing interval and reset state
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+
     this.currentPlaylistId = playlistId;
 
-    // Set a small delay before starting the first poll to avoid race conditions
+    // Set a small delay before starting the first poll to avoid race conditions with playlist initialization
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
+    // Define the poll function
     const poll = async () => {
       // If we're already polling or this isn't the current playlist anymore, skip
       if (this.isPolling || this.currentPlaylistId !== playlistId) {
@@ -415,10 +422,10 @@ export class PlaylistStore {
       }
     };
 
-    // Run the first poll
+    // Run the first poll after the delay
     await poll();
 
-    // Start the polling interval if this is still the current playlist
+    // Start a fresh polling interval if this is still the current playlist
     if (this.currentPlaylistId === playlistId) {
       this.pollingInterval = setInterval(poll, PlaylistStore.POLL_INTERVAL);
     }
