@@ -363,15 +363,17 @@ export class FtrackService {
     try {
       log("Searching versions:", options);
       
-      // Parse search term to check if it includes a version number
-      const versionMatch = searchTerm.match(/v?(\d+)/i);
-      const nameSearch = searchTerm.replace(/v?\d+/i, '').trim();
+      // Only parse version if it's explicitly marked with v or _v
+      const versionMatch = searchTerm.match(/[_]?v(\d+)/i);
+      // Remove the version part from search if found, otherwise use full search term
+      const nameSearch = versionMatch 
+        ? searchTerm.replace(/[_]?v\d+/i, '').trim()
+        : searchTerm.trim();
       
       // Build where clause to search by name and/or version
       let whereClause = '';
       if (nameSearch) {
-        // Use contains instead of like for more flexible matching
-        whereClause += `contains(lower(asset.name), lower("${nameSearch}"))`;
+        whereClause += `asset.name like "%${nameSearch}%"`;
       }
       if (versionMatch) {
         if (whereClause) whereClause += ' and ';
@@ -393,7 +395,7 @@ export class FtrackService {
       from AssetVersion 
       where ${whereClause}
       order by date desc
-      limit ${limit}`;
+      limit ${limit * 2}`; // Double the limit to account for filtering
 
       log("Running search query:", query);
       const result = await session.query(query);
@@ -403,7 +405,17 @@ export class FtrackService {
         names: result?.data?.map(v => v.asset.name)
       });
 
-      const versions = result?.data?.map((version) => {
+      // Filter results case-insensitively in JavaScript
+      const filteredData = nameSearch 
+        ? result?.data?.filter(v => 
+            v.asset.name.toLowerCase().includes(nameSearch.toLowerCase())
+          )
+        : result?.data;
+
+      // Take only up to the requested limit after filtering
+      const limitedData = filteredData?.slice(0, limit);
+
+      const versions = limitedData?.map((version) => {
         let thumbnailUrl = "";
         const thumbnail = version.thumbnail;
         if (

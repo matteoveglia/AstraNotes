@@ -130,7 +130,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               id="serverUrl"
               value={settings.serverUrl}
               onChange={handleInputChange("serverUrl")}
-              placeholder="Your ftrack server URL"
+              placeholder="e.g. https://yourserver.ftrackapp.com"
             />
           </div>
 
@@ -151,24 +151,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               id="apiUser"
               value={settings.apiUser}
               onChange={handleInputChange("apiUser")}
-              placeholder="Your ftrack username"
+              placeholder="Your ftrack account email"
             />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="autoRefresh"
-              checked={settings.autoRefreshEnabled}
-              onCheckedChange={(checked) =>
-                setSettings({
-                  ...settings,
-                  autoRefreshEnabled: checked as boolean,
-                })
-              }
-            />
-            <Label htmlFor="autoRefresh">
-              Auto-refresh playlists (checks for changes every 5 seconds)
-            </Label>
           </div>
 
           <div className="flex items-center space-x-2 text-sm">
@@ -195,7 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex justify-end space-x-2 pb-2 pt-1">
             <Button
               variant="outline"
               onClick={handleTestConnection}
@@ -204,8 +188,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {isTesting ? "Testing..." : "Test Connection"}
             </Button>
             <Button onClick={handleSave} disabled={isTesting || isLoading}>
-              Save Settings
+              Save Credentials
             </Button>
+          </div>
+
+          <div className="border-t pt-4 mt-4">
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox
+                id="autoRefresh"
+                checked={settings.autoRefreshEnabled}
+                onCheckedChange={(checked) =>
+                  setSettings({
+                    ...settings,
+                    autoRefreshEnabled: checked as boolean,
+                  })
+                }
+              />
+              <Label htmlFor="autoRefresh">
+                Auto-refresh playlists (checks for changes every 5 seconds)
+              </Label>
+            </div>
           </div>
 
           <div className="border-t pt-4 mt-4">
@@ -213,7 +215,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h3 className="font-medium">Clear Cache</h3>
                 <p className="text-sm text-gray-500">
-                  Clear all cached playlists and versions
+                  Clear all cached playlists, versions and notes
                 </p>
               </div>
               <Button
