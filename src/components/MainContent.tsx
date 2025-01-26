@@ -9,6 +9,7 @@ import { playlistStore } from "../store/playlistStore";
 import { PlaylistModifiedBanner } from "./PlaylistModifiedBanner";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
+import { PlaylistMenu } from "./PlaylistMenu";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -433,6 +434,42 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
+  const handleClearAllNotes = async () => {
+    // Get all version IDs that have draft content
+    const versionIds = Object.keys(noteDrafts);
+    
+    // Clear all drafts from state
+    setNoteDrafts({});
+    setNoteLabelIds({});
+    
+    // Update note statuses
+    const updatedStatuses = { ...noteStatuses };
+    versionIds.forEach(id => {
+      delete updatedStatuses[id];
+    });
+    setNoteStatuses(updatedStatuses);
+
+    // Clear drafts from the database
+    try {
+      await Promise.all(
+        versionIds.map(async (versionId) => {
+          await playlistStore.saveDraft(versionId, '', '');
+        })
+      );
+    } catch (error) {
+      console.error('Failed to clear drafts from database:', error);
+    }
+  };
+
+  const handleSetAllLabels = async (labelId: string) => {
+    // Update all drafts with the new label
+    const updatedLabelIds = { ...noteLabelIds };
+    Object.keys(noteDrafts).forEach(versionId => {
+      updatedLabelIds[versionId] = labelId;
+    });
+    setNoteLabelIds(updatedLabelIds);
+  };
+
   const renderModificationsBanner = () => {
     if (modifications.added === 0 && modifications.removed === 0) return null;
 
@@ -462,18 +499,20 @@ export const MainContent: React.FC<MainContentProps> = ({
         <div className="flex items-center gap-2">
           <CardTitle className="text-xl">{playlist.name}</CardTitle>
           {!playlist.isQuickNotes && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2"
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              title="Refresh playlist"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                title="Refresh playlist"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </>
           )}
         </div>
         <div className="flex items-center gap-4">
@@ -495,6 +534,11 @@ export const MainContent: React.FC<MainContentProps> = ({
               >
                 Publish All Notes
               </Button>
+              <div className="ml-3 mx-1 w-px bg-foreground/20 self-stretch" />
+              <PlaylistMenu
+                onClearAllNotes={handleClearAllNotes}
+                onSetAllLabels={handleSetAllLabels}
+              />
             </div>
           </div>
         </div>
@@ -533,7 +577,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           {!playlist.versions?.length && (
             <div className="text-center text-gray-500 py-8">
               {playlist.isQuickNotes
-                ? "Select a version to add notes"
+                ? "Search for a version below to begin"
                 : "No versions found in this playlist"}
             </div>
           )}
