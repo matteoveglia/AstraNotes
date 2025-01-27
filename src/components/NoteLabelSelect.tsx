@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Select,
   SelectContent,
@@ -6,8 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { ftrackService } from "../services/ftrack";
 import { cn } from "../lib/utils";
+import { useLabelStore } from "../store/labelStore";
+import { useSettings } from "../store/settingsStore";
 
 interface NoteLabelSelectProps {
   value?: string;
@@ -20,35 +21,34 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
   onChange,
   className,
 }) => {
-  const [labels, setLabels] = useState<
-    Array<{
-      id: string;
-      name: string;
-      color: string;
-    }>
-  >([]);
+  const { labels, fetchLabels } = useLabelStore();
+  const { settings } = useSettings();
+  const hasSetDefault = useRef(false);
 
   useEffect(() => {
-    const fetchLabels = async () => {
-      try {
-        const noteLabels = await ftrackService.getNoteLabels();
-        setLabels(noteLabels);
-        // Set default value to first label if no value is selected
-        if (!value && noteLabels.length > 0) {
-          onChange(noteLabels[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch note labels:", error);
-      }
-    };
+    if (labels.length === 0) {
+      fetchLabels();
+    }
+  }, [fetchLabels]);
 
-    fetchLabels();
-  }, []);
+  // Set default label only if we don't have a value and haven't set a default before
+  useEffect(() => {
+    if (!value && labels.length > 0 && !hasSetDefault.current) {
+      hasSetDefault.current = true;
+      // Use the default label from settings if available, otherwise use the first label
+      const defaultLabelId =
+        settings.defaultLabelId &&
+        labels.find((l) => l.id === settings.defaultLabelId)
+          ? settings.defaultLabelId
+          : labels[0].id;
+      onChange(defaultLabelId);
+    }
+  }, [value, labels, onChange, settings.defaultLabelId]);
 
   const selectedLabel = labels.find((label) => label.id === value);
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value || ""} onValueChange={onChange}>
       <SelectTrigger
         className={cn(className, "overflow-hidden")}
         style={{
@@ -104,6 +104,5 @@ function getContrastColor(hexColor: string) {
 
   const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
 
-  // Use a more aggressive threshold for better contrast
-  return luminance > 0.4 ? "#000000" : "#FFFFFF";
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
 }

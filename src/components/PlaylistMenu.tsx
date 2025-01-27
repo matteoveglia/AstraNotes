@@ -49,7 +49,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
 
   const handleExportClick = async () => {
     if (!activePlaylistId) return;
-    
+
     const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
     if (!activePlaylist) return;
 

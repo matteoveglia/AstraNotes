@@ -7,6 +7,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import type { Playlist } from "./types";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
+import { useLabelStore } from "./store/labelStore";
 
 export const App: React.FC = () => {
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
@@ -19,6 +20,7 @@ export const App: React.FC = () => {
     setActivePlaylist,
     setPlaylists,
   } = usePlaylistsStore();
+  const { fetchLabels } = useLabelStore();
 
   useEffect(() => {
     // Initialize with Quick Notes
@@ -34,8 +36,9 @@ export const App: React.FC = () => {
         isQuickNotes: true,
       },
     ]);
-    loadPlaylists();
-  }, [loadPlaylists, setPlaylists]);
+    // Load playlists and labels
+    Promise.all([loadPlaylists(), fetchLabels()]);
+  }, [loadPlaylists, setPlaylists, fetchLabels]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     setActivePlaylist(playlistId);

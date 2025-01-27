@@ -18,12 +18,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import type { FtrackSettings } from "../types";
 import { ftrackService } from "../services/ftrack";
 import { db } from "../store/db";
 import { playlistStore } from "../store/playlistStore";
 import { useSettings } from "../store/settingsStore";
+import { useLabelStore } from "../store/labelStore";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SettingsModalProps {
   onLoadPlaylists: () => void;
@@ -34,10 +42,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
+  const { labels, fetchLabels } = useLabelStore();
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchLabels();
+    }
+  }, [isOpen, fetchLabels]);
 
   const handleSave = async () => {
     try {
@@ -193,20 +208,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <div className="border-t pt-4 mt-4">
-            <div className="flex items-center space-x-2 py-2">
-              <Checkbox
-                id="autoRefresh"
-                checked={settings.autoRefreshEnabled}
-                onCheckedChange={(checked) =>
-                  setSettings({
-                    ...settings,
-                    autoRefreshEnabled: checked as boolean,
-                  })
-                }
-              />
-              <Label htmlFor="autoRefresh">
-                Auto-refresh playlists (checks for changes every 5 seconds)
-              </Label>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mt-1">
+                <Label htmlFor="auto-refresh">Enable Auto Refresh</Label>
+                <Switch
+                  id="auto-refresh"
+                  checked={settings.autoRefreshEnabled}
+                  onCheckedChange={(checked: boolean) =>
+                    setSettings({
+                      ...settings,
+                      autoRefreshEnabled: checked,
+                    })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="default-label">Default Note Label</Label>
+                <Select
+                  value={settings.defaultLabelId || labels[0]?.id}
+                  onValueChange={(value) =>
+                    setSettings({ ...settings, defaultLabelId: value })
+                  }
+                >
+                  <SelectTrigger id="default-label" className="w-[180px]">
+                    <SelectValue placeholder="Select a default label" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {labels.map((label) => (
+                      <SelectItem key={label.id} value={label.id}>
+                        {label.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

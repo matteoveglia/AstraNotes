@@ -9,9 +9,13 @@ interface NoteExportData {
 }
 
 type DraftNote = Omit<NoteExportData, "noteState"> & { noteState: "Draft" };
-type PublishedNote = Omit<NoteExportData, "noteState"> & { noteState: "Published" };
+type PublishedNote = Omit<NoteExportData, "noteState"> & {
+  noteState: "Published";
+};
 
-export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void> {
+export async function exportPlaylistNotesToCSV(
+  playlist: Playlist,
+): Promise<void> {
   if (!playlist) return;
 
   // Get all drafts for the playlist versions
@@ -22,7 +26,7 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
         versionName: version.name,
         version: version.version,
         content: content,
-        noteState: "Draft"
+        noteState: "Draft",
       };
       return draft;
     }
@@ -30,7 +34,7 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
   });
 
   const drafts = (await Promise.all(draftsPromises)).filter(
-    (draft): draft is DraftNote => draft !== null
+    (draft): draft is DraftNote => draft !== null,
   );
 
   // Format published notes
@@ -45,7 +49,7 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
     if (a.noteState !== b.noteState) {
       return a.noteState === "Published" ? -1 : 1;
     }
-    
+
     // Then sort by version name
     const nameCompare = a.versionName.localeCompare(b.versionName);
     if (nameCompare !== 0) return nameCompare;
@@ -56,21 +60,17 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
 
   const csvRows = [
     // Headers
-    [
-      "Version Name",
-      "Version",
-      "Note Content",
-      "Note State"
-    ].join(","),
+    ["Version Name", "Version", "Note Content", "Note State"].join(","),
     // Data rows
     ...sortedNotes.map(formatRowForCSV),
   ];
 
   // Format the date as YYYYMMDD
   const today = new Date();
-  const dateStr = today.getFullYear().toString() +
-    (today.getMonth() + 1).toString().padStart(2, '0') +
-    today.getDate().toString().padStart(2, '0');
+  const dateStr =
+    today.getFullYear().toString() +
+    (today.getMonth() + 1).toString().padStart(2, "0") +
+    today.getDate().toString().padStart(2, "0");
 
   const filename = `${playlist.name}_${dateStr}.csv`;
   downloadCSV(csvRows.join("\n"), filename);
@@ -81,12 +81,12 @@ function formatNotesForExport(playlist: Playlist): PublishedNote[] {
     .map((note): PublishedNote | null => {
       const version = playlist.versions?.find((v) => v.id === note.id);
       if (!version) return null;
-      
+
       const publishedNote: PublishedNote = {
         versionName: version.name,
         version: version.version,
         content: note.content,
-        noteState: "Published"
+        noteState: "Published",
       };
       return publishedNote;
     })
@@ -101,7 +101,7 @@ function formatRowForCSV(data: NoteExportData): string {
     escapeCsvField(data.versionName),
     data.version,
     escapeCsvField(data.content),
-    escapeCsvField(data.noteState)
+    escapeCsvField(data.noteState),
   ].join(",");
 }
 

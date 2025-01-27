@@ -6,6 +6,7 @@ interface Settings {
   apiKey: string;
   apiUser: string;
   autoRefreshEnabled: boolean;
+  defaultLabelId?: string;
 }
 
 interface SettingsState {
@@ -21,6 +22,7 @@ export const useSettings = create<SettingsState>()(
         apiKey: "",
         apiUser: "",
         autoRefreshEnabled: true,
+        defaultLabelId: undefined,
       },
       setSettings: (newSettings) => set({ settings: newSettings }),
     }),

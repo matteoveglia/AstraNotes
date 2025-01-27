@@ -110,6 +110,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       const draftsMap: Record<string, string> = {};
       const labelIdsMap: Record<string, string> = {};
+      const statusMap: Record<string, NoteStatus> = {};
 
       await Promise.all(
         playlist.versions.map(async (version) => {
@@ -119,6 +120,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             );
             if (content) {
               draftsMap[version.id] = content;
+              statusMap[version.id] = content.trim() === "" ? "empty" : "draft";
             }
             if (labelId) {
               labelIdsMap[version.id] = labelId;
@@ -134,6 +136,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       setNoteDrafts(draftsMap);
       setNoteLabelIds(labelIdsMap);
+      setNoteStatuses(statusMap);
     };
 
     loadDrafts();
@@ -145,7 +148,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      await playlistStore.saveDraft(versionId, content);
+      await playlistStore.saveDraft(versionId, content, labelId);
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
 
@@ -181,7 +184,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       delete newLabelIds[versionId];
       return newLabelIds;
     });
-    await playlistStore.saveDraft(versionId, "");
+    await playlistStore.saveDraft(versionId, "", "");
   };
 
   const handleClearAdded = () => {
@@ -477,6 +480,17 @@ export const MainContent: React.FC<MainContentProps> = ({
       updatedLabelIds[versionId] = labelId;
     });
     setNoteLabelIds(updatedLabelIds);
+
+    // Save changes to database
+    try {
+      await Promise.all(
+        Object.entries(noteDrafts).map(async ([versionId, content]) => {
+          await playlistStore.saveDraft(versionId, content, labelId);
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to update labels in database:", error);
+    }
   };
 
   const renderModificationsBanner = () => {
