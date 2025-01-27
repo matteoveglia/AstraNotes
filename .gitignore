@@ -9,8 +9,14 @@ build
 *.local
 
 # Tauri
-src-tauri/target
-src-tauri/Cargo.lock
+/src-tauri/target
+/src-tauri/target/release
+/src-tauri/target/debug
+/src-tauri/*.log
+/src-tauri/build
+/src-tauri/node_modules
+/src-tauri/Cargo.lock
+/src-tauri/gen/schemas
 
 # Logs
 logs
