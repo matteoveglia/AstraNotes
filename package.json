@@ -11,7 +11,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri:dev": "tauri dev",
+    "tauri:build:mac": "tauri build --target=aarch64-apple-darwin",
+    "tauri:build:macuniversal": "tauri build --target=universal-apple-darwin",
+    "tauri:build:win": "tauri build --target=x86_64-pc-windows-msvc"
   },
   "dependencies": {
     "@ftrack/api": "^1.11.2",
