@@ -1,45 +1,100 @@
-# AstraNote
+# AstraNotes
 
-A desktop application for taking and managing review notes for media content tracked in ftrack.
+A desktop/web app aiming to provide a better note-taking experience with ftrack.
 
-## Features
+## ✨ Features
 
-- Connect to ftrack using Server URL, API Key, and API User
-- Manage multiple playlists including a permanent Quick Notes playlist
-- Take rich text notes with image attachments
-- Track note status (draft, published, reviewed)
-- Search and manage versions
-- Modern, responsive UI built with React and Tailwind CSS
+- 🔐 Secure ftrack integration, data is stored locally, keys encrypted and nothing sent via 3rd party
+- 📝 Text-only for now, rich text planned
+- 📋 Multiple playlist management
+- 🏷️ Note labelling, inline with ftrack
+- 🔍 Ability to quick-add versions with an advanced search tool
+- 💅 Modern, responsive UI built with React and Tailwind CSS
+- 🚀 Native performance with Tauri
 
-## Development
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or later recommended)
-- pnpm package manager
+- Node.js (v20 or later)
+- [pnpm](https://pnpm.io/) package management
+- Rust toolchain (for Tauri development)
+- ftrack account and API credentials
 
-### Setup
+## 🛠️ Development
+### Installation
 
-1. Install dependencies:
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/astranotes.git
+cd astranotes
+```
+
+2. Install dependencies:
 ```bash
 pnpm install
 ```
 
-2. Start the development server:
+3. Start the development server, for Web development:
 ```bash
 pnpm dev
 ```
 
-3. Build for production:
+4. Start the development server, for Tauri development:
 ```bash
-pnpm build
+pnpm tauri dev
 ```
 
-## Tech Stack
+### Available Scripts
 
-- React
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- Vite
-- Tauri 2 (coming soon)
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build
+- `pnpm lint` - Lint code with ESLint
+- `pnpm format` - Format code with Prettier
+- `pnpm test` - Run tests
+- `pnpm typecheck` - Type check TypeScript code
+
+### Building for Different Platforms
+
+- macOS (Apple Silicon):
+  ```bash
+  pnpm tauri:build:mac
+  ```
+- macOS (Universal):
+  ```bash
+  pnpm tauri:build:macuniversal
+  ```
+- Windows:
+  ```bash
+  pnpm tauri:build:win
+  ```
+
+## 🏗️ Tech Stack
+
+- **Frontend Framework**: React 18
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **Build Tool**: Vite
+- **Desktop Framework**: Tauri 2
+- **State Management**: Zustand
+- **Database**: Dexie (IndexedDB wrapper)
+- **API Integration**: @ftrack/api
+
+## 📦 Project Structure
+
+```
+astranotes/
+├── src/               # React source code
+├── src-tauri/         # Rust/Tauri backend code
+└── dist/             # Production build output
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MPL 2.0 License - see the [LICENSE.txt](LICENSE.txt) file for details.
