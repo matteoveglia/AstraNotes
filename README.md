@@ -44,6 +44,10 @@ pnpm dev
 ```bash
 pnpm tauri dev
 ```
+### Configuration
+
+Please create a `.env` file in the project root with your `VITE_SENTRY_DSN`: Sentry DSN for error tracking
+And run the Sentry wizard to generate your `SENTRY_AUTH_TOKEN` environment variable
 
 ### Available Scripts
 

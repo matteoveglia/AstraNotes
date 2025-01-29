@@ -108,6 +108,7 @@ export const App: React.FC = () => {
               </div>
             )}
           </div>
+          <button onClick={() => {throw new Error("This is your first error!");}}>Break the world</button>
           <OpenPlaylistsBar
             playlists={playlists.filter((p) => openPlaylists.includes(p.id))}
             activePlaylist={activePlaylistId}
