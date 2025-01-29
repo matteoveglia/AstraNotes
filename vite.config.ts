@@ -8,6 +8,9 @@ const __dirname = dirname(__filename);
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 2000, // Set limit to 2000 kB
+  },
   plugins: [react()],
   resolve: {
     alias: {
