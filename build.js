@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { execSync } from 'child_process';
 import { homedir } from 'os';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import { readFileSync } from 'fs';
 
 const target = process.argv[2];
