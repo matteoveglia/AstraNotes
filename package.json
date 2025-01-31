@@ -12,9 +12,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
-    "tauri:build:mac": "tauri build --target=aarch64-apple-darwin",
-    "tauri:build:macuniversal": "tauri build --target=universal-apple-darwin",
-    "tauri:build:win": "tauri build --target=x86_64-pc-windows-msvc"
+    "tauri:build:mac": "node build.js mac",
+    "tauri:build:macuniversal": "node build.js macuniversal",
+    "tauri:build:win": "node build.js win"
   },
   "dependencies": {
     "@ftrack/api": "^1.11.2",
@@ -30,6 +30,8 @@
     "@sentry/react": "^8.52.0",
     "@sentry/vite-plugin": "^3.1.0",
     "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-process": "^2.2.0",
+    "@tauri-apps/plugin-updater": "~2.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
@@ -52,6 +54,7 @@
     "@typescript-eslint/eslint-plugin": "^8.21.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
+    "dotenv": "^16.4.7",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.7.3",

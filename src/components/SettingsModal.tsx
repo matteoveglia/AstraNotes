@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { checkForUpdates } from "../lib/updater";
 
 interface SettingsModalProps {
   onLoadPlaylists: () => void;
@@ -38,6 +39,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for updates when the app starts
+    checkForUpdates();
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -251,6 +257,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 disabled={isLoading}
               >
                 {isLoading ? "Clearing..." : "Clear Cache"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 mt-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h4 className="text-sm font-medium">Updates</h4>
+                <p className="text-sm text-muted-foreground">Check for new versions of AstraNotes</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => checkForUpdates()}
+                disabled={isLoading}
+              >
+                Check for Updates
               </Button>
             </div>
           </div>

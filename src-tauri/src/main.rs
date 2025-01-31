@@ -14,10 +14,13 @@ fn main() {
         .map(|value| value.trim_matches('"'))
         .expect("SENTRY_TAURI must be set in .env");
 
-    let _guard = sentry::init((dsn, sentry::ClientOptions {
-        release: sentry::release_name!(),
-        ..Default::default()
-    }));
+    let _guard = sentry::init((
+        dsn,
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
 
     app_lib::run();
 }
