@@ -388,7 +388,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       };
 
       // Update the cache first
-      await playlistStore.cachePlaylist(updatedPlaylist);
+      await playlistStore.cachePlaylist(
+        playlistStore.cleanPlaylistForStorage(updatedPlaylist)
+      );
 
       // Then notify parent components of the update
       if (onPlaylistUpdate) {

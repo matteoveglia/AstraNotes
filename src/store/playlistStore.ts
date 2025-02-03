@@ -114,7 +114,7 @@ export class PlaylistStore {
     return typeof date === 'string' ? date : date.toISOString();
   }
 
-  private cleanPlaylistForStorage(playlist: Playlist): CachedPlaylist {
+  public cleanPlaylistForStorage(playlist: Playlist): CachedPlaylist {
     // Create a new object with only serializable properties
     const cleanPlaylist: CachedPlaylist = {
       id: playlist.id,
