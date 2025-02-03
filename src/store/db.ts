@@ -1,7 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { Playlist, AssetVersion, NoteStatus } from "../types";
 
-interface CachedVersion extends AssetVersion {
+export interface CachedVersion extends AssetVersion {
   playlistId: string;
   draftContent?: string;
   noteStatus?: NoteStatus;
@@ -10,7 +10,7 @@ interface CachedVersion extends AssetVersion {
   isRemoved?: boolean;
 }
 
-interface CachedPlaylist extends Playlist {
+export interface CachedPlaylist extends Playlist {
   lastAccessed: number;
   lastChecked: number;
   hasModifications: boolean;
@@ -24,10 +24,26 @@ export class AstraNotesDB extends Dexie {
 
   constructor() {
     super("AstraNotesDB");
-    this.version(1).stores({
+    console.log("Initializing AstraNotesDB schema...");
+    
+    this.version(2).stores({
       playlists: "id, lastAccessed, lastChecked",
-      versions:
-        "id, playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
+      versions: "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
+    });
+
+    this.versions.hook('creating', function(primKey, obj) {
+      console.log('Creating version:', { primKey, obj });
+      return obj;
+    });
+
+    this.versions.hook('reading', function(obj) {
+      console.log('Reading version:', obj);
+      return obj;
+    });
+
+    console.log("Schema initialized:", {
+      playlists: this.playlists.schema.indexes.map(i => i.keyPath),
+      versions: this.versions.schema.indexes.map(i => i.keyPath)
     });
   }
 
@@ -44,6 +60,37 @@ export class AstraNotesDB extends Dexie {
       .where("playlistId")
       .noneOf([...activePlaylistIds])
       .delete();
+  }
+
+  async clearCache() {
+    try {
+      // Close current connection
+      this.close();
+      
+      // Delete the database
+      const deleteRequest = indexedDB.deleteDatabase('AstraNotesDB');
+      
+      await new Promise((resolve, reject) => {
+        deleteRequest.onsuccess = () => {
+          console.log('Database deleted successfully');
+          resolve(true);
+        };
+        deleteRequest.onerror = () => {
+          reject(new Error('Could not delete database'));
+        };
+      });
+
+      // Clear localStorage items
+      localStorage.clear();
+      localStorage.setItem('active-playlist', 'quick-notes');
+      localStorage.setItem('playlist-tabs', JSON.stringify(['quick-notes']));
+
+      // Force a full page reload to clear everything
+      window.location.href = '/';
+    } catch (error) {
+      console.error("Failed to clear cache:", error);
+      throw error;
+    }
   }
 }
 

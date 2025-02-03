@@ -10,6 +10,8 @@ import { PlaylistModifiedBanner } from "./PlaylistModifiedBanner";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
 import { PlaylistMenu } from "./PlaylistMenu";
+import { db, type CachedVersion } from "../store/db";
+import Dexie from "dexie";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -112,27 +114,25 @@ export const MainContent: React.FC<MainContentProps> = ({
       const labelIdsMap: Record<string, string> = {};
       const statusMap: Record<string, NoteStatus> = {};
 
-      await Promise.all(
-        playlist.versions.map(async (version) => {
-          try {
-            const { content, labelId } = await playlistStore.getDraftContent(
-              version.id,
-            );
-            if (content) {
-              draftsMap[version.id] = content;
-              statusMap[version.id] = content.trim() === "" ? "empty" : "draft";
-            }
-            if (labelId) {
-              labelIdsMap[version.id] = labelId;
-            }
-          } catch (error) {
-            console.error(
-              `Failed to load draft for version ${version.id}:`,
-              error,
-            );
-          }
-        }),
-      );
+      // Load all drafts at once using compound index
+      const drafts = await db.versions
+        .where('[playlistId+id]')
+        .between(
+          [playlist.id, Dexie.minKey],
+          [playlist.id, Dexie.maxKey]
+        )
+        .toArray();
+
+      // Create maps for drafts and label IDs
+      drafts.forEach((draft: CachedVersion) => {
+        if (draft.draftContent) {
+          draftsMap[draft.id] = draft.draftContent;
+          statusMap[draft.id] = draft.draftContent.trim() === "" ? "empty" : "draft";
+        }
+        if (draft.labelId) {
+          labelIdsMap[draft.id] = draft.labelId;
+        }
+      });
 
       setNoteDrafts(draftsMap);
       setNoteLabelIds(labelIdsMap);
@@ -140,7 +140,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     };
 
     loadDrafts();
-  }, [playlist.versions]);
+  }, [playlist.id, playlist.versions]);
 
   const handleNoteSave = async (
     versionId: string,
@@ -148,17 +148,17 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      await playlistStore.saveDraft(versionId, content, labelId);
+      await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+      
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
-
-      const isEmpty = content.trim() === "";
       setNoteStatuses((prev) => ({
         ...prev,
-        [versionId]: isEmpty ? "empty" : "draft",
+        [versionId]: content.trim() === "" ? "empty" : "draft",
       }));
+      
       // Unselect if empty
-      if (isEmpty) {
+      if (content.trim() === "") {
         setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
       }
     } catch (error) {
@@ -184,7 +184,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       delete newLabelIds[versionId];
       return newLabelIds;
     });
-    await playlistStore.saveDraft(versionId, "", "");
+    await playlistStore.saveDraft(versionId, playlist.id, "", "");
   };
 
   const handleClearAdded = () => {
@@ -465,7 +465,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     try {
       await Promise.all(
         versionIds.map(async (versionId) => {
-          await playlistStore.saveDraft(versionId, "", "");
+          await playlistStore.saveDraft(versionId, playlist.id, "", "");
         }),
       );
     } catch (error) {
@@ -485,7 +485,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     try {
       await Promise.all(
         Object.entries(noteDrafts).map(async ([versionId, content]) => {
-          await playlistStore.saveDraft(versionId, content, labelId);
+          await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
         }),
       );
     } catch (error) {

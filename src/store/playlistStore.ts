@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { Playlist } from "../types";
 import { UpdateSpec } from "dexie";
+import Dexie from "dexie";
 import { FtrackService } from "../services/ftrack";
 
 const DEBUG = true;
@@ -166,46 +167,81 @@ export class PlaylistStore {
     version: FtrackVersion,
     playlistId: string,
   ): StorableVersion {
-    // Create a new object with only serializable properties
     return {
       id: version.id,
       playlistId,
-      lastModified: Date.now(),
-      name: version.name,
+      name: version.name || "",
       version: version.version,
-      thumbnail_url: version.thumbnail_url,
-      thumbnailUrl: version.thumbnailUrl,
-      reviewSessionObjectId: version.reviewSessionObjectId,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
-      labelId: "",
+      thumbnailUrl: version.thumbnailUrl || "",
+      reviewSessionObjectId: version.reviewSessionObjectId || "",
+      createdAt: this.cleanDate(version.createdAt),
+      updatedAt: this.cleanDate(version.updatedAt),
+      lastModified: Date.now(),
+      draftContent: "",  // Initialize with empty draft
+      labelId: "",      // Initialize with empty label
     };
   }
 
   async getPlaylist(id: string): Promise<CachedPlaylist | undefined> {
-    log("Getting playlist from cache:", id);
-    const cached = await db.playlists.get(id);
-    if (!cached) return undefined;
+    try {
+      log("Getting playlist from cache:", id);
+      const cached = await db.playlists.get(id);
+      if (!cached) {
+        log("Playlist not found in cache:", id);
+        return undefined;
+      }
 
-    // Get all versions for this playlist
-    const versions = await db.versions
-      .where("playlistId")
-      .equals(id)
-      .filter((v) => !v.isRemoved)
-      .toArray();
+      // Get all versions for this playlist using the compound index
+      const versions = await db.versions
+        .where('[playlistId+id]')
+        .between(
+          [id, Dexie.minKey],
+          [id, Dexie.maxKey]
+        )
+        .filter((v) => !v.isRemoved)
+        .toArray();
 
-    log("Found versions in cache:", versions.length);
-    return {
-      ...cached,
-      versions,
-    };
+      log("Found versions in cache:", versions.length);
+      
+      // If no versions in cache but playlist has versions, try to initialize
+      if (versions.length === 0 && cached.versions && cached.versions.length > 0) {
+        log("No cached versions found, initializing playlist:", id);
+        await this.initializePlaylist(id, cached);
+        // Try getting versions again
+        const freshVersions = await db.versions
+          .where('[playlistId+id]')
+          .between(
+            [id, Dexie.minKey],
+            [id, Dexie.maxKey]
+          )
+          .filter((v) => !v.isRemoved)
+          .toArray();
+          
+        return {
+          ...cached,
+          versions: freshVersions,
+        };
+      }
+
+      return {
+        ...cached,
+        versions,
+      };
+    } catch (error) {
+      console.error("Error getting playlist:", error);
+      return undefined;
+    }
   }
 
   async getDraftContent(
     versionId: string,
+    playlistId: string,
   ): Promise<{ content?: string; labelId?: string }> {
     try {
-      const version = await db.versions.get(versionId);
+      const version = await db.versions
+        .where('[playlistId+id]')
+        .equals([playlistId, versionId])
+        .first();
       return {
         content: version?.draftContent,
         labelId: version?.labelId,
@@ -218,18 +254,63 @@ export class PlaylistStore {
 
   async saveDraft(
     versionId: string,
+    playlistId: string,
     content: string,
     labelId: string = "",
   ): Promise<void> {
     try {
-      const version = await db.versions.get(versionId);
+      // First, get the version from the current playlist
+      const version = await db.versions.get([playlistId, versionId]);
+
       if (version) {
-        const updates: Partial<CachedVersion> = {
+        // Update existing version in this playlist
+        const updatedVersion = {
+          ...version,
           draftContent: content,
           labelId,
           lastModified: Date.now(),
         };
-        await db.versions.update(versionId, updates);
+        
+        await db.versions.put(updatedVersion, [playlistId, versionId]);
+      } else {
+        // Get the playlist to find the base version
+        const playlist = await this.getPlaylist(playlistId);
+        
+        if (!playlist?.versions) {
+          console.error("Cannot save draft: Playlist not found or has no versions", playlistId);
+          return;
+        }
+
+        // For Quick Notes, create a new version if it doesn't exist
+        let baseVersion = playlist.versions.find((v: FtrackVersion) => v.id === versionId);
+        if (!baseVersion && playlistId === 'quick-notes') {
+          baseVersion = {
+            id: versionId,
+            version: 1,
+            name: content.substring(0, 50) || 'New Note',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            thumbnailUrl: '',
+            reviewSessionObjectId: '',
+          };
+          playlist.versions = [...(playlist.versions || []), baseVersion];
+          await db.playlists.put(playlist);
+        } else if (!baseVersion) {
+          console.error("Cannot save draft: Version not found in playlist", versionId);
+          return;
+        }
+
+        // Create a new version entry specific to this playlist
+        const newVersion: CachedVersion = {
+          ...baseVersion,
+          playlistId,
+          draftContent: content,
+          labelId,
+          lastModified: Date.now(),
+          isRemoved: false,
+        };
+        
+        await db.versions.put(newVersion, [playlistId, versionId]);
       }
     } catch (error) {
       console.error("Failed to save draft:", error);
@@ -239,91 +320,106 @@ export class PlaylistStore {
 
   async cachePlaylist(playlist: Playlist): Promise<void> {
     try {
-      log("Caching playlist:", playlist.id);
       const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
-
-      // Update the playlist in the cache
       await db.playlists.put(cleanedPlaylist);
 
       // Get current versions to preserve draft content
       const existingVersions = await db.versions
-        .where("playlistId")
+        .where('playlistId')
         .equals(playlist.id)
         .toArray();
 
       const draftMap = new Map(
-        existingVersions.map((v) => [v.id, (v as CachedVersion).draftContent]),
+        existingVersions.map((v) => [v.id, v.draftContent]),
       );
 
       const labelIdMap = new Map(
-        existingVersions.map((v) => [v.id, (v as CachedVersion).labelId]),
+        existingVersions.map((v) => [v.id, v.labelId]),
       );
 
       // Cache versions, preserving draft content for existing versions
       if (playlist.versions) {
-        // Create a composite key for each version that includes the playlist ID
-        const versionUpdates = playlist.versions.map((version) => {
-          const cleanVersion = this.cleanVersion(version, playlist.id);
+        // Don't clear Quick Notes versions when caching
+        if (playlist.id === 'quick-notes') {
+          const existingIds = new Set(existingVersions.map(v => v.id));
+          const newVersions = playlist.versions.filter(v => !existingIds.has(v.id));
+          
+          // Only process new versions
+          await Promise.all(
+            newVersions.map(async (version) => {
+              const versionToSave: CachedVersion = {
+                ...version,
+                playlistId: playlist.id,
+                draftContent: "",
+                labelId: "",
+                lastModified: Date.now(),
+                isRemoved: false,
+              };
 
-          // Add draft content if it exists
-          const existingDraft = draftMap.get(version.id);
-          if (existingDraft) {
-            return {
-              ...cleanVersion,
-              draftContent: existingDraft,
-            } as CachedVersion;
+              await db.versions.put(versionToSave, [playlist.id, version.id]);
+            })
+          );
+        } else {
+          // Process each version individually for non-Quick Notes playlists
+          await Promise.all(
+            playlist.versions.map(async (version) => {
+              const existingDraft = draftMap.get(version.id);
+              const existingLabelId = labelIdMap.get(version.id);
+
+              const versionToSave: CachedVersion = {
+                ...version,
+                playlistId: playlist.id,
+                draftContent: existingDraft || "",
+                labelId: existingLabelId || "",
+                lastModified: Date.now(),
+                isRemoved: false,
+              };
+
+              await db.versions.put(versionToSave, [playlist.id, version.id]);
+            })
+          );
+
+          // Remove versions that are no longer in the playlist
+          const currentVersionIds = new Set(playlist.versions.map((v) => v.id));
+          const versionsToRemove = await db.versions
+            .where('playlistId')
+            .equals(playlist.id)
+            .filter((v) => !currentVersionIds.has(v.id))
+            .toArray();
+          
+          if (versionsToRemove.length > 0) {
+            await Promise.all(
+              versionsToRemove.map(v => 
+                db.versions.delete([playlist.id, v.id])
+              )
+            );
           }
-
-          const existingLabelId = labelIdMap.get(version.id);
-          if (existingLabelId) {
-            return {
-              ...cleanVersion,
-              labelId: existingLabelId,
-            } as CachedVersion;
-          }
-          return cleanVersion;
-        });
-
-        // Bulk put all versions
-        await db.versions.bulkPut(versionUpdates);
-
-        // Remove versions that are no longer in the playlist
-        const currentVersionIds = new Set(playlist.versions.map((v) => v.id));
-        await db.versions
-          .where("playlistId")
-          .equals(playlist.id)
-          .filter((v) => !currentVersionIds.has(v.id))
-          .delete();
+        }
       }
     } catch (err) {
-      log("Warning: Error in cachePlaylist:", err);
+      console.error("Error in cachePlaylist:", err);
+      throw err;
     }
   }
 
   async initializePlaylist(playlistId: string, playlist: Playlist) {
-    // Stop any existing polling before initializing
-    this.stopPolling();
-
-    // Set as current playlist
-    this.currentPlaylistId = playlistId;
-
-    // Cache the playlist first to ensure we have the latest state
-    await this.cachePlaylist(playlist);
-
-    // Try to restore any existing drafts
-    const versions = playlist.versions || [];
-    await Promise.all(
-      versions.map(async (version) => {
-        const draftContent = await this.getDraftContent(version.id);
-        if (draftContent.content) {
-          await this.saveDraft(
-            version.id,
-            draftContent.content,
-            draftContent.labelId,
-          );
-        }
-      }),
-    );
+    try {
+      // Get fresh versions from Ftrack
+      const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+      
+      if (freshVersions) {
+        // Cache the playlist with fresh versions
+        await this.cachePlaylist({
+          ...playlist,
+          versions: freshVersions,
+        });
+      } else {
+        // If no fresh versions, cache with existing versions
+        await this.cachePlaylist(playlist);
+      }
+    } catch (error) {
+      console.error("Error initializing playlist:", error);
+    }
   }
 
   async updatePlaylist(playlistId: string): Promise<void> {
@@ -503,26 +599,17 @@ export class PlaylistStore {
     this.isPolling = false;
   }
 
-  async updateVersions(versions: FtrackVersion[]): Promise<void> {
-    await Promise.all(
-      versions.map(async (version) => {
-        const draftContent = await this.getDraftContent(version.id);
-        if (draftContent.content) {
-          const storedVersion = await db.versions.get(version.id);
-          const updates: Partial<CachedVersion> = {
-            draftContent: draftContent.content,
-            labelId: draftContent.labelId || "",
-            lastModified: Date.now(),
-          };
-          if (storedVersion) {
-            await db.versions.update(version.id, updates);
-          }
-        }
-      }),
+  private compareVersions(v1: FtrackVersion, v2: FtrackVersion): boolean {
+    // Only compare fields that should trigger a version change
+    return (
+      v1.id === v2.id &&
+      v1.version === v2.version &&
+      v1.name === v2.name &&
+      v1.reviewSessionObjectId === v2.reviewSessionObjectId
     );
   }
 
-  private async pollForChanges(
+  async pollForChanges(
     playlist: Playlist,
     onModificationsFound: (
       addedCount: number,
@@ -530,61 +617,56 @@ export class PlaylistStore {
       versions: FtrackVersion[],
     ) => void,
   ): Promise<void> {
-    if (this.isPolling) {
-      return;
-    }
-
-    this.isPolling = true;
-
     try {
-      // Get fresh versions from ftrack
-      const freshVersions = await this.ftrackService.getVersions(playlist.id);
+      // Get fresh versions for the current playlist
+      const freshVersions = await this.ftrackService.getPlaylistVersions(
+        playlist.id,
+      );
 
-      // Get existing versions from db
-      const existingVersions = await db.versions
-        .where("playlistId")
-        .equals(playlist.id)
-        .toArray();
+      if (!freshVersions) {
+        return;
+      }
 
-      // Create maps for easy lookup
+      // Get current cached playlist
+      const cachedPlaylist = await this.getPlaylist(playlist.id);
+      if (!cachedPlaylist?.versions) {
+        // If no cached versions, treat all as new
+        await this.cachePlaylist({ ...playlist, versions: freshVersions });
+        onModificationsFound(freshVersions.length, 0, freshVersions);
+        return;
+      }
+
+      // Create maps for efficient lookup
+      const cachedVersionMap = new Map(
+        cachedPlaylist.versions.map(v => [v.id, v])
+      );
       const freshVersionMap = new Map(
-        freshVersions.map((v: FtrackVersion) => [v.id, v]),
-      );
-      const existingVersionMap = new Map(
-        existingVersions.map((v: CachedVersion) => [v.id, v]),
+        freshVersions.map(v => [v.id, v])
       );
 
-      // Find added and removed versions
-      const addedVersions = freshVersions
-        .filter((v: FtrackVersion) => !existingVersionMap.has(v.id))
-        .map((v: FtrackVersion) => v.id);
+      // Find truly added and removed versions by comparing relevant fields
+      const addedVersions = freshVersions.filter(v => {
+        const cached = cachedVersionMap.get(v.id);
+        return !cached || !this.compareVersions(v, cached);
+      });
 
-      const removedVersions = existingVersions
-        .filter((v: CachedVersion) => !freshVersionMap.has(v.id))
-        .map((v: CachedVersion) => v.id);
+      const removedVersions = cachedPlaylist.versions.filter(v => {
+        const fresh = freshVersionMap.get(v.id);
+        return !fresh || !this.compareVersions(fresh, v);
+      });
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
-        // Clean versions before passing to callback
-        const cleanVersions = freshVersions.map((v: FtrackVersion) => ({
-          id: v.id,
-          name: v.name,
-          version: v.version,
-          reviewSessionObjectId: v.reviewSessionObjectId,
-          thumbnailUrl: v.thumbnailUrl,
-          createdAt: v.createdAt,
-          updatedAt: v.updatedAt,
-        }));
-
+        // Update the cache with new versions
+        await this.cachePlaylist({ ...playlist, versions: freshVersions });
         onModificationsFound(
           addedVersions.length,
           removedVersions.length,
-          cleanVersions,
+          freshVersions,
         );
       }
     } catch (error) {
-      console.error("Failed to poll for changes:", error);
+      console.error("Error polling for changes:", error);
     }
-    this.isPolling = false;
   }
 }
 
