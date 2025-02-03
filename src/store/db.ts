@@ -37,7 +37,7 @@ export class AstraNotesDB extends Dexie {
     });
 
     this.versions.hook('reading', function(obj) {
-      console.log('Reading version:', obj);
+      //console.log('Reading version:', obj);
       return obj;
     });
 
