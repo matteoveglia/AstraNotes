@@ -1,11 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "description": "enables the default app permissions",
   "windows": [
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "updater:default",
+    "fs:allow-download-write"
   ]
 }

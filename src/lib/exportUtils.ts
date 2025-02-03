@@ -1,5 +1,7 @@
 import { Playlist, Note, AssetVersion } from "../types";
 import { playlistStore } from "../store/playlistStore";
+import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { downloadDir, join } from '@tauri-apps/api/path';
 
 interface NoteExportData {
   versionName: string;
@@ -8,72 +10,87 @@ interface NoteExportData {
   noteState: "Draft" | "Published";
 }
 
-type DraftNote = Omit<NoteExportData, "noteState"> & { noteState: "Draft" };
+interface DraftNote {
+  versionName: string;
+  versionNumber: number;
+  content: string;
+}
+
 type PublishedNote = Omit<NoteExportData, "noteState"> & {
   noteState: "Published";
 };
 
-export async function exportPlaylistNotesToCSV(
-  playlist: Playlist,
-): Promise<void> {
-  if (!playlist) return;
+function downloadCSV(csvContent: string, filename: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if ((navigator as any).msSaveBlob) { // IE 10+
+    (navigator as any).msSaveBlob(blob, filename);
+  } else {
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}
 
-  // Get all drafts for the playlist versions
-  const draftsPromises = (playlist.versions || []).map(async (version) => {
-    const { content } = await playlistStore.getDraftContent(version.id);
-    if (content) {
-      const draft: DraftNote = {
-        versionName: version.name,
-        version: version.version,
-        content: content,
-        noteState: "Draft",
-      };
-      return draft;
-    }
-    return null;
-  });
+export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void> {
+  if (!playlist.versions) {
+    return;
+  }
 
-  const drafts = (await Promise.all(draftsPromises)).filter(
-    (draft): draft is DraftNote => draft !== null,
-  );
+  try {
+    // Get all drafts for the playlist versions
+    const draftsPromises = (playlist.versions || []).map(async (version) => {
+      const content = await playlistStore.getDraftContent(playlist.id, version.id);
+      if (content) {
+        const draft: DraftNote = {
+          versionName: version.name,
+          versionNumber: version.version,
+          content: content,
+        };
+        return draft;
+      }
+      return null;
+    });
 
-  // Format published notes
-  const publishedNotes = formatNotesForExport(playlist);
+    const drafts = (await Promise.all(draftsPromises)).filter(
+      (draft): draft is DraftNote => draft !== null,
+    );
 
-  // Combine both drafts and published notes
-  const allNotes: NoteExportData[] = [...publishedNotes, ...drafts];
+    // Convert to CSV
+    const csvRows = drafts.map(
+      (draft) =>
+        `"${draft.versionName}","${draft.versionNumber}","${draft.content.replace(/"/g, '""')}"`,
+    );
 
-  // Sort notes: Published first, then by version name, then by version number
-  const sortedNotes = [...allNotes].sort((a, b) => {
-    // First sort by note state (Published before Draft)
-    if (a.noteState !== b.noteState) {
-      return a.noteState === "Published" ? -1 : 1;
-    }
+    // Add header row
+    csvRows.unshift('"Version Name","Version Number","Notes"');
 
-    // Then sort by version name
-    const nameCompare = a.versionName.localeCompare(b.versionName);
-    if (nameCompare !== 0) return nameCompare;
+    // Format the date as YYYYMMDD
+    const today = new Date();
+    const dateStr = 
+      today.getFullYear().toString() +
+      (today.getMonth() + 1).toString().padStart(2, "0") +
+      today.getDate().toString().padStart(2, "0");
 
-    // Finally sort by version number
-    return a.version - b.version;
-  });
-
-  const csvRows = [
-    // Headers
-    ["Version Name", "Version", "Note Content", "Note State"].join(","),
-    // Data rows
-    ...sortedNotes.map(formatRowForCSV),
-  ];
-
-  // Format the date as YYYYMMDD
-  const today = new Date();
-  const dateStr =
-    today.getFullYear().toString() +
-    (today.getMonth() + 1).toString().padStart(2, "0") +
-    today.getDate().toString().padStart(2, "0");
-
-  const filename = `${playlist.name}_${dateStr}.csv`;
-  downloadCSV(csvRows.join("\n"), filename);
+    const filename = `${playlist.name}_${dateStr}.csv`;
+    
+    // Get downloads directory and create file path
+    const downloadsDir = await downloadDir();
+    const filePath = await join(downloadsDir, filename);
+    
+    // Write the CSV file
+    await writeTextFile(filePath, csvRows.join('\n'));
+    
+    console.log(`CSV file saved to: ${filePath}`);
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+    throw error;
+  }
 }
 
 function formatNotesForExport(playlist: Playlist): PublishedNote[] {
@@ -103,17 +120,4 @@ function formatRowForCSV(data: NoteExportData): string {
     escapeCsvField(data.content),
     escapeCsvField(data.noteState),
   ].join(",");
-}
-
-function downloadCSV(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url); // Clean up the URL object
 }

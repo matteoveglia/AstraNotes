@@ -170,15 +170,15 @@ export class PlaylistStore {
   }
 
   async getDraftContent(
-    versionId: string,
     playlistId: string,
+    versionId: string,
   ): Promise<string> {
     try {
       const version = await db.versions.get([playlistId, versionId]);
       return version?.draftContent || "";
     } catch (error) {
       console.error("Failed to get draft content:", error);
-      return ""; // Return empty string on error instead of throwing
+      return "";
     }
   }
 

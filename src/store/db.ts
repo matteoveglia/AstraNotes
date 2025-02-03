@@ -32,7 +32,7 @@ export class AstraNotesDB extends Dexie {
     });
 
     this.versions.hook('creating', function(primKey, obj) {
-      console.log('Creating version:', { primKey, obj });
+      //console.log('Creating version:', { primKey, obj });
       return obj;
     });
 
