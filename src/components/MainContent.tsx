@@ -116,18 +116,16 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Load all drafts at once using compound index
       const drafts = await db.versions
-        .where('[playlistId+id]')
-        .between(
-          [playlist.id, Dexie.minKey],
-          [playlist.id, Dexie.maxKey]
-        )
+        .where("[playlistId+id]")
+        .between([playlist.id, Dexie.minKey], [playlist.id, Dexie.maxKey])
         .toArray();
 
       // Create maps for drafts and label IDs
       drafts.forEach((draft: CachedVersion) => {
         if (draft.draftContent) {
           draftsMap[draft.id] = draft.draftContent;
-          statusMap[draft.id] = draft.draftContent.trim() === "" ? "empty" : "draft";
+          statusMap[draft.id] =
+            draft.draftContent.trim() === "" ? "empty" : "draft";
         }
         if (draft.labelId) {
           labelIdsMap[draft.id] = draft.labelId;
@@ -149,14 +147,14 @@ export const MainContent: React.FC<MainContentProps> = ({
   ) => {
     try {
       await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
-      
+
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
       setNoteStatuses((prev) => ({
         ...prev,
         [versionId]: content.trim() === "" ? "empty" : "draft",
       }));
-      
+
       // Unselect if empty
       if (content.trim() === "") {
         setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
@@ -389,7 +387,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Update the cache first
       await playlistStore.cachePlaylist(
-        playlistStore.cleanPlaylistForStorage(updatedPlaylist)
+        playlistStore.cleanPlaylistForStorage(updatedPlaylist),
       );
 
       // Then notify parent components of the update
@@ -487,7 +485,12 @@ export const MainContent: React.FC<MainContentProps> = ({
     try {
       await Promise.all(
         Object.entries(noteDrafts).map(async ([versionId, content]) => {
-          await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+          await playlistStore.saveDraft(
+            versionId,
+            playlist.id,
+            content,
+            labelId,
+          );
         }),
       );
     } catch (error) {

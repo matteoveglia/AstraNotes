@@ -1,7 +1,7 @@
 import { Playlist, Note, AssetVersion } from "../types";
 import { playlistStore } from "../store/playlistStore";
-import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { downloadDir, join } from '@tauri-apps/api/path';
+import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { downloadDir, join } from "@tauri-apps/api/path";
 
 interface NoteExportData {
   versionName: string;
@@ -21,10 +21,11 @@ type PublishedNote = Omit<NoteExportData, "noteState"> & {
 };
 
 function downloadCSV(csvContent: string, filename: string) {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  
-  if ((navigator as any).msSaveBlob) { // IE 10+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+
+  if ((navigator as any).msSaveBlob) {
+    // IE 10+
     (navigator as any).msSaveBlob(blob, filename);
   } else {
     const url = URL.createObjectURL(blob);
@@ -37,7 +38,9 @@ function downloadCSV(csvContent: string, filename: string) {
   }
 }
 
-export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void> {
+export async function exportPlaylistNotesToCSV(
+  playlist: Playlist,
+): Promise<void> {
   if (!playlist.versions) {
     return;
   }
@@ -45,7 +48,10 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
   try {
     // Get all drafts for the playlist versions
     const draftsPromises = (playlist.versions || []).map(async (version) => {
-      const content = await playlistStore.getDraftContent(playlist.id, version.id);
+      const content = await playlistStore.getDraftContent(
+        playlist.id,
+        version.id,
+      );
       if (content) {
         const draft: DraftNote = {
           versionName: version.name,
@@ -72,23 +78,23 @@ export async function exportPlaylistNotesToCSV(playlist: Playlist): Promise<void
 
     // Format the date as YYYYMMDD
     const today = new Date();
-    const dateStr = 
+    const dateStr =
       today.getFullYear().toString() +
       (today.getMonth() + 1).toString().padStart(2, "0") +
       today.getDate().toString().padStart(2, "0");
 
     const filename = `${playlist.name}_${dateStr}.csv`;
-    
+
     // Get downloads directory and create file path
     const downloadsDir = await downloadDir();
     const filePath = await join(downloadsDir, filename);
-    
+
     // Write the CSV file
-    await writeTextFile(filePath, csvRows.join('\n'));
-    
+    await writeTextFile(filePath, csvRows.join("\n"));
+
     console.log(`CSV file saved to: ${filePath}`);
   } catch (error) {
-    console.error('Error exporting CSV:', error);
+    console.error("Error exporting CSV:", error);
     throw error;
   }
 }

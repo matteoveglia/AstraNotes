@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import type { Playlist } from "../types";
-import { Loader2, AlertCircle, RefreshCw, MinusCircle, PlusCircle, XCircle } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  MinusCircle,
+  PlusCircle,
+  XCircle,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
@@ -13,10 +20,10 @@ interface PlaylistItemProps {
 }
 
 interface PlaylistWithStatus extends Playlist {
-  status?: 'added' | 'removed';
+  status?: "added" | "removed";
 }
 
-const QUICK_NOTES_ID = 'quick-notes';
+const QUICK_NOTES_ID = "quick-notes";
 
 const PlaylistItem: React.FC<PlaylistItemProps> = ({
   playlist,
@@ -27,14 +34,18 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     className={cn(
       "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
       isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
-      playlist.status === 'removed' && "text-red-500",
-      playlist.status === 'added' && "text-green-500"
+      playlist.status === "removed" && "text-red-500",
+      playlist.status === "added" && "text-green-500",
     )}
     onClick={onClick}
   >
     <span>{playlist.title}</span>
-    {playlist.status === 'removed' && <MinusCircle className="h-4 w-4 text-red-500" />}
-    {playlist.status === 'added' && <PlusCircle className="h-4 w-4 text-green-500" />}
+    {playlist.status === "removed" && (
+      <MinusCircle className="h-4 w-4 text-red-500" />
+    )}
+    {playlist.status === "added" && (
+      <PlusCircle className="h-4 w-4 text-green-500" />
+    )}
   </div>
 );
 
@@ -53,7 +64,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   loading: initialLoading,
   error: initialError,
 }) => {
-  const [playlists, setPlaylists] = useState<PlaylistWithStatus[]>(initialPlaylists);
+  const [playlists, setPlaylists] =
+    useState<PlaylistWithStatus[]>(initialPlaylists);
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState(initialError);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,14 +97,12 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setIsRefreshing(true);
     try {
       const latestPlaylists = await ftrackService.getPlaylists();
-      
+
       // Create a map of current playlists for easy lookup
-      const currentPlaylistMap = new Map(
-        playlists.map(p => [p.id, p])
-      );
+      const currentPlaylistMap = new Map(playlists.map((p) => [p.id, p]));
 
       // Process each playlist from the latest fetch
-      const processedPlaylists = latestPlaylists.map(latest => {
+      const processedPlaylists = latestPlaylists.map((latest) => {
         // Never modify Quick Notes
         if (latest.id === QUICK_NOTES_ID || latest.isQuickNotes) {
           return currentPlaylistMap.get(QUICK_NOTES_ID) || latest;
@@ -100,12 +110,12 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
         const current = currentPlaylistMap.get(latest.id);
         // If it exists in current list and was marked as added, clear the status
-        if (current?.status === 'added') {
+        if (current?.status === "added") {
           return { ...latest, status: undefined };
         }
         // If it's new, mark it as added
         if (!current) {
-          return { ...latest, status: 'added' as const };
+          return { ...latest, status: "added" as const };
         }
         // Otherwise, keep as is
         return latest;
@@ -113,21 +123,22 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       // Find removed playlists (excluding Quick Notes)
       const removedPlaylists = playlists
-        .filter(p => 
-          !p.isQuickNotes && // Never remove Quick Notes
-          p.status !== 'removed' && // Don't re-mark already removed playlists
-          !latestPlaylists.some(l => l.id === p.id)
+        .filter(
+          (p) =>
+            !p.isQuickNotes && // Never remove Quick Notes
+            p.status !== "removed" && // Don't re-mark already removed playlists
+            !latestPlaylists.some((l) => l.id === p.id),
         )
-        .map(p => ({ ...p, status: 'removed' as const }));
+        .map((p) => ({ ...p, status: "removed" as const }));
 
       // Combine all playlists:
       // 1. Keep currently removed playlists
       // 2. Add newly removed playlists
       // 3. Add all current playlists (with status updates)
       const updatedPlaylists = [
-        ...playlists.filter(p => p.status === 'removed'), // Keep existing removed
+        ...playlists.filter((p) => p.status === "removed"), // Keep existing removed
         ...removedPlaylists, // Add newly removed
-        ...processedPlaylists // Add current with status updates
+        ...processedPlaylists, // Add current with status updates
       ];
 
       // Update both local state and store
@@ -144,15 +155,15 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   };
 
   const handleClearOld = () => {
-    const updatedPlaylists = playlists.filter(p => p.status !== 'removed');
+    const updatedPlaylists = playlists.filter((p) => p.status !== "removed");
     setStorePlaylists(updatedPlaylists);
     // Get playlists from store after Quick Notes is handled
     const { playlists: finalPlaylists } = usePlaylistsStore.getState();
     setPlaylists(finalPlaylists);
   };
 
-  const hasRemovedPlaylists = playlists.some(p => 
-    !p.isQuickNotes && p.status === 'removed'
+  const hasRemovedPlaylists = playlists.some(
+    (p) => !p.isQuickNotes && p.status === "removed",
   );
 
   return (
@@ -164,10 +175,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className={cn(
-            "gap-2",
-            isRefreshing && "animate-spin"
-          )}
+          className={cn("gap-2", isRefreshing && "animate-spin")}
         >
           <RefreshCw className="h-4 w-4" />
         </Button>
@@ -189,7 +197,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             <PlaylistItem
               key={playlist.id}
               playlist={playlist}
-              isActive={activePlaylist !== null && playlist.id === activePlaylist}
+              isActive={
+                activePlaylist !== null && playlist.id === activePlaylist
+              }
               onClick={() => onPlaylistSelect(playlist.id)}
             />
           ))}

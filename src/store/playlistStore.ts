@@ -111,7 +111,7 @@ export class PlaylistStore {
 
   private cleanDate(date: string | Date | undefined): string {
     if (!date) return new Date().toISOString();
-    return typeof date === 'string' ? date : date.toISOString();
+    return typeof date === "string" ? date : date.toISOString();
   }
 
   public cleanPlaylistForStorage(playlist: Playlist): CachedPlaylist {
@@ -127,8 +127,8 @@ export class PlaylistStore {
         id: v.id,
         name: v.name,
         version: v.version,
-        reviewSessionObjectId: v.reviewSessionObjectId || '',
-        thumbnailUrl: v.thumbnailUrl || '',
+        reviewSessionObjectId: v.reviewSessionObjectId || "",
+        thumbnailUrl: v.thumbnailUrl || "",
         createdAt: this.cleanDate(v.createdAt),
         updatedAt: this.cleanDate(v.updatedAt),
       })),
@@ -137,8 +137,8 @@ export class PlaylistStore {
         content: n.content,
         createdAt: this.cleanDate(n.createdAt),
         updatedAt: this.cleanDate(n.updatedAt),
-        createdById: n.createdById || '',
-        author: n.author || '',
+        createdById: n.createdById || "",
+        author: n.author || "",
       })),
       lastAccessed: Date.now(),
       lastChecked: Date.now(),
@@ -164,8 +164,8 @@ export class PlaylistStore {
       createdAt: this.cleanDate(version.createdAt),
       updatedAt: this.cleanDate(version.updatedAt),
       lastModified: Date.now(),
-      draftContent: "",  // Initialize with empty draft
-      labelId: "",      // Initialize with empty label
+      draftContent: "", // Initialize with empty draft
+      labelId: "", // Initialize with empty label
     };
   }
 
@@ -186,16 +186,20 @@ export class PlaylistStore {
     try {
       // Get the playlist from cache
       const cached = await db.playlists.get(id);
-      
+
       // Get versions for this playlist
       const versions = await db.versions
-        .where('playlistId')
+        .where("playlistId")
         .equals(id)
-        .filter(v => !v.isRemoved)
+        .filter((v) => !v.isRemoved)
         .toArray();
-      
+
       // If no versions in cache but playlist has versions, try to initialize
-      if (versions.length === 0 && cached?.versions && cached.versions.length > 0) {
+      if (
+        versions.length === 0 &&
+        cached?.versions &&
+        cached.versions.length > 0
+      ) {
         await this.initializePlaylist(id, cached);
         // Try getting versions again
         return this.getPlaylist(id);
@@ -206,21 +210,23 @@ export class PlaylistStore {
       }
 
       // For Quick Notes, preserve existing versions and merge with cached
-      if (id === 'quick-notes' && cached.versions) {
-        const existingIds = new Set(versions.map(v => v.id));
-        const newVersions = cached.versions.filter(v => !existingIds.has(v.id));
-        
+      if (id === "quick-notes" && cached.versions) {
+        const existingIds = new Set(versions.map((v) => v.id));
+        const newVersions = cached.versions.filter(
+          (v) => !existingIds.has(v.id),
+        );
+
         // Merge existing versions with new ones
         cached.versions = [...versions, ...newVersions];
       } else {
         // For other playlists, use cached versions but preserve draft content
-        cached.versions = cached.versions?.map(v => {
-          const existingVersion = versions.find(ev => ev.id === v.id);
+        cached.versions = cached.versions?.map((v) => {
+          const existingVersion = versions.find((ev) => ev.id === v.id);
           if (existingVersion) {
             return {
               ...v,
               draftContent: existingVersion.draftContent,
-              labelId: existingVersion.labelId
+              labelId: existingVersion.labelId,
             };
           }
           return v;
@@ -252,33 +258,41 @@ export class PlaylistStore {
           labelId,
           lastModified: Date.now(),
         };
-        
+
         await db.versions.put(updatedVersion, [playlistId, versionId]);
       } else {
         // Get the playlist to find the base version
         const playlist = await this.getPlaylist(playlistId);
-        
+
         if (!playlist?.versions) {
-          console.error("Cannot save draft: Playlist not found or has no versions", playlistId);
+          console.error(
+            "Cannot save draft: Playlist not found or has no versions",
+            playlistId,
+          );
           return;
         }
 
         // For Quick Notes, create a new version if it doesn't exist
-        let baseVersion = playlist.versions.find((v: FtrackVersion) => v.id === versionId);
-        if (!baseVersion && playlistId === 'quick-notes') {
+        let baseVersion = playlist.versions.find(
+          (v: FtrackVersion) => v.id === versionId,
+        );
+        if (!baseVersion && playlistId === "quick-notes") {
           baseVersion = {
             id: versionId,
             version: 1,
-            name: content.substring(0, 50) || 'New Note',
+            name: content.substring(0, 50) || "New Note",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            thumbnailUrl: '',
-            reviewSessionObjectId: '',
+            thumbnailUrl: "",
+            reviewSessionObjectId: "",
           };
           playlist.versions = [...(playlist.versions || []), baseVersion];
           await db.playlists.put(playlist);
         } else if (!baseVersion) {
-          console.error("Cannot save draft: Version not found in playlist", versionId);
+          console.error(
+            "Cannot save draft: Version not found in playlist",
+            versionId,
+          );
           return;
         }
 
@@ -291,7 +305,7 @@ export class PlaylistStore {
           lastModified: Date.now(),
           isRemoved: false,
         };
-        
+
         await db.versions.put(newVersion, [playlistId, versionId]);
       }
     } catch (error) {
@@ -304,7 +318,7 @@ export class PlaylistStore {
     try {
       // Get current versions to preserve draft content
       const existingVersions = await db.versions
-        .where('playlistId')
+        .where("playlistId")
         .equals(playlist.id)
         .toArray();
 
@@ -319,10 +333,12 @@ export class PlaylistStore {
       // Cache versions, preserving draft content for existing versions
       if (playlist.versions) {
         // Don't clear Quick Notes versions when caching
-        if (playlist.id === 'quick-notes') {
-          const existingIds = new Set(existingVersions.map(v => v.id));
-          const newVersions = playlist.versions.filter(v => !existingIds.has(v.id));
-          
+        if (playlist.id === "quick-notes") {
+          const existingIds = new Set(existingVersions.map((v) => v.id));
+          const newVersions = playlist.versions.filter(
+            (v) => !existingIds.has(v.id),
+          );
+
           // Only process new versions
           await Promise.all(
             newVersions.map(async (version) => {
@@ -336,7 +352,7 @@ export class PlaylistStore {
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
-            })
+            }),
           );
         } else {
           // Process each version individually for non-Quick Notes playlists
@@ -355,22 +371,22 @@ export class PlaylistStore {
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
-            })
+            }),
           );
 
           // Remove versions that are no longer in the playlist
           const currentVersionIds = new Set(playlist.versions.map((v) => v.id));
           const versionsToRemove = await db.versions
-            .where('playlistId')
+            .where("playlistId")
             .equals(playlist.id)
             .filter((v) => !currentVersionIds.has(v.id))
             .toArray();
-          
+
           if (versionsToRemove.length > 0) {
             await Promise.all(
-              versionsToRemove.map(v => 
-                db.versions.delete([playlist.id, v.id])
-              )
+              versionsToRemove.map((v) =>
+                db.versions.delete([playlist.id, v.id]),
+              ),
             );
           }
         }
@@ -384,24 +400,28 @@ export class PlaylistStore {
     }
   }
 
-  async initializePlaylist(playlistId: string, playlist: Playlist): Promise<void> {
+  async initializePlaylist(
+    playlistId: string,
+    playlist: Playlist,
+  ): Promise<void> {
     try {
       const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
-      
+
       // Special handling for Quick Notes
-      if (playlistId === 'quick-notes') {
+      if (playlistId === "quick-notes") {
         const existingVersions = await db.versions
-          .where('playlistId')
+          .where("playlistId")
           .equals(playlistId)
           .toArray();
-          
+
         // Only cache new versions, preserve existing ones
         if (existingVersions.length > 0) {
-          const existingIds = new Set(existingVersions.map(v => v.id));
-          cleanedPlaylist.versions = playlist.versions?.filter(v => !existingIds.has(v.id)) || [];
+          const existingIds = new Set(existingVersions.map((v) => v.id));
+          cleanedPlaylist.versions =
+            playlist.versions?.filter((v) => !existingIds.has(v.id)) || [];
         }
       }
-      
+
       await this.cachePlaylist(cleanedPlaylist);
     } catch (error) {
       console.error("Error initializing playlist:", error);
@@ -410,12 +430,12 @@ export class PlaylistStore {
   }
 
   async initializeQuickNotes(): Promise<void> {
-    const quickNotes = await this.getPlaylist('quick-notes');
+    const quickNotes = await this.getPlaylist("quick-notes");
     if (!quickNotes) {
       const cleanedPlaylist = this.cleanPlaylistForStorage({
-        id: 'quick-notes',
-        name: 'Quick Notes',
-        title: 'Quick Notes',
+        id: "quick-notes",
+        name: "Quick Notes",
+        title: "Quick Notes",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isQuickNotes: true,
@@ -429,7 +449,7 @@ export class PlaylistStore {
   async updatePlaylist(playlistId: string): Promise<void> {
     log("Updating playlist with fresh data:", playlistId);
     const fresh = await this.ftrackService.getPlaylists();
-    
+
     if (!fresh) {
       log("No playlists found");
       return;
@@ -595,17 +615,18 @@ export class PlaylistStore {
 
   async pollForChanges(playlistId: string) {
     try {
-      const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+      const freshVersions =
+        await this.ftrackService.getPlaylistVersions(playlistId);
       const playlist = await this.getPlaylist(playlistId);
-      
+
       if (!playlist || !freshVersions) return;
-      
+
       // Create a clean version of the playlist with fresh versions
       const cleanedPlaylist = this.cleanPlaylistForStorage({
         ...playlist,
-        versions: freshVersions
+        versions: freshVersions,
       });
-      
+
       await this.cachePlaylist(cleanedPlaylist);
     } catch (error) {
       console.error("Error polling for changes:", error);

@@ -265,7 +265,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex justify-between items-center">
               <div>
                 <h4 className="text-sm font-medium">Updates</h4>
-                <p className="text-sm text-muted-foreground">Check for new versions of AstraNotes</p>
+                <p className="text-sm text-muted-foreground">
+                  Check for new versions of AstraNotes
+                </p>
               </div>
               <Button
                 variant="outline"

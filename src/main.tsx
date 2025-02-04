@@ -11,10 +11,7 @@ Sentry.init({
     Sentry.replayIntegration(),
   ],
   tracesSampleRate: 1.0,
-  tracePropagationTargets: [
-    "localhost",
-    /^https:\/\/[^/]*\.sentry\.io\/.*/,
-  ],
+  tracePropagationTargets: ["localhost", /^https:\/\/[^/]*\.sentry\.io\/.*/],
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   environment: import.meta.env.MODE,

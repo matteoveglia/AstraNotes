@@ -1,11 +1,11 @@
-import { checkForUpdates } from './updater'
+import { checkForUpdates } from "./updater";
 
 export function addUpdateCheck() {
   // Check for updates when the app starts
-  checkForUpdates()
+  checkForUpdates();
 
-  const checkUpdatesButton = document.getElementById('check-updates-button')
+  const checkUpdatesButton = document.getElementById("check-updates-button");
   if (checkUpdatesButton) {
-    checkUpdatesButton.addEventListener('click', checkForUpdates)
+    checkUpdatesButton.addEventListener("click", checkForUpdates);
   }
 }
