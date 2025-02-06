@@ -50,7 +50,9 @@ export class FtrackService {
         log("Initialized with settings:", {
           serverUrl: this.settings?.serverUrl,
           apiUser: this.settings?.apiUser,
-          hasApiKey: !!this.settings?.apiKey,
+          hasApiKey: !!this.settings?.apiKey
+            ? this.settings?.apiKey.slice(-5)
+            : undefined,
         });
         // Initialize session if we have settings
         this.initSession().then(() => {
@@ -498,6 +500,8 @@ export class FtrackService {
       const result = await session.query(
         "select id, name, color from NoteLabel",
       );
+
+      log("Fetched note labels:", result?.data);
 
       if (result?.data) {
         this.noteLabels = result.data.map((label) => ({

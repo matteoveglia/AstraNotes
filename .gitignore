@@ -35,6 +35,7 @@ pnpm-debug.log*
 *.sln
 *.sw?
 private
+TODO.md
 
 # Environment variables
 .env
