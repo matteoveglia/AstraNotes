@@ -1,3 +1,13 @@
+/**
+ * @fileoverview settingsStore.ts
+ * Application settings state management using Zustand.
+ * Persists user preferences including:
+ * - FTrack connection details
+ * - Auto-refresh settings
+ * - Default label preferences
+ * Features local storage persistence.
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

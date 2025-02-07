@@ -1,3 +1,13 @@
+/**
+ * @fileovview db.ts
+ * IndexedDB database management using Dexie.
+ * Handles:
+ * - Playlist and version caching
+ * - Draft note storage
+ * - Data cleanup and migration
+ * - Cache invalidation
+ */
+
 import Dexie, { type Table } from "dexie";
 import type { Playlist, AssetVersion, NoteStatus } from "../types";
 

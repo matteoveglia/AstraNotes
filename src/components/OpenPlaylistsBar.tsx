@@ -1,3 +1,11 @@
+/**
+ * @fileoverview OpenPlaylistsBar.tsx
+ * Navigation bar showing open playlists with horizontal scrolling.
+ * Provides active playlist indication, individual and batch close functionality,
+ * and special handling for Quick Notes playlist.
+ * @component
+ */
+
 import React from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";

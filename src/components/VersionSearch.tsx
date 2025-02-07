@@ -1,3 +1,11 @@
+/**
+ * @fileoverview VersionSearch.tsx
+ * Search component for version discovery and addition.
+ * Features debounced search, thumbnails, version selection,
+ * clear functionality, loading states, and Quick Notes features.
+ * @component
+ */
+
 import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";

@@ -1,5 +1,15 @@
+/**
+ * @fileoverview playlistsStore.ts
+ * Global playlist state management using Zustand.
+ * Features:
+ * - Quick Notes playlist handling
+ * - Active playlist tracking
+ * - Playlist loading and updates
+ * - Error state management
+ */
+
 import { create } from "zustand";
-import { Playlist, AssetVersion } from "../types";
+import { Playlist } from "../types";
 import { ftrackService } from "../services/ftrack";
 
 const QUICK_NOTES_PLAYLIST: Playlist = {

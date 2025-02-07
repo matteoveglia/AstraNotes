@@ -1,3 +1,11 @@
+/**
+ * @fileoverview PlaylistList.tsx
+ * Component for available playlist management and display.
+ * Features dynamic loading, selection functionality, current playlist
+ * indication, and loading/error state handling.
+ * @component
+ */
+
 import React from "react";
 import { Button } from "./ui/button";
 import { Playlist } from "../types";

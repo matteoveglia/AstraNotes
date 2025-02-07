@@ -1,7 +1,15 @@
+/**
+ * @fileoverview playlistStore.ts
+ * Individual playlist state and cache management.
+ * Handles:
+ * - Version tracking and updates
+ * - Draft content persistence
+ * - Playlist synchronization
+ * - Change detection and polling
+ */
+
 import { db } from "./db";
 import { Playlist } from "../types";
-import { UpdateSpec } from "dexie";
-import Dexie from "dexie";
 import { FtrackService } from "../services/ftrack";
 
 const DEBUG = true;

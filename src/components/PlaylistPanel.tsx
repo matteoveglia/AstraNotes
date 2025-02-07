@@ -1,3 +1,11 @@
+/**
+ * @fileoverview PlaylistPanel.tsx
+ * Side panel for playlist management.
+ * Provides listing, selection, status indication, refresh functionality,
+ * old playlist removal, and Quick Notes handling.
+ * @component
+ */
+
 import React, { useState, useEffect } from "react";
 import type { Playlist } from "../types";
 import {

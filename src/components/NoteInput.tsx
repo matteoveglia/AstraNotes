@@ -1,3 +1,11 @@
+/**
+ * @fileoverview NoteInput.tsx
+ * Reusable component for inputting and managing version-associated notes.
+ * Provides text input, label selection, status indication (draft/published/empty),
+ * version selection, visual feedback, and thumbnail preview support.
+ * @component
+ */
+
 import React, { useState, useEffect } from "react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";

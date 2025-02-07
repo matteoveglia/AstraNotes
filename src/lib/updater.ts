@@ -1,3 +1,10 @@
+/**
+ * @fileoverview updater.ts
+ * Application update management system.
+ * Handles version checking, download progress tracking,
+ * and application relaunch after updates.
+ */
+
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 

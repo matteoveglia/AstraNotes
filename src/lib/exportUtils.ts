@@ -1,4 +1,11 @@
-import { Playlist, Note, AssetVersion } from "../types";
+/**
+ * @fileoverview exportUtils.ts
+ * Utilities for exporting playlist data to CSV format.
+ * Handles draft notes, published notes, and version information.
+ * Includes file system integration for saving exports.
+ */
+
+import { Playlist } from "../types";
 import { playlistStore } from "../store/playlistStore";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { downloadDir, join } from "@tauri-apps/api/path";

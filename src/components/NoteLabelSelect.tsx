@@ -1,3 +1,11 @@
+/**
+ * @fileoverview NoteLabelSelect.tsx
+ * Dropdown component for note label selection with color coding.
+ * Features color-coded options, default label handling, automatic contrast
+ * calculation, label store integration, and settings responsiveness.
+ * @component
+ */
+
 import React, { useEffect, useRef } from "react";
 import {
   Select,

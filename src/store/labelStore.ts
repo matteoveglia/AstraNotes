@@ -1,3 +1,10 @@
+/**
+ * @fileoverview labelStore.ts
+ * Zustand store for managing note labels.
+ * Provides label fetching, caching, and state management.
+ * Integrates with FTrack service for label synchronization.
+ */
+
 import { create } from "zustand";
 import { ftrackService } from "../services/ftrack";
 

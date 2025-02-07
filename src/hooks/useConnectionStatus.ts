@@ -1,4 +1,11 @@
-import { useState, useEffect } from "react";
+/**
+ * @fileoverview useConnectionStatus.ts
+ * Custom hook managing FTrack connection status.
+ * Implements connection polling and caching using Zustand store.
+ * Features auto-reconnection, status persistence, and periodic testing.
+ */
+
+import { useEffect } from "react";
 import { create } from "zustand";
 import { ftrackService } from "../services/ftrack";
 

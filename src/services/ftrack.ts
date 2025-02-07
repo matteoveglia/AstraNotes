@@ -1,3 +1,14 @@
+/**
+ * @fileoverview ftrack.ts
+ * FTrack service integration handling all API interactions.
+ * Features include:
+ * - Session management and authentication
+ * - Playlist and version fetching
+ * - Note publishing and management
+ * - Version search and caching
+ * - Label management
+ */
+
 import type { FtrackSettings, Playlist, Note, AssetVersion } from "../types";
 import { Session } from "@ftrack/api";
 

@@ -1,3 +1,12 @@
+/**
+ * @fileoverview MainContent.tsx
+ * Primary component managing playlist version display and interaction.
+ * Handles version selection, note drafts, publishing, and playlist synchronization.
+ * Features include note management, batch publishing, real-time updates,
+ * version sorting/filtering, and FTrack service integration.
+ * @component
+ */
+
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";

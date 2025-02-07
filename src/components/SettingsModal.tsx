@@ -1,3 +1,11 @@
+/**
+ * @fileoverview SettingsModal.tsx
+ * Modal for application settings management.
+ * Features FTrack connection settings, auto-refresh toggles,
+ * label selection, cache management, updates, and connection testing.
+ * @component
+ */
+
 import React, { useState, useEffect } from "react";
 import { Settings } from "lucide-react";
 import {

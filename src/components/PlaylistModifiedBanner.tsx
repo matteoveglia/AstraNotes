@@ -1,3 +1,11 @@
+/**
+ * @fileoverview PlaylistModifiedBanner.tsx
+ * Alert component for playlist modifications display.
+ * Features change indication, detailed tooltips, update triggers,
+ * loading states, and version change tracking.
+ * @component
+ */
+
 import React from "react";
 import { Button } from "./ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";

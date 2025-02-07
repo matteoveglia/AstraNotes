@@ -1,3 +1,11 @@
+/**
+ * @fileoverview TopBar.tsx
+ * Application header showing status and controls.
+ * Includes connection status, auto-update indication, branding,
+ * settings access, and connection state feedback.
+ * @component
+ */
+
 import React from "react";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { CheckCircle2, XCircle } from "lucide-react";

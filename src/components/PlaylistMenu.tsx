@@ -1,3 +1,11 @@
+/**
+ * @fileoverview PlaylistMenu.tsx
+ * Dropdown menu for playlist-wide operations.
+ * Includes CSV export, batch note operations, label management,
+ * note clearing, and accessibility features.
+ * @component
+ */
+
 import React, { useState, useEffect } from "react";
 import { Menu, Download } from "lucide-react";
 import {
