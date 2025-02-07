@@ -388,10 +388,22 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (!pendingVersions) return;
 
     try {
-      // Create a new playlist object with the pending versions
+      // Get manually added versions from current playlist
+      const manualVersions = playlist.versions?.filter((v) => v.manuallyAdded) || [];
+
+      // Create a map of pending versions for quick lookup
+      const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
+
+      // Merge pending versions with manual versions
+      const mergedVersions = [
+        ...pendingVersions,
+        ...manualVersions.filter((v) => !pendingVersionsMap.has(v.id)),
+      ];
+
+      // Create a new playlist object with the merged versions
       const updatedPlaylist = {
         ...playlist,
-        versions: pendingVersions,
+        versions: mergedVersions,
       };
 
       // Update the cache first
@@ -443,9 +455,15 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Add the version to the playlist if it's not already there
     const existingVersion = playlist.versions.find((v) => v.id === version.id);
     if (!existingVersion) {
+      // Mark the version as manually added
+      const versionWithFlag = {
+        ...version,
+        manuallyAdded: true,
+      };
+
       const updatedPlaylist = {
         ...playlist,
-        versions: [...playlist.versions, version],
+        versions: [...playlist.versions, versionWithFlag],
       };
 
       // Update the playlist in the store

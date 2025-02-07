@@ -47,6 +47,7 @@ interface StorableVersion {
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
+  manuallyAdded?: boolean;
 }
 
 interface CachedVersion extends StorableVersion {
@@ -139,6 +140,7 @@ export class PlaylistStore {
         thumbnailUrl: v.thumbnailUrl || "",
         createdAt: this.cleanDate(v.createdAt),
         updatedAt: this.cleanDate(v.updatedAt),
+        manuallyAdded: v.manuallyAdded || false, // Preserve manuallyAdded flag
       })),
       notes: (playlist.notes || []).map((n) => ({
         id: n.id,
@@ -195,8 +197,8 @@ export class PlaylistStore {
       // Get the playlist from cache
       const cached = await db.playlists.get(id);
 
-      // Get versions for this playlist
-      const versions = await db.versions
+      // Get versions from IndexedDB (our source of truth)
+      const dbVersions = await db.versions
         .where("playlistId")
         .equals(id)
         .filter((v) => !v.isRemoved)
@@ -204,7 +206,7 @@ export class PlaylistStore {
 
       // If no versions in cache but playlist has versions, try to initialize
       if (
-        versions.length === 0 &&
+        dbVersions.length === 0 &&
         cached?.versions &&
         cached.versions.length > 0
       ) {
@@ -217,34 +219,32 @@ export class PlaylistStore {
         return null;
       }
 
-      // For Quick Notes, preserve existing versions and merge with cached
-      if (id === "quick-notes" && cached.versions) {
-        const existingIds = new Set(versions.map((v) => v.id));
-        const newVersions = cached.versions.filter(
-          (v) => !existingIds.has(v.id),
-        );
+      // Create maps for quick lookup
+      const dbVersionsMap = new Map(dbVersions.map(v => [v.id, v]));
+      const cachedVersionsMap = new Map(cached.versions?.map(v => [v.id, v]) || []);
 
-        // Merge existing versions with new ones
-        cached.versions = [...versions, ...newVersions];
+      // For Quick Notes, preserve all versions from IndexedDB
+      if (id === "quick-notes") {
+        cached.versions = dbVersions;
       } else {
-        // For other playlists, use cached versions but preserve draft content
-        cached.versions = cached.versions?.map((v) => {
-          const existingVersion = versions.find((ev) => ev.id === v.id);
-          if (existingVersion) {
-            return {
-              ...v,
-              draftContent: existingVersion.draftContent,
-              labelId: existingVersion.labelId,
-            };
-          }
-          return v;
-        });
+        // For other playlists:
+        // 1. Start with all versions from IndexedDB that are either:
+        //    - Present in the cached versions (from Ftrack)
+        //    - Manually added
+        // 2. Add any cached versions that aren't in IndexedDB
+        cached.versions = [
+          // First, include all DB versions that are either in cache or manually added
+          ...dbVersions.filter(v => cachedVersionsMap.has(v.id) || v.manuallyAdded),
+          
+          // Then add any cached versions that aren't in DB
+          ...(cached.versions?.filter(v => !dbVersionsMap.has(v.id)) || [])
+        ];
       }
 
       return cached;
     } catch (error) {
-      console.error("Error getting playlist:", error);
-      throw error;
+      console.error("Failed to get playlist:", error);
+      return null;
     }
   }
 
@@ -357,6 +357,7 @@ export class PlaylistStore {
                 labelId: "",
                 lastModified: Date.now(),
                 isRemoved: false,
+                manuallyAdded: version.manuallyAdded || false
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
@@ -368,6 +369,7 @@ export class PlaylistStore {
             playlist.versions.map(async (version) => {
               const existingDraft = draftMap.get(version.id);
               const existingLabelId = labelIdMap.get(version.id);
+              const existingVersion = existingVersions.find(v => v.id === version.id);
 
               const versionToSave: CachedVersion = {
                 ...version,
@@ -376,27 +378,13 @@ export class PlaylistStore {
                 labelId: existingLabelId || "",
                 lastModified: Date.now(),
                 isRemoved: false,
+                // Preserve manuallyAdded flag from existing version or from the version itself
+                manuallyAdded: existingVersion?.manuallyAdded || version.manuallyAdded || false
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
             }),
           );
-
-          // Remove versions that are no longer in the playlist
-          const currentVersionIds = new Set(playlist.versions.map((v) => v.id));
-          const versionsToRemove = await db.versions
-            .where("playlistId")
-            .equals(playlist.id)
-            .filter((v) => !currentVersionIds.has(v.id))
-            .toArray();
-
-          if (versionsToRemove.length > 0) {
-            await Promise.all(
-              versionsToRemove.map((v) =>
-                db.versions.delete([playlist.id, v.id]),
-              ),
-            );
-          }
         }
       }
 
@@ -455,22 +443,116 @@ export class PlaylistStore {
   }
 
   async updatePlaylist(playlistId: string): Promise<void> {
-    log("Updating playlist with fresh data:", playlistId);
-    const fresh = await this.ftrackService.getPlaylists();
+    // Don't update Quick Notes from Ftrack
+    if (playlistId === "quick-notes") return;
 
-    if (!fresh) {
-      log("No playlists found");
-      return;
+    try {
+      // 1. Get all versions from IndexedDB (our source of truth)
+      const dbVersions = await db.versions
+        .where("playlistId")
+        .equals(playlistId)
+        .filter(v => !v.isRemoved)
+        .toArray();
+
+      // Create a map for quick lookup of DB versions
+      const dbVersionsMap = new Map(dbVersions.map(v => [v.id, v]));
+      
+      // 2. Get fresh data from Ftrack
+      const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+      console.log("🔍 Fresh versions from Ftrack:", {
+        count: freshVersions.length,
+        versions: freshVersions.map(v => ({ id: v.id, name: v.name }))
+      });
+      
+      // Create a map for quick lookup of fresh versions
+      const freshVersionsMap = new Map(freshVersions.map(v => [v.id, v]));
+
+      // 3. Find manually added versions from IndexedDB
+      const manualVersions = dbVersions.filter(v => v.manuallyAdded);
+      console.log("🤚 Manual versions to preserve:", {
+        count: manualVersions.length,
+        versions: manualVersions.map(v => ({ 
+          id: v.id, 
+          name: v.name,
+          manuallyAdded: v.manuallyAdded 
+        }))
+      });
+
+      // 4. Merge versions:
+      // - Start with all versions from IndexedDB
+      // - Update their data if they exist in fresh versions
+      // - Add any new versions from fresh data
+      const mergedVersions = [
+        // First, process all DB versions
+        ...dbVersions.map(dbVersion => {
+          const freshVersion = freshVersionsMap.get(dbVersion.id);
+          // If it exists in fresh data, update its metadata
+          if (freshVersion) {
+            return {
+              ...freshVersion,
+              playlistId,
+              draftContent: dbVersion.draftContent || "",
+              labelId: dbVersion.labelId || "",
+              lastModified: Date.now(),
+              manuallyAdded: dbVersion.manuallyAdded || false,
+              isRemoved: false
+            };
+          }
+          // If it doesn't exist in fresh data but is manually added, keep it
+          if (dbVersion.manuallyAdded) {
+            return {
+              ...dbVersion,
+              lastModified: Date.now(),
+              isRemoved: false
+            };
+          }
+          // Otherwise mark it as removed
+          return {
+            ...dbVersion,
+            isRemoved: true
+          };
+        }).filter(v => !v.isRemoved), // Filter out removed versions
+
+        // Then add any new versions from fresh data
+        ...freshVersions
+          .filter(v => !dbVersionsMap.has(v.id))
+          .map(v => ({
+            ...v,
+            playlistId,
+            draftContent: "",
+            labelId: "",
+            lastModified: Date.now(),
+            manuallyAdded: false,
+            isRemoved: false
+          }))
+      ];
+
+      console.log("✅ Merged versions result:", {
+        freshCount: freshVersions.length,
+        manualCount: manualVersions.length,
+        finalCount: mergedVersions.length,
+        preservedManualCount: mergedVersions.filter(v => v.manuallyAdded).length
+      });
+
+      // 5. Get fresh playlist data and merge with versions
+      const fresh = await this.ftrackService.getPlaylists();
+      const freshPlaylist = fresh.find((p) => p.id === playlistId);
+
+      if (!freshPlaylist) {
+        console.log("No playlist found with id:", playlistId);
+        return;
+      }
+
+      const playlistWithVersions = { 
+        ...freshPlaylist, 
+        versions: mergedVersions,
+      };
+
+      // 6. Update the local cache
+      await this.cachePlaylist(this.cleanPlaylistForStorage(playlistWithVersions));
+    } catch (error) {
+      console.error("Failed to update playlist:", error);
     }
-
-    const playlist = fresh.find((p) => p.id === playlistId);
-    if (!playlist) {
-      log("Playlist not found:", playlistId);
-      return;
-    }
-
-    const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
-    await this.cachePlaylist(cleanedPlaylist);
   }
 
   async updatePlaylistAndRestartPolling(
@@ -486,8 +568,10 @@ export class PlaylistStore {
     // Update the playlist first
     await this.updatePlaylist(playlistId);
 
-    // Restart polling with the same callback
-    await this.startPolling(playlistId, onModificationsFound);
+    // Only restart polling if it was already running
+    if (this.pollingInterval) {
+      await this.startPolling(playlistId, onModificationsFound);
+    }
   }
 
   async startPolling(
@@ -499,15 +583,13 @@ export class PlaylistStore {
       removedVersions?: string[],
       freshVersions?: FtrackVersion[],
     ) => void,
-  ) {
-    log("Starting polling for playlist:", playlistId);
+  ): Promise<void> {
+    console.log("🔄 Starting polling for playlist:", playlistId);
 
-    // If we're already polling for a different playlist, stop that first
     if (this.currentPlaylistId !== playlistId) {
       this.stopPolling();
     }
 
-    // Clear any existing interval and reset state
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
@@ -515,12 +597,9 @@ export class PlaylistStore {
 
     this.currentPlaylistId = playlistId;
 
-    // Set a small delay before starting the first poll to avoid race conditions with playlist initialization
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Define the poll function
     const poll = async () => {
-      // If we're already polling or this isn't the current playlist anymore, skip
       if (this.isPolling || this.currentPlaylistId !== playlistId) {
         return;
       }
@@ -528,38 +607,99 @@ export class PlaylistStore {
       this.isPolling = true;
 
       try {
-        log("Polling for changes on playlist:", playlistId);
+        console.log("🔄 Polling for changes on playlist:", playlistId);
         const cached = await this.getPlaylist(playlistId);
         if (!cached) {
-          log("No cached playlist found:", playlistId);
+          console.log("❌ No cached playlist found:", playlistId);
           return;
         }
 
-        // Get fresh versions for the current playlist
-        const freshVersions =
-          await this.ftrackService.getPlaylistVersions(playlistId);
+        // Get fresh versions
+        const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+        console.log("🔍 Fresh versions:", {
+          count: freshVersions.length,
+          versions: freshVersions.map(v => ({ id: v.id, name: v.name }))
+        });
 
-        // Compare with cached versions using a Set for O(1) lookups
-        const cachedVersionIds = new Set(
-          (cached.versions || []).map((v) => v.id),
-        );
-        const freshVersionIds = new Set(freshVersions.map((v) => v.id));
+        // Get all cached versions
+        const cachedVersions = (cached.versions || []) as StorableVersion[];
+        console.log("💾 Cached versions:", {
+          count: cachedVersions.length,
+          versions: cachedVersions.map(v => ({ 
+            id: v.id, 
+            name: v.name,
+            manuallyAdded: v.manuallyAdded 
+          }))
+        });
 
-        // Deep compare versions to avoid false positives
+        // Create lookup maps for faster comparison
+        const freshMap = new Map(freshVersions.map(v => [`${playlistId}:${v.id}`, v]));
+        const cachedMap = new Map(cachedVersions.map(v => [`${playlistId}:${v.id}`, v]));
+
+        // Find manually added versions - we'll preserve these
+        const manualVersions = cachedVersions.filter(v => v.manuallyAdded);
+        console.log("🤚 Manual versions to preserve:", {
+          count: manualVersions.length,
+          versions: manualVersions.map(v => ({ 
+            id: v.id, 
+            name: v.name,
+            manuallyAdded: v.manuallyAdded 
+          }))
+        });
+
+        // Create a set of manual version IDs for quick lookup
+        const manualVersionIds = new Set(manualVersions.map(v => v.id));
+
+        // Find added versions (in fresh but not in cached)
         const addedVersions = freshVersions
-          .filter((v) => !cachedVersionIds.has(v.id))
-          .map((v) => v.id);
+          .filter(v => {
+            const key = `${playlistId}:${v.id}`;
+            const notInCached = !cachedMap.has(key);
+            if (notInCached) {
+              console.log("➕ Potential added version:", {
+                id: v.id,
+                name: v.name,
+                notInCached
+              });
+            }
+            return notInCached;
+          })
+          .map(v => v.id);
 
-        const removedVersions = (cached.versions || [])
-          .filter((v) => !freshVersionIds.has(v.id))
-          .map((v) => v.id);
+        // Find removed versions (in cached but not in fresh)
+        // Exclude manually added versions from being considered as removed
+        const removedVersions = cachedVersions
+          .filter(v => {
+            const key = `${playlistId}:${v.id}`;
+            const notInFresh = !freshMap.has(key);
+            // If it's manually added, it can't be removed
+            if (notInFresh && !manualVersionIds.has(v.id)) {
+              console.log("➖ Potential removed version:", {
+                id: v.id,
+                name: v.name,
+                notInFresh,
+                isManual: v.manuallyAdded
+              });
+              return true;
+            }
+            return false;
+          })
+          .map(v => v.id);
 
-        // Only notify if there are actual changes and this is still the current playlist
+        console.log("✅ Version comparison complete:", {
+          added: addedVersions.length,
+          removed: removedVersions.length,
+          addedIds: addedVersions,
+          removedIds: removedVersions,
+          preservedManualIds: Array.from(manualVersionIds)
+        });
+
+        // Only notify if there are actual changes
         if (
           (addedVersions.length > 0 || removedVersions.length > 0) &&
           this.currentPlaylistId === playlistId
         ) {
-          log("Found modifications:", {
+          console.log("🔔 Found modifications:", {
             playlistId,
             added: addedVersions.length,
             removed: removedVersions.length,
@@ -567,7 +707,6 @@ export class PlaylistStore {
             removedVersions,
           });
 
-          // Clean versions before passing to callback
           const cleanVersions = freshVersions.map((v) => ({
             id: v.id,
             name: v.name,
@@ -576,6 +715,7 @@ export class PlaylistStore {
             thumbnailUrl: v.thumbnailUrl,
             createdAt: v.createdAt,
             updatedAt: v.updatedAt,
+            playlistId,
           }));
 
           onModificationsFound(
@@ -587,16 +727,14 @@ export class PlaylistStore {
           );
         }
       } catch (error) {
-        log("Error polling for changes:", error);
+        console.error("❌ Error polling for changes:", error);
       } finally {
         this.isPolling = false;
       }
     };
 
-    // Run the first poll after the delay
     await poll();
 
-    // Start a fresh polling interval if this is still the current playlist
     if (this.currentPlaylistId === playlistId) {
       this.pollingInterval = setInterval(poll, PlaylistStore.POLL_INTERVAL);
     }
@@ -604,7 +742,7 @@ export class PlaylistStore {
 
   stopPolling() {
     if (this.pollingInterval) {
-      log("Stopping polling");
+      console.log("Stopping polling");
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
