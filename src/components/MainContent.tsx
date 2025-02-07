@@ -349,18 +349,28 @@ export const MainContent: React.FC<MainContentProps> = ({
         pendingVersions ||
         (await ftrackService.getPlaylistVersions(playlist.id));
 
-      // Compare with current versions to find modifications
-      const currentVersionIds = new Set(
-        playlist.versions?.map((v) => v.id) || [],
-      );
-      const freshVersionIds = new Set(freshVersions.map((v) => v.id));
+      // Create maps for quick lookup
+      const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));
+      const currentVersions = playlist.versions || [];
+      const manualVersions = currentVersions.filter((v) => v.manuallyAdded);
+      const manualVersionIds = new Set(manualVersions.map((v) => v.id));
 
+      // Compare with current versions to find modifications
+      // Exclude manually added versions from this check
+      const currentVersionIds = new Set(
+        currentVersions
+          .filter((v) => !v.manuallyAdded)
+          .map((v) => v.id),
+      );
+
+      // Only count versions as added if they're not manually added
       const addedVersions = freshVersions
-        .filter((v) => !currentVersionIds.has(v.id))
+        .filter((v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id))
         .map((v) => v.id);
 
-      const removedVersions = (playlist.versions || [])
-        .filter((v) => !freshVersionIds.has(v.id))
+      // Only count versions as removed if they're not manually added
+      const removedVersions = currentVersions
+        .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
         .map((v) => v.id);
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
