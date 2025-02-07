@@ -217,19 +217,26 @@ export const MainContent: React.FC<MainContentProps> = ({
     await playlistStore.saveDraft(versionId, activePlaylist.id, "", "");
   };
 
-  const handleClearAdded = () => {
-    if (!activePlaylist.versions) return;
+  const handleClearAdded = async () => {
+    if (!activePlaylist.id) return;
 
-    // Keep only non-manually added versions
-    const updatedVersions = activePlaylist.versions.filter((v) => !v.manuallyAdded);
-    const updatedPlaylist = {
-      ...activePlaylist,
-      versions: updatedVersions,
-    };
+    try {
+      // Clear manually added versions from the database
+      await playlistStore.clearAddedVersions(activePlaylist.id);
 
-    // Update the playlist in the store
-    if (onPlaylistUpdate) {
-      onPlaylistUpdate(updatedPlaylist);
+      // Keep only non-manually added versions in the UI
+      const updatedVersions = activePlaylist.versions?.filter((v) => !v.manuallyAdded) || [];
+      const updatedPlaylist = {
+        ...activePlaylist,
+        versions: updatedVersions,
+      };
+
+      // Update the playlist in the store
+      if (onPlaylistUpdate) {
+        onPlaylistUpdate(updatedPlaylist);
+      }
+    } catch (error) {
+      console.error('Failed to clear added versions:', error);
     }
   };
 
@@ -678,7 +685,6 @@ export const MainContent: React.FC<MainContentProps> = ({
           <VersionSearch
             onVersionSelect={handleVersionSelect}
             onClearAdded={handleClearAdded}
-            onClearAll={handleClearAll}
             hasManuallyAddedVersions={activePlaylist.versions?.some(
               (v) => v.manuallyAdded,
             )}

@@ -803,6 +803,40 @@ export class PlaylistStore {
       console.error("Error polling for changes:", error);
     }
   }
+
+  async clearAddedVersions(playlistId: string): Promise<void> {
+    try {
+      // Get all manually added versions for this playlist
+      const manuallyAddedVersions = await db.versions
+        .where('playlistId')
+        .equals(playlistId)
+        .and(version => version.manuallyAdded === true)
+        .toArray();
+
+      // Delete the versions from the database
+      await db.versions
+        .where('playlistId')
+        .equals(playlistId)
+        .and(version => version.manuallyAdded === true)
+        .delete();
+
+      // Update the cached playlist to reflect the changes
+      const cachedPlaylist = await this.getPlaylist(playlistId);
+      if (cachedPlaylist) {
+        cachedPlaylist.hasModifications = true;
+        cachedPlaylist.removedVersions = [
+          ...cachedPlaylist.removedVersions,
+          ...manuallyAddedVersions.map(v => v.id)
+        ];
+        await this.cachePlaylist(cachedPlaylist);
+      }
+
+      log('Cleared manually added versions:', manuallyAddedVersions.length);
+    } catch (error) {
+      console.error('Failed to clear manually added versions:', error);
+      throw error;
+    }
+  }
 }
 
 export const playlistStore = new PlaylistStore(new FtrackService());

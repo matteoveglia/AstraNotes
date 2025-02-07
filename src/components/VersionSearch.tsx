@@ -16,7 +16,6 @@ import { ftrackService } from "../services/ftrack";
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
   onClearAdded: () => void;
-  onClearAll: () => void;
   hasManuallyAddedVersions?: boolean;
   isQuickNotes?: boolean;
 }
@@ -24,7 +23,6 @@ interface VersionSearchProps {
 export const VersionSearch: React.FC<VersionSearchProps> = ({
   onVersionSelect,
   onClearAdded,
-  onClearAll,
   hasManuallyAddedVersions = false,
   isQuickNotes = false,
 }) => {
@@ -73,14 +71,6 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           disabled={!hasManuallyAddedVersions}
         >
           Clear Added Versions
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onClearAll}
-          disabled={!isQuickNotes}
-        >
-          Clear All Versions
         </Button>
       </div>
 
