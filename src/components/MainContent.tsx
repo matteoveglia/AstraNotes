@@ -54,9 +54,14 @@ export const MainContent: React.FC<MainContentProps> = ({
   const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(
     null,
   );
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
+
+  const activePlaylist = mergedPlaylist || playlist;
 
   const sortedVersions = useMemo(() => {
-    return [...(playlist.versions || [])].sort((a, b) => {
+    if (isInitializing) return [];
+    return [...(activePlaylist.versions || [])].sort((a, b) => {
       // First sort by name
       const nameCompare = a.name.localeCompare(b.name);
       if (nameCompare !== 0) return nameCompare;
@@ -64,15 +69,33 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Then by version number
       return a.version - b.version;
     });
-  }, [playlist.versions]);
+  }, [activePlaylist.versions, isInitializing]);
 
   // Initialize playlist in store and start polling
   useEffect(() => {
     const initializePlaylist = async () => {
-      await playlistStore.initializePlaylist(playlist.id, playlist);
-      // Reset modifications and pending versions when playlist is initialized
-      setModifications({ added: 0, removed: 0 });
-      setPendingVersions(null);
+      setIsInitializing(true);
+      try {
+        // First initialize in the store
+        await playlistStore.initializePlaylist(playlist.id, playlist);
+        
+        // Then get the merged version with proper data from IndexedDB
+        const cached = await playlistStore.getPlaylist(playlist.id);
+        if (cached) {
+          setMergedPlaylist({
+            ...playlist,
+            versions: cached.versions
+          });
+        } else {
+          setMergedPlaylist(playlist);
+        }
+        
+        // Reset modifications and pending versions
+        setModifications({ added: 0, removed: 0 });
+        setPendingVersions(null);
+      } finally {
+        setIsInitializing(false);
+      }
     };
 
     initializePlaylist();
@@ -82,7 +105,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   useEffect(() => {
     // Don't poll for Quick Notes playlist
-    if (playlist.isQuickNotes) return;
+    if (activePlaylist.isQuickNotes) return;
 
     if (!settings.autoRefreshEnabled) {
       playlistStore.stopPolling();
@@ -91,7 +114,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Start polling when component mounts
     playlistStore.startPolling(
-      playlist.id,
+      activePlaylist.id,
       (added, removed, addedVersions, removedVersions, freshVersions) => {
         if (added > 0 || removed > 0) {
           setModifications({
@@ -108,16 +131,16 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Stop polling when component unmounts or playlist changes
     return () => playlistStore.stopPolling();
-  }, [playlist.id, playlist.isQuickNotes, settings.autoRefreshEnabled]); // Only restart polling when playlist ID, isQuickNotes, or auto-refresh setting changes
+  }, [activePlaylist.id, activePlaylist.isQuickNotes, settings.autoRefreshEnabled]);
 
   // Reset selections when switching playlists
   useEffect(() => {
     setSelectedVersions([]);
-  }, [playlist.id]);
+  }, [activePlaylist.id]);
 
   useEffect(() => {
     const loadDrafts = async () => {
-      if (!playlist.versions) return;
+      if (!activePlaylist.versions) return;
 
       const draftsMap: Record<string, string> = {};
       const labelIdsMap: Record<string, string> = {};
@@ -126,7 +149,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Load all drafts at once using compound index
       const drafts = await db.versions
         .where("[playlistId+id]")
-        .between([playlist.id, Dexie.minKey], [playlist.id, Dexie.maxKey])
+        .between([activePlaylist.id, Dexie.minKey], [activePlaylist.id, Dexie.maxKey])
         .toArray();
 
       // Create maps for drafts and label IDs
@@ -147,7 +170,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     };
 
     loadDrafts();
-  }, [playlist.id, playlist.versions]);
+  }, [activePlaylist.id, activePlaylist.versions]);
 
   const handleNoteSave = async (
     versionId: string,
@@ -155,7 +178,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+      await playlistStore.saveDraft(versionId, activePlaylist.id, content, labelId);
 
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
@@ -191,16 +214,16 @@ export const MainContent: React.FC<MainContentProps> = ({
       delete newLabelIds[versionId];
       return newLabelIds;
     });
-    await playlistStore.saveDraft(versionId, playlist.id, "", "");
+    await playlistStore.saveDraft(versionId, activePlaylist.id, "", "");
   };
 
   const handleClearAdded = () => {
-    if (!playlist.versions) return;
+    if (!activePlaylist.versions) return;
 
     // Keep only non-manually added versions
-    const updatedVersions = playlist.versions.filter((v) => !v.manuallyAdded);
+    const updatedVersions = activePlaylist.versions.filter((v) => !v.manuallyAdded);
     const updatedPlaylist = {
-      ...playlist,
+      ...activePlaylist,
       versions: updatedVersions,
     };
 
@@ -211,11 +234,11 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handleClearAll = () => {
-    if (!playlist.isQuickNotes) return;
+    if (!activePlaylist.isQuickNotes) return;
 
     // Clear all versions from the playlist
     const updatedPlaylist = {
-      ...playlist,
+      ...activePlaylist,
       versions: [],
     };
 
@@ -287,7 +310,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Only get versions from the current playlist if it exists
       const currentVersions = new Set(
-        playlist?.versions?.map((v) => v.id) || [],
+        activePlaylist?.versions?.map((v) => v.id) || [],
       );
 
       const publishPromises = Object.entries(noteDrafts)
@@ -340,27 +363,37 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   const handlePlaylistUpdate = async () => {
     // Don't update Quick Notes playlist from Ftrack
-    if (playlist.isQuickNotes) return;
+    if (activePlaylist.isQuickNotes) return;
 
     setIsRefreshing(true);
     try {
       // If we have pending versions, use those, otherwise fetch fresh ones
       const freshVersions =
         pendingVersions ||
-        (await ftrackService.getPlaylistVersions(playlist.id));
+        (await ftrackService.getPlaylistVersions(activePlaylist.id));
+
+      // Create maps for quick lookup
+      const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));
+      const currentVersions = activePlaylist.versions || [];
+      const manualVersions = currentVersions.filter((v) => v.manuallyAdded);
+      const manualVersionIds = new Set(manualVersions.map((v) => v.id));
 
       // Compare with current versions to find modifications
+      // Exclude manually added versions from this check
       const currentVersionIds = new Set(
-        playlist.versions?.map((v) => v.id) || [],
+        currentVersions
+          .filter((v) => !v.manuallyAdded)
+          .map((v) => v.id),
       );
-      const freshVersionIds = new Set(freshVersions.map((v) => v.id));
 
+      // Only count versions as added if they're not manually added
       const addedVersions = freshVersions
-        .filter((v) => !currentVersionIds.has(v.id))
+        .filter((v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id))
         .map((v) => v.id);
 
-      const removedVersions = (playlist.versions || [])
-        .filter((v) => !freshVersionIds.has(v.id))
+      // Only count versions as removed if they're not manually added
+      const removedVersions = currentVersions
+        .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
         .map((v) => v.id);
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
@@ -388,10 +421,22 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (!pendingVersions) return;
 
     try {
-      // Create a new playlist object with the pending versions
+      // Get manually added versions from current playlist
+      const manualVersions = activePlaylist.versions?.filter((v) => v.manuallyAdded) || [];
+
+      // Create a map of pending versions for quick lookup
+      const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
+
+      // Merge pending versions with manual versions
+      const mergedVersions = [
+        ...pendingVersions,
+        ...manualVersions.filter((v) => !pendingVersionsMap.has(v.id)),
+      ];
+
+      // Create a new playlist object with the merged versions
       const updatedPlaylist = {
-        ...playlist,
-        versions: pendingVersions,
+        ...activePlaylist,
+        versions: mergedVersions,
       };
 
       // Update the cache first
@@ -410,7 +455,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Update playlist and restart polling
       await playlistStore.updatePlaylistAndRestartPolling(
-        playlist.id,
+        activePlaylist.id,
         (added, removed, addedVersions, removedVersions, freshVersions) => {
           if (added > 0 || removed > 0) {
             setModifications({
@@ -438,14 +483,20 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handleVersionSelect = (version: AssetVersion) => {
-    if (!playlist.versions) return;
+    if (!activePlaylist.versions) return;
 
     // Add the version to the playlist if it's not already there
-    const existingVersion = playlist.versions.find((v) => v.id === version.id);
+    const existingVersion = activePlaylist.versions.find((v) => v.id === version.id);
     if (!existingVersion) {
+      // Mark the version as manually added
+      const versionWithFlag = {
+        ...version,
+        manuallyAdded: true,
+      };
+
       const updatedPlaylist = {
-        ...playlist,
-        versions: [...playlist.versions, version],
+        ...activePlaylist,
+        versions: [...activePlaylist.versions, versionWithFlag],
       };
 
       // Update the playlist in the store
@@ -474,7 +525,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     try {
       await Promise.all(
         versionIds.map(async (versionId) => {
-          await playlistStore.saveDraft(versionId, playlist.id, "", "");
+          await playlistStore.saveDraft(versionId, activePlaylist.id, "", "");
         }),
       );
     } catch (error) {
@@ -496,7 +547,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         Object.entries(noteDrafts).map(async ([versionId, content]) => {
           await playlistStore.saveDraft(
             versionId,
-            playlist.id,
+            activePlaylist.id,
             content,
             labelId,
           );
@@ -522,7 +573,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           ) || []
         }
         removedVersions={
-          playlist.versions?.filter((v) =>
+          activePlaylist.versions?.filter((v) =>
             modifications.removedVersions?.includes(v.id),
           ) || []
         }
@@ -534,8 +585,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     <Card className="h-full flex flex-col rounded-none">
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-xl">{playlist.name}</CardTitle>
-          {!playlist.isQuickNotes && (
+          <CardTitle className="text-xl">{activePlaylist.name}</CardTitle>
+          {!activePlaylist.isQuickNotes && (
             <>
               <Button
                 size="sm"
@@ -612,9 +663,9 @@ export const MainContent: React.FC<MainContentProps> = ({
               </div>
             );
           })}
-          {!playlist.versions?.length && (
+          {!activePlaylist.versions?.length && (
             <div className="text-center text-gray-500 py-8">
-              {playlist.isQuickNotes
+              {activePlaylist.isQuickNotes
                 ? "Search for a version below to begin"
                 : "No versions found in this playlist"}
             </div>
@@ -628,10 +679,10 @@ export const MainContent: React.FC<MainContentProps> = ({
             onVersionSelect={handleVersionSelect}
             onClearAdded={handleClearAdded}
             onClearAll={handleClearAll}
-            hasManuallyAddedVersions={playlist.versions?.some(
+            hasManuallyAddedVersions={activePlaylist.versions?.some(
               (v) => v.manuallyAdded,
             )}
-            isQuickNotes={playlist.isQuickNotes}
+            isQuickNotes={activePlaylist.isQuickNotes}
           />
         </div>
       </div>

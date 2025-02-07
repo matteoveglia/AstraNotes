@@ -109,25 +109,28 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       // Create a map of current playlists for easy lookup
       const currentPlaylistMap = new Map(playlists.map((p) => [p.id, p]));
 
+      // Always preserve Quick Notes from current state
+      const quickNotesPlaylist = playlists.find(p => p.id === QUICK_NOTES_ID || p.isQuickNotes);
+
       // Process each playlist from the latest fetch
       const processedPlaylists = latestPlaylists.map((latest) => {
-        // Never modify Quick Notes
+        // Skip Quick Notes
         if (latest.id === QUICK_NOTES_ID || latest.isQuickNotes) {
-          return currentPlaylistMap.get(QUICK_NOTES_ID) || latest;
+          return null;
         }
 
         const current = currentPlaylistMap.get(latest.id);
         // If it exists in current list and was marked as added, clear the status
         if (current?.status === "added") {
-          return { ...latest, status: undefined };
+          return { ...latest, status: undefined } as PlaylistWithStatus;
         }
         // If it's new, mark it as added
         if (!current) {
-          return { ...latest, status: "added" as const };
+          return { ...latest, status: "added" as const } as PlaylistWithStatus;
         }
         // Otherwise, keep as is
-        return latest;
-      });
+        return latest as PlaylistWithStatus;
+      }).filter((p): p is PlaylistWithStatus => p !== null); // Type guard to remove nulls
 
       // Find removed playlists (excluding Quick Notes)
       const removedPlaylists = playlists
@@ -140,20 +143,19 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         .map((p) => ({ ...p, status: "removed" as const }));
 
       // Combine all playlists:
-      // 1. Keep currently removed playlists
-      // 2. Add newly removed playlists
-      // 3. Add all current playlists (with status updates)
+      // 1. Keep Quick Notes
+      // 2. Keep currently removed playlists
+      // 3. Add newly removed playlists
+      // 4. Add all current playlists (with status updates)
       const updatedPlaylists = [
+        ...(quickNotesPlaylist ? [quickNotesPlaylist] : []), // Keep Quick Notes
         ...playlists.filter((p) => p.status === "removed"), // Keep existing removed
         ...removedPlaylists, // Add newly removed
         ...processedPlaylists, // Add current with status updates
       ];
 
-      // Update both local state and store
-      setStorePlaylists(updatedPlaylists);
-      // Get playlists from store after Quick Notes is handled
-      const { playlists: finalPlaylists } = usePlaylistsStore.getState();
-      setPlaylists(finalPlaylists);
+      // Only update local state for status changes
+      setPlaylists(updatedPlaylists);
     } catch (error) {
       console.error("Failed to refresh playlists:", error);
       setError("Failed to refresh playlists");
