@@ -520,6 +520,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Clear all drafts from state
     setNoteDrafts({});
     setNoteLabelIds({});
+    setSelectedVersions([]);
 
     // Update note statuses
     const updatedStatuses = { ...noteStatuses };
