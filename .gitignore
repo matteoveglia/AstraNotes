@@ -15,7 +15,6 @@ build
 /src-tauri/*.log
 /src-tauri/build
 /src-tauri/node_modules
-/src-tauri/Cargo.lock
 /src-tauri/gen/schemas
 
 # Logs
