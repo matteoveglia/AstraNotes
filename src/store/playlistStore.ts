@@ -220,8 +220,10 @@ export class PlaylistStore {
       }
 
       // Create maps for quick lookup
-      const dbVersionsMap = new Map(dbVersions.map(v => [v.id, v]));
-      const cachedVersionsMap = new Map(cached.versions?.map(v => [v.id, v]) || []);
+      const dbVersionsMap = new Map(dbVersions.map((v) => [v.id, v]));
+      const cachedVersionsMap = new Map(
+        cached.versions?.map((v) => [v.id, v]) || [],
+      );
 
       // For Quick Notes, preserve all versions from IndexedDB
       if (id === "quick-notes") {
@@ -234,28 +236,32 @@ export class PlaylistStore {
         // 2. Add any cached versions that aren't in IndexedDB
         const mergedVersions = [
           // First, include all DB versions that are either in cache or manually added
-          ...dbVersions.filter(v => cachedVersionsMap.has(v.id) || v.manuallyAdded).map(v => {
-            const cachedVersion = cachedVersionsMap.get(v.id);
-            // If it exists in cache, merge with DB version
-            if (cachedVersion) {
-              return {
-                ...cachedVersion,
-                draftContent: v.draftContent || "",
-                labelId: v.labelId || "",
-                manuallyAdded: v.manuallyAdded || false
-              };
-            }
-            // Otherwise just use the DB version
-            return v;
-          }),
-          
+          ...dbVersions
+            .filter((v) => cachedVersionsMap.has(v.id) || v.manuallyAdded)
+            .map((v) => {
+              const cachedVersion = cachedVersionsMap.get(v.id);
+              // If it exists in cache, merge with DB version
+              if (cachedVersion) {
+                return {
+                  ...cachedVersion,
+                  draftContent: v.draftContent || "",
+                  labelId: v.labelId || "",
+                  manuallyAdded: v.manuallyAdded || false,
+                };
+              }
+              // Otherwise just use the DB version
+              return v;
+            }),
+
           // Then add any cached versions that aren't in DB
-          ...(cached.versions?.filter(v => !dbVersionsMap.has(v.id)).map(v => ({
-            ...v,
-            manuallyAdded: false,
-            draftContent: "",
-            labelId: ""
-          })) || [])
+          ...(cached.versions
+            ?.filter((v) => !dbVersionsMap.has(v.id))
+            .map((v) => ({
+              ...v,
+              manuallyAdded: false,
+              draftContent: "",
+              labelId: "",
+            })) || []),
         ];
 
         // Sort versions by name and version number
@@ -382,7 +388,7 @@ export class PlaylistStore {
                 labelId: "",
                 lastModified: Date.now(),
                 isRemoved: false,
-                manuallyAdded: version.manuallyAdded || false
+                manuallyAdded: version.manuallyAdded || false,
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
@@ -394,7 +400,9 @@ export class PlaylistStore {
             playlist.versions.map(async (version) => {
               const existingDraft = draftMap.get(version.id);
               const existingLabelId = labelIdMap.get(version.id);
-              const existingVersion = existingVersions.find(v => v.id === version.id);
+              const existingVersion = existingVersions.find(
+                (v) => v.id === version.id,
+              );
 
               const versionToSave: CachedVersion = {
                 ...version,
@@ -404,7 +412,10 @@ export class PlaylistStore {
                 lastModified: Date.now(),
                 isRemoved: false,
                 // Preserve manuallyAdded flag from existing version or from the version itself
-                manuallyAdded: existingVersion?.manuallyAdded || version.manuallyAdded || false
+                manuallyAdded:
+                  existingVersion?.manuallyAdded ||
+                  version.manuallyAdded ||
+                  false,
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
@@ -476,31 +487,32 @@ export class PlaylistStore {
       const dbVersions = await db.versions
         .where("playlistId")
         .equals(playlistId)
-        .filter(v => !v.isRemoved)
+        .filter((v) => !v.isRemoved)
         .toArray();
 
       // Create a map for quick lookup of DB versions
-      const dbVersionsMap = new Map(dbVersions.map(v => [v.id, v]));
-      
+      const dbVersionsMap = new Map(dbVersions.map((v) => [v.id, v]));
+
       // 2. Get fresh data from Ftrack
-      const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+      const freshVersions =
+        await this.ftrackService.getPlaylistVersions(playlistId);
       console.log("🔍 Fresh versions from Ftrack:", {
         count: freshVersions.length,
-        versions: freshVersions.map(v => ({ id: v.id, name: v.name }))
+        versions: freshVersions.map((v) => ({ id: v.id, name: v.name })),
       });
-      
+
       // Create a map for quick lookup of fresh versions
-      const freshVersionsMap = new Map(freshVersions.map(v => [v.id, v]));
+      const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));
 
       // 3. Find manually added versions from IndexedDB
-      const manualVersions = dbVersions.filter(v => v.manuallyAdded);
+      const manualVersions = dbVersions.filter((v) => v.manuallyAdded);
       console.log("🤚 Manual versions to preserve:", {
         count: manualVersions.length,
-        versions: manualVersions.map(v => ({ 
-          id: v.id, 
+        versions: manualVersions.map((v) => ({
+          id: v.id,
           name: v.name,
-          manuallyAdded: v.manuallyAdded 
-        }))
+          manuallyAdded: v.manuallyAdded,
+        })),
       });
 
       // 4. Merge versions:
@@ -509,54 +521,57 @@ export class PlaylistStore {
       // - Add any new versions from fresh data
       const mergedVersions = [
         // First, process all DB versions
-        ...dbVersions.map(dbVersion => {
-          const freshVersion = freshVersionsMap.get(dbVersion.id);
-          // If it exists in fresh data, update its metadata
-          if (freshVersion) {
-            return {
-              ...freshVersion,
-              playlistId,
-              draftContent: dbVersion.draftContent || "",
-              labelId: dbVersion.labelId || "",
-              lastModified: Date.now(),
-              manuallyAdded: dbVersion.manuallyAdded || false,
-              isRemoved: false
-            };
-          }
-          // If it doesn't exist in fresh data but is manually added, keep it
-          if (dbVersion.manuallyAdded) {
+        ...dbVersions
+          .map((dbVersion) => {
+            const freshVersion = freshVersionsMap.get(dbVersion.id);
+            // If it exists in fresh data, update its metadata
+            if (freshVersion) {
+              return {
+                ...freshVersion,
+                playlistId,
+                draftContent: dbVersion.draftContent || "",
+                labelId: dbVersion.labelId || "",
+                lastModified: Date.now(),
+                manuallyAdded: dbVersion.manuallyAdded || false,
+                isRemoved: false,
+              };
+            }
+            // If it doesn't exist in fresh data but is manually added, keep it
+            if (dbVersion.manuallyAdded) {
+              return {
+                ...dbVersion,
+                lastModified: Date.now(),
+                isRemoved: false,
+              };
+            }
+            // Otherwise mark it as removed
             return {
               ...dbVersion,
-              lastModified: Date.now(),
-              isRemoved: false
+              isRemoved: true,
             };
-          }
-          // Otherwise mark it as removed
-          return {
-            ...dbVersion,
-            isRemoved: true
-          };
-        }).filter(v => !v.isRemoved), // Filter out removed versions
+          })
+          .filter((v) => !v.isRemoved), // Filter out removed versions
 
         // Then add any new versions from fresh data
         ...freshVersions
-          .filter(v => !dbVersionsMap.has(v.id))
-          .map(v => ({
+          .filter((v) => !dbVersionsMap.has(v.id))
+          .map((v) => ({
             ...v,
             playlistId,
             draftContent: "",
             labelId: "",
             lastModified: Date.now(),
             manuallyAdded: false,
-            isRemoved: false
-          }))
+            isRemoved: false,
+          })),
       ];
 
       console.log("✅ Merged versions result:", {
         freshCount: freshVersions.length,
         manualCount: manualVersions.length,
         finalCount: mergedVersions.length,
-        preservedManualCount: mergedVersions.filter(v => v.manuallyAdded).length
+        preservedManualCount: mergedVersions.filter((v) => v.manuallyAdded)
+          .length,
       });
 
       // 5. Get fresh playlist data and merge with versions
@@ -568,13 +583,15 @@ export class PlaylistStore {
         return;
       }
 
-      const playlistWithVersions = { 
-        ...freshPlaylist, 
+      const playlistWithVersions = {
+        ...freshPlaylist,
         versions: mergedVersions,
       };
 
       // 6. Update the local cache
-      await this.cachePlaylist(this.cleanPlaylistForStorage(playlistWithVersions));
+      await this.cachePlaylist(
+        this.cleanPlaylistForStorage(playlistWithVersions),
+      );
     } catch (error) {
       console.error("Failed to update playlist:", error);
     }
@@ -640,61 +657,66 @@ export class PlaylistStore {
         }
 
         // Get fresh versions
-        const freshVersions = await this.ftrackService.getPlaylistVersions(playlistId);
+        const freshVersions =
+          await this.ftrackService.getPlaylistVersions(playlistId);
         console.log("🔍 Fresh versions:", {
           count: freshVersions.length,
-          versions: freshVersions.map(v => ({ id: v.id, name: v.name }))
+          versions: freshVersions.map((v) => ({ id: v.id, name: v.name })),
         });
 
         // Get all cached versions
         const cachedVersions = (cached.versions || []) as StorableVersion[];
         console.log("💾 Cached versions:", {
           count: cachedVersions.length,
-          versions: cachedVersions.map(v => ({ 
-            id: v.id, 
+          versions: cachedVersions.map((v) => ({
+            id: v.id,
             name: v.name,
-            manuallyAdded: v.manuallyAdded 
-          }))
+            manuallyAdded: v.manuallyAdded,
+          })),
         });
 
         // Create lookup maps for faster comparison
-        const freshMap = new Map(freshVersions.map(v => [`${playlistId}:${v.id}`, v]));
-        const cachedMap = new Map(cachedVersions.map(v => [`${playlistId}:${v.id}`, v]));
+        const freshMap = new Map(
+          freshVersions.map((v) => [`${playlistId}:${v.id}`, v]),
+        );
+        const cachedMap = new Map(
+          cachedVersions.map((v) => [`${playlistId}:${v.id}`, v]),
+        );
 
         // Find manually added versions - we'll preserve these
-        const manualVersions = cachedVersions.filter(v => v.manuallyAdded);
+        const manualVersions = cachedVersions.filter((v) => v.manuallyAdded);
         console.log("🤚 Manual versions to preserve:", {
           count: manualVersions.length,
-          versions: manualVersions.map(v => ({ 
-            id: v.id, 
+          versions: manualVersions.map((v) => ({
+            id: v.id,
             name: v.name,
-            manuallyAdded: v.manuallyAdded 
-          }))
+            manuallyAdded: v.manuallyAdded,
+          })),
         });
 
         // Create a set of manual version IDs for quick lookup
-        const manualVersionIds = new Set(manualVersions.map(v => v.id));
+        const manualVersionIds = new Set(manualVersions.map((v) => v.id));
 
         // Find added versions (in fresh but not in cached)
         const addedVersions = freshVersions
-          .filter(v => {
+          .filter((v) => {
             const key = `${playlistId}:${v.id}`;
             const notInCached = !cachedMap.has(key);
             if (notInCached) {
               console.log("➕ Potential added version:", {
                 id: v.id,
                 name: v.name,
-                notInCached
+                notInCached,
               });
             }
             return notInCached;
           })
-          .map(v => v.id);
+          .map((v) => v.id);
 
         // Find removed versions (in cached but not in fresh)
         // Exclude manually added versions from being considered as removed
         const removedVersions = cachedVersions
-          .filter(v => {
+          .filter((v) => {
             const key = `${playlistId}:${v.id}`;
             const notInFresh = !freshMap.has(key);
             // If it's manually added, it can't be removed
@@ -703,20 +725,20 @@ export class PlaylistStore {
                 id: v.id,
                 name: v.name,
                 notInFresh,
-                isManual: v.manuallyAdded
+                isManual: v.manuallyAdded,
               });
               return true;
             }
             return false;
           })
-          .map(v => v.id);
+          .map((v) => v.id);
 
         console.log("✅ Version comparison complete:", {
           added: addedVersions.length,
           removed: removedVersions.length,
           addedIds: addedVersions,
           removedIds: removedVersions,
-          preservedManualIds: Array.from(manualVersionIds)
+          preservedManualIds: Array.from(manualVersionIds),
         });
 
         // Only notify if there are actual changes
@@ -808,16 +830,16 @@ export class PlaylistStore {
     try {
       // Get all manually added versions for this playlist
       const manuallyAddedVersions = await db.versions
-        .where('playlistId')
+        .where("playlistId")
         .equals(playlistId)
-        .and(version => version.manuallyAdded === true)
+        .and((version) => version.manuallyAdded === true)
         .toArray();
 
       // Delete the versions from the database
       await db.versions
-        .where('playlistId')
+        .where("playlistId")
         .equals(playlistId)
-        .and(version => version.manuallyAdded === true)
+        .and((version) => version.manuallyAdded === true)
         .delete();
 
       // Update the cached playlist to reflect the changes
@@ -826,14 +848,14 @@ export class PlaylistStore {
         cachedPlaylist.hasModifications = true;
         cachedPlaylist.removedVersions = [
           ...cachedPlaylist.removedVersions,
-          ...manuallyAddedVersions.map(v => v.id)
+          ...manuallyAddedVersions.map((v) => v.id),
         ];
         await this.cachePlaylist(cachedPlaylist);
       }
 
-      log('Cleared manually added versions:', manuallyAddedVersions.length);
+      log("Cleared manually added versions:", manuallyAddedVersions.length);
     } catch (error) {
-      console.error('Failed to clear manually added versions:', error);
+      console.error("Failed to clear manually added versions:", error);
       throw error;
     }
   }

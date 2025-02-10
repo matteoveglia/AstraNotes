@@ -78,18 +78,18 @@ export const MainContent: React.FC<MainContentProps> = ({
       try {
         // First initialize in the store
         await playlistStore.initializePlaylist(playlist.id, playlist);
-        
+
         // Then get the merged version with proper data from IndexedDB
         const cached = await playlistStore.getPlaylist(playlist.id);
         if (cached) {
           setMergedPlaylist({
             ...playlist,
-            versions: cached.versions
+            versions: cached.versions,
           });
         } else {
           setMergedPlaylist(playlist);
         }
-        
+
         // Reset modifications and pending versions
         setModifications({ added: 0, removed: 0 });
         setPendingVersions(null);
@@ -131,7 +131,11 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Stop polling when component unmounts or playlist changes
     return () => playlistStore.stopPolling();
-  }, [activePlaylist.id, activePlaylist.isQuickNotes, settings.autoRefreshEnabled]);
+  }, [
+    activePlaylist.id,
+    activePlaylist.isQuickNotes,
+    settings.autoRefreshEnabled,
+  ]);
 
   // Reset selections when switching playlists
   useEffect(() => {
@@ -149,7 +153,10 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Load all drafts at once using compound index
       const drafts = await db.versions
         .where("[playlistId+id]")
-        .between([activePlaylist.id, Dexie.minKey], [activePlaylist.id, Dexie.maxKey])
+        .between(
+          [activePlaylist.id, Dexie.minKey],
+          [activePlaylist.id, Dexie.maxKey],
+        )
         .toArray();
 
       // Create maps for drafts and label IDs
@@ -178,7 +185,12 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      await playlistStore.saveDraft(versionId, activePlaylist.id, content, labelId);
+      await playlistStore.saveDraft(
+        versionId,
+        activePlaylist.id,
+        content,
+        labelId,
+      );
 
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
@@ -225,7 +237,8 @@ export const MainContent: React.FC<MainContentProps> = ({
       await playlistStore.clearAddedVersions(activePlaylist.id);
 
       // Keep only non-manually added versions in the UI
-      const updatedVersions = activePlaylist.versions?.filter((v) => !v.manuallyAdded) || [];
+      const updatedVersions =
+        activePlaylist.versions?.filter((v) => !v.manuallyAdded) || [];
       const updatedPlaylist = {
         ...activePlaylist,
         versions: updatedVersions,
@@ -236,7 +249,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         onPlaylistUpdate(updatedPlaylist);
       }
     } catch (error) {
-      console.error('Failed to clear added versions:', error);
+      console.error("Failed to clear added versions:", error);
     }
   };
 
@@ -388,14 +401,14 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Compare with current versions to find modifications
       // Exclude manually added versions from this check
       const currentVersionIds = new Set(
-        currentVersions
-          .filter((v) => !v.manuallyAdded)
-          .map((v) => v.id),
+        currentVersions.filter((v) => !v.manuallyAdded).map((v) => v.id),
       );
 
       // Only count versions as added if they're not manually added
       const addedVersions = freshVersions
-        .filter((v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id))
+        .filter(
+          (v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id),
+        )
         .map((v) => v.id);
 
       // Only count versions as removed if they're not manually added
@@ -429,7 +442,8 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     try {
       // Get manually added versions from current playlist
-      const manualVersions = activePlaylist.versions?.filter((v) => v.manuallyAdded) || [];
+      const manualVersions =
+        activePlaylist.versions?.filter((v) => v.manuallyAdded) || [];
 
       // Create a map of pending versions for quick lookup
       const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
@@ -493,7 +507,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (!activePlaylist.versions) return;
 
     // Add the version to the playlist if it's not already there
-    const existingVersion = activePlaylist.versions.find((v) => v.id === version.id);
+    const existingVersion = activePlaylist.versions.find(
+      (v) => v.id === version.id,
+    );
     if (!existingVersion) {
       // Mark the version as manually added
       const versionWithFlag = {

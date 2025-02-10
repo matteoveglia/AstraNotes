@@ -61,7 +61,7 @@ export class FtrackService {
         log("Initialized with settings:", {
           serverUrl: this.settings?.serverUrl,
           apiUser: this.settings?.apiUser,
-          hasApiKey: !!this.settings?.apiKey
+          hasApiKey: this.settings?.apiKey
             ? this.settings?.apiKey.slice(-5)
             : undefined,
         });

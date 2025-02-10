@@ -110,27 +110,34 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       const currentPlaylistMap = new Map(playlists.map((p) => [p.id, p]));
 
       // Always preserve Quick Notes from current state
-      const quickNotesPlaylist = playlists.find(p => p.id === QUICK_NOTES_ID || p.isQuickNotes);
+      const quickNotesPlaylist = playlists.find(
+        (p) => p.id === QUICK_NOTES_ID || p.isQuickNotes,
+      );
 
       // Process each playlist from the latest fetch
-      const processedPlaylists = latestPlaylists.map((latest) => {
-        // Skip Quick Notes
-        if (latest.id === QUICK_NOTES_ID || latest.isQuickNotes) {
-          return null;
-        }
+      const processedPlaylists = latestPlaylists
+        .map((latest) => {
+          // Skip Quick Notes
+          if (latest.id === QUICK_NOTES_ID || latest.isQuickNotes) {
+            return null;
+          }
 
-        const current = currentPlaylistMap.get(latest.id);
-        // If it exists in current list and was marked as added, clear the status
-        if (current?.status === "added") {
-          return { ...latest, status: undefined } as PlaylistWithStatus;
-        }
-        // If it's new, mark it as added
-        if (!current) {
-          return { ...latest, status: "added" as const } as PlaylistWithStatus;
-        }
-        // Otherwise, keep as is
-        return latest as PlaylistWithStatus;
-      }).filter((p): p is PlaylistWithStatus => p !== null); // Type guard to remove nulls
+          const current = currentPlaylistMap.get(latest.id);
+          // If it exists in current list and was marked as added, clear the status
+          if (current?.status === "added") {
+            return { ...latest, status: undefined } as PlaylistWithStatus;
+          }
+          // If it's new, mark it as added
+          if (!current) {
+            return {
+              ...latest,
+              status: "added" as const,
+            } as PlaylistWithStatus;
+          }
+          // Otherwise, keep as is
+          return latest as PlaylistWithStatus;
+        })
+        .filter((p): p is PlaylistWithStatus => p !== null); // Type guard to remove nulls
 
       // Find removed playlists (excluding Quick Notes)
       const removedPlaylists = playlists
