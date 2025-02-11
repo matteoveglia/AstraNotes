@@ -5,6 +5,7 @@ node_modules
 # Build outputs
 dist
 dist-ssr
+dist-tauri
 build
 *.local
 
@@ -16,7 +17,7 @@ build
 /src-tauri/build
 /src-tauri/node_modules
 /src-tauri/gen/schemas
-latest.json
+#latest.json
 
 # Logs
 logs

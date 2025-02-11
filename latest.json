@@ -1,0 +1,15 @@
+{
+  "version": "0.1.8",
+  "notes": "Minor release: New icon and code tidying",
+  "pub_date": "2025-02-11T22:18:12.491Z",
+  "platforms": {
+    "windows-x86_64": {
+      "url": "",
+      "signature": ""
+    },
+    "darwin-aarch64": {
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.8/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzdzWUgxSzNuSHJRQlY1RjgwWkNLS1JDdDRLbUhwdWhhOW9GNExTbTZudTVEa0E5blN1WkNrcFhIMXB0enVqeFprb1JwamVIUWJKdVpEUkZMaXlGNFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzM5MzAxMDk2CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnNhTUZJZzZPZWp2ZDVRWXUzUUhiNFU5dFc2Z05NMVkzTlM1eVpQdi9vdjVydjR5bXcwZnJPUWZjbmd1RkU5NDQxY2ZyMzFnbnpaRFVnZktlbFBONkJRPT0K"
+    }
+  }
+}
