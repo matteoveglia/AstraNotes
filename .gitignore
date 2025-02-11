@@ -16,6 +16,7 @@ build
 /src-tauri/build
 /src-tauri/node_modules
 /src-tauri/gen/schemas
+latest.json
 
 # Logs
 logs
