@@ -30,6 +30,7 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
+.w*
 *.suo
 *.ntvs*
 *.njsproj

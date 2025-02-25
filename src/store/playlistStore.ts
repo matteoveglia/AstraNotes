@@ -29,6 +29,7 @@ interface FtrackVersion {
   name: string;
   version: number;
   thumbnail_url?: URL;
+  thumbnailId?: string;
   createdAt: string;
   updatedAt: string;
   reviewSessionObjectId?: string;
@@ -44,6 +45,7 @@ interface StorableVersion {
   name: string;
   version: number;
   thumbnailUrl?: string;
+  thumbnailId?: string;
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
@@ -138,6 +140,7 @@ export class PlaylistStore {
         version: v.version,
         reviewSessionObjectId: v.reviewSessionObjectId || "",
         thumbnailUrl: v.thumbnailUrl || "",
+        thumbnailId: v.thumbnailId || "",
         createdAt: this.cleanDate(v.createdAt),
         updatedAt: this.cleanDate(v.updatedAt),
         manuallyAdded: v.manuallyAdded || false, // Preserve manuallyAdded flag
@@ -170,6 +173,7 @@ export class PlaylistStore {
       name: version.name || "",
       version: version.version,
       thumbnailUrl: version.thumbnailUrl || "",
+      thumbnailId: version.thumbnailId || "",
       reviewSessionObjectId: version.reviewSessionObjectId || "",
       createdAt: this.cleanDate(version.createdAt),
       updatedAt: this.cleanDate(version.updatedAt),

@@ -21,6 +21,7 @@ import { useSettings } from "../store/settingsStore";
 import { PlaylistMenu } from "./PlaylistMenu";
 import { db, type CachedVersion } from "../store/db";
 import Dexie from "dexie";
+import { fetchThumbnail } from "../services/thumbnailService";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -56,6 +57,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   );
   const [isInitializing, setIsInitializing] = useState(true);
   const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
 
   const activePlaylist = mergedPlaylist || playlist;
 
@@ -178,6 +180,67 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     loadDrafts();
   }, [activePlaylist.id, activePlaylist.versions]);
+
+  useEffect(() => {
+    const loadThumbnails = async () => {
+      if (!activePlaylist.versions?.length) return;
+      
+      console.debug('[MainContent] Loading thumbnails for versions:', activePlaylist.versions);
+      
+      try {
+        const session = await ftrackService.getSession();
+        
+        // Create a map of version IDs to their thumbnail URLs
+        const thumbnailPromises = activePlaylist.versions
+          .filter(version => version.thumbnailId)
+          .map(async (version) => {
+            console.debug('[MainContent] Fetching thumbnail for version:', version.id);
+            if (!version.thumbnailId) return null;
+            
+            try {
+              const url = await fetchThumbnail(version.thumbnailId, session, { size: 128 });
+              console.debug('[MainContent] Retrieved thumbnail URL for version:', version.id, url);
+              return { versionId: version.id, url };
+            } catch (error) {
+              console.error(`Failed to fetch thumbnail for version ${version.id}:`, error);
+              return null;
+            }
+          });
+        
+        const results = await Promise.all(thumbnailPromises);
+        
+        // Filter out null results and create a map
+        const thumbnailMap: Record<string, string> = {};
+        results.forEach(result => {
+          if (result && result.url) {
+            thumbnailMap[result.versionId] = result.url;
+          }
+        });
+        
+        console.debug('[MainContent] Thumbnail map:', thumbnailMap);
+        setThumbnails(thumbnailMap);
+      } catch (error) {
+        console.error("Failed to load thumbnails:", error);
+      }
+    };
+    
+    loadThumbnails();
+    
+    // Clean up thumbnails when component unmounts
+    return () => {
+      // This will be handled by the thumbnailService's clearThumbnailCache function
+    };
+  }, [activePlaylist.versions]);
+  
+  // Cleanup thumbnails when component unmounts
+  useEffect(() => {
+    return () => {
+      // Import the clearThumbnailCache function to clean up blob URLs
+      import('../services/thumbnailService').then(({ clearThumbnailCache }) => {
+        clearThumbnailCache();
+      });
+    };
+  }, []);
 
   const handleNoteSave = async (
     versionId: string,
@@ -659,6 +722,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       <CardContent className="flex-1 overflow-y-auto">
         <div className="space-y-4 py-4">
           {sortedVersions.map((version) => {
+            const thumbnailUrl = thumbnails[version.id];
             const versionHandlers: NoteInputHandlers = {
               onSave: (content: string, labelId: string) =>
                 handleNoteSave(version.id, content, labelId),
@@ -677,7 +741,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 <NoteInput
                   versionName={version.name}
                   versionNumber={version.version.toString()}
-                  thumbnailUrl={version.thumbnailUrl}
+                  thumbnailUrl={thumbnailUrl}
                   status={noteStatuses[version.id] || "empty"}
                   selected={selectedVersions.includes(version.id)}
                   initialContent={noteDrafts[version.id]}

@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { NoteStatus } from "../types";
 import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
+import { ThumbnailModal } from "./ThumbnailModal";
 
 export interface NoteInputProps {
   versionName: string;
@@ -40,6 +41,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 }) => {
   const [content, setContent] = useState(initialContent);
   const [labelId, setLabelId] = useState(initialLabelId);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     setContent(initialContent);
@@ -89,9 +91,21 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
+  const openThumbnailModal = () => {
+    if (thumbnailUrl) {
+      setIsModalOpen(true);
+    }
+  };
+
   return (
     <div className="flex gap-4 p-4 bg-white rounded-lg border">
-      <div className="flex-shrink-0 w-32 h-18 bg-gray-100 rounded overflow-hidden">
+      <div 
+        className={cn(
+          "flex-shrink-0 w-32 h-[120px] bg-gray-100 rounded overflow-hidden",
+          thumbnailUrl ? "cursor-pointer" : "cursor-default"
+        )}
+        onClick={openThumbnailModal}
+      >
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
@@ -163,6 +177,16 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           />
         </div>
       </div>
+
+      {thumbnailUrl && (
+        <ThumbnailModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          thumbnailUrl={thumbnailUrl}
+          versionName={versionName}
+          versionNumber={versionNumber}
+        />
+      )}
     </div>
   );
 };
