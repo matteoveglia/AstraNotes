@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { execSync } from 'child_process';
 import { homedir } from 'os';
 import { resolve, join } from 'path';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, statSync } from 'fs';
 import readline from 'readline-sync';
 
 const target = process.argv[2];
@@ -105,9 +105,30 @@ const updateLatestJson = () => {
     // Read signature files
     const readSignatureFile = (sigPath) => {
         try {
-            return readFileSync(sigPath, 'utf8').trim();
+            console.log(`[ASTRABUILD] Attempting to read signature file: ${sigPath}`);
+            
+            // Check if file exists
+            if (!existsSync(sigPath)) {
+                console.error(`[ASTRABUILD] Signature file does not exist: ${sigPath}`);
+                return '';
+            }
+
+            // Get file stats
+            const stats = statSync(sigPath);
+            console.log(`[ASTRABUILD] Signature file stats:`, {
+                size: stats.size,
+                isFile: stats.isFile(),
+                mode: stats.mode
+            });
+
+            // Read file content
+            const signature = readFileSync(sigPath, 'utf8').trim();
+            
+            console.log(`[ASTRABUILD] Signature file read successfully. Length: ${signature.length}`);
+            return signature;
         } catch (err) {
-            console.error(`[ASTRABUILD] Could not read signature file: ${sigPath}`, err.message);
+            console.error(`[ASTRABUILD] Error reading signature file: ${sigPath}`, err.message);
+            console.error(`[ASTRABUILD] Error stack:`, err.stack);
             return '';
         }
     };
@@ -117,6 +138,27 @@ const updateLatestJson = () => {
         const exeFile = `AstraNotes_${newVersion}_x64-setup.exe`;
         const exePath = `./dist-tauri/${exeFile}`;
         const sigPath = `${exePath}.sig`;
+
+        console.log('[ASTRABUILD] Windows Artifact Paths:');
+        console.log(`- EXE File: ${exePath}`);
+        console.log(`- Signature Path: ${sigPath}`);
+
+        // Check if files exist in dist-tauri
+        if (!existsSync(exePath)) {
+            console.error(`[ASTRABUILD] Windows EXE not found in dist-tauri: ${exePath}`);
+            
+            // Try alternative path
+            const altExePath = `./src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/${exeFile}`;
+            const altSigPath = `${altExePath}.sig`;
+            
+            if (existsSync(altExePath)) {
+                console.log(`[ASTRABUILD] Using alternative EXE path: ${altExePath}`);
+                copyFileSync(altExePath, exePath);
+                if (existsSync(altSigPath)) {
+                    copyFileSync(altSigPath, sigPath);
+                }
+            }
+        }
 
         latestJson.platforms['windows-x86_64'] = {
             url: `https://github.com/matteoveglia/AstraNotes/releases/download/v${newVersion}/${exeFile}`,
