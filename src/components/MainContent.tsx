@@ -198,7 +198,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             if (!version.thumbnailId) return null;
             
             try {
-              const url = await fetchThumbnail(version.thumbnailId, session, { size: 128 });
+              const url = await fetchThumbnail(version.thumbnailId, session, { size: 512 });
               console.debug('[MainContent] Retrieved thumbnail URL for version:', version.id, url);
               return { versionId: version.id, url };
             } catch (error) {

@@ -40,22 +40,12 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
           <DialogTitle className="text-xl">
             {versionName} - v{versionNumber}
           </DialogTitle>
-          <DialogClose asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogClose>
         </DialogHeader>
         <div className="flex items-center justify-center p-4">
           <img
             src={thumbnailUrl}
             alt={`${versionName} - v${versionNumber}`}
-            className="max-h-[70vh] max-w-full object-contain"
+            className="max-h-[200vh] min-h-96 max-w-full object-contain"
           />
         </div>
       </DialogContent>
