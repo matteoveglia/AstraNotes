@@ -22,6 +22,7 @@ import { PlaylistMenu } from "./PlaylistMenu";
 import { db, type CachedVersion } from "../store/db";
 import Dexie from "dexie";
 import { fetchThumbnail } from "../services/thumbnailService";
+import { GlowEffect } from '@/components/ui/glow-effect';
 
 interface MainContentProps {
   playlist: Playlist;
@@ -702,13 +703,25 @@ export const MainContent: React.FC<MainContentProps> = ({
               >
                 Publish {selectedVersions.length} Selected
               </Button>
-              <Button
-                size="sm"
-                onClick={() => handlePublishAll()}
-                disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
-              >
-                Publish All Notes
-              </Button>
+              <div className="relative inline-block">
+                {Object.keys(noteDrafts).length > 0 && !isPublishing && (
+                  <GlowEffect
+                    colors={['#FF5733', '#33FF57', '#3357FF', '#F1C40F']}
+                    mode='pulse'
+                    blur='soft'
+                    duration={3}
+                    scale={1.1}
+                  />
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => handlePublishAll()}
+                  disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
+                  className="relative z-10"
+                >
+                  Publish All Notes
+                </Button>
+              </div>
               <div className="ml-3 mx-1 w-px bg-foreground/20 self-stretch" />
               <PlaylistMenu
                 onClearAllNotes={handleClearAllNotes}
