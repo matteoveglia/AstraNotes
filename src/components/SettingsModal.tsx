@@ -24,6 +24,9 @@ import { db } from "../store/db";
 import { playlistStore } from "../store/playlistStore";
 import { useSettings } from "../store/settingsStore";
 import { useLabelStore } from "../store/labelStore";
+import { useThumbnailSettingsStore } from '../store/thumbnailSettingsStore';
+import { clearThumbnailCache } from '../services/thumbnailService';
+import { usePlaylistsStore } from "../store/playlistsStore";
 import {
   Select,
   SelectContent,
@@ -34,15 +37,19 @@ import {
 import { checkForUpdates } from "../lib/updater";
 
 interface SettingsModalProps {
-  onLoadPlaylists: () => void;
+  onLoadPlaylists: () => Promise<void>;
+  onCloseAllPlaylists: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLoadPlaylists,
+  onCloseAllPlaylists,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
   const { labels, fetchLabels } = useLabelStore();
+  const { size, setSize } = useThumbnailSettingsStore();
+  const { setActivePlaylist } = usePlaylistsStore();
   const [isConnected, setIsConnected] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setIsOpen(false);
 
       // Reload playlists with new settings
-      onLoadPlaylists();
+      await onLoadPlaylists();
     } catch (err) {
       console.error("Failed to save settings:", err);
       setError("Failed to save settings");
@@ -119,7 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       playlistStore.stopPolling();
 
       // Reload playlists from FTrack
-      onLoadPlaylists();
+      await onLoadPlaylists();
 
       // Show success state briefly
       setError("Cache cleared successfully");
@@ -130,6 +137,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSizeChange = (newSize: number) => {
+    setSize(newSize);
+    clearThumbnailCache();
+    onCloseAllPlaylists();
+    setIsOpen(false);
   };
 
   return (
@@ -244,6 +258,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {label.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>Thumbnail Quality</Label>
+                <Select onValueChange={(value) => handleSizeChange(Number(value))} value={size.toString()}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select quality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="128">Low (Default)</SelectItem>
+                    <SelectItem value="256">Medium</SelectItem>
+                    <SelectItem value="512">High</SelectItem>
+                    <SelectItem value="1024">RTX On</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

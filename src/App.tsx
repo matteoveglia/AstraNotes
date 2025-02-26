@@ -85,7 +85,7 @@ export const App: React.FC = () => {
   return (
     <div className="h-screen flex flex-col">
       <TopBar>
-        <SettingsModal onLoadPlaylists={loadPlaylists} />
+        <SettingsModal onLoadPlaylists={loadPlaylists} onCloseAllPlaylists={handleCloseAll} />
       </TopBar>
       <div className="flex-1 flex overflow-hidden">
         <PlaylistPanel

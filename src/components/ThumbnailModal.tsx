@@ -13,8 +13,6 @@ import {
   DialogTitle,
   DialogClose,
 } from "./ui/dialog";
-import { X } from "lucide-react";
-import { Button } from "./ui/button";
 
 interface ThumbnailModalProps {
   isOpen: boolean;
@@ -35,13 +33,13 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-full">
+      <DialogContent className="max-w-5xl w-full">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-xl">
             {versionName} - v{versionNumber}
           </DialogTitle>
         </DialogHeader>
-        <div className="flex items-center justify-center p-4">
+        <div className="flex items-center justify-center">
           <img
             src={thumbnailUrl}
             alt={`${versionName} - v${versionNumber}`}
