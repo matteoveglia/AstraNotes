@@ -23,6 +23,7 @@ import { db, type CachedVersion } from "../store/db";
 import Dexie from "dexie";
 import { fetchThumbnail } from "../services/thumbnailService";
 import { GlowEffect } from '@/components/ui/glow-effect';
+import { motion } from 'motion/react';
 
 interface MainContentProps {
   playlist: Playlist;
@@ -34,6 +35,21 @@ interface NoteInputHandlers {
   onClear: () => void;
   onSelectToggle: () => void;
 }
+
+const gridVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+};
 
 export const MainContent: React.FC<MainContentProps> = ({
   playlist,
@@ -733,7 +749,12 @@ export const MainContent: React.FC<MainContentProps> = ({
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto">
-        <div className="space-y-4 py-4">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={gridVariants}
+          className="space-y-4 py-4"
+        >
           {sortedVersions.map((version) => {
             const thumbnailUrl = thumbnails[version.id];
             const versionHandlers: NoteInputHandlers = {
@@ -750,7 +771,11 @@ export const MainContent: React.FC<MainContentProps> = ({
             };
 
             return (
-              <div key={version.id}>
+              <motion.div
+                key={version.id}
+                className="space-y-2"
+                variants={itemVariants}
+              >
                 <NoteInput
                   versionName={version.name}
                   versionNumber={version.version.toString()}
@@ -761,7 +786,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                   initialLabelId={noteLabelIds[version.id]}
                   {...versionHandlers}
                 />
-              </div>
+              </motion.div>
             );
           })}
           {!activePlaylist.versions?.length && (
@@ -771,7 +796,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 : "No versions found in this playlist"}
             </div>
           )}
-        </div>
+        </motion.div>
       </CardContent>
 
       <div className="flex-none border-t bg-white shadow-md">

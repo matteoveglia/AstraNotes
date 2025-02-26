@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { useDebounce } from "../hooks/useDebounce";
 import { AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
+import { motion } from 'motion/react';
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -55,58 +56,94 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     handleSearch();
   }, [handleSearch]);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search by asset name or version (e.g. 'shot_010' or 'v2')"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onClearAdded}
-          disabled={!hasManuallyAddedVersions}
-        >
-          Clear Added Versions
-        </Button>
-      </div>
+  const gridVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.04
+      }
+    }
+  };
 
-      {isLoading ? (
-        <div className="text-center py-2 text-sm text-gray-500">Loading...</div>
-      ) : results.length > 0 ? (
-        <div className="grid grid-cols-4 gap-1.5 max-h-[300px] overflow-y-auto">
-          {results.map((version) => (
-            <div
-              key={version.id}
-              className="border rounded p-1.5 cursor-pointer hover:bg-gray-100 text-xs"
-              onClick={() => {
-                if (onVersionSelect) {
-                  onVersionSelect(version);
-                  setSearchTerm(""); // Clear search after selection
-                  setResults([]); // Clear results after selection
-                }
-              }}
-            >
-              {version.thumbnailUrl && (
-                <img
-                  src={version.thumbnailUrl}
-                  alt={version.name}
-                  className="w-full h-16 object-cover mb-1"
-                />
-              )}
-              <div className="font-medium truncate">{version.name}</div>
-              <div className="text-gray-500">v{version.version}</div>
-            </div>
-          ))}
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+    transition: {
+      type: "spring",
+      stiffness: 100,
+      damping: 10,
+      duration: 0.6
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 0 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 60, damping: 10, duration: 1 }}
+    >
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Search by asset name or version (e.g. 'shot_010' or 'v2')"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClearAdded}
+            disabled={!hasManuallyAddedVersions}
+          >
+            Clear Added Versions
+          </Button>
         </div>
-      ) : debouncedSearchTerm ? (
-        <div className="text-center py-2 text-sm text-gray-500">
-          No results found
-        </div>
-      ) : null}
-    </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-gray-500">Loading...</div>
+        ) : results.length > 0 ? (
+          <motion.div
+            className="grid grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[300px] overflow-y-auto"
+            variants={gridVariants} // Apply motion variants to the grid
+            initial="hidden"
+            animate="visible"
+          >
+            {results.map((version) => (
+              <motion.div
+                key={version.id}
+                className="border rounded p-1.5 cursor-pointer hover:bg-gray-100 text-xs"
+                variants={itemVariants} // Apply motion variants to each item
+                onClick={() => {
+                  if (onVersionSelect) {
+                    onVersionSelect(version);
+                    setSearchTerm("");
+                    setResults([]);
+                  }
+                }}
+              >
+                {version.thumbnailUrl && (
+                  <img
+                    src={version.thumbnailUrl}
+                    alt={version.name}
+                    className="w-full h-16 object-cover mb-1"
+                  />
+                )}
+                <div className="font-medium truncate">{version.name}</div>
+                <div className="text-gray-500">v{version.version}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : debouncedSearchTerm ? (
+          <div className="text-center py-2 text-sm text-gray-500">
+            No results found
+          </div>
+        ) : null}
+      </div>
+    </motion.div>
   );
 };

@@ -20,6 +20,7 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
+import { motion } from 'motion/react';
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -33,12 +34,28 @@ interface PlaylistWithStatus extends Playlist {
 
 const QUICK_NOTES_ID = "quick-notes";
 
+const gridVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
+
 const PlaylistItem: React.FC<PlaylistItemProps> = ({
   playlist,
   isActive,
   onClick,
 }) => (
-  <div
+  <motion.div
+    key={playlist.id}
     className={cn(
       "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
       isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
@@ -46,6 +63,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       playlist.status === "added" && "text-green-500",
     )}
     onClick={onClick}
+    variants={itemVariants}
   >
     <span>{playlist.title}</span>
     {playlist.status === "removed" && (
@@ -54,7 +72,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     {playlist.status === "added" && (
       <PlusCircle className="h-4 w-4 text-green-500" />
     )}
-  </div>
+  </motion.div>
 );
 
 interface PlaylistPanelProps {
@@ -199,8 +217,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center text-gray-500 h-full">
-          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+        <div className="flex items-center justify-center text-gray-500 h-[300px]">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
           <span>Loading playlists...</span>
         </div>
       ) : error ? (
@@ -209,7 +227,13 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           <span className="text-sm">{error}</span>
         </div>
       ) : (
-        <div>
+        <motion.div
+          className="space-y-2 overflow-y-auto"
+          style={{ height: 'calc(100vh - 200px)' }}
+          variants={gridVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {playlists.map((playlist) => (
             <PlaylistItem
               key={playlist.id}
@@ -220,7 +244,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
               onClick={() => onPlaylistSelect(playlist.id)}
             />
           ))}
-        </div>
+        </motion.div>
       )}
 
       {hasRemovedPlaylists && (
