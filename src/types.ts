@@ -19,6 +19,7 @@ export interface AssetVersion {
   name: string;
   version: number;
   thumbnailUrl?: string;
+  thumbnailId?: string;
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;

@@ -165,16 +165,14 @@ export class FtrackService {
 
   private mapVersionsToPlaylist(versions: any[]): AssetVersion[] {
     return versions.map((version) => {
-      // Extract thumbnail URL
-      let thumbnailUrl = "";
-      const thumbnail = version.asset_version.thumbnail;
-      if (
-        thumbnail &&
-        thumbnail.component_locations &&
-        thumbnail.component_locations.length > 0
-      ) {
-        // Get the first available component location's URL
-        thumbnailUrl = thumbnail.component_locations[0].url;
+      console.debug('[FtrackService] Raw version data:', version);
+      // Extract thumbnail ID for later fetching
+      let thumbnailId = null;
+      if (version.asset_version.thumbnail && version.asset_version.thumbnail.id) {
+        thumbnailId = version.asset_version.thumbnail.id;
+        console.debug('[FtrackService] Found thumbnail ID:', thumbnailId);
+      } else {
+        console.debug('[FtrackService] No thumbnail found for version:', version.asset_version.id);
       }
 
       return {
@@ -182,7 +180,7 @@ export class FtrackService {
         name: version.asset_version.asset.name,
         version: version.asset_version.version,
         reviewSessionObjectId: version.id,
-        thumbnailUrl,
+        thumbnailId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -449,21 +447,16 @@ export class FtrackService {
 
       const versions =
         limitedData?.map((version) => {
-          let thumbnailUrl = "";
-          const thumbnail = version.thumbnail;
-          if (
-            thumbnail &&
-            thumbnail.component_locations &&
-            thumbnail.component_locations.length > 0
-          ) {
-            thumbnailUrl = thumbnail.component_locations[0].url;
+          let thumbnailId = null;
+          if (version.thumbnail && version.thumbnail.id) {
+            thumbnailId = version.thumbnail.id;
           }
 
           return {
             id: version.id,
             name: version.asset.name,
             version: version.version,
-            thumbnailUrl,
+            thumbnailId,
             createdAt: version.date || new Date().toISOString(),
             updatedAt: version.date || new Date().toISOString(),
             manuallyAdded: true,

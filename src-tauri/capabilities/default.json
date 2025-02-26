@@ -13,6 +13,14 @@
   "permissions": [
     "core:default",
     "updater:default",
-    "fs:allow-download-write"
+    "fs:allow-download-write",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://**"
+        }
+      ]
+    }
   ]
 }

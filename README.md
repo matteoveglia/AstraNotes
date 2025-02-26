@@ -42,7 +42,7 @@ pnpm dev
 
 4. Start the development server, for Tauri development:
 ```bash
-pnpm tauri dev
+pnpm tauri:dev
 ```
 ### Configuration
 
@@ -86,14 +86,53 @@ And run the Sentry wizard to generate your `SENTRY_AUTH_TOKEN` environment varia
 - **Database**: Dexie (IndexedDB wrapper)
 - **API Integration**: @ftrack/api
 
-## 📦 Project Structure
+## 🗂️ Project Structure
 
 ```
 astranotes/
-├── src/               # React source code
-├── src-tauri/         # Rust/Tauri backend code
-└── dist/             # Production build output
+├── src/                  # React application code
+│   ├── components/       # React components
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Utility functions and libraries
+│   ├── stores/           # Zustand state stores
+│   ├── types/            # TypeScript type definitions
+│   └── MainContent.tsx   # Main application component
+├── src-tauri/            # Tauri backend code
+│   ├── src/              # Rust source files
+│   └── Cargo.toml        # Rust package configuration
+├── tests/                # Test files
+├── .env                  # Environment variables
+├── .eslintrc.js          # ESLint configuration
+├── .prettierrc           # Prettier configuration
+├── package.json          # Node.js package configuration
+├── pnpm-lock.yaml        # pnpm lock file
+└── tsconfig.json         # TypeScript configuration
 ```
+
+## 🛠️ Development Practices
+
+- **Type Safety**: Strict TypeScript configuration with no implicit any
+- **Code Formatting**: Prettier for consistent code style
+- **Linting**: ESLint with React and TypeScript rules
+- **Testing**: Jest with React Testing Library for unit tests
+- **State Management**: Zustand for global state management
+- **API Integration**: ftrack API package for ftrack integration
+
+## 🚀 Deployment Process
+
+1. Build the application:
+   ```bash
+   pnpm build
+   ```
+2. Run tests:
+   ```bash
+   pnpm test
+   ```
+3. Package the application for the target platform:
+   ```bash
+   pnpm tauri:build
+   ```
+4. The built application will be available in the `src-tauri/target/release` directory
 
 ## 🤝 Contributing
 
