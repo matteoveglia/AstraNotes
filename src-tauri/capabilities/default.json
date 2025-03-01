@@ -21,6 +21,8 @@
           "url": "https://**"
         }
       ]
-    }
+    },
+    "dialog:default",
+    "process:default"
   ]
 }

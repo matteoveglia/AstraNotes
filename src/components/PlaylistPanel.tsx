@@ -210,9 +210,11 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className={cn("gap-2", isRefreshing && "animate-spin")}
+          className={cn("gap-2", isRefreshing)}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw
+            className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+          />
         </Button>
       </div>
 

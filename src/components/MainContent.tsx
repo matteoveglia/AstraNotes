@@ -910,7 +910,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 className="h-7 px-2"
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
-                title="Refresh playlist"
+                title="Refresh Playlist"
               >
                 <RefreshCw
                   className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}

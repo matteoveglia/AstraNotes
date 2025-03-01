@@ -56,11 +56,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for updates when the app starts
-    checkForUpdates();
-  }, []);
-
-  useEffect(() => {
     if (isOpen) {
       fetchLabels();
     }
@@ -82,6 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setError("Failed to save settings");
     } finally {
       setIsLoading(false);
+      window.location.reload();
     }
   };
 
@@ -159,6 +155,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     clearThumbnailCache();
     onCloseAllPlaylists();
     setIsOpen(false);
+    window.location.reload();
   };
 
   return (

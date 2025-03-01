@@ -14,6 +14,7 @@ import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from '@/components/ui/border-trail';
+import { Loader2 } from 'lucide-react';
 
 export interface NoteInputProps {
   versionName: string;
@@ -132,11 +133,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               role='status'
               aria-label='Loading...'
             >
-              <div className='h-1 w-4 rounded-[4px] bg-zinc-600'></div>
-              <div className='h-1 w-10 rounded-[4px] bg-zinc-600'></div>
-              <div className='h-1 w-12 rounded-[4px] bg-zinc-600'></div>
-              <div className='h-1 w-12 rounded-[4px] bg-zinc-600'></div>
-              <div className='h-1 w-12 rounded-[4px] bg-zinc-600'></div>
+              <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           </div>
         )}

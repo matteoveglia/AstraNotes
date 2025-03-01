@@ -5,7 +5,7 @@
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.8/AstraNotes_0.1.8_x64-setup.exe",
-      "signature": ""
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1Ly9WaWF0ZzY2TVNZbEdVTSt5MGZSUEg1cW9LUVRkdm5zZkZEeFE0K2VUdDJIUm5KTEtNUFNnRDZaZGdGOTdJNC9adzJZREhpT1dWVkRHU3dvcmZNSXc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQwODEyNjc1CWZpbGU6QXN0cmFOb3Rlc18wLjEuOV94NjQtc2V0dXAuZXhlCjNPaDZyMmtHN1B3a3NaeE1GSm9QYVFaa2ZnMWZpVEhnZUU3QzVCdGxPdnZQSVdSb1lqVWxsWFdTUVlIMkQzS3FqUE1XTXdNT0pEVWdMS3hMRDhPOEFRPT0K"
     },
     "darwin-aarch64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.9/AstraNotes.app.tar.gz",
