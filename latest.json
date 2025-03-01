@@ -1,15 +1,15 @@
 {
-  "version": "0.1.8",
-  "notes": "Minor release: New icon and code tidying",
-  "pub_date": "2025-02-11T22:51:09.283Z",
+  "version": "0.1.9",
+  "notes": "Slew of changes, changed maincontent mounting method, more robust DB handling, added visual aid for manually added versions, clear cache now reloads app to clear react cache",
+  "pub_date": "2025-03-01T06:33:39.531Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.8/AstraNotes_0.1.8_x64-setup.exe",
       "signature": ""
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.8/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzdzWUgxSzNuSHJRQlY1RjgwWkNLS1JDdDRLbUhwdWhhOW9GNExTbTZudTVEa0E5blN1WkNrcFhIMXB0enVqeFprb1JwamVIUWJKdVpEUkZMaXlGNFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzM5MzAxMDk2CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnNhTUZJZzZPZWp2ZDVRWXUzUUhiNFU5dFc2Z05NMVkzTlM1eVpQdi9vdjVydjR5bXcwZnJPUWZjbmd1RkU5NDQxY2ZyMzFnbnpaRFVnZktlbFBONkJRPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.1.9/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzRwaEE1aXFwemkvcnRCS2FUa2V4UVNVUVhrcVVZQUhDRjJCL0ZHWU5hTW1ZZk01UW0rL1FQK1R1N1d1enNlS1V1cDJxZ0VmaUU1Vm9ubCtlTVh4N1E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQwODEwODE5CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CmwveVdia01oaGhaNko1UE9tZHU0SkV2V0hpejI3ZGV1Wm1SQmNrb0Nlb0pBNEJBUjV6b0xMQjhWYmNHMU5PdHN1T2tBSnBGOU9kbkdKSk14THdtQ0NBPT0K"
     }
   }
 }
