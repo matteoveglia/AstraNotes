@@ -1,8 +1,13 @@
+// import { scan } from "react-scan"; // Enable for performance profiling
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "./index.css";
 import * as Sentry from "@sentry/react";
+
+// scan({ // Enable for performance profiling
+//   enabled: true,
+// });
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,

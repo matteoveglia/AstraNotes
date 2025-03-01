@@ -56,6 +56,10 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     handleSearch();
   }, [handleSearch]);
 
+  const handleClearVersions = () => {
+    onClearAdded();
+  };
+
   const gridVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -69,6 +73,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
+    exit: { 
+      opacity: 0, 
+      scale: 0.8,
+      transition: { duration: 0.2 }
+    },
     transition: {
       type: "spring",
       stiffness: 100,
@@ -94,14 +103,16 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
             autoCapitalize="off"
             spellCheck={false}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearAdded}
-            disabled={!hasManuallyAddedVersions}
-          >
-            Clear Added Versions
-          </Button>
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearVersions}
+              disabled={!hasManuallyAddedVersions}
+            >
+              Clear Added Versions
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

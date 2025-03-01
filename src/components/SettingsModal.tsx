@@ -118,22 +118,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleClearCache = async () => {
     try {
       setIsLoading(true);
+      
+      // Close the modal first
+      setIsOpen(false);
+      
       // Clear all tables
       await db.playlists.clear();
       await db.versions.clear();
 
       // Reset any polling that might be happening
       playlistStore.stopPolling();
-
+      
+      // Clear thumbnail cache
+      clearThumbnailCache();
+      
+      // Reset UI state
+      onCloseAllPlaylists();
+      
+      // Set active playlist to Quick Notes
+      setActivePlaylist("quick-notes");
+      
       // Reload playlists from FTrack
       await onLoadPlaylists();
 
-      // Show success state briefly
-      setError("Cache cleared successfully");
-      setTimeout(() => setError(null), 3000);
+      // Show success state briefly in a toast or alert
+      alert("Cache cleared successfully. The UI has been refreshed.");
+      
+      // For a complete reset reload the window
+      window.location.reload();
     } catch (err) {
       console.error("Failed to clear cache:", err);
-      setError("Failed to clear cache");
+      alert("Failed to clear cache: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsLoading(false);
     }

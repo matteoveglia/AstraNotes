@@ -23,6 +23,7 @@ export interface NoteInputProps {
   selected: boolean;
   initialContent?: string;
   initialLabelId?: string;
+  manuallyAdded?: boolean;
   onSave: (content: string, labelId: string) => void;
   onClear: () => void;
   onSelectToggle: () => void;
@@ -36,6 +37,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   selected,
   initialContent = "",
   initialLabelId,
+  manuallyAdded = false,
   onSave,
   onClear,
   onSelectToggle,
@@ -99,7 +101,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   return (
-    <div className="flex gap-4 p-4 bg-white rounded-lg border">
+    <div className={cn(
+      "flex gap-4 p-4 bg-white rounded-lg border",
+      manuallyAdded && "border-purple-500 border-2"
+    )}>
       <div 
         className={cn(
           "flex-shrink-0 w-32 h-[120px] bg-gray-100 rounded overflow-hidden",

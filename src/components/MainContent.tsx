@@ -7,7 +7,7 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { NoteInput } from "./NoteInput";
@@ -21,7 +21,7 @@ import { useSettings } from "../store/settingsStore";
 import { PlaylistMenu } from "./PlaylistMenu";
 import { db, type CachedVersion } from "../store/db";
 import Dexie from "dexie";
-import { fetchThumbnail } from "../services/thumbnailService";
+import { fetchThumbnail, clearThumbnailCache } from "../services/thumbnailService";
 import { GlowEffect } from '@/components/ui/glow-effect';
 import { motion } from 'motion/react';
 
@@ -43,13 +43,28 @@ const gridVariants = {
     transition: {
       staggerChildren: 0.04
     }
+  },
+  exit: {
+    opacity: 0,
+    transition: {
+      staggerChildren: 0.02
+    }
   }
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  exit: { 
+    opacity: 0, 
+    scale: 0.9, 
+    y: -10,
+    transition: { duration: 0.15 } 
+  }
 };
+
+// Global thumbnail cache that persists across component instances
+const globalThumbnailCache: Record<string, string> = {};
 
 export const MainContent: React.FC<MainContentProps> = ({
   playlist,
@@ -75,6 +90,13 @@ export const MainContent: React.FC<MainContentProps> = ({
   const [isInitializing, setIsInitializing] = useState(true);
   const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  
+  // Ref for tracking active thumbnail loading
+  const thumbnailAbortControllerRef = useRef<AbortController | null>(null);
+  // Ref for tracking visible versions
+  const visibleVersionsRef = useRef<Set<string>>(new Set());
+  // Ref for tracking if component is mounted
+  const isMountedRef = useRef(true);
 
   const activePlaylist = mergedPlaylist || playlist;
 
@@ -94,7 +116,12 @@ export const MainContent: React.FC<MainContentProps> = ({
   useEffect(() => {
     const initializePlaylist = async () => {
       setIsInitializing(true);
+      console.debug(`[MainContent] Initializing playlist ${playlist.id}`);
+      
       try {
+        // Stop any existing polling before initializing a new playlist
+        playlistStore.stopPolling();
+        
         // First initialize in the store
         await playlistStore.initializePlaylist(playlist.id, playlist);
 
@@ -112,13 +139,21 @@ export const MainContent: React.FC<MainContentProps> = ({
         // Reset modifications and pending versions
         setModifications({ added: 0, removed: 0 });
         setPendingVersions(null);
+      } catch (error) {
+        console.error(`Failed to initialize playlist ${playlist.id}:`, error);
       } finally {
         setIsInitializing(false);
       }
     };
 
     initializePlaylist();
-  }, [playlist]);
+    
+    // Cleanup when unmounting
+    return () => {
+      console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
+      playlistStore.stopPolling();
+    };
+  }, [playlist.id]);
 
   const { settings } = useSettings();
 
@@ -132,6 +167,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
 
     // Start polling when component mounts
+    console.debug(`[MainContent] Starting polling for playlist ${activePlaylist.id}`);
     playlistStore.startPolling(
       activePlaylist.id,
       (added, removed, addedVersions, removedVersions, freshVersions) => {
@@ -149,7 +185,10 @@ export const MainContent: React.FC<MainContentProps> = ({
     );
 
     // Stop polling when component unmounts or playlist changes
-    return () => playlistStore.stopPolling();
+    return () => {
+      console.debug(`[MainContent] Stopping polling for playlist ${activePlaylist.id}`);
+      playlistStore.stopPolling();
+    };
   }, [
     activePlaylist.id,
     activePlaylist.isQuickNotes,
@@ -164,6 +203,8 @@ export const MainContent: React.FC<MainContentProps> = ({
   useEffect(() => {
     const loadDrafts = async () => {
       if (!activePlaylist.versions) return;
+      
+      console.debug(`[MainContent] Loading drafts for playlist ${activePlaylist.id}`);
 
       const draftsMap: Record<string, string> = {};
       const labelIdsMap: Record<string, string> = {};
@@ -177,6 +218,8 @@ export const MainContent: React.FC<MainContentProps> = ({
           [activePlaylist.id, Dexie.maxKey],
         )
         .toArray();
+        
+      console.debug(`[MainContent] Loaded ${drafts.length} drafts for playlist ${activePlaylist.id}`);
 
       // Create maps for drafts and label IDs
       drafts.forEach((draft: CachedVersion) => {
@@ -198,64 +241,161 @@ export const MainContent: React.FC<MainContentProps> = ({
     loadDrafts();
   }, [activePlaylist.id, activePlaylist.versions]);
 
+  // Function to load thumbnails in batches
+  const loadThumbnailBatch = async (
+    versionsToLoad: AssetVersion[], 
+    session: any, 
+    abortController: AbortController
+  ) => {
+    const batchSize = 5; // Number of thumbnails to load at once
+    
+    for (let i = 0; i < versionsToLoad.length; i += batchSize) {
+      // Check if loading should be aborted
+      if (abortController.signal.aborted) {
+        //console.debug('[MainContent] Thumbnail loading aborted');
+        return;
+      }
+      
+      // Get the next batch
+      const batch = versionsToLoad.slice(i, i + batchSize);
+      console.debug(`[MainContent] Loading thumbnail batch ${i/batchSize + 1}/${Math.ceil(versionsToLoad.length/batchSize)}`);
+      
+      // Process batch in parallel
+      const thumbnailPromises = batch
+        .filter(version => version.thumbnailId)
+        .map(async (version) => {
+          // Skip if already in global cache
+          if (globalThumbnailCache[version.id]) {
+            return { versionId: version.id, url: globalThumbnailCache[version.id] };
+          }
+          
+          //console.debug('[MainContent] Fetching thumbnail for version:', version.id);
+          if (!version.thumbnailId) return null;
+          
+          try {
+            const url = await fetchThumbnail(version.thumbnailId, session, { size: 512 });
+            //console.debug('[MainContent] Retrieved thumbnail URL for version:', version.id);
+            // Add to global cache
+            if (url) {
+              globalThumbnailCache[version.id] = url;
+              return { versionId: version.id, url };
+            }
+            return null;
+          } catch (error: unknown) {
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.debug(`Thumbnail fetch aborted for version ${version.id}`);
+            } else {
+              console.error(`Failed to fetch thumbnail for version ${version.id}:`, error);
+            }
+            return null;
+          }
+        });
+      
+      try {
+        const results = await Promise.all(thumbnailPromises);
+        
+        // Skip updating state if component unmounted or aborted
+        if (!isMountedRef.current || abortController.signal.aborted) return;
+        
+        // Filter out null results and create a map
+        const thumbnailMap = results.reduce((acc, result) => {
+          if (result && result.url) {
+            acc[result.versionId] = result.url;
+          }
+          return acc;
+        }, {} as Record<string, string>);
+        
+        // Update the state with new thumbnails
+        setThumbnails(prev => ({ ...prev, ...thumbnailMap }));
+      } catch (error: unknown) {
+        console.error("Failed to load thumbnail batch:", error);
+      }
+      
+      // Small delay between batches to prevent UI freezing
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  };
+
+  // Load thumbnails when versions change
   useEffect(() => {
     const loadThumbnails = async () => {
       if (!activePlaylist.versions?.length) return;
       
-      console.debug('[MainContent] Loading thumbnails for versions:', activePlaylist.versions);
+      // Cancel any ongoing thumbnail loading
+      if (thumbnailAbortControllerRef.current) {
+        thumbnailAbortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller for this loading session
+      const abortController = new AbortController();
+      thumbnailAbortControllerRef.current = abortController;
+      
+      // Check if we already have thumbnails for these versions
+      const versionsWithThumbnails = activePlaylist.versions.filter(
+        version => version.thumbnailId
+      );
+      
+      // Apply any thumbnails from global cache immediately
+      const cachedThumbnails: Record<string, string> = {};
+      versionsWithThumbnails.forEach(version => {
+        if (globalThumbnailCache[version.id]) {
+          cachedThumbnails[version.id] = globalThumbnailCache[version.id];
+        }
+      });
+      
+      // Update state with cached thumbnails
+      if (Object.keys(cachedThumbnails).length > 0) {
+        setThumbnails(prev => ({ ...prev, ...cachedThumbnails }));
+      }
+      
+      // Find versions that need thumbnails loaded
+      const versionsToLoad = versionsWithThumbnails.filter(
+        version => !globalThumbnailCache[version.id]
+      );
+      
+      if (versionsToLoad.length === 0) {
+        console.debug('[MainContent] All thumbnails already in global cache, skipping load');
+        return;
+      }
+      
+      console.debug(`[MainContent] Loading thumbnails for ${versionsToLoad.length} versions`);
       
       try {
         const session = await ftrackService.getSession();
         
-        // Create a map of version IDs to their thumbnail URLs
-        const thumbnailPromises = activePlaylist.versions
-          .filter(version => version.thumbnailId)
-          .map(async (version) => {
-            console.debug('[MainContent] Fetching thumbnail for version:', version.id);
-            if (!version.thumbnailId) return null;
-            
-            try {
-              const url = await fetchThumbnail(version.thumbnailId, session, { size: 512 });
-              console.debug('[MainContent] Retrieved thumbnail URL for version:', version.id, url);
-              return { versionId: version.id, url };
-            } catch (error) {
-              console.error(`Failed to fetch thumbnail for version ${version.id}:`, error);
-              return null;
-            }
-          });
+        // Load thumbnails in batches
+        await loadThumbnailBatch(versionsToLoad, session, abortController);
         
-        const results = await Promise.all(thumbnailPromises);
-        
-        // Filter out null results and create a map
-        const thumbnailMap: Record<string, string> = {};
-        results.forEach(result => {
-          if (result && result.url) {
-            thumbnailMap[result.versionId] = result.url;
-          }
-        });
-        
-        console.debug('[MainContent] Thumbnail map:', thumbnailMap);
-        setThumbnails(thumbnailMap);
-      } catch (error) {
-        console.error("Failed to load thumbnails:", error);
+        console.debug('[MainContent] Finished loading all thumbnails');
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.debug('Thumbnail loading was aborted');
+        } else {
+          console.error("Failed to load thumbnails:", error);
+        }
+      } finally {
+        if (thumbnailAbortControllerRef.current === abortController) {
+          thumbnailAbortControllerRef.current = null;
+        }
       }
     };
     
     loadThumbnails();
-    
-    // Clean up thumbnails when component unmounts
-    return () => {
-      // This will be handled by the thumbnailService's clearThumbnailCache function
-    };
   }, [activePlaylist.versions]);
-  
-  // Cleanup thumbnails when component unmounts
+
+  // Cleanup when component unmounts
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
-      // Import the clearThumbnailCache function to clean up blob URLs
-      import('../services/thumbnailService').then(({ clearThumbnailCache }) => {
-        clearThumbnailCache();
-      });
+      // Mark component as unmounted
+      isMountedRef.current = false;
+      
+      // Cancel any ongoing thumbnail loading
+      if (thumbnailAbortControllerRef.current) {
+        thumbnailAbortControllerRef.current.abort();
+        thumbnailAbortControllerRef.current = null;
+      }
     };
   }, []);
 
@@ -322,11 +462,46 @@ export const MainContent: React.FC<MainContentProps> = ({
       const updatedPlaylist = {
         ...activePlaylist,
         versions: updatedVersions,
+        // Also clear the addedVersions array in the local state
+        addedVersions: [],
       };
 
       // Update the playlist in the store
       if (onPlaylistUpdate) {
         onPlaylistUpdate(updatedPlaylist);
+      }
+      
+      // Update the local state as well to ensure immediate UI update
+      setMergedPlaylist(updatedPlaylist);
+      
+      // Clear any note drafts for the removed versions
+      const removedVersionIds = activePlaylist.versions
+        ?.filter(v => v.manuallyAdded)
+        .map(v => v.id) || [];
+        
+      if (removedVersionIds.length > 0) {
+        setNoteDrafts(prev => {
+          const newDrafts = { ...prev };
+          removedVersionIds.forEach(id => delete newDrafts[id]);
+          return newDrafts;
+        });
+        
+        setNoteStatuses(prev => {
+          const newStatuses = { ...prev };
+          removedVersionIds.forEach(id => delete newStatuses[id]);
+          return newStatuses;
+        });
+        
+        setNoteLabelIds(prev => {
+          const newLabelIds = { ...prev };
+          removedVersionIds.forEach(id => delete newLabelIds[id]);
+          return newLabelIds;
+        });
+        
+        // Also remove from selected versions
+        setSelectedVersions(prev => 
+          prev.filter(id => !removedVersionIds.includes(id))
+        );
       }
     } catch (error) {
       console.error("Failed to clear added versions:", error);
@@ -583,29 +758,66 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
-  const handleVersionSelect = (version: AssetVersion) => {
-    if (!activePlaylist.versions) return;
+  const handleVersionSelect = async (version: AssetVersion) => {
+    try {
+      if (!activePlaylist.id) return;
 
-    // Add the version to the playlist if it's not already there
-    const existingVersion = activePlaylist.versions.find(
-      (v) => v.id === version.id,
-    );
-    if (!existingVersion) {
+      // Check if the version already exists in the playlist
+      const versionExists = activePlaylist.versions?.some(v => v.id === version.id);
+      if (versionExists) {
+        console.log(`Version ${version.id} already exists in playlist ${activePlaylist.id}, skipping`);
+        return;
+      }
+
       // Mark the version as manually added
-      const versionWithFlag = {
+      const versionWithFlag: AssetVersion = {
         ...version,
         manuallyAdded: true,
       };
 
+      // Add to the database first to ensure it exists
+      await playlistStore.addVersionToPlaylist(
+        activePlaylist.id,
+        versionWithFlag
+      );
+
+      // Then update the UI
+      const updatedVersions = [
+        ...(activePlaylist.versions || []),
+        versionWithFlag,
+      ];
+
       const updatedPlaylist = {
         ...activePlaylist,
-        versions: [...activePlaylist.versions, versionWithFlag],
+        versions: updatedVersions,
       };
 
       // Update the playlist in the store
       if (onPlaylistUpdate) {
         onPlaylistUpdate(updatedPlaylist);
       }
+
+      // Update the local state as well
+      setMergedPlaylist(updatedPlaylist);
+
+      // Pre-fetch the thumbnail
+      if (version.thumbnailId) {
+        ftrackService.getSession().then(session => {
+          fetchThumbnail(version.thumbnailId, session).then((url) => {
+            if (url) {
+              globalThumbnailCache[version.id] = url;
+              setThumbnails((prev) => ({
+                ...prev,
+                [version.id]: url,
+              }));
+            }
+          });
+        }).catch(error => {
+          console.error("Failed to get ftrack session for thumbnail:", error);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to add version to playlist:", error);
     }
   };
 
@@ -726,7 +938,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                     mode='pulse'
                     blur='soft'
                     duration={3}
-                    scale={1.1}
+                    scale={1.25}
                   />
                 )}
                 <Button
@@ -752,6 +964,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         <motion.div
           initial="hidden"
           animate="visible"
+          exit="exit"
           variants={gridVariants}
           className="space-y-4 py-4"
         >
@@ -775,6 +988,10 @@ export const MainContent: React.FC<MainContentProps> = ({
                 key={version.id}
                 className="space-y-2"
                 variants={itemVariants}
+                layout
+                initial="hidden"
+                animate="visible"
+                exit="exit"
               >
                 <NoteInput
                   versionName={version.name}
@@ -784,6 +1001,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                   selected={selectedVersions.includes(version.id)}
                   initialContent={noteDrafts[version.id]}
                   initialLabelId={noteLabelIds[version.id]}
+                  manuallyAdded={version.manuallyAdded}
                   {...versionHandlers}
                 />
               </motion.div>

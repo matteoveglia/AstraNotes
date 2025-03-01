@@ -9,7 +9,7 @@
  */
 
 import { db } from "./db";
-import { Playlist } from "../types";
+import { Playlist, AssetVersion } from "../types";
 import { FtrackService } from "../services/ftrack";
 
 const DEBUG = true;
@@ -30,10 +30,10 @@ interface FtrackVersion {
   version: number;
   thumbnail_url?: URL;
   thumbnailId?: string;
-  createdAt: string;
-  updatedAt: string;
   reviewSessionObjectId?: string;
   thumbnailUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface StorableVersion {
@@ -70,9 +70,11 @@ interface CachedPlaylist extends Playlist {
 export class PlaylistStore {
   private static POLL_INTERVAL = 5000; // 5 seconds
   private pollingInterval: NodeJS.Timeout | null = null;
-  private currentPlaylistId: string | null = null;
   private isPolling = false;
+  private currentPlaylistId: string | null = null;
+  private activePollingIds: Set<string> = new Set();
   private ftrackService: FtrackService;
+  private versionAddInProgress: boolean = false;
 
   constructor(ftrackService: FtrackService) {
     this.ftrackService = ftrackService;
@@ -183,6 +185,58 @@ export class PlaylistStore {
     };
   }
 
+  /**
+   * Creates a serializable version of an object by only including primitive values
+   * and explicitly defined properties. This prevents DataCloneError when storing in IndexedDB.
+   */
+  private createSerializableObject<T>(obj: any, template: T): T {
+    // Create a new object with only the properties from the template
+    const result = {} as T;
+    
+    // Only copy primitive values or explicitly defined properties
+    for (const key in template) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const value = obj[key];
+        
+        // Handle different types of values
+        if (value === null || value === undefined) {
+          // Use undefined for null/undefined values (IndexedDB handles undefined better)
+          (result as any)[key] = undefined;
+        } else if (
+          typeof value === 'string' || 
+          typeof value === 'number' || 
+          typeof value === 'boolean'
+        ) {
+          // Primitive values can be directly assigned
+          (result as any)[key] = value;
+        } else if (typeof value === 'object') {
+          // For objects (including Date), convert to string if possible
+          try {
+            if (value instanceof Date) {
+              (result as any)[key] = value.toISOString();
+            } else {
+              // For other objects, try JSON serialization as a test
+              JSON.stringify(value);
+              (result as any)[key] = value;
+            }
+          } catch (e) {
+            // If serialization fails, use undefined
+            console.warn(`Could not serialize property ${key}`, e);
+            (result as any)[key] = undefined;
+          }
+        } else {
+          // For other types (functions, symbols), use undefined
+          (result as any)[key] = undefined;
+        }
+      } else if (Object.prototype.hasOwnProperty.call(template, key)) {
+        // If the key exists in template but not in obj, use the template value
+        (result as any)[key] = (template as any)[key];
+      }
+    }
+    
+    return result;
+  }
+
   async getDraftContent(
     playlistId: string,
     versionId: string,
@@ -229,9 +283,21 @@ export class PlaylistStore {
         cached.versions?.map((v) => [v.id, v]) || [],
       );
 
-      // For Quick Notes, preserve all versions from IndexedDB
+      // For Quick Notes, preserve all versions from IndexedDB that are manually added
       if (id === "quick-notes") {
-        cached.versions = dbVersions;
+        // For Quick Notes, only include manually added versions from the database
+        const manuallyAddedVersions = dbVersions.filter(v => v.manuallyAdded);
+        
+        // Create a set of version IDs that are in the addedVersions array
+        const addedVersionsSet = new Set(cached.addedVersions || []);
+        
+        // Only include versions that are both manually added and in the addedVersions array
+        // This ensures that cleared versions don't reappear
+        const filteredVersions = manuallyAddedVersions.filter(v => 
+          addedVersionsSet.has(v.id) || !cached.removedVersions.includes(v.id)
+        );
+        
+        cached.versions = filteredVersions;
       } else {
         // For other playlists:
         // 1. Start with versions from IndexedDB that are either:
@@ -301,55 +367,81 @@ export class PlaylistStore {
           labelId,
           lastModified: Date.now(),
         };
-
-        await db.versions.put(updatedVersion, [playlistId, versionId]);
+        await db.versions.put(updatedVersion);
+        log(`Updated draft for version ${versionId} in playlist ${playlistId}`);
       } else {
-        // Get the playlist to find the base version
+        // Version not found in this playlist
+        // Check if the version exists in the playlist object
         const playlist = await this.getPlaylist(playlistId);
-
-        if (!playlist?.versions) {
-          console.error(
-            "Cannot save draft: Playlist not found or has no versions",
-            playlistId,
-          );
-          return;
+        if (!playlist) {
+          throw new Error(`Playlist not found: ${playlistId}`);
         }
 
-        // For Quick Notes, create a new version if it doesn't exist
-        let baseVersion = playlist.versions.find(
-          (v: FtrackVersion) => v.id === versionId,
-        );
-        if (!baseVersion && playlistId === "quick-notes") {
-          baseVersion = {
-            id: versionId,
-            version: 1,
-            name: content.substring(0, 50) || "New Note",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            thumbnailUrl: "",
-            reviewSessionObjectId: "",
-          };
-          playlist.versions = [...(playlist.versions || []), baseVersion];
-          await db.playlists.put(playlist);
-        } else if (!baseVersion) {
-          console.error(
-            "Cannot save draft: Version not found in playlist",
-            versionId,
-          );
-          return;
+        // Find the version in the playlist's versions array
+        const versionInPlaylist = playlist.versions?.find((v) => v.id === versionId);
+        
+        if (!versionInPlaylist) {
+          // For Quick Notes, we need to handle the case where the version might not be in the playlist yet
+          if (playlistId === "quick-notes") {
+            // Check if the version exists in any other playlist
+            const existingVersion = await db.versions
+              .where("id")
+              .equals(versionId)
+              .first();
+              
+            if (existingVersion) {
+              // Create a new version entry for Quick Notes based on the existing version
+              const newVersion: CachedVersion = {
+                ...existingVersion,
+                playlistId,
+                draftContent: content,
+                labelId,
+                lastModified: Date.now(),
+                manuallyAdded: true,
+              };
+              
+              // Add it to the database
+              await db.versions.put(newVersion);
+              
+              // Update the playlist's addedVersions array
+              if (!playlist.addedVersions.includes(versionId)) {
+                playlist.addedVersions = [...playlist.addedVersions, versionId];
+                playlist.hasModifications = true;
+                await this.cachePlaylist(playlist);
+              }
+              
+              log(`Created new draft for version ${versionId} in Quick Notes based on existing version`);
+              return;
+            } else {
+              console.error(`Cannot save draft: Version not found in any playlist – "${versionId}"`);
+              return;
+            }
+          } else {
+            console.error(`Cannot save draft: Version not found in playlist – "${versionId}"`);
+            return;
+          }
         }
 
-        // Create a new version entry specific to this playlist
+        // Create a new version entry for this playlist
         const newVersion: CachedVersion = {
-          ...baseVersion,
+          ...versionInPlaylist,
           playlistId,
           draftContent: content,
           labelId,
           lastModified: Date.now(),
-          isRemoved: false,
+          // Preserve manuallyAdded flag if it exists
+          manuallyAdded: versionInPlaylist.manuallyAdded || false,
         };
-
-        await db.versions.put(newVersion, [playlistId, versionId]);
+        await db.versions.put(newVersion);
+        
+        // If this is a manually added version, update the playlist's addedVersions array
+        if (newVersion.manuallyAdded && !playlist.addedVersions.includes(versionId)) {
+          playlist.addedVersions = [...playlist.addedVersions, versionId];
+          playlist.hasModifications = true;
+          await this.cachePlaylist(playlist);
+        }
+        
+        log(`Created new draft for version ${versionId} in playlist ${playlistId}`);
       }
     } catch (error) {
       console.error("Failed to save draft:", error);
@@ -632,6 +724,13 @@ export class PlaylistStore {
   ): Promise<void> {
     console.log("🔄 Starting polling for playlist:", playlistId);
 
+    // If we're already polling this playlist, don't start another polling instance
+    if (this.activePollingIds.has(playlistId)) {
+      console.log(`Already polling for playlist ${playlistId}, skipping duplicate poll`);
+      return;
+    }
+
+    // If we're polling a different playlist, stop that polling first
     if (this.currentPlaylistId !== playlistId) {
       this.stopPolling();
     }
@@ -642,6 +741,7 @@ export class PlaylistStore {
     }
 
     this.currentPlaylistId = playlistId;
+    this.activePollingIds.add(playlistId);
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -798,6 +898,8 @@ export class PlaylistStore {
       this.pollingInterval = null;
     }
     this.isPolling = false;
+    this.activePollingIds.clear();
+    this.currentPlaylistId = null;
   }
 
   private compareVersions(v1: FtrackVersion, v2: FtrackVersion): boolean {
@@ -830,6 +932,93 @@ export class PlaylistStore {
     }
   }
 
+  async addVersionToPlaylist(
+    playlistId: string,
+    version: AssetVersion
+  ): Promise<void> {
+    // If a version add is already in progress, wait a moment
+    if (this.versionAddInProgress) {
+      log(`Version add already in progress, waiting before adding ${version.id} to playlist ${playlistId}`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    try {
+      this.versionAddInProgress = true;
+      log(`Adding version ${version.id} to playlist ${playlistId}`);
+      
+      // First, get the playlist
+      const playlist = await this.getPlaylist(playlistId);
+      if (!playlist) {
+        throw new Error(`Playlist not found: ${playlistId}`);
+      }
+      
+      // Check if the version already exists in the playlist
+      const versionExists = playlist.versions?.some(v => v.id === version.id);
+      if (versionExists) {
+        log(`Version ${version.id} already exists in playlist ${playlistId}, skipping`);
+        return;
+      }
+      
+      // Check if the version already exists in the database
+      const existingVersion = await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, version.id])
+        .first();
+        
+      if (existingVersion) {
+        log(`Version ${version.id} already exists in database for playlist ${playlistId}, skipping`);
+        return;
+      }
+      
+      // Create a template with the expected structure
+      const template: CachedVersion = {
+        id: "",
+        name: "",
+        version: 0,
+        playlistId: "",
+        lastModified: 0,
+        labelId: "",
+        createdAt: "",
+        updatedAt: "",
+        manuallyAdded: true
+      };
+      
+      // Create a serializable version using our helper function
+      const baseVersion = this.createSerializableObject(version, template);
+      
+      // Add the additional required properties
+      const cachedVersion: CachedVersion = {
+        ...baseVersion,
+        playlistId,
+        lastModified: Date.now(),
+        labelId: "",
+        manuallyAdded: true,
+        // Ensure these are properly set
+        createdAt: version.createdAt || new Date().toISOString(),
+        updatedAt: version.updatedAt || new Date().toISOString(),
+      };
+      
+      // Add the version to the database
+      await db.versions.put(cachedVersion);
+      
+      // Update the playlist's addedVersions array
+      if (!playlist.addedVersions.includes(version.id)) {
+        playlist.addedVersions = [...playlist.addedVersions, version.id];
+        playlist.hasModifications = true;
+        
+        // Save the updated playlist
+        await this.cachePlaylist(playlist);
+      }
+      
+      log(`Successfully added version ${version.id} to playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to add version ${version.id} to playlist ${playlistId}:`, error);
+      throw error;
+    } finally {
+      this.versionAddInProgress = false;
+    }
+  }
+
   async clearAddedVersions(playlistId: string): Promise<void> {
     try {
       // Get all manually added versions for this playlist
@@ -838,6 +1027,13 @@ export class PlaylistStore {
         .equals(playlistId)
         .and((version) => version.manuallyAdded === true)
         .toArray();
+      
+      log(`Found ${manuallyAddedVersions.length} manually added versions to clear for playlist ${playlistId}`);
+
+      if (manuallyAddedVersions.length === 0) {
+        log("No manually added versions found to clear");
+        return;
+      }
 
       // Delete the versions from the database
       await db.versions
@@ -846,18 +1042,49 @@ export class PlaylistStore {
         .and((version) => version.manuallyAdded === true)
         .delete();
 
+      // For Quick Notes, also delete any drafts associated with these versions
+      if (playlistId === "quick-notes") {
+        // Get the IDs of all manually added versions
+        const versionIds = manuallyAddedVersions.map(v => v.id);
+        
+        // Delete any drafts for these versions
+        for (const versionId of versionIds) {
+          try {
+            await db.versions
+              .where("[playlistId+id]")
+              .equals([playlistId, versionId])
+              .delete();
+          } catch (err) {
+            console.error(`Failed to delete draft for version ${versionId}:`, err);
+          }
+        }
+      }
+
       // Update the cached playlist to reflect the changes
       const cachedPlaylist = await this.getPlaylist(playlistId);
       if (cachedPlaylist) {
+        // Filter out manually added versions from the playlist
+        if (cachedPlaylist.versions) {
+          cachedPlaylist.versions = cachedPlaylist.versions.filter(
+            (v) => !v.manuallyAdded
+          );
+        }
+        
+        // Clear the addedVersions array
+        cachedPlaylist.addedVersions = [];
         cachedPlaylist.hasModifications = true;
         cachedPlaylist.removedVersions = [
           ...cachedPlaylist.removedVersions,
           ...manuallyAddedVersions.map((v) => v.id),
         ];
+        
+        // Save the updated playlist back to the database
         await this.cachePlaylist(cachedPlaylist);
+        
+        log(`Cleared ${manuallyAddedVersions.length} manually added versions from playlist ${playlistId}`);
+      } else {
+        log(`Warning: Could not find cached playlist ${playlistId} to update after clearing versions`);
       }
-
-      log("Cleared manually added versions:", manuallyAddedVersions.length);
     } catch (error) {
       console.error("Failed to clear manually added versions:", error);
       throw error;

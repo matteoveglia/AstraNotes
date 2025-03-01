@@ -165,14 +165,14 @@ export class FtrackService {
 
   private mapVersionsToPlaylist(versions: any[]): AssetVersion[] {
     return versions.map((version) => {
-      console.debug('[FtrackService] Raw version data:', version);
+      //console.debug('[FtrackService] Raw version data:', version);
       // Extract thumbnail ID for later fetching
       let thumbnailId = null;
       if (version.asset_version.thumbnail && version.asset_version.thumbnail.id) {
         thumbnailId = version.asset_version.thumbnail.id;
-        console.debug('[FtrackService] Found thumbnail ID:', thumbnailId);
+        //console.debug('[FtrackService] Found thumbnail ID:', thumbnailId);
       } else {
-        console.debug('[FtrackService] No thumbnail found for version:', version.asset_version.id);
+        //console.debug('[FtrackService] No thumbnail found for version:', version.asset_version.id);
       }
 
       return {

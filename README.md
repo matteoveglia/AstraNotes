@@ -1,6 +1,7 @@
 # AstraNotes
+_by Astra Lumen Images Inc._
 
-A desktop/web app aiming to provide a better note-taking experience with ftrack.
+A desktop app aiming to provide a better note-taking experience with ftrack.
 
 ## ✨ Features
 

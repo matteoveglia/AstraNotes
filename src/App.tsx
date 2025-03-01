@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
 import { SettingsModal } from "./components/SettingsModal";
-import type { Playlist } from "./types";
+import type { Playlist, AssetVersion } from "./types";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
@@ -21,6 +21,12 @@ export const App: React.FC = () => {
     setPlaylists,
   } = usePlaylistsStore();
   const { fetchLabels } = useLabelStore();
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  
+  // Store loaded versions to prevent reloading
+  const loadedVersionsRef = useRef<Record<string, boolean>>({
+    "quick-notes": true // Quick Notes doesn't need versions
+  });
 
   useEffect(() => {
     // Initialize with Quick Notes
@@ -40,24 +46,45 @@ export const App: React.FC = () => {
     Promise.all([loadPlaylists(), fetchLabels()]);
   }, [loadPlaylists, setPlaylists, fetchLabels]);
 
+  // Load versions when active playlist changes
+  useEffect(() => {
+    const loadVersionsForActivePlaylist = async () => {
+      // Skip if it's Quick Notes or if we've already loaded versions for this playlist
+      if (activePlaylistId === "quick-notes" || (activePlaylistId && loadedVersionsRef.current[activePlaylistId])) {
+        return;
+      }
+      
+      setLoadingVersions(true);
+      try {
+        if (!activePlaylistId) {
+          console.error("No active playlist ID available");
+          return;
+        }
+        
+        console.log(`Loading versions for active playlist: ${activePlaylistId}`);
+        const versions = await ftrackService.getPlaylistVersions(activePlaylistId);
+        setPlaylists(
+          playlists.map((playlist) =>
+            playlist.id === activePlaylistId ? { ...playlist, versions } : playlist,
+          ),
+        );
+        // Mark that we've loaded versions for this playlist
+        loadedVersionsRef.current[activePlaylistId] = true;
+      } catch (err) {
+        console.error("Failed to load versions:", err);
+      } finally {
+        setLoadingVersions(false);
+      }
+    };
+    
+    loadVersionsForActivePlaylist();
+  }, [activePlaylistId, playlists, setPlaylists]);
+
   const handlePlaylistSelect = async (playlistId: string) => {
+    console.log(`Selecting playlist: ${playlistId}`);
     setActivePlaylist(playlistId);
     if (!openPlaylists.includes(playlistId)) {
       setOpenPlaylists((prev) => [...prev, playlistId]);
-    }
-
-    // Don't load versions for Quick Notes
-    if (playlistId !== "quick-notes") {
-      try {
-        const versions = await ftrackService.getPlaylistVersions(playlistId);
-        setPlaylists(
-          playlists.map((playlist) =>
-            playlist.id === playlistId ? { ...playlist, versions } : playlist,
-          ),
-        );
-      } catch (err) {
-        console.error("Failed to load versions:", err);
-      }
     }
   };
 
@@ -80,7 +107,13 @@ export const App: React.FC = () => {
     );
   };
 
+  // Get the active playlist data
   const activePlaylistData = playlists.find((p) => p.id === activePlaylistId);
+  
+  // Determine if we're ready to render the MainContent
+  const isPlaylistReady = activePlaylistData && 
+    (activePlaylistData.isQuickNotes || 
+    (activePlaylistId && loadedVersionsRef.current[activePlaylistId] && !loadingVersions));
 
   return (
     <div className="h-screen flex flex-col">
@@ -97,14 +130,14 @@ export const App: React.FC = () => {
         />
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-hidden">
-            {activePlaylistData ? (
+            {isPlaylistReady ? (
               <MainContent
                 playlist={activePlaylistData}
                 onPlaylistUpdate={handlePlaylistUpdate}
               />
             ) : (
               <div className="h-full flex items-center justify-center text-gray-500">
-                Loading playlist...
+                {loadingVersions ? "Loading playlist versions..." : "Loading playlist..."}
               </div>
             )}
           </div>

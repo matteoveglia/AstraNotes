@@ -32,14 +32,14 @@ export async function fetchThumbnail(
     return null;
   }
 
-  console.debug('[ThumbnailService] Received component ID:', componentId);
+  //console.debug('[ThumbnailService] Received component ID:', componentId);
 
   // Check cache first
   const { size } = useThumbnailSettingsStore.getState();
   const cacheKey = `${componentId}-${size || 'default'}`;
-  console.debug('[ThumbnailService] Checking cache for thumbnail ID:', cacheKey);
+  //console.debug('[ThumbnailService] Checking cache for thumbnail ID:', cacheKey);
   if (thumbnailCache.has(cacheKey)) {
-    console.debug('[ThumbnailService] Using cached thumbnail for', componentId);
+    //console.debug('[ThumbnailService] Using cached thumbnail for', componentId);
     return thumbnailCache.get(cacheKey) || null;
   }
 

@@ -39,19 +39,26 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
     }
   }, [fetchLabels]);
 
-  // Set default label only if we don't have a value and haven't set a default before
+  // Only set default label once when component mounts and labels are available
   useEffect(() => {
-    if (!value && labels.length > 0 && !hasSetDefault.current) {
-      hasSetDefault.current = true;
+    if (!hasSetDefault.current && labels.length > 0) {
       // Use the default label from settings if available, otherwise use the first label
       const defaultLabelId =
         settings.defaultLabelId &&
         labels.find((l) => l.id === settings.defaultLabelId)
           ? settings.defaultLabelId
           : labels[0].id;
-      onChange(defaultLabelId);
+      
+      // Only set the default if no value is provided
+      if (!value) {
+        hasSetDefault.current = true;
+        onChange(defaultLabelId);
+      } else {
+        // If we already have a value, mark as initialized
+        hasSetDefault.current = true;
+      }
     }
-  }, [value, labels, onChange, settings.defaultLabelId]);
+  }, [labels, settings.defaultLabelId]);
 
   const selectedLabel = labels.find((label) => label.id === value);
 
@@ -113,4 +120,5 @@ function getContrastColor(hexColor: string) {
   const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
 
   return luminance > 0.5 ? "#000000" : "#FFFFFF";
+
 }
