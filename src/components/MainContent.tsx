@@ -938,7 +938,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                     mode='pulse'
                     blur='soft'
                     duration={3}
-                    scale={1.25}
+                    scale={1.1}
                   />
                 )}
                 <Button

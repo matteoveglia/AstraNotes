@@ -6,7 +6,7 @@
  * @component
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { NoteStatus } from "../types";
@@ -55,9 +55,22 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setLabelId(initialLabelId);
   }, [initialLabelId]);
 
+  const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    if (textareaRef.current) {
+      autoResizeTextarea(textareaRef.current);
+    }
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
+    autoResizeTextarea(e.target);
     onSave(newContent, labelId || "");
   };
 
@@ -108,7 +121,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     )}>
       <div 
         className={cn(
-          "flex-shrink-0 w-32 h-[120px] bg-gray-100 rounded overflow-hidden",
+          "flex-shrink-0 w-32 min-h-[85px] bg-gray-100 rounded overflow-hidden",
           thumbnailUrl ? "cursor-pointer" : "cursor-default"
         )}
         onClick={openThumbnailModal}
@@ -155,22 +168,25 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
         <div className="flex gap-3">
           <div className="flex-1">
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2">
               <Textarea
+                ref={textareaRef}
                 value={content}
                 onChange={handleChange}
                 placeholder="Add a note..."
-                className="min-h-[80px]"
+                className="min-h-[40px]"
+                autoCapitalize="on"
+                spellCheck={false}
               />
             </div>
             <div className="flex items-center gap-2">
               {status !== "empty" && (
-                <div className="flex items-center justify-between w-full">
+                <div className="flex items-center justify-between w-full  mt-3">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={handleClear}
-                    className="text-gray-500 hover:text-gray-700"
+                    className=" text-gray-500 hover:text-gray-700"
                   >
                     Clear
                   </Button>
