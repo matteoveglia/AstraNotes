@@ -136,9 +136,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       
       // Reload playlists from FTrack
       await onLoadPlaylists();
-
-      // Show success state briefly in a toast or alert
-      alert("Cache cleared successfully. The UI has been refreshed.");
       
       // For a complete reset reload the window
       window.location.reload();

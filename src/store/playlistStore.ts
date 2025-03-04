@@ -969,37 +969,62 @@ export class PlaylistStore {
         log(`Version ${version.id} already exists in database for playlist ${playlistId}, skipping`);
         return;
       }
+
+      // Extract only the exact properties we need as primitive values
+      // This completely avoids any non-serializable objects or properties
+      const versionId = String(version.id);
+      const versionName = String(version.name || "");
+      const versionNumber = Number(version.version || 0);
+      const createdAt = String(version.createdAt || new Date().toISOString());
+      const updatedAt = String(version.updatedAt || new Date().toISOString());
       
-      // Create a template with the expected structure
-      const template: CachedVersion = {
-        id: "",
-        name: "",
-        version: 0,
-        playlistId: "",
-        lastModified: 0,
-        labelId: "",
-        createdAt: "",
-        updatedAt: "",
-        manuallyAdded: true
-      };
-      
-      // Create a serializable version using our helper function
-      const baseVersion = this.createSerializableObject(version, template);
-      
-      // Add the additional required properties
-      const cachedVersion: CachedVersion = {
-        ...baseVersion,
-        playlistId,
+      // Optional properties with explicit string conversion
+      const thumbnailId = version.thumbnailId ? String(version.thumbnailId) : null;
+      const reviewSessionObjectId = version.reviewSessionObjectId ? 
+        String(version.reviewSessionObjectId) : null;
+
+      // Define type for minimal version object
+      const minimalVersion: CachedVersion & {
+        thumbnailId?: string;
+        reviewSessionObjectId?: string;
+      } = {
+        id: versionId,
+        name: versionName,
+        version: versionNumber,
+        playlistId: String(playlistId),
         lastModified: Date.now(),
+        draftContent: "",
         labelId: "",
         manuallyAdded: true,
-        // Ensure these are properly set
-        createdAt: version.createdAt || new Date().toISOString(),
-        updatedAt: version.updatedAt || new Date().toISOString(),
+        createdAt: createdAt,
+        updatedAt: updatedAt
       };
       
-      // Add the version to the database
-      await db.versions.put(cachedVersion);
+      // Only add additional properties if they're not null
+      if (thumbnailId) {
+        minimalVersion['thumbnailId'] = thumbnailId;
+      }
+      
+      if (reviewSessionObjectId) {
+        minimalVersion['reviewSessionObjectId'] = reviewSessionObjectId;
+      }
+      
+      // Convert to string first to avoid any potential serialization issues
+      try {
+        log(`Adding minimal version to database: ${
+          JSON.stringify({
+            id: minimalVersion.id,
+            name: minimalVersion.name,
+            version: minimalVersion.version,
+            // Include other non-complex properties
+          })
+        }`);
+      } catch (e) {
+        log("Couldn't serialize version for logging");
+      }
+      
+      // Add to database
+      await db.versions.put(minimalVersion);
       
       // Update the playlist's addedVersions array
       if (!playlist.addedVersions.includes(version.id)) {
@@ -1010,7 +1035,7 @@ export class PlaylistStore {
         await this.cachePlaylist(playlist);
       }
       
-      log(`Successfully added version ${version.id} to playlist ${playlistId}`);
+      log(`Successfully added version ${versionId} to playlist ${playlistId}`);
     } catch (error) {
       console.error(`Failed to add version ${version.id} to playlist ${playlistId}:`, error);
       throw error;
