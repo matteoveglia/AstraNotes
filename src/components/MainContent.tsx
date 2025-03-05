@@ -407,18 +407,21 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      await playlistStore.saveDraft(
+      const status = content.trim() === "" ? "empty" : "draft";
+      
+      // Save draft content and status to database
+      await playlistStore.saveNoteStatus(
         versionId,
         activePlaylist.id,
+        status,
         content,
-        labelId,
       );
 
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
       setNoteStatuses((prev) => ({
         ...prev,
-        [versionId]: content.trim() === "" ? "empty" : "draft",
+        [versionId]: status,
       }));
 
       // Unselect if empty
