@@ -177,6 +177,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 className="min-h-[40px]"
                 autoCapitalize="on"
                 spellCheck={false}
+                disabled={status === "published"}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -192,8 +193,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   </Button>
                   {content && (
                     <NoteLabelSelect
-                      value={labelId}
+                      value={labelId ?? ""}
                       onChange={handleLabelChange}
+                      disabled={status === "published"}
                       className="h-8 w-40 ml-auto"
                     />
                   )}

@@ -6,7 +6,7 @@
  * @component
  */
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, forwardRef } from "react";
 import {
   Select,
   SelectContent,
@@ -19,16 +19,14 @@ import { useLabelStore } from "../store/labelStore";
 import { useSettings } from "../store/settingsStore";
 
 interface NoteLabelSelectProps {
-  value?: string;
+  value: string;
   onChange: (value: string) => void;
   className?: string;
+  disabled?: boolean;
 }
 
-export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
-  value,
-  onChange,
-  className,
-}) => {
+export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProps>(
+  ({ value, onChange, className, disabled }, ref) => {
   const { labels, fetchLabels } = useLabelStore();
   const { settings } = useSettings();
   const hasSetDefault = useRef(false);
@@ -63,7 +61,7 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
   const selectedLabel = labels.find((label) => label.id === value);
 
   return (
-    <Select value={value || ""} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger
         className={cn(className, "overflow-hidden")}
         style={{
@@ -97,7 +95,7 @@ export const NoteLabelSelect: React.FC<NoteLabelSelectProps> = ({
       </SelectContent>
     </Select>
   );
-};
+});
 
 // Helper function to determine text color based on background color
 function getContrastColor(hexColor: string) {

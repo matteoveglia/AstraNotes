@@ -9,7 +9,7 @@
  */
 
 import { db } from "./db";
-import { Playlist, AssetVersion } from "../types";
+import { Playlist, AssetVersion, NoteStatus } from "../types";
 import { FtrackService } from "../services/ftrack";
 
 const DEBUG = true;
@@ -50,6 +50,7 @@ interface StorableVersion {
   createdAt: string;
   updatedAt: string;
   manuallyAdded?: boolean;
+  noteStatus?: NoteStatus;
 }
 
 interface CachedVersion extends StorableVersion {
@@ -317,6 +318,7 @@ export class PlaylistStore {
                   draftContent: v.draftContent || "",
                   labelId: v.labelId || "",
                   manuallyAdded: v.manuallyAdded || false,
+                  noteStatus: v.noteStatus,
                 };
               }
               // Otherwise just use the DB version
@@ -331,6 +333,7 @@ export class PlaylistStore {
               manuallyAdded: false,
               draftContent: "",
               labelId: "",
+              noteStatus: "empty",
             })) || []),
         ];
 
@@ -363,9 +366,12 @@ export class PlaylistStore {
         // Update existing version in this playlist
         const updatedVersion = {
           ...version,
-          draftContent: content,
+          // Keep existing draft content unless new content is provided
+          draftContent: content !== undefined ? content : version.draftContent,
+          noteStatus: version.noteStatus,
           labelId,
           lastModified: Date.now(),
+          isRemoved: version.isRemoved || false,
         };
         await db.versions.put(updatedVersion);
         log(`Updated draft for version ${versionId} in playlist ${playlistId}`);
@@ -429,7 +435,7 @@ export class PlaylistStore {
           draftContent: content,
           labelId,
           lastModified: Date.now(),
-          // Preserve manuallyAdded flag if it exists
+          // Preserve manuallyAdded flag from existing version or from the version itself
           manuallyAdded: versionInPlaylist.manuallyAdded || false,
         };
         await db.versions.put(newVersion);
@@ -449,6 +455,31 @@ export class PlaylistStore {
     }
   }
 
+  async saveNoteStatus(
+    versionId: string,
+    playlistId: string,
+    status: NoteStatus,
+    content?: string
+  ): Promise<void> {
+    try {
+      const version = await db.versions.get([playlistId, versionId]);
+      if (version) {
+        const updatedVersion = {
+          ...version,
+          // Keep existing draft content unless new content is provided
+          draftContent: content !== undefined ? content : version.draftContent,
+          noteStatus: status,
+          lastModified: Date.now(),
+          isRemoved: version.isRemoved || false,
+        };
+        await db.versions.put(updatedVersion);
+      }
+    } catch (error) {
+      console.error("Failed to save note status:", error);
+      throw error;
+    }
+  }
+
   async cachePlaylist(playlist: CachedPlaylist): Promise<void> {
     try {
       // Get current versions to preserve draft content
@@ -463,6 +494,10 @@ export class PlaylistStore {
 
       const labelIdMap = new Map(
         existingVersions.map((v) => [v.id, v.labelId]),
+      );
+      
+      const noteStatusMap = new Map(
+        existingVersions.map((v) => [v.id, v.noteStatus]),
       );
 
       // Cache versions, preserving draft content for existing versions
@@ -484,7 +519,8 @@ export class PlaylistStore {
                 labelId: "",
                 lastModified: Date.now(),
                 isRemoved: false,
-                manuallyAdded: version.manuallyAdded || false,
+                manuallyAdded: true,
+                noteStatus: "empty",
               };
 
               await db.versions.put(versionToSave, [playlist.id, version.id]);
@@ -496,6 +532,7 @@ export class PlaylistStore {
             playlist.versions.map(async (version) => {
               const existingDraft = draftMap.get(version.id);
               const existingLabelId = labelIdMap.get(version.id);
+              const existingNoteStatus = noteStatusMap.get(version.id);
               const existingVersion = existingVersions.find(
                 (v) => v.id === version.id,
               );
@@ -505,12 +542,13 @@ export class PlaylistStore {
                 playlistId: playlist.id,
                 draftContent: existingDraft || "",
                 labelId: existingLabelId || "",
+                noteStatus: existingNoteStatus || (version as any).noteStatus || "empty",
                 lastModified: Date.now(),
                 isRemoved: false,
                 // Preserve manuallyAdded flag from existing version or from the version itself
                 manuallyAdded:
                   existingVersion?.manuallyAdded ||
-                  version.manuallyAdded ||
+                  (version as any).manuallyAdded ||
                   false,
               };
 
@@ -629,7 +667,8 @@ export class PlaylistStore {
                 labelId: dbVersion.labelId || "",
                 lastModified: Date.now(),
                 manuallyAdded: dbVersion.manuallyAdded || false,
-                isRemoved: false,
+                noteStatus: dbVersion.noteStatus,
+                isRemoved: dbVersion.isRemoved || false,
               };
             }
             // If it doesn't exist in fresh data but is manually added, keep it
@@ -659,6 +698,7 @@ export class PlaylistStore {
             lastModified: Date.now(),
             manuallyAdded: false,
             isRemoved: false,
+            noteStatus: "empty",
           })),
       ];
 

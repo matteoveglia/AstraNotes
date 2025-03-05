@@ -225,8 +225,10 @@ export const MainContent: React.FC<MainContentProps> = ({
       drafts.forEach((draft: CachedVersion) => {
         if (draft.draftContent) {
           draftsMap[draft.id] = draft.draftContent;
-          statusMap[draft.id] =
-            draft.draftContent.trim() === "" ? "empty" : "draft";
+          
+          // Use stored status if available, otherwise infer from content
+          statusMap[draft.id] = draft.noteStatus || 
+            (draft.draftContent.trim() === "" ? "empty" : "draft");
         }
         if (draft.labelId) {
           labelIdsMap[draft.id] = draft.labelId;
@@ -446,7 +448,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       delete newLabelIds[versionId];
       return newLabelIds;
     });
-    await playlistStore.saveDraft(versionId, activePlaylist.id, "", "");
+    
+    // Reset to empty in the database
+    await playlistStore.saveNoteStatus(versionId, activePlaylist.id, "empty", "");
   };
 
   const handleClearAdded = async () => {
@@ -561,16 +565,17 @@ export const MainContent: React.FC<MainContentProps> = ({
       const successfulVersions = results
         .filter((r) => r.success)
         .map((r) => r.versionId);
-      setNoteDrafts((prev) => {
-        const next = { ...prev };
-        successfulVersions.forEach((id) => delete next[id]);
-        return next;
-      });
-      setNoteLabelIds((prev) => {
-        const next = { ...prev };
-        successfulVersions.forEach((id) => delete next[id]);
-        return next;
-      });
+      
+      // Keep content but mark as published
+      for (const versionId of successfulVersions) {
+        await playlistStore.saveNoteStatus(
+          versionId, 
+          activePlaylist.id, 
+          "published", 
+          noteDrafts[versionId]
+        );
+      }
+      
       setSelectedVersions([]);
     } catch (error) {
       console.error("Failed to publish selected notes:", error);
@@ -619,16 +624,16 @@ export const MainContent: React.FC<MainContentProps> = ({
       const successfulVersions = results
         .filter((r) => r.success)
         .map((r) => r.versionId);
-      setNoteDrafts((prev) => {
-        const next = { ...prev };
-        successfulVersions.forEach((id) => delete next[id]);
-        return next;
-      });
-      setNoteLabelIds((prev) => {
-        const next = { ...prev };
-        successfulVersions.forEach((id) => delete next[id]);
-        return next;
-      });
+      
+      // Keep content but mark as published
+      for (const versionId of successfulVersions) {
+        await playlistStore.saveNoteStatus(
+          versionId, 
+          activePlaylist.id, 
+          "published", 
+          noteDrafts[versionId]
+        );
+      }
     } catch (error) {
       console.error("Failed to publish notes:", error);
     } finally {
