@@ -3,6 +3,15 @@ _by Astra Lumen Images Inc._
 
 A desktop app aiming to provide a better note-taking experience with ftrack.
 
+<div align="center">
+  <p>
+    <a href="#-features">Features</a> •
+    <a href="#-getting-started">Getting Started</a> •
+    <a href="#-tech-stack">Tech Stack</a> •
+    <a href="#-security">Security</a>
+  </p>
+</div>
+
 ## ✨ Features
 
 - 🔐 Secure ftrack integration, data is stored locally, keys encrypted and nothing sent via 3rd party
@@ -134,6 +143,19 @@ astranotes/
    pnpm tauri:build
    ```
 4. The built application will be available in the `src-tauri/target/release` directory
+
+## 🛡️ Security
+
+### VirusTotal Scan
+
+AstraNotes has been scanned with VirusTotal to ensure it's free from malware and other security threats.
+
+You can view the scan results here, for release v0.2.0:
+
+- **File Hash**: 44a0408fbd727d123e5b2097e52a53339044122e2c0fac2f0b962c34601c730a
+- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/44a0408fbd727d123e5b2097e52a53339044122e2c0fac2f0b962c34601c730a/behavior)
+
+We are committed to providing a secure application and regularly scan our releases to ensure your safety.
 
 ## 🤝 Contributing
 
