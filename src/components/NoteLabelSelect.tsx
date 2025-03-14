@@ -6,7 +6,7 @@
  * @component
  */
 
-import React, { useEffect, useRef, forwardRef } from "react";
+import React, { useEffect, useRef, useState, forwardRef } from "react";
 import {
   Select,
   SelectContent,
@@ -30,39 +30,63 @@ export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProp
   const { labels, fetchLabels } = useLabelStore();
   const { settings } = useSettings();
   const hasSetDefault = useRef(false);
+  const [internalValue, setInternalValue] = useState<string>(value || "");
 
+  // Fetch labels if needed
   useEffect(() => {
     if (labels.length === 0) {
       fetchLabels();
     }
   }, [fetchLabels]);
 
+  // Handle external value changes
+  useEffect(() => {
+    if (value) {
+      setInternalValue(value);
+    }
+  }, [value]);
+
   // Only set default label once when component mounts and labels are available
   useEffect(() => {
-    if (!hasSetDefault.current && labels.length > 0) {
-      // Use the default label from settings if available, otherwise use the first label
-      const defaultLabelId =
-        settings.defaultLabelId &&
-        labels.find((l) => l.id === settings.defaultLabelId)
-          ? settings.defaultLabelId
-          : labels[0].id;
-      
-      // Only set the default if no value is provided
-      if (!value) {
+    if (labels.length > 0) {
+      // If we have a valid value already, just mark as initialized
+      if (internalValue && labels.some(label => label.id === internalValue)) {
         hasSetDefault.current = true;
+      } 
+      // Otherwise, if we haven't set a default yet, set it now
+      else if (!hasSetDefault.current) {
+        // Use the default label from settings if available, otherwise use the first label
+        const defaultLabelId =
+          settings.defaultLabelId &&
+          labels.find((l) => l.id === settings.defaultLabelId)
+            ? settings.defaultLabelId
+            : labels[0].id;
+        
+        hasSetDefault.current = true;
+        setInternalValue(defaultLabelId);
         onChange(defaultLabelId);
-      } else {
-        // If we already have a value, mark as initialized
-        hasSetDefault.current = true;
       }
     }
-  }, [labels, settings.defaultLabelId]);
+  }, [labels, settings.defaultLabelId, internalValue, onChange]);
 
-  const selectedLabel = labels.find((label) => label.id === value);
+  const selectedLabel = labels.find((label) => label.id === internalValue);
+  
+  // Only render the component when we have a valid selection to prevent flickering
+  if (labels.length === 0) {
+    return (
+      <div className={cn(className, "h-8 w-40 bg-gray-100 animate-pulse rounded")} />
+    );
+  }
+
+  const handleValueChange = (newValue: string) => {
+    setInternalValue(newValue);
+    onChange(newValue);
+  };
 
   return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
+    <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
       <SelectTrigger
+        ref={ref}
         className={cn(className, "overflow-hidden")}
         style={{
           backgroundColor: selectedLabel?.color || "white",
@@ -118,5 +142,4 @@ function getContrastColor(hexColor: string) {
   const luminance = 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
 
   return luminance > 0.5 ? "#000000" : "#FFFFFF";
-
 }

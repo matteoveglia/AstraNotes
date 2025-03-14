@@ -7,111 +7,44 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { NoteInput } from "./NoteInput";
-import { Playlist, AssetVersion, NoteStatus } from "../types";
-import { VersionSearch } from "./VersionSearch";
+import { Playlist, AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
 import { playlistStore } from "../store/playlistStore";
-import { PlaylistModifiedBanner } from "./PlaylistModifiedBanner";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
-import { PlaylistMenu } from "./PlaylistMenu";
-import { db, type CachedVersion } from "../store/db";
-import Dexie from "dexie";
-import { fetchThumbnail, clearThumbnailCache } from "../services/thumbnailService";
-import { motion } from 'motion/react';
+
+// Import custom hooks
+import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
+import { useNoteManagement } from "@/features/notes/hooks/useNoteManagement";
+import { useThumbnailLoading } from "@/features/versions/hooks/useThumbnailLoading";
+
+// Import components
+import { ModificationsBanner } from "@/features/versions/components/ModificationsBanner";
+import { PublishingControls } from "@/features/notes/components/PublishingControls";
+import { VersionGrid } from "@/features/versions/components/VersionGrid";
+import { SearchPanel } from "@/features/versions/components/SearchPanel";
 
 interface MainContentProps {
   playlist: Playlist;
   onPlaylistUpdate?: (playlist: Playlist) => void;
 }
 
-interface NoteInputHandlers {
-  onSave: (content: string, labelId: string) => void;
-  onClear: () => void;
-  onSelectToggle: () => void;
-}
-
-const gridVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.04
-    }
-  },
-  exit: {
-    opacity: 0,
-    transition: {
-      staggerChildren: 0.02
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  exit: { 
-    opacity: 0, 
-    scale: 0.9, 
-    y: -10,
-    transition: { duration: 0.15 } 
-  }
-};
-
-// Global thumbnail cache that persists across component instances
-const globalThumbnailCache: Record<string, string> = {};
-
 export const MainContent: React.FC<MainContentProps> = ({
   playlist,
   onPlaylistUpdate,
 }) => {
-  const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
-  const [noteStatuses, setNoteStatuses] = useState<Record<string, NoteStatus>>(
-    {},
-  );
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const [noteLabelIds, setNoteLabelIds] = useState<Record<string, string>>({});
-  const [modifications, setModifications] = useState<{
-    added: number;
-    removed: number;
-    addedVersions?: string[];
-    removedVersions?: string[];
-  }>({ added: 0, removed: 0 });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(
-    null,
-  );
   const [isInitializing, setIsInitializing] = useState(true);
   const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
-  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   
-  // Ref for tracking active thumbnail loading
-  const thumbnailAbortControllerRef = useRef<AbortController | null>(null);
-  // Ref for tracking visible versions
-  const visibleVersionsRef = useRef<Set<string>>(new Set());
   // Ref for tracking if component is mounted
   const isMountedRef = useRef(true);
 
   const activePlaylist = mergedPlaylist || playlist;
 
-  const sortedVersions = useMemo(() => {
-    if (isInitializing) return [];
-    return [...(activePlaylist.versions || [])].sort((a, b) => {
-      // First sort by name
-      const nameCompare = a.name.localeCompare(b.name);
-      if (nameCompare !== 0) return nameCompare;
-
-      // Then by version number
-      return a.version - b.version;
-    });
-  }, [activePlaylist.versions, isInitializing]);
-
-  // Initialize playlist in store and start polling
+  // Initialize playlist in store
   useEffect(() => {
     const initializePlaylist = async () => {
       setIsInitializing(true);
@@ -121,22 +54,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         // Stop any existing polling before initializing a new playlist
         playlistStore.stopPolling();
         
-        // First get existing published notes directly from DB
-        const existingVersions = await db.versions
-          .where("playlistId")
-          .equals(playlist.id)
-          .toArray();
-        
-        // Save published note IDs separately
-        const publishedNoteIds = existingVersions
-          .filter(v => v.noteStatus === "published")
-          .map(v => v.id);
-        
-        if (publishedNoteIds.length > 0) {
-          console.debug(`[MainContent] Found ${publishedNoteIds.length} published notes before initialization`);
-        }
-        
-        // First initialize in the store
+        // Initialize in the store
         await playlistStore.initializePlaylist(playlist.id, playlist);
 
         // Then get the merged version with proper data from IndexedDB
@@ -146,45 +64,9 @@ export const MainContent: React.FC<MainContentProps> = ({
             ...playlist,
             versions: cached.versions,
           });
-          
-          // After getting playlist from store, explicitly enforce published status
-          // for all previously published notes that we captured earlier
-          if (publishedNoteIds.length > 0) {
-            const updatedStatuses: Record<string, NoteStatus> = {};
-            
-            // Create a map of published statuses for the UI state
-            publishedNoteIds.forEach(id => {
-              updatedStatuses[id] = "published";
-            });
-            
-            // Apply published statuses to UI state
-            setNoteStatuses(prev => ({ ...prev, ...updatedStatuses }));
-            
-            // Then ensure the DB has these marked as published too
-            for (const versionId of publishedNoteIds) {
-              // Get the draft content for this version
-              const versionData = cached.versions?.find(v => v.id === versionId);
-              if (versionData) {
-                // Save the note status with the published flag
-                try {
-                  await db.versions.update(
-                    [playlist.id, versionId],
-                    { noteStatus: "published" }
-                  );
-                  console.debug(`[MainContent] Restored published status for note ${versionId}`);
-                } catch (err) {
-                  console.error(`Failed to restore published status for note ${versionId}:`, err);
-                }
-              }
-            }
-          }
         } else {
           setMergedPlaylist(playlist);
         }
-
-        // Reset modifications and pending versions
-        setModifications({ added: 0, removed: 0 });
-        setPendingVersions(null);
       } catch (error) {
         console.error(`Failed to initialize playlist ${playlist.id}:`, error);
       } finally {
@@ -201,8 +83,35 @@ export const MainContent: React.FC<MainContentProps> = ({
     };
   }, [playlist.id]);
 
+  // Use custom hooks
   const { settings } = useSettings();
+  const { 
+    modifications, 
+    isRefreshing, 
+    pendingVersions,
+    applyPendingChanges, 
+    refreshPlaylist 
+  } = usePlaylistModifications(activePlaylist, onPlaylistUpdate);
+  
+  const {
+    selectedVersions,
+    noteStatuses,
+    noteDrafts,
+    noteLabelIds,
+    isPublishing,
+    saveNoteDraft,
+    clearNoteDraft,
+    toggleVersionSelection,
+    publishSelectedNotes,
+    publishAllNotes,
+    clearAllNotes,
+    setAllLabels,
+    getDraftCount
+  } = useNoteManagement(activePlaylist);
+  
+  const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
 
+  // Auto-refresh polling based on settings
   useEffect(() => {
     // Don't poll for Quick Notes playlist
     if (activePlaylist.isQuickNotes) return;
@@ -218,14 +127,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       activePlaylist.id,
       (added, removed, addedVersions, removedVersions, freshVersions) => {
         if (added > 0 || removed > 0) {
-          setModifications({
-            added,
-            removed,
-            addedVersions,
-            removedVersions,
-          });
-          // Store the fresh versions but don't apply them yet
-          setPendingVersions(freshVersions || null);
+          // This is now handled by the usePlaylistModifications hook
         }
       },
     );
@@ -241,226 +143,6 @@ export const MainContent: React.FC<MainContentProps> = ({
     settings.autoRefreshEnabled,
   ]);
 
-  // Reset selections when switching playlists
-  useEffect(() => {
-    setSelectedVersions([]);
-  }, [activePlaylist.id]);
-
-  const loadDrafts = useCallback(async () => {
-    try {
-      console.debug(`[MainContent] Loading drafts for playlist ${activePlaylist.id}`);
-      
-      // Explicitly fetch all published notes first to ensure we preserve their status
-      const publishedNotes = await db.versions
-        .where("[playlistId+id]")
-        .between(
-          [activePlaylist.id, Dexie.minKey],
-          [activePlaylist.id, Dexie.maxKey],
-        )
-        .filter(v => v.noteStatus === "published")
-        .toArray();
-        
-      console.debug(`[MainContent] Found ${publishedNotes.length} published notes`);
-
-      // Load all drafts for the active playlist
-      const allDrafts = await db.versions
-        .where("[playlistId+id]")
-        .between(
-          [activePlaylist.id, Dexie.minKey],
-          [activePlaylist.id, Dexie.maxKey],
-        )
-        .toArray();
-
-      const draftMap: Record<string, string> = {};
-      const labelMap: Record<string, string> = {};
-      const statusMap: Record<string, NoteStatus> = {};
-      
-      // First, add all published notes to ensure they have priority
-      publishedNotes.forEach((note: CachedVersion) => {
-        statusMap[note.id] = "published";
-        
-        if (note.draftContent) {
-          draftMap[note.id] = note.draftContent;
-        }
-        
-        if (note.labelId) {
-          labelMap[note.id] = note.labelId;
-        }
-      });
-
-      // Then process all drafts
-      allDrafts.forEach((draft: CachedVersion) => {
-        // Only update status if it's not already set to published
-        if (!statusMap[draft.id] || statusMap[draft.id] !== "published") {
-          statusMap[draft.id] = draft.noteStatus || (draft.draftContent?.trim() === "" ? "empty" : "draft");
-        }
-        
-        if (draft.draftContent) {
-          draftMap[draft.id] = draft.draftContent;
-        }
-        
-        if (draft.labelId) {
-          labelMap[draft.id] = draft.labelId;
-        }
-      });
-
-      setNoteDrafts(draftMap);
-      setNoteStatuses(statusMap);
-      setNoteLabelIds(labelMap);
-      
-    } catch (error) {
-      console.error("Failed to load drafts:", error);
-    }
-  }, [activePlaylist.id]);
-
-  useEffect(() => {
-    if (!activePlaylist.versions) return;
-    
-    loadDrafts();
-  }, [activePlaylist.versions, loadDrafts]);
-
-  // Function to load thumbnails in batches
-  const loadThumbnailBatch = async (
-    versionsToLoad: AssetVersion[], 
-    session: any, 
-    abortController: AbortController
-  ) => {
-    const batchSize = 5; // Number of thumbnails to load at once
-    
-    for (let i = 0; i < versionsToLoad.length; i += batchSize) {
-      // Check if loading should be aborted
-      if (abortController.signal.aborted) {
-        //console.debug('[MainContent] Thumbnail loading aborted');
-        return;
-      }
-      
-      // Get the next batch
-      const batch = versionsToLoad.slice(i, i + batchSize);
-      console.debug(`[MainContent] Loading thumbnail batch ${i/batchSize + 1}/${Math.ceil(versionsToLoad.length/batchSize)}`);
-      
-      // Process batch in parallel
-      const thumbnailPromises = batch
-        .filter(version => version.thumbnailId)
-        .map(async (version) => {
-          // Skip if already in global cache
-          if (globalThumbnailCache[version.id]) {
-            return { versionId: version.id, url: globalThumbnailCache[version.id] };
-          }
-          
-          //console.debug('[MainContent] Fetching thumbnail for version:', version.id);
-          if (!version.thumbnailId) return null;
-          
-          try {
-            const url = await fetchThumbnail(version.thumbnailId, session, { size: 512 });
-            //console.debug('[MainContent] Retrieved thumbnail URL for version:', version.id);
-            // Add to global cache
-            if (url) {
-              globalThumbnailCache[version.id] = url;
-              return { versionId: version.id, url };
-            }
-            return null;
-          } catch (error: unknown) {
-            if (error instanceof Error && error.name === 'AbortError') {
-              console.debug(`Thumbnail fetch aborted for version ${version.id}`);
-            } else {
-              console.error(`Failed to fetch thumbnail for version ${version.id}:`, error);
-            }
-            return null;
-          }
-        });
-      
-      try {
-        const results = await Promise.all(thumbnailPromises);
-        
-        // Skip updating state if component unmounted or aborted
-        if (!isMountedRef.current || abortController.signal.aborted) return;
-        
-        // Filter out null results and create a map
-        const thumbnailMap = results.reduce((acc, result) => {
-          if (result && result.url) {
-            acc[result.versionId] = result.url;
-          }
-          return acc;
-        }, {} as Record<string, string>);
-        
-        // Update the state with new thumbnails
-        setThumbnails(prev => ({ ...prev, ...thumbnailMap }));
-      } catch (error: unknown) {
-        console.error("Failed to load thumbnail batch:", error);
-      }
-      
-      // Small delay between batches to prevent UI freezing
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-  };
-
-  // Load thumbnails when versions change
-  useEffect(() => {
-    const loadThumbnails = async () => {
-      if (!activePlaylist.versions?.length) return;
-      
-      // Cancel any ongoing thumbnail loading
-      if (thumbnailAbortControllerRef.current) {
-        thumbnailAbortControllerRef.current.abort();
-      }
-      
-      // Create new abort controller for this loading session
-      const abortController = new AbortController();
-      thumbnailAbortControllerRef.current = abortController;
-      
-      // Check if we already have thumbnails for these versions
-      const versionsWithThumbnails = activePlaylist.versions.filter(
-        version => version.thumbnailId
-      );
-      
-      // Apply any thumbnails from global cache immediately
-      const cachedThumbnails: Record<string, string> = {};
-      versionsWithThumbnails.forEach(version => {
-        if (globalThumbnailCache[version.id]) {
-          cachedThumbnails[version.id] = globalThumbnailCache[version.id];
-        }
-      });
-      
-      // Update state with cached thumbnails
-      if (Object.keys(cachedThumbnails).length > 0) {
-        setThumbnails(prev => ({ ...prev, ...cachedThumbnails }));
-      }
-      
-      // Find versions that need thumbnails loaded
-      const versionsToLoad = versionsWithThumbnails.filter(
-        version => !globalThumbnailCache[version.id]
-      );
-      
-      if (versionsToLoad.length === 0) {
-        console.debug('[MainContent] All thumbnails already in global cache, skipping load');
-        return;
-      }
-      
-      console.debug(`[MainContent] Loading thumbnails for ${versionsToLoad.length} versions`);
-      
-      try {
-        const session = await ftrackService.getSession();
-        
-        // Load thumbnails in batches
-        await loadThumbnailBatch(versionsToLoad, session, abortController);
-        
-        console.debug('[MainContent] Finished loading all thumbnails');
-      } catch (error: unknown) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.debug('Thumbnail loading was aborted');
-        } else {
-          console.error("Failed to load thumbnails:", error);
-        }
-      } finally {
-        if (thumbnailAbortControllerRef.current === abortController) {
-          thumbnailAbortControllerRef.current = null;
-        }
-      }
-    };
-    
-    loadThumbnails();
-  }, [activePlaylist.versions]);
-
   // Cleanup when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
@@ -468,81 +150,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     return () => {
       // Mark component as unmounted
       isMountedRef.current = false;
-      
-      // Cancel any ongoing thumbnail loading
-      if (thumbnailAbortControllerRef.current) {
-        thumbnailAbortControllerRef.current.abort();
-        thumbnailAbortControllerRef.current = null;
-      }
     };
   }, []);
-
-  const handleNoteSave = async (
-    versionId: string,
-    content: string,
-    labelId: string,
-  ) => {
-    try {
-      // Check if the note is already published - if yes, preserve the published status
-      const currentStatus = noteStatuses[versionId];
-      
-      // Only change status if not already published
-      const status = currentStatus === "published" 
-        ? "published" 
-        : (content.trim() === "" ? "empty" : "draft");
-      
-      console.debug(`[MainContent] Saving note ${versionId} with status: ${status} (previous: ${currentStatus})`);
-      
-      // Save draft content and status to database
-      await playlistStore.saveNoteStatus(
-        versionId,
-        activePlaylist.id,
-        status,
-        content,
-      );
-
-      setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
-      setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
-      
-      // Only update status if not published
-      if (currentStatus !== "published") {
-        setNoteStatuses((prev) => ({
-          ...prev,
-          [versionId]: status,
-        }));
-      }
-
-      // Unselect if empty
-      if (content.trim() === "") {
-        setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
-      }
-    } catch (error) {
-      console.error("Failed to save note:", error);
-    }
-  };
-
-  const handleNoteClear = async (versionId: string) => {
-    // Unselect the version when cleared
-    setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
-    setNoteStatuses((prev) => {
-      const newStatuses = { ...prev };
-      delete newStatuses[versionId];
-      return newStatuses;
-    });
-    setNoteDrafts((prev) => {
-      const newDrafts = { ...prev };
-      delete newDrafts[versionId];
-      return newDrafts;
-    });
-    setNoteLabelIds((prev) => {
-      const newLabelIds = { ...prev };
-      delete newLabelIds[versionId];
-      return newLabelIds;
-    });
-    
-    // Reset to empty in the database
-    await playlistStore.saveNoteStatus(versionId, activePlaylist.id, "empty", "");
-  };
 
   const handleClearAdded = async () => {
     if (!activePlaylist.id) return;
@@ -575,28 +184,11 @@ export const MainContent: React.FC<MainContentProps> = ({
         .map(v => v.id) || [];
         
       if (removedVersionIds.length > 0) {
-        setNoteDrafts(prev => {
-          const newDrafts = { ...prev };
-          removedVersionIds.forEach(id => delete newDrafts[id]);
-          return newDrafts;
-        });
-        
-        setNoteStatuses(prev => {
-          const newStatuses = { ...prev };
-          removedVersionIds.forEach(id => delete newStatuses[id]);
-          return newStatuses;
-        });
-        
-        setNoteLabelIds(prev => {
-          const newLabelIds = { ...prev };
-          removedVersionIds.forEach(id => delete newLabelIds[id]);
-          return newLabelIds;
-        });
-        
-        // Also remove from selected versions
-        setSelectedVersions(prev => 
-          prev.filter(id => !removedVersionIds.includes(id))
-        );
+        // The note management is now handled by the useNoteManagement hook
+        // We need to clear the notes for each removed version
+        for (const versionId of removedVersionIds) {
+          await clearNoteDraft(versionId);
+        }
       }
     } catch (error) {
       console.error("Failed to clear added versions:", error);
@@ -615,242 +207,6 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Update the playlist in the store
     if (onPlaylistUpdate) {
       onPlaylistUpdate(updatedPlaylist);
-    }
-  };
-
-  const handlePublishSelected = async () => {
-    try {
-      setIsPublishing(true);
-      const publishPromises = selectedVersions
-        .filter((versionId) => {
-          const content = noteDrafts[versionId];
-          const status = noteStatuses[versionId];
-          // Only publish non-empty drafts that haven't been published yet
-          return content && content.trim() !== "" && status !== "published";
-        })
-        .map(async (versionId) => {
-          try {
-            const content = noteDrafts[versionId];
-            const labelId = noteLabelIds[versionId];
-            await ftrackService.publishNote(versionId, content, labelId);
-            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
-            return { success: true, versionId };
-          } catch (error) {
-            console.error(
-              `Failed to publish note for version ${versionId}:`,
-              error,
-            );
-            return { success: false, versionId, error };
-          }
-        });
-
-      const results = await Promise.all(publishPromises);
-      const failures = results.filter((r) => !r.success);
-
-      if (failures.length > 0) {
-        console.error("Failed to publish some notes:", failures);
-        throw new Error(`Failed to publish ${failures.length} notes`);
-      }
-
-      // Only clear drafts for successfully published notes
-      const successfulVersions = results
-        .filter((r) => r.success)
-        .map((r) => r.versionId);
-      
-      // Keep content but mark as published
-      for (const versionId of successfulVersions) {
-        await playlistStore.saveNoteStatus(
-          versionId, 
-          activePlaylist.id, 
-          "published", 
-          noteDrafts[versionId]
-        );
-      }
-      
-      setSelectedVersions([]);
-    } catch (error) {
-      console.error("Failed to publish selected notes:", error);
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const handlePublishAll = async () => {
-    try {
-      setIsPublishing(true);
-
-      // Only get versions from the current playlist if it exists
-      const currentVersions = new Set(
-        activePlaylist?.versions?.map((v) => v.id) || [],
-      );
-
-      const publishPromises = Object.entries(noteDrafts)
-        .filter(([versionId, content]) => content && content.trim() !== "") // Filter out empty notes
-        .filter(([versionId]) => noteStatuses[versionId] !== "published") // Filter out already published notes
-        .filter(([versionId]) => currentVersions.has(versionId)) // Only publish notes for versions in current playlist
-        .map(async ([versionId, content]) => {
-          try {
-            const labelId = noteLabelIds[versionId];
-            await ftrackService.publishNote(versionId, content, labelId);
-            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
-            return { success: true, versionId };
-          } catch (error) {
-            console.error(
-              `Failed to publish note for version ${versionId}:`,
-              error,
-            );
-            return { success: false, versionId, error };
-          }
-        });
-
-      const results = await Promise.all(publishPromises);
-      const failures = results.filter((r) => !r.success);
-
-      if (failures.length > 0) {
-        console.error("Failed to publish some notes:", failures);
-        throw new Error(`Failed to publish ${failures.length} notes`);
-      }
-
-      // Only clear drafts for successfully published notes
-      const successfulVersions = results
-        .filter((r) => r.success)
-        .map((r) => r.versionId);
-      
-      // Keep content but mark as published
-      for (const versionId of successfulVersions) {
-        await playlistStore.saveNoteStatus(
-          versionId, 
-          activePlaylist.id, 
-          "published", 
-          noteDrafts[versionId]
-        );
-      }
-    } catch (error) {
-      console.error("Failed to publish notes:", error);
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const handlePlaylistUpdate = async () => {
-    // Don't update Quick Notes playlist from Ftrack
-    if (activePlaylist.isQuickNotes) return;
-
-    setIsRefreshing(true);
-    try {
-      // If we have pending versions, use those, otherwise fetch fresh ones
-      const freshVersions =
-        pendingVersions ||
-        (await ftrackService.getPlaylistVersions(activePlaylist.id));
-
-      // Create maps for quick lookup
-      const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));
-      const currentVersions = activePlaylist.versions || [];
-      const manualVersions = currentVersions.filter((v) => v.manuallyAdded);
-      const manualVersionIds = new Set(manualVersions.map((v) => v.id));
-
-      // Compare with current versions to find modifications
-      // Exclude manually added versions from this check
-      const currentVersionIds = new Set(
-        currentVersions.filter((v) => !v.manuallyAdded).map((v) => v.id),
-      );
-
-      // Only count versions as added if they're not manually added
-      const addedVersions = freshVersions
-        .filter(
-          (v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id),
-        )
-        .map((v) => v.id);
-
-      // Only count versions as removed if they're not manually added
-      const removedVersions = currentVersions
-        .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
-        .map((v) => v.id);
-
-      if (addedVersions.length > 0 || removedVersions.length > 0) {
-        setModifications({
-          added: addedVersions.length,
-          removed: removedVersions.length,
-          addedVersions,
-          removedVersions,
-        });
-        // Store the fresh versions but don't apply them yet
-        setPendingVersions(freshVersions);
-      } else {
-        // No changes found, clear any pending versions
-        setPendingVersions(null);
-        setModifications({ added: 0, removed: 0 });
-      }
-    } catch (error) {
-      console.error("Failed to update playlist:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const applyPendingChanges = async () => {
-    if (!pendingVersions) return;
-
-    try {
-      // Get manually added versions from current playlist
-      const manualVersions =
-        activePlaylist.versions?.filter((v) => v.manuallyAdded) || [];
-
-      // Create a map of pending versions for quick lookup
-      const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
-
-      // Merge pending versions with manual versions
-      const mergedVersions = [
-        ...pendingVersions,
-        ...manualVersions.filter((v) => !pendingVersionsMap.has(v.id)),
-      ];
-
-      // Create a new playlist object with the merged versions
-      const updatedPlaylist = {
-        ...activePlaylist,
-        versions: mergedVersions,
-      };
-
-      // Update the cache first
-      await playlistStore.cachePlaylist(
-        playlistStore.cleanPlaylistForStorage(updatedPlaylist),
-      );
-
-      // Then notify parent components of the update
-      if (onPlaylistUpdate) {
-        onPlaylistUpdate(updatedPlaylist);
-      }
-
-      // Clear pending versions and modifications
-      setPendingVersions(null);
-      setModifications({ added: 0, removed: 0 });
-
-      // Update playlist and restart polling
-      await playlistStore.updatePlaylistAndRestartPolling(
-        activePlaylist.id,
-        (added, removed, addedVersions, removedVersions, freshVersions) => {
-          if (added > 0 || removed > 0) {
-            setModifications({
-              added,
-              removed,
-              addedVersions,
-              removedVersions,
-            });
-            setPendingVersions(freshVersions || null);
-          }
-        },
-      );
-    } catch (error) {
-      console.error("Failed to apply changes:", error);
-    }
-  };
-
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await handlePlaylistUpdate();
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -895,103 +251,23 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Update the local state as well
       setMergedPlaylist(updatedPlaylist);
-
-      // Pre-fetch the thumbnail
-      if (version.thumbnailId) {
-        ftrackService.getSession().then(session => {
-          fetchThumbnail(version.thumbnailId, session).then((url) => {
-            if (url) {
-              globalThumbnailCache[version.id] = url;
-              setThumbnails((prev) => ({
-                ...prev,
-                [version.id]: url,
-              }));
-            }
-          });
-        }).catch(error => {
-          console.error("Failed to get ftrack session for thumbnail:", error);
-        });
-      }
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
     }
   };
 
-  const handleClearAllNotes = async () => {
-    // Get all version IDs that have draft content
-    const versionIds = Object.keys(noteDrafts);
+  // Memoize sorted versions to prevent unnecessary re-renders
+  const sortedVersions = useMemo(() => {
+    if (isInitializing) return [];
+    return [...(activePlaylist.versions || [])].sort((a, b) => {
+      // First sort by name
+      const nameCompare = a.name.localeCompare(b.name);
+      if (nameCompare !== 0) return nameCompare;
 
-    // Clear all drafts from state
-    setNoteDrafts({});
-    setNoteLabelIds({});
-    setSelectedVersions([]);
-
-    // Update note statuses
-    const updatedStatuses = { ...noteStatuses };
-    versionIds.forEach((id) => {
-      delete updatedStatuses[id];
+      // Then by version number
+      return a.version - b.version;
     });
-    setNoteStatuses(updatedStatuses);
-
-    // Clear drafts from the database
-    try {
-      await Promise.all(
-        versionIds.map(async (versionId) => {
-          await playlistStore.saveDraft(versionId, activePlaylist.id, "", "");
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to clear drafts from database:", error);
-    }
-  };
-
-  const handleSetAllLabels = async (labelId: string) => {
-    // Update all drafts with the new label
-    const updatedLabelIds = { ...noteLabelIds };
-    Object.keys(noteDrafts).forEach((versionId) => {
-      updatedLabelIds[versionId] = labelId;
-    });
-    setNoteLabelIds(updatedLabelIds);
-
-    // Save changes to database
-    try {
-      await Promise.all(
-        Object.entries(noteDrafts).map(async ([versionId, content]) => {
-          await playlistStore.saveDraft(
-            versionId,
-            activePlaylist.id,
-            content,
-            labelId,
-          );
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to update labels in database:", error);
-    }
-  };
-
-  const renderModificationsBanner = () => {
-    if (modifications.added === 0 && modifications.removed === 0) return null;
-
-    return (
-      <PlaylistModifiedBanner
-        addedCount={modifications.added}
-        removedCount={modifications.removed}
-        onUpdate={applyPendingChanges}
-        isUpdating={isRefreshing}
-        addedVersions={
-          pendingVersions?.filter((v) =>
-            modifications.addedVersions?.includes(v.id),
-          ) || []
-        }
-        removedVersions={
-          activePlaylist.versions?.filter((v) =>
-            modifications.removedVersions?.includes(v.id),
-          ) || []
-        }
-      />
-    );
-  };
+  }, [activePlaylist.versions, isInitializing]);
 
   return (
     <Card className="h-full flex flex-col rounded-none">
@@ -1004,7 +280,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2"
-                onClick={handleManualRefresh}
+                onClick={refreshPlaylist}
                 disabled={isRefreshing}
                 title="Refresh Playlist"
               >
@@ -1016,103 +292,60 @@ export const MainContent: React.FC<MainContentProps> = ({
           )}
         </div>
         <div className="flex items-center gap-4">
-          {renderModificationsBanner()}
+          {modifications.added > 0 || modifications.removed > 0 ? (
+            <ModificationsBanner
+              addedCount={modifications.added}
+              removedCount={modifications.removed}
+              onUpdate={applyPendingChanges}
+              isUpdating={isRefreshing}
+              addedVersions={
+                pendingVersions?.filter((v) =>
+                  modifications.addedVersions?.includes(v.id),
+                ) || []
+              }
+              removedVersions={
+                activePlaylist.versions?.filter((v) =>
+                  modifications.removedVersions?.includes(v.id),
+                ) || []
+              }
+            />
+          ) : null}
           <div className="flex items-center gap-2">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handlePublishSelected()}
-                disabled={selectedVersions.length === 0 || isPublishing}
-              >
-                Publish {selectedVersions.length} Selected
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handlePublishAll()}
-                disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
-              >
-                Publish All Notes
-              </Button>
-              <div className="ml-3 mx-1 w-px bg-foreground/20 self-stretch" />
-              <PlaylistMenu
-                onClearAllNotes={handleClearAllNotes}
-                onSetAllLabels={handleSetAllLabels}
-              />
-            </div>
+            <PublishingControls
+              selectedCount={selectedVersions.length}
+              draftCount={getDraftCount()}
+              isPublishing={isPublishing}
+              onPublishSelected={publishSelectedNotes}
+              onPublishAll={publishAllNotes}
+              onClearAllNotes={clearAllNotes}
+              onSetAllLabels={setAllLabels}
+            />
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto">
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          variants={gridVariants}
-          className="space-y-4 py-4"
-        >
-          {sortedVersions.map((version) => {
-            const thumbnailUrl = thumbnails[version.id];
-            const versionHandlers: NoteInputHandlers = {
-              onSave: (content: string, labelId: string) =>
-                handleNoteSave(version.id, content, labelId),
-              onClear: () => handleNoteClear(version.id),
-              onSelectToggle: () => {
-                setSelectedVersions((prev) =>
-                  prev.includes(version.id)
-                    ? prev.filter((id) => id !== version.id)
-                    : [...prev, version.id],
-                );
-              },
-            };
-
-            return (
-              <motion.div
-                key={version.id}
-                className="space-y-2"
-                variants={itemVariants}
-                layout
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <NoteInput
-                  versionName={version.name}
-                  versionNumber={version.version.toString()}
-                  thumbnailUrl={thumbnailUrl}
-                  status={noteStatuses[version.id] || "empty"}
-                  selected={selectedVersions.includes(version.id)}
-                  initialContent={noteDrafts[version.id]}
-                  initialLabelId={noteLabelIds[version.id]}
-                  manuallyAdded={version.manuallyAdded}
-                  {...versionHandlers}
-                />
-              </motion.div>
-            );
-          })}
-          {!activePlaylist.versions?.length && (
-            <div className="text-center text-gray-500 py-8">
-              {activePlaylist.isQuickNotes
-                ? "Search for a version below to begin"
-                : "No versions found in this playlist"}
-            </div>
-          )}
-        </motion.div>
+        <VersionGrid
+          versions={sortedVersions}
+          thumbnails={thumbnails}
+          noteStatuses={noteStatuses}
+          selectedVersions={selectedVersions}
+          noteDrafts={noteDrafts}
+          noteLabelIds={noteLabelIds}
+          onSaveNote={saveNoteDraft}
+          onClearNote={clearNoteDraft}
+          onToggleSelection={toggleVersionSelection}
+        />
       </CardContent>
 
-      <div className="flex-none border-t bg-white shadow-md">
-        <div className="p-4">
-          <VersionSearch
-            onVersionSelect={handleVersionSelect}
-            onClearAdded={handleClearAdded}
-            hasManuallyAddedVersions={activePlaylist.versions?.some(
-              (v) => v.manuallyAdded,
-            )}
-            isQuickNotes={activePlaylist.isQuickNotes}
-          />
-        </div>
-      </div>
+      <SearchPanel
+        onVersionSelect={handleVersionSelect}
+        onClearAdded={handleClearAdded}
+        hasManuallyAddedVersions={Boolean(activePlaylist.versions?.some(
+          (v) => v.manuallyAdded,
+        ))}
+        isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+      />
     </Card>
   );
 };
