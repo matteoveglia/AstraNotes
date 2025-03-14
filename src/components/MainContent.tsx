@@ -7,11 +7,11 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { NoteInput } from "./NoteInput";
-import { Playlist, NoteStatus, AssetVersion } from "../types";
+import { Playlist, AssetVersion, NoteStatus } from "../types";
 import { VersionSearch } from "./VersionSearch";
 import { ftrackService } from "../services/ftrack";
 import { playlistStore } from "../store/playlistStore";
@@ -22,7 +22,6 @@ import { PlaylistMenu } from "./PlaylistMenu";
 import { db, type CachedVersion } from "../store/db";
 import Dexie from "dexie";
 import { fetchThumbnail, clearThumbnailCache } from "../services/thumbnailService";
-import { GlowEffect } from '@/components/ui/glow-effect';
 import { motion } from 'motion/react';
 
 interface MainContentProps {
@@ -122,6 +121,21 @@ export const MainContent: React.FC<MainContentProps> = ({
         // Stop any existing polling before initializing a new playlist
         playlistStore.stopPolling();
         
+        // First get existing published notes directly from DB
+        const existingVersions = await db.versions
+          .where("playlistId")
+          .equals(playlist.id)
+          .toArray();
+        
+        // Save published note IDs separately
+        const publishedNoteIds = existingVersions
+          .filter(v => v.noteStatus === "published")
+          .map(v => v.id);
+        
+        if (publishedNoteIds.length > 0) {
+          console.debug(`[MainContent] Found ${publishedNoteIds.length} published notes before initialization`);
+        }
+        
         // First initialize in the store
         await playlistStore.initializePlaylist(playlist.id, playlist);
 
@@ -132,6 +146,38 @@ export const MainContent: React.FC<MainContentProps> = ({
             ...playlist,
             versions: cached.versions,
           });
+          
+          // After getting playlist from store, explicitly enforce published status
+          // for all previously published notes that we captured earlier
+          if (publishedNoteIds.length > 0) {
+            const updatedStatuses: Record<string, NoteStatus> = {};
+            
+            // Create a map of published statuses for the UI state
+            publishedNoteIds.forEach(id => {
+              updatedStatuses[id] = "published";
+            });
+            
+            // Apply published statuses to UI state
+            setNoteStatuses(prev => ({ ...prev, ...updatedStatuses }));
+            
+            // Then ensure the DB has these marked as published too
+            for (const versionId of publishedNoteIds) {
+              // Get the draft content for this version
+              const versionData = cached.versions?.find(v => v.id === versionId);
+              if (versionData) {
+                // Save the note status with the published flag
+                try {
+                  await db.versions.update(
+                    [playlist.id, versionId],
+                    { noteStatus: "published" }
+                  );
+                  console.debug(`[MainContent] Restored published status for note ${versionId}`);
+                } catch (err) {
+                  console.error(`Failed to restore published status for note ${versionId}:`, err);
+                }
+              }
+            }
+          }
         } else {
           setMergedPlaylist(playlist);
         }
@@ -200,48 +246,78 @@ export const MainContent: React.FC<MainContentProps> = ({
     setSelectedVersions([]);
   }, [activePlaylist.id]);
 
-  useEffect(() => {
-    const loadDrafts = async () => {
-      if (!activePlaylist.versions) return;
-      
+  const loadDrafts = useCallback(async () => {
+    try {
       console.debug(`[MainContent] Loading drafts for playlist ${activePlaylist.id}`);
+      
+      // Explicitly fetch all published notes first to ensure we preserve their status
+      const publishedNotes = await db.versions
+        .where("[playlistId+id]")
+        .between(
+          [activePlaylist.id, Dexie.minKey],
+          [activePlaylist.id, Dexie.maxKey],
+        )
+        .filter(v => v.noteStatus === "published")
+        .toArray();
+        
+      console.debug(`[MainContent] Found ${publishedNotes.length} published notes`);
 
-      const draftsMap: Record<string, string> = {};
-      const labelIdsMap: Record<string, string> = {};
-      const statusMap: Record<string, NoteStatus> = {};
-
-      // Load all drafts at once using compound index
-      const drafts = await db.versions
+      // Load all drafts for the active playlist
+      const allDrafts = await db.versions
         .where("[playlistId+id]")
         .between(
           [activePlaylist.id, Dexie.minKey],
           [activePlaylist.id, Dexie.maxKey],
         )
         .toArray();
-        
-      console.debug(`[MainContent] Loaded ${drafts.length} drafts for playlist ${activePlaylist.id}`);
 
-      // Create maps for drafts and label IDs
-      drafts.forEach((draft: CachedVersion) => {
-        if (draft.draftContent) {
-          draftsMap[draft.id] = draft.draftContent;
-          
-          // Use stored status if available, otherwise infer from content
-          statusMap[draft.id] = draft.noteStatus || 
-            (draft.draftContent.trim() === "" ? "empty" : "draft");
+      const draftMap: Record<string, string> = {};
+      const labelMap: Record<string, string> = {};
+      const statusMap: Record<string, NoteStatus> = {};
+      
+      // First, add all published notes to ensure they have priority
+      publishedNotes.forEach((note: CachedVersion) => {
+        statusMap[note.id] = "published";
+        
+        if (note.draftContent) {
+          draftMap[note.id] = note.draftContent;
         }
-        if (draft.labelId) {
-          labelIdsMap[draft.id] = draft.labelId;
+        
+        if (note.labelId) {
+          labelMap[note.id] = note.labelId;
         }
       });
 
-      setNoteDrafts(draftsMap);
-      setNoteLabelIds(labelIdsMap);
-      setNoteStatuses(statusMap);
-    };
+      // Then process all drafts
+      allDrafts.forEach((draft: CachedVersion) => {
+        // Only update status if it's not already set to published
+        if (!statusMap[draft.id] || statusMap[draft.id] !== "published") {
+          statusMap[draft.id] = draft.noteStatus || (draft.draftContent?.trim() === "" ? "empty" : "draft");
+        }
+        
+        if (draft.draftContent) {
+          draftMap[draft.id] = draft.draftContent;
+        }
+        
+        if (draft.labelId) {
+          labelMap[draft.id] = draft.labelId;
+        }
+      });
 
+      setNoteDrafts(draftMap);
+      setNoteStatuses(statusMap);
+      setNoteLabelIds(labelMap);
+      
+    } catch (error) {
+      console.error("Failed to load drafts:", error);
+    }
+  }, [activePlaylist.id]);
+
+  useEffect(() => {
+    if (!activePlaylist.versions) return;
+    
     loadDrafts();
-  }, [activePlaylist.id, activePlaylist.versions]);
+  }, [activePlaylist.versions, loadDrafts]);
 
   // Function to load thumbnails in batches
   const loadThumbnailBatch = async (
@@ -407,7 +483,15 @@ export const MainContent: React.FC<MainContentProps> = ({
     labelId: string,
   ) => {
     try {
-      const status = content.trim() === "" ? "empty" : "draft";
+      // Check if the note is already published - if yes, preserve the published status
+      const currentStatus = noteStatuses[versionId];
+      
+      // Only change status if not already published
+      const status = currentStatus === "published" 
+        ? "published" 
+        : (content.trim() === "" ? "empty" : "draft");
+      
+      console.debug(`[MainContent] Saving note ${versionId} with status: ${status} (previous: ${currentStatus})`);
       
       // Save draft content and status to database
       await playlistStore.saveNoteStatus(
@@ -419,10 +503,14 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
-      setNoteStatuses((prev) => ({
-        ...prev,
-        [versionId]: status,
-      }));
+      
+      // Only update status if not published
+      if (currentStatus !== "published") {
+        setNoteStatuses((prev) => ({
+          ...prev,
+          [versionId]: status,
+        }));
+      }
 
       // Unselect if empty
       if (content.trim() === "") {
@@ -939,25 +1027,13 @@ export const MainContent: React.FC<MainContentProps> = ({
               >
                 Publish {selectedVersions.length} Selected
               </Button>
-              <div className="relative inline-block">
-                {Object.keys(noteDrafts).length > 0 && !isPublishing && (
-                  <GlowEffect
-                    colors={['#FF5733', '#33FF57', '#3357FF', '#F1C40F']}
-                    mode='pulse'
-                    blur='soft'
-                    duration={3}
-                    scale={1.1}
-                  />
-                )}
-                <Button
-                  size="sm"
-                  onClick={() => handlePublishAll()}
-                  disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
-                  className="relative z-10"
-                >
-                  Publish All Notes
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                onClick={() => handlePublishAll()}
+                disabled={Object.keys(noteDrafts).length === 0 || isPublishing}
+              >
+                Publish All Notes
+              </Button>
               <div className="ml-3 mx-1 w-px bg-foreground/20 self-stretch" />
               <PlaylistMenu
                 onClearAllNotes={handleClearAllNotes}

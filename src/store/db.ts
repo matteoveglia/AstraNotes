@@ -39,7 +39,7 @@ export class AstraNotesDB extends Dexie {
     this.version(2).stores({
       playlists: "id, lastAccessed, lastChecked",
       versions:
-        "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked",
+        "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus",
     });
 
     this.versions.hook("creating", function (primKey, obj) {

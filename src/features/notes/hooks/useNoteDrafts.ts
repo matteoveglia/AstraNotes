@@ -25,8 +25,20 @@ export function useNoteDrafts(playlistId: string) {
       try {
         console.debug(`[useNoteDrafts] Loading drafts for playlist ${playlistId}`);
 
+        // Explicitly fetch all published notes first to ensure we preserve their status
+        const publishedDrafts = await db.versions
+          .where("[playlistId+id]")
+          .between(
+            [playlistId, Dexie.minKey],
+            [playlistId, Dexie.maxKey],
+          )
+          .filter(v => v.noteStatus === "published")
+          .toArray();
+          
+        console.debug(`[useNoteDrafts] Found ${publishedDrafts.length} published notes for playlist ${playlistId}`);
+        
         // Load all drafts at once using compound index
-        const drafts = await db.versions
+        const allDrafts = await db.versions
           .where("[playlistId+id]")
           .between(
             [playlistId, Dexie.minKey],
@@ -34,29 +46,46 @@ export function useNoteDrafts(playlistId: string) {
           )
           .toArray();
           
-        console.debug(`[useNoteDrafts] Loaded ${drafts.length} drafts for playlist ${playlistId}`);
+        console.debug(`[useNoteDrafts] Loaded ${allDrafts.length} total drafts for playlist ${playlistId}`);
 
         // Create maps for drafts, statuses, and label IDs
         const draftsMap: Record<string, string> = {};
         const labelIdsMap: Record<string, string> = {};
         const statusMap: Record<string, NoteStatus> = {};
-
-        drafts.forEach((draft: CachedVersion) => {
+        
+        // First, add all published notes to ensure they have priority
+        publishedDrafts.forEach((draft: CachedVersion) => {
+          statusMap[draft.id] = "published";
+          
           if (draft.draftContent) {
             draftsMap[draft.id] = draft.draftContent;
-            
-            // Use stored status if available, otherwise infer from content
-            statusMap[draft.id] = draft.noteStatus || 
-              (draft.draftContent.trim() === "" ? "empty" : "draft");
           }
+          
+          if (draft.labelId) {
+            labelIdsMap[draft.id] = draft.labelId;
+          }
+        });
+
+        // Then process all drafts
+        allDrafts.forEach((draft: CachedVersion) => {
+          // Only update status if it's not already set to published
+          if (!statusMap[draft.id] || statusMap[draft.id] !== "published") {
+            statusMap[draft.id] = draft.noteStatus || (draft.draftContent?.trim() === "" ? "empty" : "draft");
+          }
+          
+          // Always update draft content and label ID
+          if (draft.draftContent) {
+            draftsMap[draft.id] = draft.draftContent;
+          }
+          
           if (draft.labelId) {
             labelIdsMap[draft.id] = draft.labelId;
           }
         });
 
         setNoteDrafts(draftsMap);
-        setNoteLabelIds(labelIdsMap);
         setNoteStatuses(statusMap);
+        setNoteLabelIds(labelIdsMap);
       } catch (error) {
         console.error("Failed to load drafts:", error);
       } finally {

@@ -205,10 +205,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           </div>
 
           <div
-            onClick={status === "empty" ? undefined : onSelectToggle}
+            onClick={status === "empty" || status === "published" ? undefined : onSelectToggle}
             className={cn(
               "w-5 rounded-full transition-colors",
-              status === "empty" ? "cursor-default" : "cursor-pointer",
+              status === "empty" || status === "published" ? "cursor-default" : "cursor-pointer",
               getStatusColor(),
             )}
             title={getStatusTitle()}
