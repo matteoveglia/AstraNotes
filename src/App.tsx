@@ -8,8 +8,10 @@ import type { Playlist, AssetVersion } from "./types";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
+import { ToastProvider } from "./components/ui/toast";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 
-export const App: React.FC = () => {
+const App: React.FC = () => {
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
   const {
     playlists,
@@ -116,40 +118,78 @@ export const App: React.FC = () => {
     (activePlaylistId && loadedVersionsRef.current[activePlaylistId] && !loadingVersions));
 
   return (
-    <div className="h-screen flex flex-col">
-      <TopBar>
-        <SettingsModal onLoadPlaylists={loadPlaylists} onCloseAllPlaylists={handleCloseAll} />
-      </TopBar>
-      <div className="flex-1 flex overflow-hidden">
-        <PlaylistPanel
-          playlists={playlists}
-          activePlaylist={activePlaylistId}
-          onPlaylistSelect={handlePlaylistSelect}
-          loading={isLoading}
-          error={error}
-        />
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-hidden">
-            {isPlaylistReady ? (
-              <MainContent
-                playlist={activePlaylistData}
-                onPlaylistUpdate={handlePlaylistUpdate}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
-                {loadingVersions ? "Loading playlist versions..." : "Loading playlist..."}
+    <ToastProvider>
+      <ErrorBoundary>
+        <div className="h-screen flex flex-col">
+          <TopBar>
+            <SettingsModal onLoadPlaylists={loadPlaylists} onCloseAllPlaylists={handleCloseAll} />
+          </TopBar>
+          <div className="flex-1 flex overflow-hidden">
+            <PlaylistPanel
+              playlists={playlists}
+              activePlaylist={activePlaylistId}
+              onPlaylistSelect={handlePlaylistSelect}
+              loading={isLoading}
+              error={error}
+            />
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-hidden">
+                {isPlaylistReady ? (
+                  <ErrorBoundary
+                    fallback={
+                      <div className="h-full flex flex-col items-center justify-center p-6">
+                        <h3 className="text-xl font-semibold text-red-600 mb-2">Error loading content</h3>
+                        <p className="text-gray-700 mb-4">Failed to load playlist content</p>
+                        <button 
+                          onClick={() => window.location.reload()}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    }
+                  >
+                    <MainContent 
+                      playlist={activePlaylistData}
+                      onPlaylistUpdate={handlePlaylistUpdate}
+                    />
+                  </ErrorBoundary>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      {error ? (
+                        <>
+                          <p className="text-red-500 text-xl mb-2">Error loading playlists</p>
+                          <p className="text-gray-600 mb-4">{error}</p>
+                          <button
+                            onClick={loadPlaylists}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Try again
+                          </button>
+                        </>
+                      ) : isLoading ? (
+                        <p className="text-gray-500">Loading playlists...</p>
+                      ) : (
+                        <p className="text-gray-500">Select a playlist to view</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+              <OpenPlaylistsBar
+                playlists={playlists.filter((p) => openPlaylists.includes(p.id))}
+                activePlaylist={activePlaylistId}
+                onPlaylistSelect={handlePlaylistSelect}
+                onPlaylistClose={handlePlaylistClose}
+                onCloseAll={handleCloseAll}
+              />
+            </div>
           </div>
-          <OpenPlaylistsBar
-            playlists={playlists.filter((p) => openPlaylists.includes(p.id))}
-            activePlaylist={activePlaylistId}
-            onPlaylistSelect={handlePlaylistSelect}
-            onPlaylistClose={handlePlaylistClose}
-            onCloseAll={handleCloseAll}
-          />
         </div>
-      </div>
-    </div>
+      </ErrorBoundary>
+    </ToastProvider>
   );
 };
+
+export default App;

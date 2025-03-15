@@ -10,13 +10,22 @@ import { playlistStore } from '@/store/playlistStore';
 import { db, type CachedVersion } from '@/store/db';
 import { ftrackService } from '@/services/ftrack';
 import Dexie from 'dexie';
+import { useToast } from '@/components/ui/toast';
+import { useApiWithNotifications } from '@/utils/network';
+import { useErrorHandler, categorizeError } from '@/utils/errorHandling';
 
 export function useNoteManagement(playlist: Playlist) {
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
   const [noteStatuses, setNoteStatuses] = useState<Record<string, NoteStatus>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [noteLabelIds, setNoteLabelIds] = useState<Record<string, string>>({});
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+
+  // Setup hooks
+  const toast = useToast();
+  const { publishWithNotifications } = useApiWithNotifications();
+  const { handleError } = useErrorHandler();
 
   // Load drafts from database
   const loadDrafts = useCallback(async () => {
@@ -185,121 +194,233 @@ export function useNoteManagement(playlist: Playlist) {
     );
   };
 
-  // Publish selected notes
-  const publishSelectedNotes = async () => {
+  // Publish notes
+  const publishNotes = useCallback(async () => {
+    if (isPublishing) return;
+    
+    setIsPublishing(true);
+    
     try {
-      setIsPublishing(true);
-      const publishPromises = selectedVersions
-        .filter((versionId) => {
-          const content = noteDrafts[versionId];
-          const status = noteStatuses[versionId];
-          // Only publish non-empty drafts that haven't been published yet
-          return content && content.trim() !== "" && status !== "published";
-        })
-        .map(async (versionId) => {
-          try {
-            const content = noteDrafts[versionId];
-            const labelId = noteLabelIds[versionId];
-            await ftrackService.publishNote(versionId, content, labelId);
-            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
-            return { success: true, versionId };
-          } catch (error) {
-            console.error(
-              `Failed to publish note for version ${versionId}:`,
-              error,
-            );
-            return { success: false, versionId, error };
+      // Get versions with content
+      const versionsToPublish = Object.entries(noteDrafts)
+        .filter(([versionId, content]) => 
+          // Only include notes with content that aren't already published
+          content?.trim() && noteStatuses[versionId] !== "published"
+        )
+        .map(([versionId, content]) => ({
+          versionId,
+          content,
+          labelId: noteLabelIds[versionId] || selectedLabel || undefined
+        }));
+      
+      if (!versionsToPublish.length) {
+        toast.showWarning("No notes to publish");
+        return;
+      }
+      
+      const failedVersions: Array<{ versionId: string; content: string; labelId?: string }> = [];
+
+      for (const item of versionsToPublish) {
+        try {
+          await ftrackService.publishNote(
+            item.versionId,
+            item.content,
+            item.labelId
+          );
+        } catch (error) {
+          console.error(`Failed to publish note for version ${item.versionId}:`, error);
+          
+          const { isNetworkError, isAuthError, message } = categorizeError(error);
+          
+          if (isNetworkError) {
+            toast.showError(`Connection Error: Unable to connect to ftrack API. Please check your internet connection.`);
+          } else if (isAuthError) {
+            toast.showError(`Authentication Error: Please check your API credentials in settings.`);
+          } else {
+            toast.showError(`Failed to publish note: ${message}`);
           }
-        });
-
-      const results = await Promise.all(publishPromises);
-      const failures = results.filter((r) => !r.success);
-
-      if (failures.length > 0) {
-        console.error("Failed to publish some notes:", failures);
-        throw new Error(`Failed to publish ${failures.length} notes`);
+          
+          failedVersions.push(item);
+        }
       }
 
-      // Only clear drafts for successfully published notes
-      const successfulVersions = results
-        .filter((r) => r.success)
-        .map((r) => r.versionId);
-      
-      // Keep content but mark as published
-      for (const versionId of successfulVersions) {
-        await playlistStore.saveNoteStatus(
-          versionId, 
-          playlist.id, 
-          "published", 
-          noteDrafts[versionId]
-        );
-      }
-      
-      setSelectedVersions([]);
-    } catch (error) {
-      console.error("Failed to publish selected notes:", error);
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  // Publish all notes
-  const publishAllNotes = async () => {
-    try {
-      setIsPublishing(true);
-
-      // Only get versions from the current playlist if it exists
-      const currentVersions = new Set(
-        playlist?.versions?.map((v) => v.id) || [],
-      );
-
-      const publishPromises = Object.entries(noteDrafts)
-        .filter(([versionId, content]) => content && content.trim() !== "") // Filter out empty notes
-        .filter(([versionId]) => noteStatuses[versionId] !== "published") // Filter out already published notes
-        .filter(([versionId]) => currentVersions.has(versionId)) // Only publish notes for versions in current playlist
-        .map(async ([versionId, content]) => {
-          try {
-            const labelId = noteLabelIds[versionId];
-            await ftrackService.publishNote(versionId, content, labelId);
-            setNoteStatuses((prev) => ({ ...prev, [versionId]: "published" }));
-            return { success: true, versionId };
-          } catch (error) {
-            console.error(
-              `Failed to publish note for version ${versionId}:`,
-              error,
-            );
-            return { success: false, versionId, error };
-          }
-        });
-
-      const results = await Promise.all(publishPromises);
-      const failures = results.filter((r) => !r.success);
-
-      if (failures.length > 0) {
-        console.error("Failed to publish some notes:", failures);
-        throw new Error(`Failed to publish ${failures.length} notes`);
+      // If we have any successful publishes, show a success message
+      if (versionsToPublish.length - failedVersions.length > 0) {
+        toast.showSuccess(`Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`);
       }
 
-      // Only clear drafts for successfully published notes
-      const successfulVersions = results
-        .filter((r) => r.success)
-        .map((r) => r.versionId);
-      
-      // Keep content but mark as published
-      for (const versionId of successfulVersions) {
-        await playlistStore.saveNoteStatus(
-          versionId, 
-          playlist.id, 
-          "published", 
-          noteDrafts[versionId]
-        );
+      // Update database with published status for successful notes
+      for (const item of versionsToPublish) {
+        if (!failedVersions.some(f => f.versionId === item.versionId)) {
+          await playlistStore.saveNoteStatus(
+            item.versionId, 
+            playlist.id, 
+            "published", 
+            noteDrafts[item.versionId]
+          );
+          setNoteStatuses((prev) => ({ ...prev, [item.versionId]: "published" }));
+        }
       }
     } catch (error) {
       console.error("Failed to publish notes:", error);
+      handleError(error, "Failed to publish notes");
     } finally {
       setIsPublishing(false);
     }
-  };
+  }, [noteDrafts, noteStatuses, noteLabelIds, selectedLabel, isPublishing, toast, handleError]);
+
+  // Publish selected notes
+  const publishSelectedNotes = useCallback(async () => {
+    if (isPublishing) return;
+    
+    if (!selectedVersions.length) {
+      toast.showWarning("No versions selected");
+      return;
+    }
+    
+    setIsPublishing(true);
+    
+    try {
+      const versionsToPublish = selectedVersions
+        .filter(versionId => 
+          // Only include notes with content that aren't already published
+          noteDrafts[versionId]?.trim() && 
+          noteStatuses[versionId] !== "published"
+        )
+        .map(versionId => ({
+          versionId,
+          content: noteDrafts[versionId],
+          labelId: noteLabelIds[versionId] || selectedLabel || undefined
+        }));
+      
+      if (!versionsToPublish.length) {
+        toast.showWarning("No notes to publish. Notes must have content and not already be published.");
+        return;
+      }
+      
+      const failedVersions: Array<{ versionId: string; content: string; labelId?: string }> = [];
+
+      for (const item of versionsToPublish) {
+        try {
+          await ftrackService.publishNote(
+            item.versionId,
+            item.content,
+            item.labelId
+          );
+        } catch (error) {
+          console.error(`Failed to publish note for version ${item.versionId}:`, error);
+          
+          const { isNetworkError, isAuthError, message } = categorizeError(error);
+          
+          if (isNetworkError) {
+            toast.showError(`Connection Error: Unable to connect to ftrack API. Please check your internet connection.`);
+          } else if (isAuthError) {
+            toast.showError(`Authentication Error: Please check your API credentials in settings.`);
+          } else {
+            toast.showError(`Failed to publish note: ${message}`);
+          }
+          
+          failedVersions.push(item);
+        }
+      }
+
+      // If we have any successful publishes, show a success message
+      if (versionsToPublish.length - failedVersions.length > 0) {
+        toast.showSuccess(`Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`);
+      }
+
+      // Update database with published status for successful notes
+      for (const item of versionsToPublish) {
+        if (!failedVersions.some(f => f.versionId === item.versionId)) {
+          await playlistStore.saveNoteStatus(
+            item.versionId, 
+            playlist.id, 
+            "published", 
+            noteDrafts[item.versionId]
+          );
+          setNoteStatuses((prev) => ({ ...prev, [item.versionId]: "published" }));
+        }
+      }
+    } catch (error) {
+      handleError(error, "Failed to publish selected notes");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [selectedVersions, noteDrafts, noteStatuses, noteLabelIds, selectedLabel, isPublishing, toast, handleError]);
+
+  // Publish all notes
+  const publishAllNotes = useCallback(async () => {
+    if (isPublishing) return;
+    
+    setIsPublishing(true);
+    
+    try {
+      // Get all versions with draft notes that aren't already published
+      const versionsToPublish = Object.entries(noteDrafts)
+        .filter(([versionId, content]) => 
+          content?.trim() && 
+          noteStatuses[versionId] !== "published"
+        )
+        .map(([versionId, content]) => ({
+          versionId,
+          content,
+          labelId: noteLabelIds[versionId] || selectedLabel || undefined
+        }));
+      
+      if (!versionsToPublish.length) {
+        toast.showWarning("No notes to publish. Notes must have content and not already be published.");
+        return;
+      }
+      
+      const failedVersions: Array<{ versionId: string; content: string; labelId?: string }> = [];
+
+      for (const item of versionsToPublish) {
+        try {
+          await ftrackService.publishNote(
+            item.versionId,
+            item.content,
+            item.labelId
+          );
+        } catch (error) {
+          console.error(`Failed to publish note for version ${item.versionId}:`, error);
+          
+          const { isNetworkError, isAuthError, message } = categorizeError(error);
+          
+          if (isNetworkError) {
+            toast.showError(`Connection Error: Unable to connect to ftrack API. Please check your internet connection.`);
+          } else if (isAuthError) {
+            toast.showError(`Authentication Error: Please check your API credentials in settings.`);
+          } else {
+            toast.showError(`Failed to publish note: ${message}`);
+          }
+          
+          failedVersions.push(item);
+        }
+      }
+
+      // If we have any successful publishes, show a success message
+      if (versionsToPublish.length - failedVersions.length > 0) {
+        toast.showSuccess(`Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`);
+      }
+
+      // Update database with published status for successful notes
+      for (const item of versionsToPublish) {
+        if (!failedVersions.some(f => f.versionId === item.versionId)) {
+          await playlistStore.saveNoteStatus(
+            item.versionId, 
+            playlist.id, 
+            "published", 
+            noteDrafts[item.versionId]
+          );
+          setNoteStatuses((prev) => ({ ...prev, [item.versionId]: "published" }));
+        }
+      }
+    } catch (error) {
+      handleError(error, "Failed to publish all notes");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [noteDrafts, noteStatuses, noteLabelIds, selectedLabel, isPublishing, toast, handleError]);
 
   // Clear all notes
   const clearAllNotes = async () => {
@@ -366,6 +487,7 @@ export function useNoteManagement(playlist: Playlist) {
     saveNoteDraft,
     clearNoteDraft,
     toggleVersionSelection,
+    publishNotes,
     publishSelectedNotes,
     publishAllNotes,
     clearAllNotes,

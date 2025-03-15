@@ -111,7 +111,17 @@ export class FtrackService {
       log("Failed to initialize session:", error);
       this.session = null;
       this.currentUserId = null;
-      return null;
+      
+      // Preserve the original error type and message
+      if (error instanceof Error) {
+        const authError = new Error(error.message);
+        authError.name = error.name === "ServerError" ? "ServerError" : "AuthenticationError";
+        throw authError;
+      } else {
+        const authError = new Error("Failed to initialize ftrack session");
+        authError.name = "AuthenticationError";
+        throw authError;
+      }
     }
   }
 
@@ -352,7 +362,9 @@ export class FtrackService {
     if (!this.session) {
       this.session = await this.initSession();
       if (!this.session) {
-        throw new Error("Failed to initialize ftrack session");
+        const error = new Error("Failed to initialize ftrack session");
+        error.name = "AuthenticationError";
+        throw error;
       }
     }
     return this.session;
@@ -362,7 +374,9 @@ export class FtrackService {
     if (!this.session) {
       this.session = await this.initSession();
       if (!this.session) {
-        throw new Error("Failed to initialize ftrack session");
+        const error = new Error("Failed to initialize ftrack session");
+        error.name = "AuthenticationError";
+        throw error;
       }
     }
     return this.session;
