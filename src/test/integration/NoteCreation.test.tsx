@@ -56,12 +56,9 @@ describe('Note Creation Integration', () => {
     const noteInputProps = {
       versionName: 'Test Version',
       versionNumber: 'v1.0',
-      status: 'active' as NoteStatus, // Type cast to NoteStatus
-      selected: true,
-      versionId: 'test-version-id',
-      assetId: 'test-asset-id',
-      taskId: 'test-task-id',
-      // Add required function props with mock implementations
+      status: 'draft' as NoteStatus,
+      selected: false,
+      initialContent: '',
       onSave: vi.fn(),
       onClear: vi.fn(),
       onSelectToggle: vi.fn()
@@ -69,50 +66,45 @@ describe('Note Creation Integration', () => {
 
     // Render the component with required props
     const { user } = renderWithUserEvent(<NoteInput {...noteInputProps} />);
-    const userSetup = userEvent.setup();
 
     // Type into the note input
-    const noteInput = screen.getByPlaceholderText(/add a note/i) || 
-                      screen.getByRole('textbox');
-    await user.click(noteInput);
+    const noteInput = screen.getByPlaceholderText(/add a note/i);
+    expect(noteInput).toBeInTheDocument();
+    
     await user.type(noteInput, 'Test note content');
 
-    // Instead of interacting with the Radix UI dropdown which causes issues,
-    // we'll directly test that onSave works correctly when called
+    // Verify the textarea contains the typed text
+    expect(noteInput).toHaveValue('Test note content');
     
-    // Find the Add/Save button
-    const submitButton = screen.getByRole('button', { name: /add|save|submit/i });
-    await user.click(submitButton);
-
-    // Verify that onSave was called
-    await waitFor(() => {
-      expect(noteInputProps.onSave).toHaveBeenCalled();
-    });
+    // Check that onSave was called (since it's called on each change)
+    expect(noteInputProps.onSave).toHaveBeenCalledWith('Test note content', expect.any(String));
   });
 
   it('should save note when text is entered', async () => {
-    const mockSaveNote = vi.fn().mockImplementation(() => Promise.resolve());
+    // Create a mock implementation that allows us to check both parameters
+    const mockSaveNote = vi.fn();
+    
     const noteInputProps = {
       versionName: 'Test Version',
       versionNumber: 'v1.0',
-      status: 'active' as NoteStatus,
-      selected: true,
-      versionId: 'test-version-id',
-      assetId: 'test-asset-id',
-      taskId: 'test-task-id',
+      status: 'draft' as NoteStatus,
+      selected: false,
+      initialContent: '',
       onSave: mockSaveNote,
       onClear: vi.fn(),
-      onSelectToggle: vi.fn(),
-      autoSave: true,
-      autoSaveDelay: 300
+      onSelectToggle: vi.fn()
     };
+    
     renderWithUserEvent(<NoteInput {...noteInputProps} />);
     const textarea = screen.getByRole('textbox');
-    await userEvent.type(textarea, 'Test note', { delay: 100 });
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for debounce
+    await userEvent.type(textarea, 'Test note');
+    
+    // Verify the textarea contains the typed text
     expect(textarea).toHaveValue('Test note');
+    
+    // Check that onSave was called with both content and label parameters
     await waitFor(() => {
-      expect(mockSaveNote).toHaveBeenCalledWith('Test note');
+      expect(mockSaveNote).toHaveBeenCalledWith('Test note', expect.any(String));
     }, { timeout: 2000 });
   });
 });

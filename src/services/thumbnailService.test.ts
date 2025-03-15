@@ -1,68 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchThumbnail, clearThumbnailCache } from './thumbnailService';
-import { useThumbnailSettingsStore } from '../store/thumbnailSettingsStore';
-import type { Mock } from 'vitest';
+import { fetchThumbnail, clearThumbnailCache, _testing } from './thumbnailService';
 
 // Mock the thumbnail settings store
 vi.mock('../store/thumbnailSettingsStore', () => ({
-  useThumbnailSettingsStore: () => ({
-    getState: () => ({ size: 'medium' })
-  })
+  useThumbnailSettingsStore: {
+    getState: () => ({ size: 128 })
+  }
 }));
 
-// Mock the Tauri HTTP plugin
+// Mock the Tauri HTTP plugin with an inline function
 vi.mock('@tauri-apps/plugin-http', () => ({
-  fetch: vi.fn().mockResolvedValue({
+  fetch: vi.fn(() => Promise.resolve({
     ok: true,
     status: 200,
-    arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(10))
-  })
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(10))
+  }))
 }));
-
-// Mock the global URL object
-const mockCreateObjectURL = vi.fn().mockReturnValue('mock-blob-url');
-const mockRevokeObjectURL = vi.fn();
-
-interface MockMap<K, V> extends Map<K, V> {
-  has: Mock<boolean, [K]>;
-  get: Mock<V | undefined, [K]>;
-  set: Mock<MockMap<K, V>, [K, V]>;
-  forEach: Mock<void, [(value: V, key: K, map: Map<K, V>) => void, this]>;
-  clear: Mock<void, []>;
-  delete: Mock<boolean, [K]>;
-}
-
-const createMockMap = <K, V>(): MockMap<K, V> => {
-  const mockMap = new Map<K, V>() as MockMap<K, V>;
-  mockMap.has = vi.fn();
-  mockMap.get = vi.fn();
-  mockMap.set = vi.fn().mockReturnThis();
-  mockMap.forEach = vi.fn((callback: (value: V, key: K, map: Map<K, V>) => void) => {
-    mockMap.forEach((value, key) => callback(value, key, mockMap));
-  });
-  mockMap.clear = vi.fn();
-  mockMap.delete = vi.fn();
-  return mockMap;
-};
-
-let mockMap: MockMap<string, string>;
 
 describe('thumbnailService', () => {
   beforeEach(() => {
-    // Create a new mock Map instance before each test
-    mockMap = createMockMap<string, string>();
-    
-    // Set up global URL mock
+    // Reset all mocks
+    vi.clearAllMocks();
+
+    // Mock URL methods on the global object
     global.URL = {
-      createObjectURL: mockCreateObjectURL,
-      revokeObjectURL: mockRevokeObjectURL
+      createObjectURL: vi.fn(() => 'mock-blob-url'),
+      revokeObjectURL: vi.fn()
     } as unknown as typeof global.URL;
     
-    // Mock the global Map constructor to return our mock instance
-    vi.spyOn(global, 'Map').mockImplementation(() => mockMap);
-    
-    // Clear all mocks before each test
-    vi.clearAllMocks();
+    // Clear the thumbnail cache before each test
+    _testing.clearCache();
   });
 
   afterEach(() => {
@@ -81,65 +48,57 @@ describe('thumbnailService', () => {
     });
     
     it('should return cached thumbnail if available', async () => {
-      // Mock the thumbnailCache.has to return true for our test case
-      mockMap.has.mockReturnValueOnce(true);
-      mockMap.get.mockReturnValueOnce('mock-blob-url');
+      // Add a thumbnail to the cache
+      _testing.addToCache('test-component-id-128', 'mock-blob-url');
       
-      // Create mock session with required methods
+      // Create mock session
       const mockSession = {
-        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123'),
-        getServerUrl: vi.fn().mockReturnValue('https://example.com'),
-        getApiKey: vi.fn().mockReturnValue('api-key'),
-        getApiUser: vi.fn().mockReturnValue('api-user')
+        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123')
       };
       
-      // Call fetchThumbnail with a component ID
+      // Call the function
       const result = await fetchThumbnail('test-component-id', mockSession as any);
       
-      // Verify we got the cached URL
+      // Verify it returned the cached URL
       expect(result).toBe('mock-blob-url');
       expect(mockSession.thumbnailUrl).not.toHaveBeenCalled();
     });
     
     it('should fetch and cache thumbnail successfully', async () => {
-      // Mock the thumbnailCache to not have our key initially
-      mockMap.has.mockReturnValueOnce(false);
+      // Import the mocked fetch function
+      const { fetch } = await import('@tauri-apps/plugin-http');
       
-      // Create mock session with required methods
+      // Create mock session
       const mockSession = {
-        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123'),
-        getServerUrl: vi.fn().mockReturnValue('https://example.com'),
-        getApiKey: vi.fn().mockReturnValue('api-key'),
-        getApiUser: vi.fn().mockReturnValue('api-user')
+        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123')
       };
       
-      // Call fetchThumbnail
+      // Call the function
       const result = await fetchThumbnail('test-component-id', mockSession as any);
       
-      // Verify the thumbnail was fetched and cached correctly
-      expect(mockSession.thumbnailUrl).toHaveBeenCalledWith('test-component-id', { size: 'medium' });
-      expect(mockCreateObjectURL).toHaveBeenCalled();
-      expect(mockMap.set).toHaveBeenCalled();
+      // Verify the correct methods were called
+      expect(mockSession.thumbnailUrl).toHaveBeenCalledWith('test-component-id', { size: 128 });
+      expect(fetch).toHaveBeenCalledWith('https://example.com/thumbnail/123');
+      expect(URL.createObjectURL).toHaveBeenCalled();
+      
+      // Check the result and cache
       expect(result).toBe('mock-blob-url');
+      expect(_testing.getCacheSize()).toBe(1);
     });
     
     it('should handle fetch errors', async () => {
-      // Mock the thumbnailCache to not have our key
-      mockMap.has.mockReturnValueOnce(false);
+      // Import the mocked fetch function
+      const { fetch } = await import('@tauri-apps/plugin-http');
       
-      // Mock HTTP fetch to throw an error
-      const fetchMock = require('@tauri-apps/plugin-http').fetch;
-      fetchMock.mockRejectedValueOnce(new Error('Fetch error'));
+      // Make it throw an error for this test only
+      vi.mocked(fetch).mockRejectedValueOnce(new Error('Fetch error'));
       
-      // Create mock session with required methods
+      // Create mock session
       const mockSession = {
-        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123'),
-        getServerUrl: vi.fn().mockReturnValue('https://example.com'),
-        getApiKey: vi.fn().mockReturnValue('api-key'),
-        getApiUser: vi.fn().mockReturnValue('api-user')
+        thumbnailUrl: vi.fn().mockReturnValue('https://example.com/thumbnail/123')
       };
       
-      // Call fetchThumbnail
+      // Call the function
       const result = await fetchThumbnail('test-component-id', mockSession as any);
       
       // Verify error was handled correctly
@@ -150,50 +109,43 @@ describe('thumbnailService', () => {
   
   describe('clearThumbnailCache', () => {
     it('should clear the thumbnail cache and revoke all blob URLs', () => {
-      // Setup mock Map to simulate having cached thumbnails
-      mockMap.forEach.mockImplementation((callback) => {
-        callback('blob-url-1', 'key1', mockMap);
-        callback('blob-url-2', 'key2', mockMap);
-      });
+      // Add test URLs to the cache
+      _testing.addToCache('key1', 'blob-url-1');
+      _testing.addToCache('key2', 'blob-url-2');
       
-      // Call clearThumbnailCache
+      // Call the function
       clearThumbnailCache();
       
-      // Verify each URL was revoked and the cache was cleared
-      expect(mockRevokeObjectURL).toHaveBeenCalledTimes(2);
-      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob-url-1');
-      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob-url-2');
-      expect(mockMap.clear).toHaveBeenCalled();
+      // Verify revoke was called for each URL
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob-url-1');
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob-url-2');
+      expect(_testing.getCacheSize()).toBe(0);
     });
     
     it('should handle errors when revoking blob URLs', () => {
-      // Setup mock Map to simulate having cached thumbnails
-      mockMap.forEach.mockImplementation((callback) => {
-        callback('blob-url-1', 'key1', mockMap);
-        callback('blob-url-2', 'key2', mockMap);
-      });
+      // Add test URLs to the cache
+      _testing.addToCache('key1', 'blob-url-1');
+      _testing.addToCache('key2', 'blob-url-2');
       
-      // Make revokeObjectURL throw an error for the first call
-      mockRevokeObjectURL.mockImplementation(() => {
+      // Make the first call throw an error
+      vi.mocked(URL.revokeObjectURL).mockImplementationOnce(() => {
         throw new Error('Failed to revoke URL');
       });
       
-      // Mock console.error to verify it's called
+      // Spy on console.error
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       
-      // Call clearThumbnailCache
+      // Call the function
       clearThumbnailCache();
       
-      // Verify the error was handled and other operations continued
+      // Verify error handling
       expect(consoleErrorSpy).toHaveBeenCalled();
-      expect(mockRevokeObjectURL).toHaveBeenCalledTimes(2); 
-      expect(mockMap.clear).toHaveBeenCalled();
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+      expect(_testing.getCacheSize()).toBe(0);
       
       // Restore console.error
       consoleErrorSpy.mockRestore();
     });
   });
 });
-
-const mockFetch = vi.fn();
-global.fetch = mockFetch;

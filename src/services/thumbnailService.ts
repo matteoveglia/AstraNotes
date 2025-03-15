@@ -98,3 +98,16 @@ export const clearThumbnailCache = (): void => {
   thumbnailCache.clear();
   console.debug('[ThumbnailService] Thumbnail cache cleared');
 };
+
+// For testing purposes only
+export const _testing = {
+  addToCache: (key: string, url: string) => {
+    thumbnailCache.set(key, url);
+  },
+  clearCache: () => {
+    thumbnailCache.clear();
+  },
+  getCacheSize: () => {
+    return thumbnailCache.size;
+  }
+};
