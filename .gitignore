@@ -54,3 +54,5 @@ coverage
 .debug
 # Sentry Config File
 .env.sentry-build-plugin
+
+*storybook.log

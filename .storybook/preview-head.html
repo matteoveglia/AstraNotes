@@ -1,0 +1,50 @@
+<script>
+  // Mock Tauri APIs
+  window.__TAURI__ = {
+    invoke: async (command, args) => {
+      console.log(`[Mock Tauri] Invoke: ${command}`, args);
+      return null;
+    }
+  };
+  
+  // Mock file system
+  window.fs = {
+    readFile: async (path, options) => {
+      console.log(`[Mock] Reading file: ${path}`, options);
+      return new TextEncoder().encode('{"mocked":"data"}');
+    }
+  };
+
+  // Add mock store containers
+  window.mockStores = {
+    settings: {},
+    labels: []
+  };
+
+  // Mock store hooks
+  window.useSettings = () => ({
+    settings: {
+      serverUrl: "",
+      apiKey: "",
+      apiUser: "",
+      autoRefreshEnabled: true
+    },
+    setSettings: () => {}
+  });
+
+  window.useLabelStore = () => ({
+    labels: [],
+    fetchLabels: () => {},
+    isLoading: false,
+    error: null
+  });
+
+  window.ftrackService = {
+    testConnection: () => Promise.resolve(true),
+    updateSettings: () => {},
+    getNoteLabels: () => Promise.resolve([
+      { id: '1', name: 'Client Note', color: '#0d88b5', textColor: '#ffffff' },
+      { id: '2', name: 'Internal', color: '#9c9c9c', textColor: '#ffffff' }
+    ])
+  };
+</script>

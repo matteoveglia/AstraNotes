@@ -8,10 +8,12 @@ export interface Playlist {
   isQuickNotes?: boolean;
 }
 
+export type NoteStatus = "draft" | "published" | "empty" | "reviewed";
+
 export interface Note {
   id: string;
   content: string;
-  status: "draft" | "published" | "reviewed";
+  status: NoteStatus;
   selected: boolean;
   versionId: string;
   playlistId: string;

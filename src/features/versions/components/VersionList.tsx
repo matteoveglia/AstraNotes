@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { AssetVersion } from '@/types';
+import { AssetVersion, NoteStatus } from '@/types';
 import { VersionItem } from './VersionItem';
 import { motion } from 'motion/react';
 
@@ -15,7 +15,7 @@ interface VersionListProps {
   loadingStatus: Record<string, string>;
   noteDrafts: Record<string, string>;
   noteLabelIds: Record<string, string>;
-  noteStatuses: Record<string, string>;
+  noteStatuses: Record<string, NoteStatus>;
   onVersionSelect: (versionId: string) => void;
   onNoteChange: (versionId: string, content: string, labelId: string) => void;
   onNoteClear: (versionId: string) => void;
@@ -92,7 +92,7 @@ export const VersionList: React.FC<VersionListProps> = ({
           thumbnailLoading={loadingStatus[version.id] === 'loading'}
           draftContent={noteDrafts[version.id] || ''}
           labelId={noteLabelIds[version.id] || ''}
-          noteStatus={noteStatuses[version.id] || 'empty'}
+          noteStatus={(noteStatuses[version.id] || 'empty') as NoteStatus}
           onSelect={() => onVersionSelect(version.id)}
           onNoteChange={(content, labelId) => onNoteChange(version.id, content, labelId)}
           onNoteClear={() => onNoteClear(version.id)}

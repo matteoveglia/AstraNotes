@@ -6,7 +6,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { NoteInput } from '@/components/NoteInput';
-import { AssetVersion } from '@/types';
+import { AssetVersion, NoteStatus } from '@/types';
 import { motion } from 'motion/react';
 import { ThumbnailPreview } from '@/features/versions/components/ThumbnailPreview';
 
@@ -17,7 +17,7 @@ interface VersionItemProps {
   thumbnailLoading?: boolean;
   draftContent?: string;
   labelId?: string;
-  noteStatus?: string;
+  noteStatus?: NoteStatus;
   onSelect: () => void;
   onNoteChange: (content: string, labelId: string) => void;
   onNoteClear: () => void;
@@ -41,7 +41,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   thumbnailLoading = false,
   draftContent = '',
   labelId = '',
-  noteStatus = 'empty',
+  noteStatus = 'empty' as NoteStatus,
   onSelect,
   onNoteChange,
   onNoteClear
@@ -80,13 +80,15 @@ export const VersionItem: React.FC<VersionItemProps> = ({
           
           <div className="flex-1">
             <NoteInput
+              versionName={version.name}
+              versionNumber={version.version.toString()}
               initialContent={draftContent}
               initialLabelId={labelId}
               status={noteStatus}
               onSave={handleNoteInputSave}
               onClear={onNoteClear}
               onSelectToggle={onSelect}
-              isSelected={isSelected}
+              selected={isSelected}
             />
           </div>
         </CardContent>

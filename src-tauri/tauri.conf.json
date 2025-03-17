@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AstraNotes",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.AstraLumen.Notes",
   "build": {
     "frontendDist": "../dist",
@@ -32,7 +32,7 @@
   "bundle": {
     "active": true,
     "targets": [
-      "nsis",
+      "msi",
       "app",
       "dmg"
     ],

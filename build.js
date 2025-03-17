@@ -300,8 +300,8 @@ try {
     console.log('[ASTRABUILD] Build completed successfully');
 
     // Post-build updates
-    updateLatestJson();
     moveArtifacts();
+    updateLatestJson();
     
     console.log('[ASTRABUILD] Release automation completed successfully');
 } catch (err) {

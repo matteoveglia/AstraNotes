@@ -1,15 +1,15 @@
 {
-  "version": "0.2.0",
-  "notes": "Slew of changes, changed maincontent mounting method, more robust DB handling, added visual aid for manually added versions, clear cache now reloads app to clear react cache",
-  "pub_date": "2025-03-05T18:49:32.588Z",
+  "version": "0.3.0",
+  "notes": "Major refactoring. Fixed multiple small issues with persistence. Added toast notification system.",
+  "pub_date": "2025-03-17T19:05:28.535Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.2.0/AstraNotes_0.2.0_x64-setup.exe",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1Lzd0cExqejY1bi9HSEE2WFVJNG1XQjVJTk1rUlBlcFA2VEdyYi9KWDduR3RVMFBwOVhGY29LeEZSNEdaeFBuNkd4ZFI0Q0svdWVoWjVORklWRWlCVkEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQxMTk5NzMwCWZpbGU6QXN0cmFOb3Rlc18wLjIuMF94NjQtc2V0dXAuZXhlCnNyakI0TGozN3pCaDA3UFZ1RC9UbXJpN05KckZNOEl1NGQrclhUVlVnMm5nV1B0dmlrbEVvSW1aQnNsSC8yTXRyR2c3R0ZmV0lOZENibW5oN1RxQkN3PT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.2.0/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzMvZG1iS2pnNFl5bGhtR2Z5R0NsRlZHYnR0NWZ6WWFNUnBocnREdHNFa2pOSDk1Uk92alhDUmNVcTRaeTcwNEpNbHV0OG9sRVQrWlN1TUZVODc5cUFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQxMjAwNTcyCWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6Cnh2dGNOcDNsY09tcW5TMllpaFcxQ3hKRzkvOHJDRUM3eFNXNTV0WnZQQ2c0SklXZ1dvR0ovczROSVg1WTh2RC9qSDFVaXdWUkRtOGZYYmhsZkx1N0RRPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.0/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3hMT1dzbGE4UDgvVXcralNjZVkwOUtCcmp4U2RINWNBblNRRlRRS2p1NC80R0RmV0Z6czZjTXc4M2gwbDhoWWxURVV6Y3hialNDU0dZMDA3WEVZRFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyMjM4MzI4CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CndBRjkwOHZ5cjlsVEFrZUpjVzVsa0ZHSHhkMlUzL0Fxc3doZXRRbkJtOHplSUdsUzBEVklBWnQ2cDRhTEY3cGhMSWloaWs2NFVJby8veEozcERHT0FBPT0K"
     }
   }
 }
