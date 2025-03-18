@@ -34,9 +34,11 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
       className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1 rounded-md text-sm"
     >
       <span>
-        {addedCount > 0 && `${addedCount} version${addedCount !== 1 ? "s" : ""} added`}
+        {addedCount > 0 &&
+          `${addedCount} version${addedCount !== 1 ? "s" : ""} added`}
         {addedCount > 0 && removedCount > 0 && ", "}
-        {removedCount > 0 && `${removedCount} version${removedCount !== 1 ? "s" : ""} removed`}
+        {removedCount > 0 &&
+          `${removedCount} version${removedCount !== 1 ? "s" : ""} removed`}
       </span>
       <Button
         size="sm"

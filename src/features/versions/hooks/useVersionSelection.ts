@@ -4,7 +4,7 @@
  * Handles selecting, deselecting, and toggling versions.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
 export function useVersionSelection() {
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
@@ -13,7 +13,7 @@ export function useVersionSelection() {
     setSelectedVersions((prev) =>
       prev.includes(versionId)
         ? prev.filter((id) => id !== versionId)
-        : [...prev, versionId]
+        : [...prev, versionId],
     );
   }, []);
 
@@ -34,7 +34,7 @@ export function useVersionSelection() {
 
   const isSelected = useCallback(
     (versionId: string) => selectedVersions.includes(versionId),
-    [selectedVersions]
+    [selectedVersions],
   );
 
   return {

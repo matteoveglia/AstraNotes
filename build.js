@@ -135,7 +135,7 @@ const updateLatestJson = () => {
 
     if (target === 'win') {
         // Windows-specific update
-        const exeFile = `AstraNotes_${newVersion}_x64-setup.exe`;
+        const exeFile = `AstraNotes_${newVersion}_x64_en-US.msi`;
         const exePath = `./dist-tauri/${exeFile}`;
         const sigPath = `${exePath}.sig`;
 
@@ -210,7 +210,7 @@ const moveArtifacts = () => {
     try {
         if (target === 'win') {
             // Windows NSIS installer and signature
-            const exeFile = `AstraNotes_${newVersion}_x64-setup.exe`;
+            const exeFile = `AstraNotes_${newVersion}_x64_en-US.msi`;
             const exePath = `${bundlePath}/nsis/${exeFile}`;
             const sigPath = `${exePath}.sig`;
             

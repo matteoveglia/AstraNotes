@@ -24,8 +24,8 @@ import { db } from "../store/db";
 import { playlistStore } from "../store/playlistStore";
 import { useSettings } from "../store/settingsStore";
 import { useLabelStore } from "../store/labelStore";
-import { useThumbnailSettingsStore } from '../store/thumbnailSettingsStore';
-import { clearThumbnailCache } from '../services/thumbnailService';
+import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
+import { clearThumbnailCache } from "../services/thumbnailService";
 import { usePlaylistsStore } from "../store/playlistsStore";
 import {
   Select,
@@ -114,34 +114,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleClearCache = async () => {
     try {
       setIsLoading(true);
-      
+
       // Close the modal first
       setIsOpen(false);
-      
+
       // Clear all tables
       await db.playlists.clear();
       await db.versions.clear();
 
       // Reset any polling that might be happening
       playlistStore.stopPolling();
-      
+
       // Clear thumbnail cache
       clearThumbnailCache();
-      
+
       // Reset UI state
       onCloseAllPlaylists();
-      
+
       // Set active playlist to Quick Notes
       setActivePlaylist("quick-notes");
-      
+
       // Reload playlists from FTrack
       await onLoadPlaylists();
-      
+
       // For a complete reset reload the window
       window.location.reload();
     } catch (err) {
       console.error("Failed to clear cache:", err);
-      alert("Failed to clear cache: " + (err instanceof Error ? err.message : String(err)));
+      alert(
+        "Failed to clear cache: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -272,7 +275,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div className="flex items-center justify-between">
                 <Label>Thumbnail Quality</Label>
-                <Select onValueChange={(value) => handleSizeChange(Number(value))} value={size.toString()}>
+                <Select
+                  onValueChange={(value) => handleSizeChange(Number(value))}
+                  value={size.toString()}
+                >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select quality" />
                   </SelectTrigger>

@@ -9,9 +9,9 @@ const meta: Meta<typeof NoteInput> = {
   },
   tags: ["autodocs"],
   argTypes: {
-    status: { 
-      control: "select", 
-      options: ["empty", "draft", "published"] 
+    status: {
+      control: "select",
+      options: ["empty", "draft", "published"],
     },
   },
 };
@@ -42,7 +42,7 @@ export const WithDraft: Story = {
     onSave: (content, labelId) => console.log("Save", { content, labelId }),
     onClear: () => console.log("Clear"),
     onSelectToggle: () => console.log("Toggle Selection"),
-    initialLabelId: ""
+    initialLabelId: "",
   },
 };
 

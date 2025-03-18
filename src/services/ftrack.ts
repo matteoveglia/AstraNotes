@@ -111,11 +111,12 @@ export class FtrackService {
       log("Failed to initialize session:", error);
       this.session = null;
       this.currentUserId = null;
-      
+
       // Preserve the original error type and message
       if (error instanceof Error) {
         const authError = new Error(error.message);
-        authError.name = error.name === "ServerError" ? "ServerError" : "AuthenticationError";
+        authError.name =
+          error.name === "ServerError" ? "ServerError" : "AuthenticationError";
         throw authError;
       } else {
         const authError = new Error("Failed to initialize ftrack session");
@@ -178,7 +179,10 @@ export class FtrackService {
       //console.debug('[FtrackService] Raw version data:', version);
       // Extract thumbnail ID for later fetching
       let thumbnailId = null;
-      if (version.asset_version.thumbnail && version.asset_version.thumbnail.id) {
+      if (
+        version.asset_version.thumbnail &&
+        version.asset_version.thumbnail.id
+      ) {
         thumbnailId = version.asset_version.thumbnail.id;
         //console.debug('[FtrackService] Found thumbnail ID:', thumbnailId);
       } else {

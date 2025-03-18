@@ -3,10 +3,10 @@
  * Component for displaying a list of versions with animations and filtering.
  */
 
-import React, { useMemo } from 'react';
-import { AssetVersion, NoteStatus } from '@/types';
-import { VersionItem } from './VersionItem';
-import { motion } from 'motion/react';
+import React, { useMemo } from "react";
+import { AssetVersion, NoteStatus } from "@/types";
+import { VersionItem } from "./VersionItem";
+import { motion } from "motion/react";
 
 interface VersionListProps {
   versions: AssetVersion[];
@@ -27,15 +27,15 @@ const gridVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.04
-    }
+      staggerChildren: 0.04,
+    },
   },
   exit: {
     opacity: 0,
     transition: {
-      staggerChildren: 0.02
-    }
-  }
+      staggerChildren: 0.02,
+    },
+  },
 };
 
 export const VersionList: React.FC<VersionListProps> = ({
@@ -49,17 +49,18 @@ export const VersionList: React.FC<VersionListProps> = ({
   onVersionSelect,
   onNoteChange,
   onNoteClear,
-  searchQuery = ''
+  searchQuery = "",
 }) => {
   // Filter versions based on search query if provided
   const filteredVersions = useMemo(() => {
     if (!searchQuery) return versions;
-    
+
     const query = searchQuery.toLowerCase();
-    return versions.filter(version => 
-      version.name.toLowerCase().includes(query) || 
-      version.id.toLowerCase().includes(query) ||
-      (version.version && version.version.toString().includes(query))
+    return versions.filter(
+      (version) =>
+        version.name.toLowerCase().includes(query) ||
+        version.id.toLowerCase().includes(query) ||
+        (version.version && version.version.toString().includes(query)),
     );
   }, [versions, searchQuery]);
 
@@ -89,19 +90,23 @@ export const VersionList: React.FC<VersionListProps> = ({
           version={version}
           isSelected={selectedVersions.includes(version.id)}
           thumbnailUrl={thumbnails[version.id]}
-          thumbnailLoading={loadingStatus[version.id] === 'loading'}
-          draftContent={noteDrafts[version.id] || ''}
-          labelId={noteLabelIds[version.id] || ''}
-          noteStatus={(noteStatuses[version.id] || 'empty') as NoteStatus}
+          thumbnailLoading={loadingStatus[version.id] === "loading"}
+          draftContent={noteDrafts[version.id] || ""}
+          labelId={noteLabelIds[version.id] || ""}
+          noteStatus={(noteStatuses[version.id] || "empty") as NoteStatus}
           onSelect={() => onVersionSelect(version.id)}
-          onNoteChange={(content, labelId) => onNoteChange(version.id, content, labelId)}
+          onNoteChange={(content, labelId) =>
+            onNoteChange(version.id, content, labelId)
+          }
           onNoteClear={() => onNoteClear(version.id)}
         />
       ))}
-      
+
       {sortedVersions.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          {searchQuery ? 'No versions match your search query' : 'No versions available'}
+          {searchQuery
+            ? "No versions match your search query"
+            : "No versions available"}
         </div>
       )}
     </motion.div>

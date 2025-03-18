@@ -24,10 +24,10 @@ const App: React.FC = () => {
   } = usePlaylistsStore();
   const { fetchLabels } = useLabelStore();
   const [loadingVersions, setLoadingVersions] = useState(false);
-  
+
   // Store loaded versions to prevent reloading
   const loadedVersionsRef = useRef<Record<string, boolean>>({
-    "quick-notes": true // Quick Notes doesn't need versions
+    "quick-notes": true, // Quick Notes doesn't need versions
   });
 
   useEffect(() => {
@@ -52,22 +52,30 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadVersionsForActivePlaylist = async () => {
       // Skip if it's Quick Notes or if we've already loaded versions for this playlist
-      if (activePlaylistId === "quick-notes" || (activePlaylistId && loadedVersionsRef.current[activePlaylistId])) {
+      if (
+        activePlaylistId === "quick-notes" ||
+        (activePlaylistId && loadedVersionsRef.current[activePlaylistId])
+      ) {
         return;
       }
-      
+
       setLoadingVersions(true);
       try {
         if (!activePlaylistId) {
           console.error("No active playlist ID available");
           return;
         }
-        
-        console.log(`Loading versions for active playlist: ${activePlaylistId}`);
-        const versions = await ftrackService.getPlaylistVersions(activePlaylistId);
+
+        console.log(
+          `Loading versions for active playlist: ${activePlaylistId}`,
+        );
+        const versions =
+          await ftrackService.getPlaylistVersions(activePlaylistId);
         setPlaylists(
           playlists.map((playlist) =>
-            playlist.id === activePlaylistId ? { ...playlist, versions } : playlist,
+            playlist.id === activePlaylistId
+              ? { ...playlist, versions }
+              : playlist,
           ),
         );
         // Mark that we've loaded versions for this playlist
@@ -78,7 +86,7 @@ const App: React.FC = () => {
         setLoadingVersions(false);
       }
     };
-    
+
     loadVersionsForActivePlaylist();
   }, [activePlaylistId, playlists, setPlaylists]);
 
@@ -111,18 +119,24 @@ const App: React.FC = () => {
 
   // Get the active playlist data
   const activePlaylistData = playlists.find((p) => p.id === activePlaylistId);
-  
+
   // Determine if we're ready to render the MainContent
-  const isPlaylistReady = activePlaylistData && 
-    (activePlaylistData.isQuickNotes || 
-    (activePlaylistId && loadedVersionsRef.current[activePlaylistId] && !loadingVersions));
+  const isPlaylistReady =
+    activePlaylistData &&
+    (activePlaylistData.isQuickNotes ||
+      (activePlaylistId &&
+        loadedVersionsRef.current[activePlaylistId] &&
+        !loadingVersions));
 
   return (
     <ToastProvider>
       <ErrorBoundary>
         <div className="h-screen flex flex-col">
           <TopBar>
-            <SettingsModal onLoadPlaylists={loadPlaylists} onCloseAllPlaylists={handleCloseAll} />
+            <SettingsModal
+              onLoadPlaylists={loadPlaylists}
+              onCloseAllPlaylists={handleCloseAll}
+            />
           </TopBar>
           <div className="flex-1 flex overflow-hidden">
             <PlaylistPanel
@@ -138,9 +152,13 @@ const App: React.FC = () => {
                   <ErrorBoundary
                     fallback={
                       <div className="h-full flex flex-col items-center justify-center p-6">
-                        <h3 className="text-xl font-semibold text-red-600 mb-2">Error loading content</h3>
-                        <p className="text-gray-700 mb-4">Failed to load playlist content</p>
-                        <button 
+                        <h3 className="text-xl font-semibold text-red-600 mb-2">
+                          Error loading content
+                        </h3>
+                        <p className="text-gray-700 mb-4">
+                          Failed to load playlist content
+                        </p>
+                        <button
                           onClick={() => window.location.reload()}
                           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
                         >
@@ -149,7 +167,7 @@ const App: React.FC = () => {
                       </div>
                     }
                   >
-                    <MainContent 
+                    <MainContent
                       playlist={activePlaylistData}
                       onPlaylistUpdate={handlePlaylistUpdate}
                     />
@@ -159,7 +177,9 @@ const App: React.FC = () => {
                     <div className="text-center">
                       {error ? (
                         <>
-                          <p className="text-red-500 text-xl mb-2">Error loading playlists</p>
+                          <p className="text-red-500 text-xl mb-2">
+                            Error loading playlists
+                          </p>
                           <p className="text-gray-600 mb-4">{error}</p>
                           <button
                             onClick={loadPlaylists}
@@ -171,14 +191,18 @@ const App: React.FC = () => {
                       ) : isLoading ? (
                         <p className="text-gray-500">Loading playlists...</p>
                       ) : (
-                        <p className="text-gray-500">Select a playlist to view</p>
+                        <p className="text-gray-500">
+                          Select a playlist to view
+                        </p>
                       )}
                     </div>
                   </div>
                 )}
               </div>
               <OpenPlaylistsBar
-                playlists={playlists.filter((p) => openPlaylists.includes(p.id))}
+                playlists={playlists.filter((p) =>
+                  openPlaylists.includes(p.id),
+                )}
                 activePlaylist={activePlaylistId}
                 onPlaylistSelect={handlePlaylistSelect}
                 onPlaylistClose={handlePlaylistClose}

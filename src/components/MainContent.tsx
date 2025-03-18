@@ -39,7 +39,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
-  
+
   // Ref for tracking if component is mounted
   const isMountedRef = useRef(true);
 
@@ -50,11 +50,11 @@ export const MainContent: React.FC<MainContentProps> = ({
     const initializePlaylist = async () => {
       setIsInitializing(true);
       console.debug(`[MainContent] Initializing playlist ${playlist.id}`);
-      
+
       try {
         // Stop any existing polling before initializing a new playlist
         playlistStore.stopPolling();
-        
+
         // Initialize in the store
         await playlistStore.initializePlaylist(playlist.id, playlist);
 
@@ -76,7 +76,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     };
 
     initializePlaylist();
-    
+
     // Cleanup when unmounting
     return () => {
       console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
@@ -86,14 +86,14 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Use custom hooks
   const { settings } = useSettings();
-  const { 
-    modifications, 
-    isRefreshing, 
+  const {
+    modifications,
+    isRefreshing,
     pendingVersions,
-    applyPendingChanges, 
-    refreshPlaylist 
+    applyPendingChanges,
+    refreshPlaylist,
   } = usePlaylistModifications(activePlaylist, onPlaylistUpdate);
-  
+
   const {
     selectedVersions,
     noteStatuses,
@@ -107,9 +107,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     publishAllNotes,
     clearAllNotes,
     setAllLabels,
-    getDraftCount
+    getDraftCount,
   } = useNoteManagement(activePlaylist);
-  
+
   const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
 
   // Auto-refresh polling based on settings
@@ -123,7 +123,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
 
     // Start polling when component mounts
-    console.debug(`[MainContent] Starting polling for playlist ${activePlaylist.id}`);
+    console.debug(
+      `[MainContent] Starting polling for playlist ${activePlaylist.id}`,
+    );
     playlistStore.startPolling(
       activePlaylist.id,
       (added, removed, addedVersions, removedVersions, freshVersions) => {
@@ -135,7 +137,9 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Stop polling when component unmounts or playlist changes
     return () => {
-      console.debug(`[MainContent] Stopping polling for playlist ${activePlaylist.id}`);
+      console.debug(
+        `[MainContent] Stopping polling for playlist ${activePlaylist.id}`,
+      );
       playlistStore.stopPolling();
     };
   }, [
@@ -147,7 +151,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Cleanup when component unmounts
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     return () => {
       // Mark component as unmounted
       isMountedRef.current = false;
@@ -175,15 +179,16 @@ export const MainContent: React.FC<MainContentProps> = ({
       if (onPlaylistUpdate) {
         onPlaylistUpdate(updatedPlaylist);
       }
-      
+
       // Update the local state as well to ensure immediate UI update
       setMergedPlaylist(updatedPlaylist);
-      
+
       // Clear any note drafts for the removed versions
-      const removedVersionIds = activePlaylist.versions
-        ?.filter(v => v.manuallyAdded)
-        .map(v => v.id) || [];
-        
+      const removedVersionIds =
+        activePlaylist.versions
+          ?.filter((v) => v.manuallyAdded)
+          .map((v) => v.id) || [];
+
       if (removedVersionIds.length > 0) {
         // The note management is now handled by the useNoteManagement hook
         // We need to clear the notes for each removed version
@@ -216,9 +221,13 @@ export const MainContent: React.FC<MainContentProps> = ({
       if (!activePlaylist.id) return;
 
       // Check if the version already exists in the playlist
-      const versionExists = activePlaylist.versions?.some(v => v.id === version.id);
+      const versionExists = activePlaylist.versions?.some(
+        (v) => v.id === version.id,
+      );
       if (versionExists) {
-        console.log(`Version ${version.id} already exists in playlist ${activePlaylist.id}, skipping`);
+        console.log(
+          `Version ${version.id} already exists in playlist ${activePlaylist.id}, skipping`,
+        );
         return;
       }
 
@@ -231,7 +240,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Add to the database first to ensure it exists
       await playlistStore.addVersionToPlaylist(
         activePlaylist.id,
-        versionWithFlag
+        versionWithFlag,
       );
 
       // Then update the UI
@@ -342,9 +351,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       <SearchPanel
         onVersionSelect={handleVersionSelect}
         onClearAdded={handleClearAdded}
-        hasManuallyAddedVersions={Boolean(activePlaylist.versions?.some(
-          (v) => v.manuallyAdded,
-        ))}
+        hasManuallyAddedVersions={Boolean(
+          activePlaylist.versions?.some((v) => v.manuallyAdded),
+        )}
         isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
       />
     </Card>

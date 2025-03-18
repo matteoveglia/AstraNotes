@@ -4,9 +4,9 @@
  * Handles CORS issues by using Tauri's HTTP plugin.
  */
 
-import { fetch } from '@tauri-apps/plugin-http';
-import { Session } from '@ftrack/api';
-import { useThumbnailSettingsStore } from '../store/thumbnailSettingsStore';
+import { fetch } from "@tauri-apps/plugin-http";
+import { Session } from "@ftrack/api";
+import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
 
 // Cache for thumbnail blob URLs
 const thumbnailCache = new Map<string, string>();
@@ -25,10 +25,10 @@ interface ThumbnailOptions {
 export async function fetchThumbnail(
   componentId: string | null | undefined,
   session: Session,
-  options: ThumbnailOptions = {}
+  options: ThumbnailOptions = {},
 ): Promise<string | null> {
   if (!componentId) {
-    console.debug('[ThumbnailService] No component ID provided');
+    console.debug("[ThumbnailService] No component ID provided");
     return null;
   }
 
@@ -36,7 +36,7 @@ export async function fetchThumbnail(
 
   // Check cache first
   const { size } = useThumbnailSettingsStore.getState();
-  const cacheKey = `${componentId}-${size || 'default'}`;
+  const cacheKey = `${componentId}-${size || "default"}`;
   //console.debug('[ThumbnailService] Checking cache for thumbnail ID:', cacheKey);
   if (thumbnailCache.has(cacheKey)) {
     //console.debug('[ThumbnailService] Using cached thumbnail for', componentId);
@@ -52,28 +52,30 @@ export async function fetchThumbnail(
     // Use Tauri HTTP plugin to fetch the thumbnail (bypassing CORS)
     const response = await fetch(thumbnailUrl);
     //console.debug('[ThumbnailService] Response status:', response.status);
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch thumbnail: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch thumbnail: ${response.status} ${response.statusText}`,
+      );
     }
-    
+
     // Get the binary data
     const binaryData = await response.arrayBuffer();
     //console.debug('[ThumbnailService] Received binary data of length:', binaryData.byteLength);
-    
+
     // Convert binary data to a Blob
-    const blob = new Blob([binaryData], { type: 'image/jpeg' });
-    
+    const blob = new Blob([binaryData], { type: "image/jpeg" });
+
     // Create a blob URL
     const blobUrl = URL.createObjectURL(blob);
     //console.debug('[ThumbnailService] Created blob URL:', blobUrl);
-    
+
     // Cache the blob URL
     thumbnailCache.set(cacheKey, blobUrl);
-    
+
     return blobUrl;
   } catch (error) {
-    console.error('[ThumbnailService] Failed to fetch thumbnail:', error);
+    console.error("[ThumbnailService] Failed to fetch thumbnail:", error);
     return null;
   }
 }
@@ -82,21 +84,21 @@ export async function fetchThumbnail(
  * Clears the thumbnail cache and revokes all blob URLs
  */
 export const clearThumbnailCache = (): void => {
-  console.debug('[ThumbnailService] Clearing thumbnail cache');
-  
+  console.debug("[ThumbnailService] Clearing thumbnail cache");
+
   // Revoke all blob URLs to prevent memory leaks
   thumbnailCache.forEach((url) => {
     try {
       URL.revokeObjectURL(url);
       //console.debug('[ThumbnailService] Revoked blob URL:', url);
     } catch (error) {
-      console.error('[ThumbnailService] Error revoking blob URL:', error);
+      console.error("[ThumbnailService] Error revoking blob URL:", error);
     }
   });
-  
+
   // Clear the cache
   thumbnailCache.clear();
-  console.debug('[ThumbnailService] Thumbnail cache cleared');
+  console.debug("[ThumbnailService] Thumbnail cache cleared");
 };
 
 // For testing purposes only
@@ -109,5 +111,5 @@ export const _testing = {
   },
   getCacheSize: () => {
     return thumbnailCache.size;
-  }
+  },
 };

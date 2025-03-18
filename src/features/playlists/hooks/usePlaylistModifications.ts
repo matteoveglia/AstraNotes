@@ -4,10 +4,10 @@
  * Handles detecting changes, applying updates, and refreshing playlists.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { Playlist, AssetVersion } from '@/types';
-import { playlistStore } from '@/store/playlistStore';
-import { ftrackService } from '@/services/ftrack';
+import { useState, useEffect, useCallback } from "react";
+import { Playlist, AssetVersion } from "@/types";
+import { playlistStore } from "@/store/playlistStore";
+import { ftrackService } from "@/services/ftrack";
 
 interface Modifications {
   added: number;
@@ -18,18 +18,25 @@ interface Modifications {
 
 export function usePlaylistModifications(
   playlist: Playlist,
-  onPlaylistUpdate?: (playlist: Playlist) => void
+  onPlaylistUpdate?: (playlist: Playlist) => void,
 ) {
-  const [modifications, setModifications] = useState<Modifications>({ added: 0, removed: 0 });
+  const [modifications, setModifications] = useState<Modifications>({
+    added: 0,
+    removed: 0,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(null);
+  const [pendingVersions, setPendingVersions] = useState<AssetVersion[] | null>(
+    null,
+  );
 
   // Start polling for changes when component mounts
   useEffect(() => {
     // Don't poll for Quick Notes playlist
     if (playlist.isQuickNotes) return;
 
-    console.debug(`[usePlaylistModifications] Starting polling for playlist ${playlist.id}`);
+    console.debug(
+      `[usePlaylistModifications] Starting polling for playlist ${playlist.id}`,
+    );
     playlistStore.startPolling(
       playlist.id,
       (added, removed, addedVersions, removedVersions, freshVersions) => {
@@ -48,7 +55,9 @@ export function usePlaylistModifications(
 
     // Stop polling when component unmounts or playlist changes
     return () => {
-      console.debug(`[usePlaylistModifications] Stopping polling for playlist ${playlist.id}`);
+      console.debug(
+        `[usePlaylistModifications] Stopping polling for playlist ${playlist.id}`,
+      );
       playlistStore.stopPolling();
     };
   }, [playlist.id, playlist.isQuickNotes]);
@@ -106,7 +115,7 @@ export function usePlaylistModifications(
           }
         },
       );
-      
+
       return true;
     } catch (error) {
       console.error("Failed to apply changes:", error);

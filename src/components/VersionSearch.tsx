@@ -12,7 +12,7 @@ import { Button } from "./ui/button";
 import { useDebounce } from "../hooks/useDebounce";
 import { AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
-import { motion } from 'motion/react';
+import { motion } from "motion/react";
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -65,25 +65,25 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.04
-      }
-    }
+        staggerChildren: 0.04,
+      },
+    },
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       scale: 0.8,
-      transition: { duration: 0.2 }
+      transition: { duration: 0.2 },
     },
     transition: {
       type: "spring",
       stiffness: 100,
       damping: 10,
-      duration: 0.6
-    }
+      duration: 0.6,
+    },
   };
 
   return (
@@ -116,7 +116,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-gray-500">Loading...</div>
+          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-gray-500">
+            Loading...
+          </div>
         ) : results.length > 0 ? (
           <motion.div
             className="grid grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[300px] overflow-y-auto"

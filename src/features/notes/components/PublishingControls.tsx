@@ -7,7 +7,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { PlaylistMenu } from "@/components/PlaylistMenu";
-import { GlowEffect } from '@/components/ui/glow-effect';
+import { GlowEffect } from "@/components/ui/glow-effect";
 
 interface PublishingControlsProps {
   selectedCount: number;
@@ -41,9 +41,9 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
       <div className="relative inline-block">
         {draftCount > 0 && !isPublishing && (
           <GlowEffect
-            colors={['#FF5733', '#33FF57', '#3357FF', '#F1C40F']}
-            mode='pulse'
-            blur='soft'
+            colors={["#FF5733", "#33FF57", "#3357FF", "#F1C40F"]}
+            mode="pulse"
+            blur="soft"
             duration={3}
             scale={1.1}
           />

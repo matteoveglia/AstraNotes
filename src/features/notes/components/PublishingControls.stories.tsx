@@ -21,7 +21,8 @@ export const NoSelection: Story = {
     onPublishSelected: () => console.log("Publish selected clicked"),
     onPublishAll: () => console.log("Publish all clicked"),
     onClearAllNotes: () => console.log("Clear all notes clicked"),
-    onSetAllLabels: (labelId) => console.log("Set all labels clicked with labelId:", labelId),
+    onSetAllLabels: (labelId) =>
+      console.log("Set all labels clicked with labelId:", labelId),
   },
 };
 
@@ -33,7 +34,8 @@ export const WithSelection: Story = {
     onPublishSelected: () => console.log("Publish selected clicked"),
     onPublishAll: () => console.log("Publish all clicked"),
     onClearAllNotes: () => console.log("Clear all notes clicked"),
-    onSetAllLabels: (labelId) => console.log("Set all labels clicked with labelId:", labelId),
+    onSetAllLabels: (labelId) =>
+      console.log("Set all labels clicked with labelId:", labelId),
   },
 };
 
@@ -45,6 +47,7 @@ export const Publishing: Story = {
     onPublishSelected: () => console.log("Publish selected clicked"),
     onPublishAll: () => console.log("Publish all clicked"),
     onClearAllNotes: () => console.log("Clear all notes clicked"),
-    onSetAllLabels: (labelId) => console.log("Set all labels clicked with labelId:", labelId),
+    onSetAllLabels: (labelId) =>
+      console.log("Set all labels clicked with labelId:", labelId),
   },
 };

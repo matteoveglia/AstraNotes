@@ -60,7 +60,10 @@ export const BothChanges: Story = {
     onUpdate: () => console.log("Update clicked"),
     isUpdating: false,
     addedVersions: mockVersions,
-    removedVersions: [...mockVersions, { ...mockVersions[0], id: "ver-003", name: "Shot_030" }],
+    removedVersions: [
+      ...mockVersions,
+      { ...mockVersions[0], id: "ver-003", name: "Shot_030" },
+    ],
   },
 };
 

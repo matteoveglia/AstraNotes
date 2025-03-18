@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface ThumbnailSettingsStore {
   size: number;
@@ -13,7 +13,7 @@ export const useThumbnailSettingsStore = create<ThumbnailSettingsStore>()(
       setSize: (size) => set({ size }),
     }),
     {
-      name: 'thumbnail-settings-storage',
+      name: "thumbnail-settings-storage",
     },
   ),
 );

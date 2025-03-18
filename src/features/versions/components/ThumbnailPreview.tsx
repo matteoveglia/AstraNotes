@@ -3,9 +3,9 @@
  * Component for displaying version thumbnails with loading states.
  */
 
-import React from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ImageIcon } from 'lucide-react';
+import React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ImageIcon } from "lucide-react";
 
 interface ThumbnailPreviewProps {
   url?: string;
@@ -18,7 +18,7 @@ export const ThumbnailPreview: React.FC<ThumbnailPreviewProps> = ({
   url,
   alt,
   isLoading = false,
-  onClick
+  onClick,
 }) => {
   if (isLoading) {
     return (
@@ -27,18 +27,14 @@ export const ThumbnailPreview: React.FC<ThumbnailPreviewProps> = ({
       </div>
     );
   }
-  
+
   return (
-    <div 
+    <div
       className="w-full aspect-video bg-muted rounded-md overflow-hidden cursor-pointer"
       onClick={onClick}
     >
       {url ? (
-        <img 
-          src={url} 
-          alt={alt} 
-          className="w-full h-full object-cover"
-        />
+        <img src={url} alt={alt} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
           <ImageIcon className="w-12 h-12 text-muted-foreground opacity-50" />

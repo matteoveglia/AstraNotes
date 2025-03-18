@@ -47,7 +47,7 @@ window.mockStores = {
   labels: [
     { id: "label-1", name: "Bug", color: "#ff0000" },
     { id: "label-2", name: "Feature", color: "#00ff00" },
-  ]
+  ],
 };
 
 // Mock store hooks
@@ -56,7 +56,7 @@ window.useSettings = () => ({
   setSettings: (newSettings: any) => {
     console.log("Settings updated:", newSettings);
     window.mockStores.settings = newSettings;
-  }
+  },
 });
 
 window.useLabelStore = () => ({
@@ -80,7 +80,7 @@ const meta: Meta<typeof SettingsModal> = {
   decorators: [
     (Story) => {
       return (
-        <div style={{ width: '800px', height: '600px' }}>
+        <div style={{ width: "800px", height: "600px" }}>
           <Story />
         </div>
       );

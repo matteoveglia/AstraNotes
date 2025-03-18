@@ -76,17 +76,20 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
 
     try {
       await exportPlaylistNotesToCSV(activePlaylist);
-      
+
       // Format the date as YYYYMMDD for the filename
       const today = new Date();
       const dateStr =
         today.getFullYear().toString() +
         (today.getMonth() + 1).toString().padStart(2, "0") +
         today.getDate().toString().padStart(2, "0");
-      
+
       const fileName = `${activePlaylist.name}_${dateStr}.csv`;
-      
-      toast.showToast(`Notes exported to CSV file in Downloads folder: ${fileName}`, "success");
+
+      toast.showToast(
+        `Notes exported to CSV file in Downloads folder: ${fileName}`,
+        "success",
+      );
     } catch (error) {
       console.error("Failed to export notes:", error);
       toast.showToast("Failed to export notes to CSV", "error");
@@ -149,12 +152,16 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Clear all notes?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. All notes in the current playlist will be permanently removed.
+              This action cannot be undone. All notes in the current playlist
+              will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleConfirmClear}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Clear notes
             </AlertDialogAction>
           </AlertDialogFooter>

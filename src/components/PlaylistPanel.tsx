@@ -20,7 +20,7 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
-import { motion } from 'motion/react';
+import { motion } from "motion/react";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -39,14 +39,14 @@ const gridVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.04
-    }
-  }
+      staggerChildren: 0.04,
+    },
+  },
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
+  visible: { opacity: 1, y: 0 },
 };
 
 const PlaylistItem: React.FC<PlaylistItemProps> = ({
@@ -231,7 +231,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       ) : (
         <motion.div
           className="space-y-2 overflow-y-auto"
-          style={{ height: 'calc(100vh - 200px)' }}
+          style={{ height: "calc(100vh - 200px)" }}
           variants={gridVariants}
           initial="hidden"
           animate="visible"

@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -16,14 +16,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     super(props);
     this.state = {
       hasError: false,
-      error: null
+      error: null,
     };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
@@ -31,15 +31,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-    
+
     // Log to an error tracking service if available
-    console.error('Component error caught by ErrorBoundary:', error, errorInfo);
+    console.error("Component error caught by ErrorBoundary:", error, errorInfo);
   }
 
   resetError = (): void => {
     this.setState({
       hasError: false,
-      error: null
+      error: null,
     });
   };
 
@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     const { children, fallback } = this.props;
 
     if (hasError && error) {
-      if (typeof fallback === 'function') {
+      if (typeof fallback === "function") {
         return fallback(error, this.resetError);
       }
 
@@ -59,12 +59,16 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       // Default fallback UI with Tailwind classes
       return (
         <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-          <h2 className="text-lg font-medium text-red-700">Something went wrong</h2>
-          <p className="mt-2 text-sm text-red-600">An error occurred in this component:</p>
+          <h2 className="text-lg font-medium text-red-700">
+            Something went wrong
+          </h2>
+          <p className="mt-2 text-sm text-red-600">
+            An error occurred in this component:
+          </p>
           <pre className="mt-2 p-3 bg-red-100 text-red-800 text-sm rounded overflow-auto">
             {error.message}
           </pre>
-          <button 
+          <button
             onClick={this.resetError}
             className="mt-4 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
@@ -79,20 +83,22 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 // Default error fallback component with Tailwind styling
-export const DefaultErrorFallback = ({ 
-  error, 
-  resetError 
-}: { 
-  error: Error; 
-  resetError: () => void 
+export const DefaultErrorFallback = ({
+  error,
+  resetError,
+}: {
+  error: Error;
+  resetError: () => void;
 }) => (
   <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
     <h2 className="text-lg font-medium text-red-700">Something went wrong</h2>
-    <p className="mt-2 text-sm text-red-600">An error occurred in this component:</p>
+    <p className="mt-2 text-sm text-red-600">
+      An error occurred in this component:
+    </p>
     <pre className="mt-2 p-3 bg-red-100 text-red-800 text-sm rounded overflow-auto">
       {error.message}
     </pre>
-    <button 
+    <button
       onClick={resetError}
       className="mt-4 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
     >

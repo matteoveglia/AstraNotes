@@ -3,12 +3,12 @@
  * Component for displaying a single version with thumbnail and note input.
  */
 
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { NoteInput } from '@/components/NoteInput';
-import { AssetVersion, NoteStatus } from '@/types';
-import { motion } from 'motion/react';
-import { ThumbnailPreview } from '@/features/versions/components/ThumbnailPreview';
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { NoteInput } from "@/components/NoteInput";
+import { AssetVersion, NoteStatus } from "@/types";
+import { motion } from "motion/react";
+import { ThumbnailPreview } from "@/features/versions/components/ThumbnailPreview";
 
 interface VersionItemProps {
   version: AssetVersion;
@@ -26,12 +26,12 @@ interface VersionItemProps {
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  exit: { 
-    opacity: 0, 
-    scale: 0.9, 
+  exit: {
+    opacity: 0,
+    scale: 0.9,
     y: -10,
-    transition: { duration: 0.15 } 
-  }
+    transition: { duration: 0.15 },
+  },
 };
 
 export const VersionItem: React.FC<VersionItemProps> = ({
@@ -39,12 +39,12 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   isSelected,
   thumbnailUrl,
   thumbnailLoading = false,
-  draftContent = '',
-  labelId = '',
-  noteStatus = 'empty' as NoteStatus,
+  draftContent = "",
+  labelId = "",
+  noteStatus = "empty" as NoteStatus,
   onSelect,
   onNoteChange,
-  onNoteClear
+  onNoteClear,
 }) => {
   const handleNoteInputSave = (content: string, noteLabelId: string) => {
     onNoteChange(content, noteLabelId);
@@ -52,7 +52,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
 
   return (
     <motion.div
-      className={`rounded-lg border ${isSelected ? 'border-primary' : 'border-border'} overflow-hidden`}
+      className={`rounded-lg border ${isSelected ? "border-primary" : "border-border"} overflow-hidden`}
       variants={itemVariants}
       layout
       initial="hidden"
@@ -77,7 +77,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1">
             <NoteInput
               versionName={version.name}

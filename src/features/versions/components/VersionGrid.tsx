@@ -26,26 +26,26 @@ const gridVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.04
-    }
+      staggerChildren: 0.04,
+    },
   },
   exit: {
     opacity: 0,
     transition: {
-      staggerChildren: 0.02
-    }
-  }
+      staggerChildren: 0.02,
+    },
+  },
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  exit: { 
-    opacity: 0, 
-    scale: 0.9, 
+  exit: {
+    opacity: 0,
+    scale: 0.9,
     y: -10,
-    transition: { duration: 0.15 } 
-  }
+    transition: { duration: 0.15 },
+  },
 };
 
 export const VersionGrid: React.FC<VersionGridProps> = ({
@@ -77,7 +77,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
     >
       {versions.map((version) => {
         const thumbnailUrl = thumbnails[version.id];
-        
+
         return (
           <motion.div
             key={version.id}
@@ -97,7 +97,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
               initialContent={noteDrafts[version.id]}
               initialLabelId={noteLabelIds[version.id]}
               manuallyAdded={version.manuallyAdded}
-              onSave={(content: string, labelId: string) => 
+              onSave={(content: string, labelId: string) =>
                 onSaveNote(version.id, content, labelId)
               }
               onClear={() => onClearNote(version.id)}

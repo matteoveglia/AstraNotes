@@ -76,7 +76,7 @@
     "@storybook/test": "^8.6.7",
     "@tauri-apps/cli": "^2.3.1",
     "@testing-library/jest-dom": "6.6.3",
-    "@testing-library/react": "16.2.0",
+    "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "14.6.1",
     "@types/node": "^20.17.24",
     "@types/react": "^18.3.18",
@@ -85,11 +85,11 @@
     "@typescript-eslint/parser": "^8.26.1",
     "@typescript-eslint/typescript-estree": "^8.26.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "@vitest/ui": "3.0.8",
+    "@vitest/ui": "^3.0.9",
     "autoprefixer": "^10.4.21",
     "dotenv": "^16.4.7",
     "eslint-plugin-storybook": "^0.11.6",
-    "happy-dom": "17.4.4",
+    "happy-dom": "^17.4.4",
     "msw": "^2.7.3",
     "postcss": "^8.5.3",
     "react-scan": "^0.2.14",
@@ -97,8 +97,8 @@
     "storybook": "^8.6.7",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
-    "vite": "^5.4.14",
-    "vitest": "3.0.8"
+    "vite": "^6.2.2",
+    "vitest": "^3.0.9"
   },
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0",
   "eslintConfig": {

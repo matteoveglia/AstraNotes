@@ -25,8 +25,10 @@ interface NoteLabelSelectProps {
   disabled?: boolean;
 }
 
-export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProps>(
-  ({ value, onChange, className, disabled }, ref) => {
+export const NoteLabelSelect = forwardRef<
+  HTMLButtonElement,
+  NoteLabelSelectProps
+>(({ value, onChange, className, disabled }, ref) => {
   const { labels, fetchLabels } = useLabelStore();
   const { settings } = useSettings();
   const hasSetDefault = useRef(false);
@@ -50,9 +52,9 @@ export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProp
   useEffect(() => {
     if (labels.length > 0) {
       // If we have a valid value already, just mark as initialized
-      if (internalValue && labels.some(label => label.id === internalValue)) {
+      if (internalValue && labels.some((label) => label.id === internalValue)) {
         hasSetDefault.current = true;
-      } 
+      }
       // Otherwise, if we haven't set a default yet, set it now
       else if (!hasSetDefault.current) {
         // Use the default label from settings if available, otherwise use the first label
@@ -61,7 +63,7 @@ export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProp
           labels.find((l) => l.id === settings.defaultLabelId)
             ? settings.defaultLabelId
             : labels[0].id;
-        
+
         hasSetDefault.current = true;
         setInternalValue(defaultLabelId);
         onChange(defaultLabelId);
@@ -70,11 +72,13 @@ export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProp
   }, [labels, settings.defaultLabelId, internalValue, onChange]);
 
   const selectedLabel = labels.find((label) => label.id === internalValue);
-  
+
   // Only render the component when we have a valid selection to prevent flickering
   if (labels.length === 0) {
     return (
-      <div className={cn(className, "h-8 w-40 bg-gray-100 animate-pulse rounded")} />
+      <div
+        className={cn(className, "h-8 w-40 bg-gray-100 animate-pulse rounded")}
+      />
     );
   }
 
@@ -84,7 +88,11 @@ export const NoteLabelSelect = forwardRef<HTMLButtonElement, NoteLabelSelectProp
   };
 
   return (
-    <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
+    <Select
+      value={internalValue}
+      onValueChange={handleValueChange}
+      disabled={disabled}
+    >
       <SelectTrigger
         ref={ref}
         className={cn(className, "overflow-hidden")}
