@@ -266,6 +266,83 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
+  const handleVersionsSelect = async (versions: AssetVersion[]) => {
+    try {
+      if (!activePlaylist.id) return;
+
+      // Track successfully added versions
+      let addedCount = 0;
+      const newVersions: AssetVersion[] = [];
+
+      // Create a set of existing version IDs for quick lookup
+      const existingVersionIds = new Set(
+        activePlaylist.versions?.map((v) => v.id) || [],
+      );
+
+      // Process each version
+      for (const version of versions) {
+        // Skip if already exists
+        if (existingVersionIds.has(version.id)) {
+          console.log(
+            `Version ${version.id} already exists in playlist ${activePlaylist.id}, skipping`,
+          );
+          continue;
+        }
+
+        // Mark the version as manually added
+        const versionWithFlag: AssetVersion = {
+          ...version,
+          manuallyAdded: true,
+        };
+
+        try {
+          // Add to the database
+          await playlistStore.addVersionToPlaylist(
+            activePlaylist.id,
+            versionWithFlag,
+          );
+
+          // Add to our list of new versions
+          newVersions.push(versionWithFlag);
+          addedCount++;
+        } catch (error) {
+          console.error(
+            `Failed to add version ${version.id} to playlist:`,
+            error,
+          );
+        }
+      }
+
+      // If we added any versions, update the UI
+      if (addedCount > 0) {
+        // Then update the UI
+        const updatedVersions = [
+          ...(activePlaylist.versions || []),
+          ...newVersions,
+        ];
+
+        const updatedPlaylist = {
+          ...activePlaylist,
+          versions: updatedVersions,
+        };
+
+        // Update the playlist in the store
+        if (onPlaylistUpdate) {
+          onPlaylistUpdate(updatedPlaylist);
+        }
+
+        // Update the local state as well
+        setMergedPlaylist(updatedPlaylist);
+
+        console.log(
+          `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to add multiple versions to playlist:", error);
+    }
+  };
+
   // Memoize sorted versions to prevent unnecessary re-renders
   const sortedVersions = useMemo(() => {
     if (isInitializing) return [];
@@ -350,11 +427,13 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       <SearchPanel
         onVersionSelect={handleVersionSelect}
+        onVersionsSelect={handleVersionsSelect}
         onClearAdded={handleClearAdded}
         hasManuallyAddedVersions={Boolean(
           activePlaylist.versions?.some((v) => v.manuallyAdded),
         )}
         isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+        currentVersions={activePlaylist.versions || []}
       />
     </Card>
   );
