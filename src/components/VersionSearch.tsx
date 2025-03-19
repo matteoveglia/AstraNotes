@@ -1,9 +1,8 @@
 /**
  * @fileoverview VersionSearch.tsx
- * Search component for version discovery and addition.
- * Features debounced search, thumbnails, version selection,
- * clear functionality, loading states, and Quick Notes features.
- * @component
+ * Search component for version discovery and addition with multi-select capability.
+ * Features debounced search, thumbnails, version selection (single or multiple),
+ * clear functionality, loading states, and disabling of versions already in playlist.
  */
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -12,26 +11,45 @@ import { Button } from "./ui/button";
 import { useDebounce } from "../hooks/useDebounce";
 import { AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
+import { Checkbox } from "./ui/checkbox";
 import { motion } from "motion/react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
+  onVersionsSelect: (versions: AssetVersion[]) => void;
   onClearAdded: () => void;
   hasManuallyAddedVersions?: boolean;
   isQuickNotes?: boolean;
+  currentVersions?: AssetVersion[]; // Current versions in the playlist
 }
 
 export const VersionSearch: React.FC<VersionSearchProps> = ({
   onVersionSelect,
+  onVersionsSelect,
   onClearAdded,
   hasManuallyAddedVersions = false,
   isQuickNotes = false,
+  currentVersions = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<AssetVersion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+
+  // Create a Set of current version IDs for efficient lookup
+  const currentVersionIds = new Set(currentVersions.map((v) => v.id));
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchTerm = e.target.value;
+    setSearchTerm(newSearchTerm);
+    if (newSearchTerm === "") {
+      handleClearSelection(); // Clear any selected versions when search term is also cleared
+    }
+  };
 
   const handleSearch = useCallback(async () => {
     if (!debouncedSearchTerm) {
@@ -60,6 +78,78 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     onClearAdded();
   };
 
+  const handleVersionClick = (version: AssetVersion, isCheckbox: boolean) => {
+    // Check if version is already in the playlist
+    if (currentVersionIds.has(version.id)) {
+      return; // Do nothing if version is already in the playlist
+    }
+
+    if (isCheckbox) {
+      // Checkbox click - toggle multi-select mode
+      setIsMultiSelectMode(true);
+
+      // Toggle version in selected versions
+      setSelectedVersions((prev) => {
+        // Check if this version is already selected
+        const isSelected = prev.some((v) => v.id === version.id);
+
+        if (isSelected) {
+          // Remove from selection
+          const newSelected = prev.filter((v) => v.id !== version.id);
+          // If no more selections, exit multi-select mode
+          if (newSelected.length === 0) {
+            setIsMultiSelectMode(false);
+          }
+          return newSelected;
+        } else {
+          // Add to selection
+          return [...prev, version];
+        }
+      });
+    } else {
+      // Regular click
+      if (isMultiSelectMode) {
+        // In multi-select mode, toggle selection
+        setSelectedVersions((prev) => {
+          const isSelected = prev.some((v) => v.id === version.id);
+
+          if (isSelected) {
+            // Remove from selection
+            const newSelected = prev.filter((v) => v.id !== version.id);
+            // If no more selections, exit multi-select mode
+            if (newSelected.length === 0) {
+              setIsMultiSelectMode(false);
+            }
+            return newSelected;
+          } else {
+            // Add to selection
+            return [...prev, version];
+          }
+        });
+      } else {
+        // Normal mode - select single version and reset search
+        onVersionSelect(version);
+        setSearchTerm("");
+        setResults([]);
+      }
+    }
+  };
+
+  const handleAddSelected = () => {
+    if (selectedVersions.length > 0) {
+      onVersionsSelect(selectedVersions);
+      setSelectedVersions([]);
+      setIsMultiSelectMode(false);
+      setSearchTerm("");
+      setResults([]);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedVersions([]);
+    setIsMultiSelectMode(false);
+  };
+
   const gridVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -80,8 +170,6 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     },
     transition: {
       type: "spring",
-      stiffness: 100,
-      damping: 10,
       duration: 0.6,
     },
   };
@@ -90,28 +178,91 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     <motion.div
       initial={{ opacity: 0, y: 0 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 60, damping: 10, duration: 1 }}
+      transition={{ type: "spring", duration: 1 }}
     >
       <div className="space-y-4">
         <div className="flex gap-2">
           <Input
             placeholder="Search by asset name or version (e.g. 'shot_010' or 'v2')"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchTermChange}
             className="flex-1"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
           />
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearVersions}
-              disabled={!hasManuallyAddedVersions}
+          <div className="flex items-center gap-2">
+            {selectedVersions.length > 0 && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", duration: 0.4 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                >
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="default" size="sm" onClick={handleAddSelected}>
+                          Add {selectedVersions.length} Selected
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <ul className="list-disc pl-4 text-sm">
+                          {selectedVersions.map((v) => (
+                            <li key={`${v.name}-${v.version}`}>
+                              {v.name} - v{v.version}
+                            </li>
+                          ))}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", duration: 0.4, delay: 0.1 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                >
+                  <Button variant="outline" size="sm" onClick={handleClearSelection}>
+                    Clear Selection
+                  </Button>
+                </motion.div>
+              </>
+            )}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", duration: 0.4, delay: 0.2 }}
+              exit={{ opacity: 0, scale: 0.7 }}
             >
-              Clear Added Versions
-            </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearVersions}
+                      disabled={!hasManuallyAddedVersions}
+                    >
+                      Clear Added Versions
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <ul className="list-disc pl-4 text-sm">
+                      {currentVersions
+                        .filter(v => v.manuallyAdded)
+                        .map(v => (
+                          <li key={`${v.name}-${v.version}`}>
+                            {v.name} - v{v.version}
+                          </li>
+                        ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </motion.div>
           </div>
         </div>
 
@@ -122,34 +273,64 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         ) : results.length > 0 ? (
           <motion.div
             className="grid grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[300px] overflow-y-auto"
-            variants={gridVariants} // Apply motion variants to the grid
+            variants={gridVariants}
             initial="hidden"
             animate="visible"
           >
-            {results.map((version) => (
-              <motion.div
-                key={version.id}
-                className="border rounded p-1.5 cursor-pointer hover:bg-gray-100 text-xs"
-                variants={itemVariants} // Apply motion variants to each item
-                onClick={() => {
-                  if (onVersionSelect) {
-                    onVersionSelect(version);
-                    setSearchTerm("");
-                    setResults([]);
-                  }
-                }}
-              >
-                {version.thumbnailUrl && (
-                  <img
-                    src={version.thumbnailUrl}
-                    alt={version.name}
-                    className="w-full h-16 object-cover mb-1"
-                  />
-                )}
-                <div className="font-medium truncate">{version.name}</div>
-                <div className="text-gray-500">v{version.version}</div>
-              </motion.div>
-            ))}
+            {results.map((version) => {
+              // Check if this version is already in the playlist
+              const isInPlaylist = currentVersionIds.has(version.id);
+              const isSelected = selectedVersions.some(
+                (v) => v.id === version.id,
+              );
+
+              return (
+                <motion.div
+                  key={version.id}
+                  className={`border rounded p-1.5 cursor-pointer hover:bg-gray-100 text-xs relative group ${
+                    isInPlaylist
+                      ? "opacity-50 bg-gray-100 cursor-not-allowed"
+                      : ""
+                  } ${isSelected ? "border-blue-500 bg-blue-50" : ""}`}
+                  variants={itemVariants}
+                >
+                  {/* Checkbox for multi-select, visible on hover or when selected */}
+                  {!isInPlaylist && (
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 right-2 z-10 ${
+                        isSelected || isMultiSelectMode
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      } transition-opacity`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVersionClick(version, true);
+                      }}
+                    >
+                      <Checkbox checked={isSelected} />
+                    </div>
+                  )}
+
+                  {/* Version content */}
+                  <div
+                    onClick={() =>
+                      !isInPlaylist && handleVersionClick(version, false)
+                    }
+                    className="w-full h-full"
+                  >
+                    {version.thumbnailUrl && (
+                      <img
+                        src={version.thumbnailUrl}
+                        alt={version.name}
+                        className="w-full h-16 object-cover mb-1"
+                      />
+                    )}
+                    <div className="font-medium truncate max-w-[90%]">{version.name}</div>
+                    <div className="text-gray-500">v{version.version}</div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </motion.div>
         ) : debouncedSearchTerm ? (
           <div className="text-center py-2 text-sm text-gray-500">

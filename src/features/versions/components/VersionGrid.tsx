@@ -38,7 +38,7 @@ const gridVariants = {
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 5 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
   exit: {
     opacity: 0,
