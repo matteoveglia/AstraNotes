@@ -1,15 +1,15 @@
 {
-  "version": "0.3.0",
-  "notes": "Major refactoring. Fixed multiple small issues with persistence. Added toast notification system.",
-  "pub_date": "2025-03-17T19:05:28.535Z",
+  "version": "0.3.1",
+  "notes": "Overhauled version search & selection - now with multi-select. Added export log function for debugging.",
+  "pub_date": "2025-03-19T17:45:45.066Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.0/AstraNotes_0.3.0_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzhYNU84N3RVSk9ZOGpUKzBDekRwS3lHUExKL1VoNkxKTVlsRGprNlB3b0Z3VDFZUUZRaHJacUxkUFJvSDRRUlRZMlErQU9MZEtlYTVIeEw1ZDdOdFFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyMjM5ODA1CWZpbGU6QXN0cmFOb3Rlc18wLjMuMF94NjRfZW4tVVMubXNpCmF2ZTFhV1ByYzRFOUR1bEQ1T2Q4UHk3NUY0WmhmdHJSa0puNjBzUUFIa2FBVVg0VFNPdlNzQjBXZ29TZHc2QTlLVTV1MUxJMkF6ZVdoOWJSNWIzRkNnPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.1/AstraNotes_0.3.1_x64_en-US.msi",
+      "signature": ""
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.0/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3hMT1dzbGE4UDgvVXcralNjZVkwOUtCcmp4U2RINWNBblNRRlRRS2p1NC80R0RmV0Z6czZjTXc4M2gwbDhoWWxURVV6Y3hialNDU0dZMDA3WEVZRFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyMjM4MzI4CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CndBRjkwOHZ5cjlsVEFrZUpjVzVsa0ZHSHhkMlUzL0Fxc3doZXRRbkJtOHplSUdsUzBEVklBWnQ2cDRhTEY3cGhMSWloaWs2NFVJby8veEozcERHT0FBPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.1/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzM4aFpHSTJwUC9iTWJENjMxK3QyUmp3YkhYaVU3QmJRWk81bTZieGhaOXY2L2ZqKy90UStQcHZJSFBBSWVVU1JzcHd5ZjFCQkZNSjIyaGdnUjArV2cwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDA1MDc0CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnJmbzhkZmJDcUJ6N0Vka05QS0ZabDBvVGdqSzBBNzFyVy9DdXljc0JNcTI4bkErS1hqb1VTQ3pPMnVaR0I5Y0pnWHluNC9vRVVidW81M2hJK1ZQbkF3PT0K"
     }
   }
 }
