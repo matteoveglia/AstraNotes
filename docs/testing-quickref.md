@@ -1,8 +1,7 @@
-# AstraNotes Testing Documentation
+# AstraNotes Testing Quick Reference
 
-## Overview
-
-This document provides a quick guide for running and extending tests in the AstraNotes project. For more detailed information on testing strategies and best practices, see [docs/testing-guide.md](./docs/testing-guide.md).
+> **Quick reference guide for testing in AstraNotes**  
+> For comprehensive testing guidelines, see [testing-guide.md](./testing-guide.md)
 
 ## Running Tests
 

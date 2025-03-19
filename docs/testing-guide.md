@@ -1,5 +1,8 @@
 # AstraNotes Testing Guide
 
+> **Comprehensive guide for the AstraNotes testing strategy**  
+> For a quick reference to running tests, see [testing-quickref.md](./testing-quickref.md)
+
 ## Overview
 
 This document outlines the testing strategy and best practices for the AstraNotes project. The testing suite uses Vitest for logic testing and React Testing Library for React components, ensuring comprehensive coverage across all parts of the application.
