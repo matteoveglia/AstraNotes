@@ -5,9 +5,13 @@ import App from "./App";
 import "./index.css";
 import * as Sentry from "@sentry/react";
 import { initLogCapture } from "./lib/logExporter";
+import { initializeUpdateChecker } from "./lib/updater";
 
 // Initialize log capturing
 initLogCapture();
+
+// Initialize update checker
+initializeUpdateChecker();
 
 // scan({ // Enable for performance profiling
 //   enabled: true,

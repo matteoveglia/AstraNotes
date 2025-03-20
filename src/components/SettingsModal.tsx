@@ -34,9 +34,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { checkForUpdates } from "../lib/updater";
+import { installUpdate, silentCheckForUpdates } from "../lib/updater";
 import { exportLogs } from "../lib/logExporter";
 import { getVersion } from "@tauri-apps/api/app";
+import { useUpdateStore } from "../store/updateStore";
+import { GlowEffect } from "@/components/ui/glow-effect";
 
 interface SettingsModalProps {
   onLoadPlaylists: () => Promise<void>;
@@ -57,6 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
+  const { updateAvailable, updateVersion } = useUpdateStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -341,17 +344,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <h4 className="font-medium">Updates</h4>
                   <p className="text-sm text-muted-foreground max-w-56">
-                    Check for new versions
+                    {updateAvailable 
+                      ? `Version ${updateVersion} available` 
+                      : "Check for new versions"}
                   </p>
                 </div>
-                <Button
-                  variant="default"
-                  size="default"
-                  onClick={() => checkForUpdates()}
-                  disabled={isLoading}
-                >
-                  Check for Updates
-                </Button>
+                <div className="relative inline-block">
+                  {updateAvailable && (
+                    <GlowEffect
+                      colors={["#FF5733", "#33FF57", "#3357FF", "#F1C40F"]}
+                      mode="pulse"
+                      blur="soft"
+                      duration={3}
+                      scale={1.1}
+                    />
+                  )}
+                  <Button
+                    variant="default"
+                    size="default"
+                    onClick={() => updateAvailable ? installUpdate() : silentCheckForUpdates()}
+                    disabled={isLoading}
+                    className="relative z-10"
+                  >
+                    {updateAvailable ? "Update Now" : "Check for Updates"}
+                  </Button>
+                </div>
               </div>
             </div>
 

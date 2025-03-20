@@ -8,8 +8,9 @@
 
 import React from "react";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowUpCircle } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
+import { useUpdateStore } from "../store/updateStore";
 
 interface TopBarProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ children }) => {
   const { isConnected } = useConnectionStatus();
   const { settings } = useSettings();
+  const { shouldShowNotification, shouldHighlightNotification, updateVersion } = useUpdateStore();
 
   return (
     <div className="h-12 border-b bg-white flex items-center justify-between px-4">
@@ -40,6 +42,14 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
       <div className="flex items-center gap-4">
         {!settings.autoRefreshEnabled && (
           <span className="text-sm text-gray-400">Auto Updates Off</span>
+        )}
+        {shouldShowNotification() && (
+          <div className="flex items-center gap-1.5">
+            <ArrowUpCircle className={`w-4 h-4 ${shouldHighlightNotification() ? 'text-red-500' : 'text-orange-500'}`} />
+            <span className={`text-sm font-medium ${shouldHighlightNotification() ? 'text-red-600' : 'text-orange-600'}`}>
+              Update Available
+            </span>
+          </div>
         )}
         {children}
       </div>
