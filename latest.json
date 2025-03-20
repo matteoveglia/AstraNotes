@@ -1,15 +1,15 @@
 {
   "version": "0.3.2",
   "notes": "Fixed critical quick notes bug. Added summary of changes to playlist modification banner. Added silent update checker.",
-  "pub_date": "2025-03-20T18:41:45.558Z",
+  "pub_date": "2025-03-20T20:34:09.749Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.1/AstraNotes_0.3.1_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3hyYzVMM1pzNHJRNlJoUWlkdlZELzVhTEVkNzEvOUpKa0dHSXhTNGJZSlA5Y0VCZjM3aTJ0dmd0bE0rOEJERGUzcGY1dzY4TFNBS1BQZTBDcU1WYUFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDA2MzQ0CWZpbGU6QXN0cmFOb3Rlc18wLjMuMV94NjRfZW4tVVMubXNpCjdQcDRrbGJldHJtb2hqYlZEVXViREtmalU4UVhiS3paZHpDUkVHMGR4dVgraWVJRFkyeWN1R0c5ZFhRWFRlZVdjcllCcDZwSUJxNms3VmY2ZDF1b0N3PT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.2/AstraNotes_0.3.2_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3g5QUx3NHFPZS82ZFN0OGtUR0d0QWxJaGJrb3FxWmtjN3p0d0hCWWV2M01JemRVc1d1Rng1UVFoL3JVSW9ydEFPdHU5aEk5WUVyM1RDVXM5ZFhMS0FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNTAyODQ5CWZpbGU6QXN0cmFOb3Rlc18wLjMuMl94NjRfZW4tVVMubXNpCnBDSEIrU0p4MjA2WGhEb3NFZlR0WmlKcTNWUVpGTEtERFZQNm5XUU5NRlI0WW5pM01VQXQwdlBIQml2aDkvbm5tSFdLNU5mQndDQ1pKN0F4Q0ZrMkJBPT0K"
     },
     "darwin-aarch64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.2/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzhWMGhtaUlNMDEvdVJqa0l5NURmYmxOd2dRMXY3UXdWaHVrRDlRVWR3WGlBTVNiQ3FuQ3psWERsQi9IR1ZpeVhzdjRpQkNqWTZxam9WU1BoWU50N1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDk2MTA1CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CmNWME1XZWhQZVN0cVl4UUxoWG5KZ3l2SjcyUDFLVGpsVjlId3hxd1lzQmN3Nkw3OTFxTTdUVitHeElwN2NkN1VxeG5NMGtxMXZVS0RYZ1VGRitlQ0FBPT0K"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3crY3E5enViY242WFF3Z2ZjaGFRZUNJNlV0USs1QlRXNG5CWWJyR0hES1IrRFd3ekxsTCtWWTczdjFPZHd6d0xKekg1TVZHUkNFcElYQlB3SGRFblFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNTAyNDk2CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CkZCdHpaM3UyRWczVGZJNEpnT09BQTZNVjIzZEZ4S1Q3LzFiLzhxbWhHRWt2MnFCU2cycDkyRmZQV2tNMmxNSUNTMTIyZ1N4cTl6RCtpR21PTmpBd0J3PT0K"
     }
   }
 }

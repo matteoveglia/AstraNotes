@@ -148,7 +148,7 @@ const updateLatestJson = () => {
             console.error(`[ASTRABUILD] Windows EXE not found in dist-tauri: ${exePath}`);
             
             // Try alternative path
-            const altExePath = `./src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/${exeFile}`;
+            const altExePath = `./src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/${exeFile}`;
             const altSigPath = `${altExePath}.sig`;
             
             if (existsSync(altExePath)) {
@@ -209,9 +209,9 @@ const moveArtifacts = () => {
     
     try {
         if (target === 'win') {
-            // Windows NSIS installer and signature
+            // Windows MSI installer and signature
             const exeFile = `AstraNotes_${newVersion}_x64_en-US.msi`;
-            const exePath = `${bundlePath}/nsis/${exeFile}`;
+            const exePath = `${bundlePath}/msi/${exeFile}`;
             const sigPath = `${exePath}.sig`;
             
             if (existsSync(exePath)) {

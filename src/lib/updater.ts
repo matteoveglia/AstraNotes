@@ -27,8 +27,9 @@ export function isUpdateCheckDue(): boolean {
 /**
  * Silently checks for updates without showing user prompts
  * Updates the state if an update is available
+ * @param showNoUpdateDialog If true, shows a dialog when no updates are available
  */
-export async function silentCheckForUpdates(): Promise<boolean> {
+export async function silentCheckForUpdates(showNoUpdateDialog = false): Promise<boolean> {
   try {
     console.log("Running silent update check...");
 
@@ -44,6 +45,15 @@ export async function silentCheckForUpdates(): Promise<boolean> {
     } else {
       console.log("No updates available");
       useUpdateStore.getState().setUpdateAvailable(false);
+      
+      // Show dialog if requested (when triggered from Settings)
+      if (showNoUpdateDialog) {
+        await message("No update available", {
+          title: "AstraNotes",
+          kind: "info",
+        });
+      }
+      
       return false;
     }
   } catch (error) {
@@ -149,14 +159,14 @@ export async function checkForUpdates() {
 export function initializeUpdateChecker() {
   // Run initial check on startup with a slight delay
   setTimeout(() => {
-    silentCheckForUpdates();
+    silentCheckForUpdates(false); // Don't show dialog for automatic checks
   }, 10000); // 10 seconds delay on startup
 
   // Set up interval to check every 12 hours
   setInterval(
     () => {
       if (isUpdateCheckDue()) {
-        silentCheckForUpdates();
+        silentCheckForUpdates(false); // Don't show dialog for automatic checks
       }
     },
     30 * 60 * 1000,

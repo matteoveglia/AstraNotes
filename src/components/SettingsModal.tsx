@@ -369,7 +369,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() =>
                       updateAvailable
                         ? installUpdate()
-                        : silentCheckForUpdates()
+                        : silentCheckForUpdates(true)
                     }
                     disabled={isLoading}
                     className="relative z-10"
