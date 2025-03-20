@@ -7,6 +7,8 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { AssetVersion } from "@/types";
 import { motion } from "motion/react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InfoIcon } from "lucide-react";
 
 interface ModificationsBannerProps {
   addedCount: number;
@@ -33,13 +35,54 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1 rounded-md text-sm"
     >
-      <span>
-        {addedCount > 0 &&
-          `${addedCount} version${addedCount !== 1 ? "s" : ""} added`}
-        {addedCount > 0 && removedCount > 0 && ", "}
-        {removedCount > 0 &&
-          `${removedCount} version${removedCount !== 1 ? "s" : ""} removed`}
-      </span>
+      <div className="flex items-center gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help flex items-center">
+                <InfoIcon size={14} className="text-amber-700" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="space-y-2">
+                {addedVersions.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Added:</h4>
+                    <ul className="space-y-1">
+                      {addedVersions.map((version) => (
+                        <li key={`added-${version.id}`} className="flex items-center">
+                          <span className="text-green-500 mr-1">+</span>
+                          {version.name} - v{version.version}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {removedVersions.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-1">Removed:</h4>
+                    <ul className="space-y-1">
+                      {removedVersions.map((version) => (
+                        <li key={`removed-${version.id}`} className="flex items-center">
+                          <span className="text-red-500 mr-1">-</span>
+                          {version.name} - v{version.version}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <span>
+          {addedCount > 0 &&
+            `${addedCount} version${addedCount !== 1 ? "s" : ""} added`}
+          {addedCount > 0 && removedCount > 0 && ", "}
+          {removedCount > 0 &&
+            `${removedCount} version${removedCount !== 1 ? "s" : ""} removed`}
+        </span>
+      </div>
       <Button
         size="sm"
         variant="outline"

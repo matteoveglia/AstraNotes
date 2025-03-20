@@ -294,64 +294,49 @@ export class PlaylistStore {
         cached.versions?.map((v) => [v.id, v]) || [],
       );
 
-      // For Quick Notes, preserve all versions from IndexedDB that are manually added
-      if (id === "quick-notes") {
-        const existingVersions = await db.versions
-          .where("playlistId")
-          .equals(id)
-          .toArray();
+      // Handle all playlists including Quick Notes consistently
+      // 1. Start with versions from IndexedDB that are either:
+      //    - Present in the cached versions (from Ftrack)
+      //    - Manually added
+      // 2. Add any cached versions that aren't in IndexedDB
+      const mergedVersions = [
+        // First, include all DB versions that are either in cache or manually added
+        ...dbVersions
+          .filter((v) => cachedVersionsMap.has(v.id) || v.manuallyAdded)
+          .map((v) => {
+            const cachedVersion = cachedVersionsMap.get(v.id);
+            // If it exists in cache, merge with DB version
+            if (cachedVersion) {
+              return {
+                ...cachedVersion,
+                draftContent: v.draftContent || "",
+                labelId: v.labelId || "",
+                manuallyAdded: v.manuallyAdded || false,
+                noteStatus: v.noteStatus,
+              };
+            }
+            // Otherwise just use the DB version
+            return v;
+          }),
 
-        // Only cache new versions, preserve existing ones
-        if (existingVersions.length > 0) {
-          const existingIds = new Set(existingVersions.map((v) => v.id));
-          cached.versions =
-            cached.versions?.filter((v) => !existingIds.has(v.id)) || [];
-        }
-      } else {
-        // For other playlists:
-        // 1. Start with versions from IndexedDB that are either:
-        //    - Present in the cached versions (from Ftrack)
-        //    - Manually added
-        // 2. Add any cached versions that aren't in IndexedDB
-        const mergedVersions = [
-          // First, include all DB versions that are either in cache or manually added
-          ...dbVersions
-            .filter((v) => cachedVersionsMap.has(v.id) || v.manuallyAdded)
-            .map((v) => {
-              const cachedVersion = cachedVersionsMap.get(v.id);
-              // If it exists in cache, merge with DB version
-              if (cachedVersion) {
-                return {
-                  ...cachedVersion,
-                  draftContent: v.draftContent || "",
-                  labelId: v.labelId || "",
-                  manuallyAdded: v.manuallyAdded || false,
-                  noteStatus: v.noteStatus,
-                };
-              }
-              // Otherwise just use the DB version
-              return v;
-            }),
+        // Then add any cached versions that aren't in DB
+        ...(cached.versions
+          ?.filter((v) => !dbVersionsMap.has(v.id))
+          .map((v) => ({
+            ...v,
+            manuallyAdded: false,
+            draftContent: "",
+            labelId: "",
+            noteStatus: "empty",
+          })) || []),
+      ];
 
-          // Then add any cached versions that aren't in DB
-          ...(cached.versions
-            ?.filter((v) => !dbVersionsMap.has(v.id))
-            .map((v) => ({
-              ...v,
-              manuallyAdded: false,
-              draftContent: "",
-              labelId: "",
-              noteStatus: "empty",
-            })) || []),
-        ];
-
-        // Sort versions by name and version number
-        cached.versions = mergedVersions.sort((a, b) => {
-          const nameCompare = a.name.localeCompare(b.name);
-          if (nameCompare !== 0) return nameCompare;
-          return (b.version || 0) - (a.version || 0);
-        });
-      }
+      // Sort versions by name and version number
+      cached.versions = mergedVersions.sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return (b.version || 0) - (a.version || 0);
+      });
 
       return cached;
     } catch (error) {
