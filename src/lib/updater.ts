@@ -19,24 +19,25 @@ const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
  */
 export function isUpdateCheckDue(): boolean {
   const { lastCheckedAt } = useUpdateStore.getState();
-  
+
   // If never checked or checked more than 12 hours ago
-  return !lastCheckedAt || (Date.now() - lastCheckedAt > TWELVE_HOURS_MS);
+  return !lastCheckedAt || Date.now() - lastCheckedAt > TWELVE_HOURS_MS;
 }
 
 /**
  * Silently checks for updates without showing user prompts
  * Updates the state if an update is available
+ * @param showNoUpdateDialog If true, shows a dialog when no updates are available
  */
-export async function silentCheckForUpdates(): Promise<boolean> {
+export async function silentCheckForUpdates(showNoUpdateDialog = false): Promise<boolean> {
   try {
-    console.log("Running silent update check...");
-    
+    console.log("Running update check...");
+
     // Update the last checked timestamp regardless of result
     useUpdateStore.getState().setLastCheckedAt(Date.now());
-    
+
     const update = await check();
-    
+
     if (update) {
       console.log(`Update available: v${update.version}`);
       useUpdateStore.getState().setUpdateAvailable(true, update.version);
@@ -44,6 +45,15 @@ export async function silentCheckForUpdates(): Promise<boolean> {
     } else {
       console.log("No updates available");
       useUpdateStore.getState().setUpdateAvailable(false);
+      
+      // Show dialog if requested (when triggered from Settings)
+      if (showNoUpdateDialog) {
+        await message("No update available", {
+          title: "AstraNotes",
+          kind: "info",
+        });
+      }
+      
       return false;
     }
   } catch (error) {
@@ -59,21 +69,21 @@ export async function silentCheckForUpdates(): Promise<boolean> {
 export async function installUpdate(): Promise<boolean> {
   try {
     const update = await check();
-    
+
     if (!update) {
       console.log("No update available to install");
       useUpdateStore.getState().setUpdateAvailable(false);
       return false;
     }
-    
+
     // Directly proceed with download and installation
     await update.downloadAndInstall((event) => {
       console.log("Download progress:", event);
     });
-    
+
     // Reset update state before relaunch
     useUpdateStore.getState().resetUpdateState();
-    
+
     // Relaunch the application
     await relaunch();
     return true;
@@ -149,13 +159,16 @@ export async function checkForUpdates() {
 export function initializeUpdateChecker() {
   // Run initial check on startup with a slight delay
   setTimeout(() => {
-    silentCheckForUpdates();
+    silentCheckForUpdates(false); // Don't show dialog for automatic checks
   }, 10000); // 10 seconds delay on startup
-  
+
   // Set up interval to check every 12 hours
-  setInterval(() => {
-    if (isUpdateCheckDue()) {
-      silentCheckForUpdates();
-    }
-  }, 30 * 60 * 1000); // Check every 30 minutes if due (to catch when computer wakes from sleep)
+  setInterval(
+    () => {
+      if (isUpdateCheckDue()) {
+        silentCheckForUpdates(false); // Don't show dialog for automatic checks
+      }
+    },
+    30 * 60 * 1000,
+  ); // Check every 30 minutes if due (to catch when computer wakes from sleep)
 }

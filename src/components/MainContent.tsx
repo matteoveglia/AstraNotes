@@ -11,11 +11,9 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion } from "../types";
-import { ftrackService } from "../services/ftrack";
 import { playlistStore } from "../store/playlistStore";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
-import { useToast } from "./ui/toast";
 
 // Import custom hooks
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
