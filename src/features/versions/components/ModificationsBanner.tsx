@@ -7,7 +7,12 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { AssetVersion } from "@/types";
 import { motion } from "motion/react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { InfoIcon } from "lucide-react";
 
 interface ModificationsBannerProps {
@@ -50,7 +55,10 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
                     <h4 className="font-semibold mb-1">Added:</h4>
                     <ul className="space-y-1">
                       {addedVersions.map((version) => (
-                        <li key={`added-${version.id}`} className="flex items-center">
+                        <li
+                          key={`added-${version.id}`}
+                          className="flex items-center"
+                        >
                           <span className="text-green-500 mr-1">+</span>
                           {version.name} - v{version.version}
                         </li>
@@ -63,7 +71,10 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
                     <h4 className="font-semibold mb-1">Removed:</h4>
                     <ul className="space-y-1">
                       {removedVersions.map((version) => (
-                        <li key={`removed-${version.id}`} className="flex items-center">
+                        <li
+                          key={`removed-${version.id}`}
+                          className="flex items-center"
+                        >
                           <span className="text-red-500 mr-1">-</span>
                           {version.name} - v{version.version}
                         </li>

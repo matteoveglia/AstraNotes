@@ -13,7 +13,12 @@ import { AssetVersion } from "../types";
 import { ftrackService } from "../services/ftrack";
 import { Checkbox } from "./ui/checkbox";
 import { motion } from "motion/react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -203,7 +208,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="default" size="sm" onClick={handleAddSelected}>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleAddSelected}
+                        >
                           Add {selectedVersions.length} Selected
                         </Button>
                       </TooltipTrigger>
@@ -225,7 +234,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                   transition={{ type: "spring", duration: 0.4, delay: 0.1 }}
                   exit={{ opacity: 0, scale: 0.7 }}
                 >
-                  <Button variant="outline" size="sm" onClick={handleClearSelection}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearSelection}
+                  >
                     Clear Selection
                   </Button>
                 </motion.div>
@@ -252,8 +265,8 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                   <TooltipContent>
                     <ul className="list-disc pl-4 text-sm">
                       {currentVersions
-                        .filter(v => v.manuallyAdded)
-                        .map(v => (
+                        .filter((v) => v.manuallyAdded)
+                        .map((v) => (
                           <li key={`${v.name}-${v.version}`}>
                             {v.name} - v{v.version}
                           </li>
@@ -325,7 +338,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                         className="w-full h-16 object-cover mb-1"
                       />
                     )}
-                    <div className="font-medium truncate max-w-[90%]">{version.name}</div>
+                    <div className="font-medium truncate max-w-[90%]">
+                      {version.name}
+                    </div>
                     <div className="text-gray-500">v{version.version}</div>
                   </div>
                 </motion.div>

@@ -1,15 +1,15 @@
 {
-  "version": "0.3.1",
-  "notes": "Overhauled version search & selection - now with multi-select. Added export log function for debugging.",
-  "pub_date": "2025-03-19T17:45:45.066Z",
+  "version": "0.3.2",
+  "notes": "Fixed critical quick notes bug. Added summary of changes to playlist modification banner. Added silent update checker.",
+  "pub_date": "2025-03-20T18:41:45.558Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.1/AstraNotes_0.3.1_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3hyYzVMM1pzNHJRNlJoUWlkdlZELzVhTEVkNzEvOUpKa0dHSXhTNGJZSlA5Y0VCZjM3aTJ0dmd0bE0rOEJERGUzcGY1dzY4TFNBS1BQZTBDcU1WYUFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDA2MzQ0CWZpbGU6QXN0cmFOb3Rlc18wLjMuMV94NjRfZW4tVVMubXNpCjdQcDRrbGJldHJtb2hqYlZEVXViREtmalU4UVhiS3paZHpDUkVHMGR4dVgraWVJRFkyeWN1R0c5ZFhRWFRlZVdjcllCcDZwSUJxNms3VmY2ZDF1b0N3PT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.1/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzM4aFpHSTJwUC9iTWJENjMxK3QyUmp3YkhYaVU3QmJRWk81bTZieGhaOXY2L2ZqKy90UStQcHZJSFBBSWVVU1JzcHd5ZjFCQkZNSjIyaGdnUjArV2cwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDA1MDc0CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnJmbzhkZmJDcUJ6N0Vka05QS0ZabDBvVGdqSzBBNzFyVy9DdXljc0JNcTI4bkErS1hqb1VTQ3pPMnVaR0I5Y0pnWHluNC9vRVVidW81M2hJK1ZQbkF3PT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.3.2/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzhWMGhtaUlNMDEvdVJqa0l5NURmYmxOd2dRMXY3UXdWaHVrRDlRVWR3WGlBTVNiQ3FuQ3psWERsQi9IR1ZpeVhzdjRpQkNqWTZxam9WU1BoWU50N1FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQyNDk2MTA1CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CmNWME1XZWhQZVN0cVl4UUxoWG5KZ3l2SjcyUDFLVGpsVjlId3hxd1lzQmN3Nkw3OTFxTTdUVitHeElwN2NkN1VxeG5NMGtxMXZVS0RYZ1VGRitlQ0FBPT0K"
     }
   }
 }

@@ -31,31 +31,31 @@ const originalConsole = {
 // Initialize log capturing
 export function initLogCapture() {
   // Override console.log
-  console.log = function(...args) {
+  console.log = function (...args) {
     captureLog("log", args);
     originalConsole.log.apply(console, args);
   };
 
   // Override console.info
-  console.info = function(...args) {
+  console.info = function (...args) {
     captureLog("info", args);
     originalConsole.info.apply(console, args);
   };
 
   // Override console.warn
-  console.warn = function(...args) {
+  console.warn = function (...args) {
     captureLog("warn", args);
     originalConsole.warn.apply(console, args);
   };
 
   // Override console.error
-  console.error = function(...args) {
+  console.error = function (...args) {
     captureLog("error", args);
     originalConsole.error.apply(console, args);
   };
 
   // Override console.debug
-  console.debug = function(...args) {
+  console.debug = function (...args) {
     captureLog("debug", args);
     originalConsole.debug.apply(console, args);
   };
@@ -64,7 +64,7 @@ export function initLogCapture() {
 // Capture a log entry
 function captureLog(level: string, args: any[]) {
   const timestamp = Date.now();
-  
+
   // Convert first argument to string if possible
   let message = "";
   if (args.length > 0) {
@@ -97,16 +97,18 @@ function captureLog(level: string, args: any[]) {
 function formatLogEntry(entry: LogEntry): string {
   const date = new Date(entry.timestamp);
   const dateStr = date.toISOString();
-  
+
   let argsStr = "";
   if (entry.args.length > 0) {
     try {
-      argsStr = entry.args.map(arg => {
-        if (typeof arg === "object") {
-          return JSON.stringify(arg);
-        }
-        return String(arg);
-      }).join(" ");
+      argsStr = entry.args
+        .map((arg) => {
+          if (typeof arg === "object") {
+            return JSON.stringify(arg);
+          }
+          return String(arg);
+        })
+        .join(" ");
     } catch (e) {
       argsStr = "[Error serializing arguments]";
     }
@@ -120,33 +122,35 @@ export async function exportLogs(): Promise<string> {
   try {
     // Format all logs
     const logLines = logStore.map(formatLogEntry);
-    
+
     // Add header
     const header = `AstraNotes Log Export\nGenerated: ${new Date().toISOString()}\nContains logs from the last 24 hours\n\n`;
     const content = header + logLines.join("\n");
-    
+
     // Create filename with timestamp
     const now = new Date();
-    const dateStr = 
+    const dateStr =
       now.getFullYear().toString() +
       (now.getMonth() + 1).toString().padStart(2, "0") +
       now.getDate().toString().padStart(2, "0") +
       "_" +
       now.getHours().toString().padStart(2, "0") +
       now.getMinutes().toString().padStart(2, "0");
-    
+
     const filename = `AstraNotes_logs_${dateStr}.txt`;
-    
+
     // Get downloads directory and create file path
     const downloadsDir = await downloadDir();
     const filePath = await join(downloadsDir, filename);
-    
+
     // Write the log file
     await writeTextFile(filePath, content);
-    
+
     // Show success message
-    await message(`Logs exported successfully to:\n${filePath}`, { title: "Logs Exported" });
-    
+    await message(`Logs exported successfully to:\n${filePath}`, {
+      title: "Logs Exported",
+    });
+
     return filePath;
   } catch (error) {
     console.error("Error exporting logs:", error);

@@ -65,11 +65,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       fetchLabels();
       // Get app version
-      getVersion().then((version) => {
-        setAppVersion(version);
-      }).catch((err) => {
-        console.error("Failed to get app version:", err);
-      });
+      getVersion()
+        .then((version) => {
+          setAppVersion(version);
+        })
+        .catch((err) => {
+          console.error("Failed to get app version:", err);
+        });
     }
   }, [isOpen, fetchLabels]);
 
@@ -322,12 +324,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Right Column */}
           <div className="space-y-4">
             <div className="border p-4 rounded-md bg-muted/30">
-              <h1 className="text-3xl font-semibold mb-2 text-center">AstraNotes</h1>
+              <h1 className="text-3xl font-semibold mb-2 text-center">
+                AstraNotes
+              </h1>
               <p className="text-sm text-muted-foreground text-center mb-2">
                 Version: {appVersion}
               </p>
               <p className="text-sm text-muted-foreground text-center">
-                by <a
+                by{" "}
+                <a
                   href="https://astralumen.co/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -336,7 +341,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Astra Lumen Images
                 </a>
               </p>
-
             </div>
 
             <div className="border-t pt-4 mt-4">
@@ -344,8 +348,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <h4 className="font-medium">Updates</h4>
                   <p className="text-sm text-muted-foreground max-w-56">
-                    {updateAvailable 
-                      ? `Version ${updateVersion} available` 
+                    {updateAvailable
+                      ? `Version ${updateVersion} available`
                       : "Check for new versions"}
                   </p>
                 </div>
@@ -362,7 +366,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Button
                     variant="default"
                     size="default"
-                    onClick={() => updateAvailable ? installUpdate() : silentCheckForUpdates()}
+                    onClick={() =>
+                      updateAvailable
+                        ? installUpdate()
+                        : silentCheckForUpdates()
+                    }
                     disabled={isLoading}
                     className="relative z-10"
                   >
@@ -393,7 +401,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-
             <div className="border-t pt-4 mt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -412,7 +419,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </Button>
               </div>
             </div>
-
           </div>
         </div>
       </DialogContent>

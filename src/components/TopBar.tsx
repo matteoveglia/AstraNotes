@@ -19,7 +19,8 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ children }) => {
   const { isConnected } = useConnectionStatus();
   const { settings } = useSettings();
-  const { shouldShowNotification, shouldHighlightNotification, updateVersion } = useUpdateStore();
+  const { shouldShowNotification, shouldHighlightNotification, updateVersion } =
+    useUpdateStore();
 
   return (
     <div className="h-12 border-b bg-white flex items-center justify-between px-4">
@@ -45,8 +46,12 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
         )}
         {shouldShowNotification() && (
           <div className="flex items-center gap-1.5">
-            <ArrowUpCircle className={`w-4 h-4 ${shouldHighlightNotification() ? 'text-red-500' : 'text-orange-500'}`} />
-            <span className={`text-sm font-medium ${shouldHighlightNotification() ? 'text-red-600' : 'text-orange-600'}`}>
+            <ArrowUpCircle
+              className={`w-4 h-4 ${shouldHighlightNotification() ? "text-red-500" : "text-orange-500"}`}
+            />
+            <span
+              className={`text-sm font-medium ${shouldHighlightNotification() ? "text-red-600" : "text-orange-600"}`}
+            >
               Update Available
             </span>
           </div>

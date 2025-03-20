@@ -19,9 +19,9 @@ const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
  */
 export function isUpdateCheckDue(): boolean {
   const { lastCheckedAt } = useUpdateStore.getState();
-  
+
   // If never checked or checked more than 12 hours ago
-  return !lastCheckedAt || (Date.now() - lastCheckedAt > TWELVE_HOURS_MS);
+  return !lastCheckedAt || Date.now() - lastCheckedAt > TWELVE_HOURS_MS;
 }
 
 /**
@@ -31,12 +31,12 @@ export function isUpdateCheckDue(): boolean {
 export async function silentCheckForUpdates(): Promise<boolean> {
   try {
     console.log("Running silent update check...");
-    
+
     // Update the last checked timestamp regardless of result
     useUpdateStore.getState().setLastCheckedAt(Date.now());
-    
+
     const update = await check();
-    
+
     if (update) {
       console.log(`Update available: v${update.version}`);
       useUpdateStore.getState().setUpdateAvailable(true, update.version);
@@ -59,21 +59,21 @@ export async function silentCheckForUpdates(): Promise<boolean> {
 export async function installUpdate(): Promise<boolean> {
   try {
     const update = await check();
-    
+
     if (!update) {
       console.log("No update available to install");
       useUpdateStore.getState().setUpdateAvailable(false);
       return false;
     }
-    
+
     // Directly proceed with download and installation
     await update.downloadAndInstall((event) => {
       console.log("Download progress:", event);
     });
-    
+
     // Reset update state before relaunch
     useUpdateStore.getState().resetUpdateState();
-    
+
     // Relaunch the application
     await relaunch();
     return true;
@@ -151,11 +151,14 @@ export function initializeUpdateChecker() {
   setTimeout(() => {
     silentCheckForUpdates();
   }, 10000); // 10 seconds delay on startup
-  
+
   // Set up interval to check every 12 hours
-  setInterval(() => {
-    if (isUpdateCheckDue()) {
-      silentCheckForUpdates();
-    }
-  }, 30 * 60 * 1000); // Check every 30 minutes if due (to catch when computer wakes from sleep)
+  setInterval(
+    () => {
+      if (isUpdateCheckDue()) {
+        silentCheckForUpdates();
+      }
+    },
+    30 * 60 * 1000,
+  ); // Check every 30 minutes if due (to catch when computer wakes from sleep)
 }
