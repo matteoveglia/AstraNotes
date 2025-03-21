@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { PublishingControls } from "./PublishingControls";
+import { PublishingControls } from '@/features/notes/components/PublishingControls';
 
 const meta: Meta<typeof PublishingControls> = {
   title: "Features/Notes/PublishingControls",

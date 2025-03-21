@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { SettingsModal } from "./SettingsModal";
-import { storyMocks } from "../../.storybook/mocks";
+import { SettingsModal } from "@/components/SettingsModal";
+import { storyMocks } from "../../../.storybook/mocks";
 
 declare global {
   interface Window {

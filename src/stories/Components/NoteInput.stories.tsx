@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { NoteInput } from "./NoteInput";
+import { NoteInput } from "@/components/NoteInput";
 
 const meta: Meta<typeof NoteInput> = {
   title: "Components/NoteInput",
   component: NoteInput,
   parameters: {
-    layout: "centered",
+    layout: "fullscreen",
   },
   tags: ["autodocs"],
   argTypes: {
