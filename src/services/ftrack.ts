@@ -327,9 +327,13 @@ export class FtrackService {
         );
       }
 
+      // Process content for better markdown rendering in ftrack
+      // Replace single newlines with double newlines
+      const processedContent = content.replace(/\n/g, '\n\n');
+
       // Create note
       const response = await session.create("Note", {
-        content: content,
+        content: processedContent,
         parent_id: versionId,
         parent_type: "AssetVersion",
         user_id: this.currentUserId,

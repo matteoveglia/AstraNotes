@@ -1,13 +1,12 @@
 /**
  * @fileoverview NoteInput.tsx
  * Reusable component for inputting and managing version-associated notes.
- * Provides text input, label selection, status indication (draft/published/empty),
+ * Provides markdown editor, label selection, status indication (draft/published/empty),
  * version selection, visual feedback, and thumbnail preview support.
  * @component
  */
 
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Textarea } from "./ui/textarea";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { NoteStatus } from "../types";
 import { cn } from "../lib/utils";
@@ -15,6 +14,8 @@ import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
 import { Loader2 } from "lucide-react";
+// Import our custom MarkdownEditor
+import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 
 export interface NoteInputProps {
   versionName: string;
@@ -46,6 +47,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const [content, setContent] = useState(initialContent);
   const [labelId, setLabelId] = useState(initialLabelId);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const markdownEditorRef = useRef<MarkdownEditorRef>(null);
 
   useEffect(() => {
     setContent(initialContent);
@@ -55,23 +57,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setLabelId(initialLabelId);
   }, [initialLabelId]);
 
-  const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  };
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    if (textareaRef.current) {
-      autoResizeTextarea(textareaRef.current);
-    }
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
-    autoResizeTextarea(e.target);
-    onSave(newContent, labelId || "");
+  const handleChange = (value: string) => {
+    setContent(value);
+    onSave(value, labelId || "");
   };
 
   const handleLabelChange = (newLabelId: string) => {
@@ -82,6 +70,16 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const handleClear = () => {
     setContent("");
     onClear();
+  };
+
+  // Function to prepare content for ftrack
+  const prepareContentForFtrack = (content: string) => {
+    // First use the editor's method if available
+    if (markdownEditorRef.current) {
+      return markdownEditorRef.current.processContentForFtrack(content);
+    }
+    // Fallback implementation
+    return content.replace(/\n/g, '\n\n');
   };
 
   const getStatusColor = () => {
@@ -158,10 +156,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
-              <h3 className="font-medium text-gray-900 truncate">
+              <h3 className="font-semibold truncate">
                 {versionName}
               </h3>
-              <span className="text-base text-gray-500">
+              <span className="font-medium text-base text-gray-500">
                 - v{versionNumber}
               </span>
             </div>
@@ -171,15 +169,12 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         <div className="flex gap-3">
           <div className="flex-1">
             <div className="flex gap-2">
-              <Textarea
-                ref={textareaRef}
+              <MarkdownEditor
+                ref={markdownEditorRef}
                 value={content}
                 onChange={handleChange}
-                placeholder="Add a note..."
-                className="min-h-[40px]"
-                autoCapitalize="on"
-                spellCheck={false}
                 disabled={status === "published"}
+                className="w-full"
               />
             </div>
             <div className="flex items-center gap-2">
