@@ -6,7 +6,7 @@
  * @component
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
 import { NoteStatus } from "../types";
 import { cn } from "../lib/utils";
@@ -16,6 +16,8 @@ import { BorderTrail } from "@/components/ui/border-trail";
 import { Loader2 } from "lucide-react";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
+// Import the new NoteAttachments component
+import { NoteAttachments, Attachment } from "./NoteAttachments";
 
 export interface NoteInputProps {
   versionName: string;
@@ -25,8 +27,9 @@ export interface NoteInputProps {
   selected: boolean;
   initialContent?: string;
   initialLabelId?: string;
+  initialAttachments?: Attachment[];
   manuallyAdded?: boolean;
-  onSave: (content: string, labelId: string) => void;
+  onSave: (content: string, labelId: string, attachments?: Attachment[]) => void;
   onClear: () => void;
   onSelectToggle: () => void;
 }
@@ -39,6 +42,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   selected,
   initialContent = "",
   initialLabelId,
+  initialAttachments = [],
   manuallyAdded = false,
   onSave,
   onClear,
@@ -47,7 +51,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const [content, setContent] = useState(initialContent);
   const [labelId, setLabelId] = useState(initialLabelId);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments || []);
   const markdownEditorRef = useRef<MarkdownEditorRef>(null);
+  const componentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setContent(initialContent);
@@ -57,20 +63,107 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setLabelId(initialLabelId);
   }, [initialLabelId]);
 
+  // Setup paste event listener
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (status === "published") return; // Don't allow paste if published
+      
+      if (e.clipboardData?.items) {
+        const items = Array.from(e.clipboardData.items);
+        
+        const imageItems = items.filter(item => 
+          item.kind === 'file' && item.type.startsWith('image/')
+        );
+        
+        if (imageItems.length > 0) {
+          e.preventDefault(); // Prevent default paste behavior for images
+          
+          const newAttachments: Attachment[] = [];
+          
+          imageItems.forEach((item, index) => {
+            const file = item.getAsFile();
+            if (file) {
+              const id = `pasted-${Date.now()}-${index}`;
+              const previewUrl = URL.createObjectURL(file);
+              
+              newAttachments.push({
+                id,
+                file,
+                name: file.name || `pasted-image-${index}.png`,
+                type: file.type,
+                previewUrl,
+              });
+            }
+          });
+          
+          if (newAttachments.length > 0) {
+            setAttachments(prev => [...prev, ...newAttachments]);
+            
+            // Also save the note with the new attachments
+            onSave(content, labelId || "", [...attachments, ...newAttachments]);
+          }
+        }
+      }
+    };
+
+    // Add the event listener to the component
+    const element = componentRef.current;
+    if (element) {
+      element.addEventListener('paste', handlePaste);
+    }
+
+    // Clean up
+    return () => {
+      if (element) {
+        element.removeEventListener('paste', handlePaste);
+      }
+    };
+  }, [content, labelId, attachments, onSave, status]);
+
   const handleChange = (value: string) => {
     setContent(value);
-    onSave(value, labelId || "");
+    onSave(value, labelId || "", attachments);
   };
 
   const handleLabelChange = (newLabelId: string) => {
     setLabelId(newLabelId);
-    onSave(content, newLabelId);
+    onSave(content, newLabelId, attachments);
   };
 
   const handleClear = () => {
     setContent("");
+    
+    // Clean up attachment preview URLs
+    attachments.forEach(attachment => {
+      URL.revokeObjectURL(attachment.previewUrl);
+    });
+    
+    setAttachments([]);
     onClear();
   };
+
+  const handleAddAttachments = useCallback((newAttachments: Attachment[]) => {
+    setAttachments(prev => {
+      const updated = [...prev, ...newAttachments];
+      onSave(content, labelId || "", updated);
+      return updated;
+    });
+  }, [content, labelId, onSave]);
+
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setAttachments(prev => {
+      // Find the attachment to remove its preview URL
+      const attachment = prev.find(att => att.id === id);
+      if (attachment) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+      
+      // Filter out the removed attachment
+      const updated = prev.filter(attachment => attachment.id !== id);
+      onSave(content, labelId || "", updated);
+      return updated;
+    });
+  }, [content, labelId, onSave]);
 
   // Function to prepare content for ftrack
   const prepareContentForFtrack = (content: string) => {
@@ -114,6 +207,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   return (
     <div
+      ref={componentRef}
       className={cn(
         "flex gap-4 p-4 bg-white rounded-lg border",
         manuallyAdded && "border-purple-500 border-2",
@@ -179,15 +273,26 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             </div>
             <div className="flex items-center gap-2">
               {status !== "empty" && (
-                <div className="flex items-center justify-between w-full  mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleClear}
-                    className=" text-gray-500 hover:text-gray-700"
-                  >
-                    Clear
-                  </Button>
+                <div className="flex items-center justify-between w-full mt-3">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClear}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      Clear
+                    </Button>
+                    
+                    {/* Add the attachment component */}
+                    <NoteAttachments
+                      attachments={attachments}
+                      onAddAttachments={handleAddAttachments}
+                      onRemoveAttachment={handleRemoveAttachment}
+                      disabled={status === "published"}
+                    />
+                  </div>
+                  
                   {content && (
                     <NoteLabelSelect
                       value={labelId ?? ""}

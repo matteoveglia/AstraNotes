@@ -6,10 +6,24 @@
  * - Draft note storage
  * - Data cleanup and migration
  * - Cache invalidation
+ * - Note attachments storage
  */
 
 import Dexie, { type Table } from "dexie";
 import type { Playlist, AssetVersion, NoteStatus } from "../types";
+
+export interface NoteAttachment {
+  id: string;
+  noteId: string;
+  versionId: string;
+  playlistId: string;
+  name: string;
+  type: string;
+  size: number;
+  data?: Blob; // For browser storage
+  previewUrl: string;
+  createdAt: number;
+}
 
 export interface CachedVersion extends AssetVersion {
   playlistId: string;
@@ -18,6 +32,7 @@ export interface CachedVersion extends AssetVersion {
   lastModified: number;
   labelId: string;
   isRemoved?: boolean;
+  attachments?: NoteAttachment[];
 }
 
 export interface CachedPlaylist extends Playlist {
@@ -31,15 +46,17 @@ export interface CachedPlaylist extends Playlist {
 export class AstraNotesDB extends Dexie {
   playlists!: Table<CachedPlaylist>;
   versions!: Table<CachedVersion>;
+  attachments!: Table<NoteAttachment>;
 
   constructor() {
     super("AstraNotesDB");
     console.log("Initializing AstraNotesDB schema...");
 
-    this.version(2).stores({
+    this.version(3).stores({
       playlists: "id, lastAccessed, lastChecked",
       versions:
         "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus",
+      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt"
     });
 
     this.versions.hook("creating", function (primKey, obj) {
@@ -55,6 +72,7 @@ export class AstraNotesDB extends Dexie {
     console.log("Schema initialized:", {
       playlists: this.playlists.schema.indexes.map((i) => i.keyPath),
       versions: this.versions.schema.indexes.map((i) => i.keyPath),
+      attachments: this.attachments.schema.indexes.map((i) => i.keyPath),
     });
   }
 
@@ -68,6 +86,12 @@ export class AstraNotesDB extends Dexie {
 
     // Delete versions from inactive playlists
     await this.versions
+      .where("playlistId")
+      .noneOf([...activePlaylistIds])
+      .delete();
+      
+    // Delete attachments from inactive playlists
+    await this.attachments
       .where("playlistId")
       .noneOf([...activePlaylistIds])
       .delete();

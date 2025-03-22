@@ -1,7 +1,7 @@
 /**
  * @fileoverview useNoteManagement.ts
- * Custom hook for managing note drafts, statuses, and labels.
- * Handles saving, clearing, and publishing notes.
+ * Custom hook for managing note drafts, statuses, labels, and attachments.
+ * Handles saving, clearing, and publishing notes with attachments.
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,6 +13,7 @@ import Dexie from "dexie";
 import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
 import { useErrorHandler, categorizeError } from "@/utils/errorHandling";
+import { Attachment } from "@/components/NoteAttachments";
 
 export function useNoteManagement(playlist: Playlist) {
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
@@ -21,6 +22,7 @@ export function useNoteManagement(playlist: Playlist) {
   );
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [noteLabelIds, setNoteLabelIds] = useState<Record<string, string>>({});
+  const [noteAttachments, setNoteAttachments] = useState<Record<string, Attachment[]>>({});
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -56,6 +58,7 @@ export function useNoteManagement(playlist: Playlist) {
       const draftMap: Record<string, string> = {};
       const labelMap: Record<string, string> = {};
       const statusMap: Record<string, NoteStatus> = {};
+      const attachmentsMap: Record<string, Attachment[]> = {};
 
       // First, add all published notes to ensure they have priority
       publishedNotes.forEach((note: CachedVersion) => {
@@ -67,6 +70,20 @@ export function useNoteManagement(playlist: Playlist) {
 
         if (note.labelId) {
           labelMap[note.id] = note.labelId;
+        }
+        
+        // Add attachments if available
+        if (note.attachments && Array.isArray(note.attachments) && note.attachments.length > 0) {
+          attachmentsMap[note.id] = note.attachments.map((att) => ({
+            id: att.id,
+            name: att.name,
+            type: att.type,
+            previewUrl: att.previewUrl,
+            // Create a File object if data is available, otherwise provide empty File
+            file: att.data 
+              ? new File([att.data], att.name, { type: att.type }) 
+              : new File([], att.name, { type: att.type })
+          }));
         }
       });
 
@@ -86,11 +103,26 @@ export function useNoteManagement(playlist: Playlist) {
         if (draft.labelId) {
           labelMap[draft.id] = draft.labelId;
         }
+        
+        // Add attachments if available
+        if (draft.attachments && Array.isArray(draft.attachments) && draft.attachments.length > 0) {
+          attachmentsMap[draft.id] = draft.attachments.map((att) => ({
+            id: att.id,
+            name: att.name,
+            type: att.type,
+            previewUrl: att.previewUrl,
+            // Create a File object if data is available, otherwise provide empty File
+            file: att.data 
+              ? new File([att.data], att.name, { type: att.type }) 
+              : new File([], att.name, { type: att.type })
+          }));
+        }
       });
 
       setNoteDrafts(draftMap);
       setNoteStatuses(statusMap);
       setNoteLabelIds(labelMap);
+      setNoteAttachments(attachmentsMap);
     } catch (error) {
       console.error("Failed to load drafts:", error);
     }
@@ -107,11 +139,12 @@ export function useNoteManagement(playlist: Playlist) {
     setSelectedVersions([]);
   }, [playlist.id]);
 
-  // Save a note draft
+  // Save a note draft with attachments
   const saveNoteDraft = async (
     versionId: string,
     content: string,
     labelId: string,
+    attachments: Attachment[] = [],
   ) => {
     try {
       // Check if the note is already published - if yes, preserve the published status
@@ -126,11 +159,10 @@ export function useNoteManagement(playlist: Playlist) {
             : "draft";
 
       console.debug(
-        `[useNoteManagement] Saving note ${versionId} with status: ${status} (previous: ${currentStatus})`,
+        `[useNoteManagement] Saving note ${versionId} with status: ${status} (previous: ${currentStatus}) and ${attachments.length} attachments`,
       );
 
       // Save draft content, status, and label to database
-      // Use saveDraft to ensure the label is saved correctly
       await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
 
       // Also update the status separately to ensure it's set correctly
@@ -142,6 +174,15 @@ export function useNoteManagement(playlist: Playlist) {
           content,
         );
       }
+      
+      // Update attachments in memory
+      setNoteAttachments(prev => ({
+        ...prev,
+        [versionId]: attachments,
+      }));
+      
+      // Save attachments to database
+      await playlistStore.saveAttachments(versionId, playlist.id, attachments);
 
       setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
       setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
@@ -165,6 +206,14 @@ export function useNoteManagement(playlist: Playlist) {
 
   // Clear a note draft
   const clearNoteDraft = async (versionId: string) => {
+    // Clean up attachment previews
+    const attachmentsToClean = noteAttachments[versionId] || [];
+    attachmentsToClean.forEach(attachment => {
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+    });
+    
     // Unselect the version when cleared
     setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
     setNoteStatuses((prev) => {
@@ -182,12 +231,20 @@ export function useNoteManagement(playlist: Playlist) {
       delete newLabelIds[versionId];
       return newLabelIds;
     });
+    setNoteAttachments((prev) => {
+      const newAttachments = { ...prev };
+      delete newAttachments[versionId];
+      return newAttachments;
+    });
 
     // Reset to empty in the database using saveDraft to ensure labelId is cleared
     await playlistStore.saveDraft(versionId, playlist.id, "", "");
 
     // Also update the status to empty
     await playlistStore.saveNoteStatus(versionId, playlist.id, "empty", "");
+    
+    // Clear attachments from database
+    await playlistStore.clearAttachments(versionId, playlist.id);
   };
 
   // Toggle version selection
@@ -199,395 +256,328 @@ export function useNoteManagement(playlist: Playlist) {
     );
   };
 
-  // Publish notes
-  const publishNotes = useCallback(async () => {
-    if (isPublishing) return;
-
-    setIsPublishing(true);
-
-    try {
-      // Get versions with content
-      const versionsToPublish = Object.entries(noteDrafts)
-        .filter(
-          ([versionId, content]) =>
-            // Only include notes with content that aren't already published
-            content?.trim() && noteStatuses[versionId] !== "published",
-        )
-        .map(([versionId, content]) => ({
-          versionId,
-          content,
-          labelId: noteLabelIds[versionId] || selectedLabel || undefined,
-        }));
-
-      if (!versionsToPublish.length) {
-        toast.showWarning("No notes to publish");
-        return;
-      }
-
-      const failedVersions: Array<{
-        versionId: string;
-        content: string;
-        labelId?: string;
-      }> = [];
-
-      for (const item of versionsToPublish) {
-        try {
-          await ftrackService.publishNote(
-            item.versionId,
-            item.content,
-            item.labelId,
-          );
-        } catch (error) {
-          console.error(
-            `Failed to publish note for version ${item.versionId}:`,
-            error,
-          );
-
-          const { isNetworkError, isAuthError, message } =
-            categorizeError(error);
-
-          if (isNetworkError) {
-            toast.showError(
-              `Connection Error: Unable to connect to ftrack API. Please check your internet connection.`,
-            );
-          } else if (isAuthError) {
-            toast.showError(
-              `Authentication Error: Please check your API credentials in settings.`,
-            );
-          } else {
-            toast.showError(`Failed to publish note: ${message}`);
-          }
-
-          failedVersions.push(item);
-        }
-      }
-
-      // If we have any successful publishes, show a success message
-      if (versionsToPublish.length - failedVersions.length > 0) {
-        toast.showSuccess(
-          `Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`,
-        );
-      }
-
-      // Update database with published status for successful notes
-      for (const item of versionsToPublish) {
-        if (!failedVersions.some((f) => f.versionId === item.versionId)) {
-          await playlistStore.saveNoteStatus(
-            item.versionId,
-            playlist.id,
-            "published",
-            noteDrafts[item.versionId],
-          );
-          setNoteStatuses((prev) => ({
-            ...prev,
-            [item.versionId]: "published",
-          }));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to publish notes:", error);
-      handleError(error, "Failed to publish notes");
-    } finally {
-      setIsPublishing(false);
-    }
-  }, [
-    noteDrafts,
-    noteStatuses,
-    noteLabelIds,
-    selectedLabel,
-    isPublishing,
-    toast,
-    handleError,
-  ]);
-
   // Publish selected notes
-  const publishSelectedNotes = useCallback(async () => {
-    if (isPublishing) return;
-
-    if (!selectedVersions.length) {
-      toast.showWarning("No versions selected");
+  const publishSelectedNotes = async () => {
+    if (selectedVersions.length === 0) {
+      toast.showError("Select at least one draft note to publish");
       return;
     }
 
     setIsPublishing(true);
-
     try {
-      const versionsToPublish = selectedVersions
-        .filter(
-          (versionId) =>
-            // Only include notes with content that aren't already published
-            noteDrafts[versionId]?.trim() &&
-            noteStatuses[versionId] !== "published",
-        )
-        .map((versionId) => ({
-          versionId,
-          content: noteDrafts[versionId],
-          labelId: noteLabelIds[versionId] || selectedLabel || undefined,
-        }));
+      // Create an array of version objects to publish
+      const versionsToPublish = selectedVersions.map(id => ({ versionId: id }));
+      
+      // Call publishWithNotifications with the proper interface
+      const publishResults = await publishWithNotifications(
+        async (items) => {
+          const successVersions: typeof items = [];
+          const failedVersions: typeof items = [];
+          
+          // Process each version
+          for (const { versionId } of items) {
+            try {
+              // Skip if already published
+              if (noteStatuses[versionId] === "published") {
+                console.debug(`[useNoteManagement] Skipping already published note ${versionId}`);
+                continue;
+              }
 
-      if (!versionsToPublish.length) {
-        toast.showWarning(
-          "No notes to publish. Notes must have content and not already be published.",
-        );
-        return;
-      }
+              const version = playlist.versions?.find((v) => v.id === versionId);
+              if (!version) {
+                console.error(`[useNoteManagement] Version ${versionId} not found`);
+                failedVersions.push({ versionId });
+                continue;
+              }
 
-      const failedVersions: Array<{
-        versionId: string;
-        content: string;
-        labelId?: string;
-      }> = [];
+              const content = noteDrafts[versionId] || "";
+              const labelId = noteLabelIds[versionId] || "";
+              const attachments = noteAttachments[versionId] || [];
 
-      for (const item of versionsToPublish) {
-        try {
-          await ftrackService.publishNote(
-            item.versionId,
-            item.content,
-            item.labelId,
-          );
-        } catch (error) {
-          console.error(
-            `Failed to publish note for version ${item.versionId}:`,
-            error,
-          );
+              // Use the updated publishNoteWithAttachments method
+              const noteId = await ftrackService.publishNoteWithAttachments(
+                versionId,
+                content,
+                labelId,
+                attachments
+              );
 
-          const { isNetworkError, isAuthError, message } =
-            categorizeError(error);
+              if (noteId) {
+                console.debug(`[useNoteManagement] Published note ${versionId} with id ${noteId}`);
+                
+                // Update the status in the database
+                await playlistStore.saveNoteStatus(
+                  versionId,
+                  playlist.id,
+                  "published",
+                  content,
+                );
 
-          if (isNetworkError) {
-            toast.showError(
-              `Connection Error: Unable to connect to ftrack API. Please check your internet connection.`,
-            );
-          } else if (isAuthError) {
-            toast.showError(
-              `Authentication Error: Please check your API credentials in settings.`,
-            );
-          } else {
-            toast.showError(`Failed to publish note: ${message}`);
+                // Update in memory
+                setNoteStatuses((prev) => ({
+                  ...prev,
+                  [versionId]: "published",
+                }));
+
+                successVersions.push({ versionId });
+              } else {
+                console.error(`[useNoteManagement] Failed to publish note ${versionId}`);
+                failedVersions.push({ versionId });
+              }
+            } catch (error) {
+              console.error(`[useNoteManagement] Error publishing note ${versionId}:`, error);
+              failedVersions.push({ versionId });
+            }
           }
 
-          failedVersions.push(item);
-        }
-      }
+          return { 
+            success: successVersions,
+            failed: failedVersions
+          };
+        },
+        versionsToPublish
+      );
 
-      // If we have any successful publishes, show a success message
-      if (versionsToPublish.length - failedVersions.length > 0) {
-        toast.showSuccess(
-          `Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`,
-        );
-      }
-
-      // Update database with published status for successful notes
-      for (const item of versionsToPublish) {
-        if (!failedVersions.some((f) => f.versionId === item.versionId)) {
-          await playlistStore.saveNoteStatus(
-            item.versionId,
-            playlist.id,
-            "published",
-            noteDrafts[item.versionId],
-          );
-          setNoteStatuses((prev) => ({
-            ...prev,
-            [item.versionId]: "published",
-          }));
-        }
+      // Count failures
+      if (publishResults.failed.length > 0) {
+        console.error(`[useNoteManagement] ${publishResults.failed.length} notes failed to publish`);
+        
+        // Generic error handling
+        const errorMessage = "One or more notes could not be published. Please try again.";
+        handleError(new Error("Failed to publish some notes"), errorMessage);
+      } else {
+        console.debug(`[useNoteManagement] All notes published successfully`);
+        
+        // Clear selection after successful publish
+        setSelectedVersions([]);
       }
     } catch (error) {
-      handleError(error, "Failed to publish selected notes");
+      console.error("[useNoteManagement] Error in publish flow:", error);
+      
+      // Handle the error
+      const errorInfo = categorizeError(error);
+      const errorMessage = errorInfo.message || "An unexpected error occurred while publishing notes";
+      handleError(error, errorMessage);
     } finally {
       setIsPublishing(false);
     }
-  }, [
-    selectedVersions,
-    noteDrafts,
-    noteStatuses,
-    noteLabelIds,
-    selectedLabel,
-    isPublishing,
-    toast,
-    handleError,
-  ]);
+  };
 
   // Publish all notes
-  const publishAllNotes = useCallback(async () => {
-    if (isPublishing) return;
-
+  const publishAllNotes = async () => {
     setIsPublishing(true);
-
     try {
-      // Get all versions with draft notes that aren't already published
-      const versionsToPublish = Object.entries(noteDrafts)
-        .filter(
-          ([versionId, content]) =>
-            content?.trim() && noteStatuses[versionId] !== "published",
-        )
-        .map(([versionId, content]) => ({
-          versionId,
-          content,
-          labelId: noteLabelIds[versionId] || selectedLabel || undefined,
-        }));
+      // Create an array of version objects to publish
+      const versionsToPublish = Object.keys(noteDrafts).map(id => ({ versionId: id }));
+      
+      // Call publishWithNotifications with the proper interface
+      const publishResults = await publishWithNotifications(
+        async (items) => {
+          const successVersions: typeof items = [];
+          const failedVersions: typeof items = [];
+          
+          // Process each version
+          for (const { versionId } of items) {
+            try {
+              // Skip if already published
+              if (noteStatuses[versionId] === "published") {
+                console.debug(`[useNoteManagement] Skipping already published note ${versionId}`);
+                continue;
+              }
 
-      if (!versionsToPublish.length) {
-        toast.showWarning(
-          "No notes to publish. Notes must have content and not already be published.",
-        );
-        return;
-      }
+              const version = playlist.versions?.find((v) => v.id === versionId);
+              if (!version) {
+                console.error(`[useNoteManagement] Version ${versionId} not found`);
+                failedVersions.push({ versionId });
+                continue;
+              }
 
-      const failedVersions: Array<{
-        versionId: string;
-        content: string;
-        labelId?: string;
-      }> = [];
+              const content = noteDrafts[versionId] || "";
+              const labelId = noteLabelIds[versionId] || "";
+              const attachments = noteAttachments[versionId] || [];
 
-      for (const item of versionsToPublish) {
-        try {
-          await ftrackService.publishNote(
-            item.versionId,
-            item.content,
-            item.labelId,
-          );
-        } catch (error) {
-          console.error(
-            `Failed to publish note for version ${item.versionId}:`,
-            error,
-          );
+              // Use the updated publishNoteWithAttachments method
+              const noteId = await ftrackService.publishNoteWithAttachments(
+                versionId,
+                content,
+                labelId,
+                attachments
+              );
 
-          const { isNetworkError, isAuthError, message } =
-            categorizeError(error);
+              if (noteId) {
+                console.debug(`[useNoteManagement] Published note ${versionId} with id ${noteId}`);
+                
+                // Update the status in the database
+                await playlistStore.saveNoteStatus(
+                  versionId,
+                  playlist.id,
+                  "published",
+                  content,
+                );
 
-          if (isNetworkError) {
-            toast.showError(
-              `Connection Error: Unable to connect to ftrack API. Please check your internet connection.`,
-            );
-          } else if (isAuthError) {
-            toast.showError(
-              `Authentication Error: Please check your API credentials in settings.`,
-            );
-          } else {
-            toast.showError(`Failed to publish note: ${message}`);
+                // Update in memory
+                setNoteStatuses((prev) => ({
+                  ...prev,
+                  [versionId]: "published",
+                }));
+
+                successVersions.push({ versionId });
+              } else {
+                console.error(`[useNoteManagement] Failed to publish note ${versionId}`);
+                failedVersions.push({ versionId });
+              }
+            } catch (error) {
+              console.error(`[useNoteManagement] Error publishing note ${versionId}:`, error);
+              failedVersions.push({ versionId });
+            }
           }
 
-          failedVersions.push(item);
-        }
-      }
+          return { 
+            success: successVersions,
+            failed: failedVersions
+          };
+        },
+        versionsToPublish
+      );
 
-      // If we have any successful publishes, show a success message
-      if (versionsToPublish.length - failedVersions.length > 0) {
-        toast.showSuccess(
-          `Successfully published ${versionsToPublish.length - failedVersions.length} note(s)`,
-        );
-      }
-
-      // Update database with published status for successful notes
-      for (const item of versionsToPublish) {
-        if (!failedVersions.some((f) => f.versionId === item.versionId)) {
-          await playlistStore.saveNoteStatus(
-            item.versionId,
-            playlist.id,
-            "published",
-            noteDrafts[item.versionId],
-          );
-          setNoteStatuses((prev) => ({
-            ...prev,
-            [item.versionId]: "published",
-          }));
-        }
+      // Count failures
+      if (publishResults.failed.length > 0) {
+        console.error(`[useNoteManagement] ${publishResults.failed.length} notes failed to publish`);
+        
+        // Generic error handling
+        const errorMessage = "One or more notes could not be published. Please try again.";
+        handleError(new Error("Failed to publish some notes"), errorMessage);
+      } else {
+        console.debug(`[useNoteManagement] All notes published successfully`);
+        
+        // Clear selection after successful publish
+        setSelectedVersions([]);
       }
     } catch (error) {
-      handleError(error, "Failed to publish all notes");
+      console.error("[useNoteManagement] Error in publish flow:", error);
+      
+      // Handle the error
+      const errorInfo = categorizeError(error);
+      const errorMessage = errorInfo.message || "An unexpected error occurred while publishing notes";
+      handleError(error, errorMessage);
     } finally {
       setIsPublishing(false);
     }
-  }, [
-    noteDrafts,
-    noteStatuses,
-    noteLabelIds,
-    selectedLabel,
-    isPublishing,
-    toast,
-    handleError,
-  ]);
+  };
 
   // Clear all notes
   const clearAllNotes = async () => {
-    // Get all version IDs that have draft content
-    const versionIds = Object.keys(noteDrafts);
-
-    // Clear all drafts from state
-    setNoteDrafts({});
-    setNoteLabelIds({});
-    setSelectedVersions([]);
-
-    // Update note statuses - set all to empty
-    const updatedStatuses = {};
-    setNoteStatuses(updatedStatuses);
-
-    // Clear drafts from the database
     try {
-      await Promise.all(
-        versionIds.map(async (versionId) => {
-          // First use saveDraft to clear the content and label
-          await playlistStore.saveDraft(versionId, playlist.id, "", "");
+      // Clean up attachment previews
+      Object.values(noteAttachments).forEach(attachments => {
+        attachments.forEach(attachment => {
+          if (attachment.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+        });
+      });
+      
+      // Reset all notes to empty in the database
+      await Promise.all(Object.keys(noteDrafts).map(versionId => playlistStore.saveDraft(versionId, playlist.id, "", "")));
 
-          // Then use saveNoteStatus to properly reset the status to empty
-          await playlistStore.saveNoteStatus(
-            versionId,
-            playlist.id,
-            "empty",
-            "",
-          );
-        }),
-      );
+      // Also update the status to empty
+      await Promise.all(Object.keys(noteDrafts).map(versionId => playlistStore.saveNoteStatus(versionId, playlist.id, "empty", "")));
+
+      // Clear attachments from database
+      await Promise.all(Object.keys(noteDrafts).map(versionId => playlistStore.clearAttachments(versionId, playlist.id)));
+
+      // Update in memory
+      setNoteStatuses({});
+      setNoteDrafts({});
+      setNoteLabelIds({});
+      setNoteAttachments({});
+      setSelectedVersions([]);
     } catch (error) {
-      console.error("Failed to clear drafts from database:", error);
+      console.error("Failed to clear all notes:", error);
     }
   };
 
-  // Set label for all notes
+  // Set the same label for all selected notes
   const setAllLabels = async (labelId: string) => {
-    // Update all drafts with the new label
-    const updatedLabelIds = { ...noteLabelIds };
-    Object.keys(noteDrafts).forEach((versionId) => {
-      updatedLabelIds[versionId] = labelId;
-    });
-    setNoteLabelIds(updatedLabelIds);
-
-    // Save changes to database
     try {
-      await Promise.all(
-        Object.entries(noteDrafts).map(async ([versionId, content]) => {
-          await playlistStore.saveDraft(
-            versionId,
-            playlist.id,
-            content,
-            labelId,
-          );
-        }),
-      );
+      // Apply the label to all selected versions
+      const updatePromises = selectedVersions.map(versionId => {
+        // Get existing draft content
+        const content = noteDrafts[versionId] || "";
+        
+        // Save with new label
+        return playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+      });
+      
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+      
+      // Update in memory
+      const newLabelIds = { ...noteLabelIds };
+      selectedVersions.forEach(versionId => {
+        newLabelIds[versionId] = labelId;
+      });
+      
+      setNoteLabelIds(newLabelIds);
+      
+      toast.showSuccess(`Applied label to ${selectedVersions.length} note${selectedVersions.length > 1 ? 's' : ''}`);
     } catch (error) {
-      console.error("Failed to update labels in database:", error);
+      console.error("Failed to set labels for all selected notes:", error);
+      toast.showError("Failed to apply labels");
     }
   };
+
+  // Getters for hook consumers
+  const getNoteStatus = (versionId: string): NoteStatus => {
+    return noteStatuses[versionId] || "empty";
+  };
+
+  const getNoteDraft = (versionId: string): string => {
+    return noteDrafts[versionId] || "";
+  };
+
+  const getNoteLabelId = (versionId: string): string => {
+    return noteLabelIds[versionId] || "";
+  };
+  
+  const getNoteAttachments = (versionId: string): Attachment[] => {
+    return noteAttachments[versionId] || [];
+  };
+
+  const isVersionSelected = (versionId: string): boolean => {
+    return selectedVersions.includes(versionId);
+  };
+
+  // Calculate the number of drafts (notes that aren't empty or already published)
+  const getDraftCount = useCallback((): number => {
+    return Object.entries(noteStatuses).filter(
+      ([, status]) => status === "draft"
+    ).length;
+  }, [noteStatuses]);
 
   return {
+    // State getters
+    getNoteStatus,
+    getNoteDraft,
+    getNoteLabelId,
+    getNoteAttachments,
+    isVersionSelected,
     selectedVersions,
+    isPublishing,
     noteStatuses,
     noteDrafts,
     noteLabelIds,
-    isPublishing,
+    getDraftCount,
+
+    // Actions
     saveNoteDraft,
     clearNoteDraft,
     toggleVersionSelection,
-    publishNotes,
     publishSelectedNotes,
     publishAllNotes,
     clearAllNotes,
     setAllLabels,
-    getDraftCount: () =>
-      Object.keys(noteDrafts).filter(
-        (id) =>
-          noteDrafts[id]?.trim() !== "" && noteStatuses[id] !== "published",
-      ).length,
+    setSelectedLabel,
+    selectedLabel,
   };
 }

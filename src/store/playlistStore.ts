@@ -6,11 +6,13 @@
  * - Draft content persistence
  * - Playlist synchronization
  * - Change detection and polling
+ * - Attachment management
  */
 
-import { db } from "./db";
+import { db, NoteAttachment } from "./db";
 import { Playlist, AssetVersion, NoteStatus } from "../types";
 import { FtrackService } from "../services/ftrack";
+import { Attachment } from "@/components/NoteAttachments";
 
 const DEBUG = true;
 function log(...args: any[]): void {
@@ -51,6 +53,7 @@ interface StorableVersion {
   updatedAt: string;
   manuallyAdded?: boolean;
   noteStatus?: NoteStatus;
+  attachments?: NoteAttachment[];
 }
 
 interface CachedVersion extends StorableVersion {
@@ -352,111 +355,113 @@ export class PlaylistStore {
     labelId: string = "",
   ): Promise<void> {
     try {
-      // First, get the version from the current playlist
-      const version = await db.versions.get([playlistId, versionId]);
+      log(`[PlaylistStore] Saving draft for version ${versionId}`);
 
-      if (version) {
-        // Update existing version in this playlist
-        const updatedVersion = {
-          ...version,
-          // Keep existing draft content unless new content is provided
-          draftContent: content !== undefined ? content : version.draftContent,
-          noteStatus: version.noteStatus,
-          labelId,
-          lastModified: Date.now(),
-          isRemoved: version.isRemoved || false,
-        };
-        await db.versions.put(updatedVersion);
-        log(`Updated draft for version ${versionId} in playlist ${playlistId}`);
-      } else {
-        // Version not found in this playlist
-        // Check if the version exists in the playlist object
-        const playlist = await this.getPlaylist(playlistId);
-        if (!playlist) {
-          throw new Error(`Playlist not found: ${playlistId}`);
-        }
-
-        // Find the version in the playlist's versions array
-        const versionInPlaylist = playlist.versions?.find(
-          (v) => v.id === versionId,
-        );
-
-        if (!versionInPlaylist) {
-          // For Quick Notes, we need to handle the case where the version might not be in the playlist yet
-          if (playlistId === "quick-notes") {
-            // Check if the version exists in any other playlist
-            const existingVersion = await db.versions
-              .where("id")
-              .equals(versionId)
-              .first();
-
-            if (existingVersion) {
-              // Create a new version entry for Quick Notes based on the existing version
-              const newVersion: CachedVersion = {
-                ...existingVersion,
-                playlistId,
-                draftContent: content,
-                labelId,
-                lastModified: Date.now(),
-                manuallyAdded: true,
-              };
-
-              // Add it to the database
-              await db.versions.put(newVersion);
-
-              // Update the playlist's addedVersions array
-              if (!playlist.addedVersions.includes(versionId)) {
-                playlist.addedVersions = [...playlist.addedVersions, versionId];
-                playlist.hasModifications = true;
-                await this.cachePlaylist(playlist);
-              }
-
-              log(
-                `Created new draft for version ${versionId} in Quick Notes based on existing version`,
-              );
-              return;
-            } else {
-              console.error(
-                `Cannot save draft: Version not found in any playlist – "${versionId}"`,
-              );
-              return;
-            }
-          } else {
-            console.error(
-              `Cannot save draft: Version not found in playlist – "${versionId}"`,
-            );
-            return;
-          }
-        }
-
-        // Create a new version entry for this playlist
-        const newVersion: CachedVersion = {
-          ...versionInPlaylist,
-          playlistId,
-          draftContent: content,
-          labelId,
-          lastModified: Date.now(),
-          // Preserve manuallyAdded flag from existing version or from the version itself
-          manuallyAdded: versionInPlaylist.manuallyAdded || false,
-        };
-        await db.versions.put(newVersion);
-
-        // If this is a manually added version, update the playlist's addedVersions array
-        if (
-          newVersion.manuallyAdded &&
-          !playlist.addedVersions.includes(versionId)
-        ) {
-          playlist.addedVersions = [...playlist.addedVersions, versionId];
-          playlist.hasModifications = true;
-          await this.cachePlaylist(playlist);
-        }
-
-        log(
-          `Created new draft for version ${versionId} in playlist ${playlistId}`,
-        );
-      }
+      await db.versions.where("[playlistId+id]").equals([playlistId, versionId]).modify({
+        draftContent: content,
+        labelId,
+        lastModified: Date.now(),
+      });
     } catch (error) {
       console.error("Failed to save draft:", error);
+      throw error;
+    }
+  }
+
+  async saveAttachments(
+    versionId: string,
+    playlistId: string,
+    attachments: Attachment[]
+  ): Promise<void> {
+    try {
+      log(`[PlaylistStore] Saving ${attachments.length} attachments for version ${versionId}`);
+      
+      // First, delete any existing attachments for this version+playlist
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+      
+      // If there are no attachments to save, we're done
+      if (attachments.length === 0) {
+        return;
+      }
+      
+      // Convert Attachment objects to NoteAttachment for storage
+      const noteAttachments: NoteAttachment[] = [];
+      
+      for (const attachment of attachments) {
+        if (!attachment.file) continue;
+        
+        // Handle both string paths and File objects
+        let fileSize = 0;
+        let fileData: Blob | undefined = undefined;
+        let filePath: string | undefined = undefined;
+        
+        if (attachment.file instanceof File) {
+          // It's a browser File object
+          fileSize = attachment.file.size;
+          fileData = attachment.file;
+        } else {
+          // It's a file path string (Tauri)
+          fileSize = 0; // We don't know the size without reading the file
+          filePath = attachment.file; // Store the path in a custom field
+          // We don't set fileData since we don't have a Blob
+        }
+        
+        noteAttachments.push({
+          id: attachment.id,
+          noteId: "", // Will be filled when published
+          versionId,
+          playlistId,
+          name: attachment.name,
+          type: attachment.type,
+          size: fileSize,
+          data: fileData, // Only store actual Blob objects here
+          previewUrl: attachment.previewUrl,
+          createdAt: Date.now(),
+          filePath, // Add custom field for Tauri paths
+        } as NoteAttachment); // Use type assertion since filePath is custom
+      }
+      
+      // Save new attachments to the database
+      if (noteAttachments.length > 0) {
+        await db.attachments.bulkPut(noteAttachments);
+      }
+      
+      // Update the version with the attachment IDs
+      await db.versions.where("[playlistId+id]").equals([playlistId, versionId]).modify((version) => {
+        version.attachments = noteAttachments;
+        version.lastModified = Date.now();
+      });
+      
+    } catch (error) {
+      console.error("Failed to save attachments:", error);
+      throw error;
+    }
+  }
+  
+  async clearAttachments(
+    versionId: string,
+    playlistId: string
+  ): Promise<void> {
+    try {
+      log(`[PlaylistStore] Clearing attachments for version ${versionId}`);
+      
+      // Delete all attachments for this version from the attachments table
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+      
+      // Update the version to remove the attachments
+      await db.versions.where("[playlistId+id]").equals([playlistId, versionId]).modify((version) => {
+        version.attachments = [];
+        version.lastModified = Date.now();
+      });
+      
+    } catch (error) {
+      console.error("Failed to clear attachments:", error);
       throw error;
     }
   }
@@ -468,46 +473,24 @@ export class PlaylistStore {
     content?: string,
   ): Promise<void> {
     try {
-      console.debug(
-        `[playlistStore] Saving note status for ${versionId}: ${status}`,
+      const modification: any = {
+        noteStatus: status,
+        lastModified: Date.now(),
+      };
+
+      // If content is provided, update it as well
+      if (content !== undefined) {
+        modification.draftContent = content;
+      }
+
+      log(
+        `[PlaylistStore] Saving note status for version ${versionId}: ${status}`,
       );
 
-      const version = await db.versions.get([playlistId, versionId]);
-      if (version) {
-        // Special case: Allow clearing published notes when content is empty and status is "empty"
-        const isExplicitClear =
-          status === "empty" && (!content || content.trim() === "");
-
-        // Critical: Never downgrade a published note to a draft UNLESS it's an explicit clear
-        // Only allow upgrading from draft to published or explicit clearing
-        const finalStatus =
-          version.noteStatus === "published" && !isExplicitClear
-            ? "published" // Preserve published status
-            : status; // Allow changes for non-published notes or explicit clears
-
-        if (version.noteStatus === "published" && status !== "published") {
-          if (isExplicitClear) {
-            console.debug(
-              `[playlistStore] Clearing published note ${versionId} as requested`,
-            );
-          } else {
-            console.debug(
-              `[playlistStore] 🔒 Preserving published status for note ${versionId} (attempted change to ${status})`,
-            );
-          }
-        }
-
-        const updatedVersion = {
-          ...version,
-          // Keep existing draft content unless new content is provided
-          draftContent: content !== undefined ? content : version.draftContent,
-          noteStatus: finalStatus,
-          lastModified: Date.now(),
-          isRemoved: version.isRemoved || false,
-        };
-
-        await db.versions.put(updatedVersion);
-      }
+      await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, versionId])
+        .modify(modification);
     } catch (error) {
       console.error("Failed to save note status:", error);
       throw error;

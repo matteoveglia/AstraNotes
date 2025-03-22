@@ -11,6 +11,8 @@
 
 import type { FtrackSettings, Playlist, Note, AssetVersion } from "../types";
 import { Session } from "@ftrack/api";
+import { Attachment } from "@/components/NoteAttachments";
+import { AttachmentService } from "./attachmentService";
 
 const DEBUG = true;
 
@@ -317,7 +319,7 @@ export class FtrackService {
     versionId: string,
     content: string,
     labelId?: string,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const session = await this.getSession();
 
     try {
@@ -360,8 +362,144 @@ export class FtrackService {
         versionId,
         labelId,
       });
+      
+      return noteId;
     } catch (error) {
       log("Failed to publish note:", error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Publish a note with attachments to ftrack
+   * @param versionId The ID of the version to attach the note to
+   * @param content The note content
+   * @param labelId Optional label ID
+   * @param attachments Optional array of attachments
+   * @returns The created note ID if successful
+   */
+  async publishNoteWithAttachments(
+    versionId: string,
+    content: string,
+    labelId?: string,
+    attachments?: Attachment[]
+  ): Promise<string | null> {
+    const session = await this.getSession();
+
+    try {
+      if (!this.currentUserId) {
+        throw new Error(
+          "No user ID available - session may not be properly initialized"
+        );
+      }
+
+      // Process content for better markdown rendering in ftrack
+      // Replace single newlines with double newlines
+      const processedContent = content.replace(/\n/g, '\n\n');
+
+      // Create note
+      const response = await session.create("Note", {
+        content: processedContent,
+        parent_id: versionId,
+        parent_type: "AssetVersion",
+        user_id: this.currentUserId,
+      });
+
+      // Check for successful response
+      if (!response?.data?.id) {
+        log("Invalid response:", response);
+        throw new Error("Failed to create note: Invalid response from server");
+      }
+
+      const noteId = response.data.id;
+
+      // Link note to label if provided
+      if (labelId) {
+        await session.create("NoteLabelLink", {
+          note_id: noteId,
+          label_id: labelId,
+        });
+      }
+
+      // Handle attachments if any
+      if (attachments && attachments.length > 0) {
+        log(`Uploading ${attachments.length} attachments for note ${noteId}`);
+        
+        // Upload all attachments
+        const uploadResult = await AttachmentService.uploadAttachments(
+          session,
+          attachments
+        );
+        
+        if (uploadResult.componentIds.length > 0) {
+          // Attach uploaded components to the note
+          await AttachmentService.attachComponentsToNote(
+            session,
+            noteId,
+            uploadResult.componentIds
+          );
+          
+          log(`Successfully attached ${uploadResult.componentIds.length} components to note ${noteId}`);
+        }
+        
+        if (uploadResult.failed.length > 0) {
+          console.warn(`Failed to upload ${uploadResult.failed.length} attachments`);
+        }
+      }
+
+      log("Successfully published note:", {
+        noteId,
+        versionId,
+        labelId,
+        attachmentsCount: attachments?.length || 0,
+      });
+      
+      return noteId;
+    } catch (error) {
+      log("Failed to publish note:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get file URL for a component
+   * @param componentId The component ID
+   * @returns The URL to access the file
+   */
+  async getComponentUrl(componentId: string): Promise<string | null> {
+    try {
+      const session = await this.getSession();
+      
+      // Get the server location
+      const serverLocationQuery = await session.query(
+        'Location where name is "ftrack.server"'
+      );
+      const serverLocation = serverLocationQuery.data[0];
+      
+      if (!serverLocation) {
+        throw new Error("Could not find ftrack server location");
+      }
+      
+      // Get component
+      const componentQuery = await session.query(
+        `select id, name from Component where id is "${componentId}"`
+      );
+      const component = componentQuery.data[0];
+      
+      if (!component) {
+        throw new Error(`Component not found: ${componentId}`);
+      }
+      
+      // Get URL for the component
+      const url = session.getComponentUrl(component.id);
+      
+      if (!url) {
+        throw new Error(`Could not get URL for component: ${componentId}`);
+      }
+      
+      return url;
+    } catch (error) {
+      console.error("Failed to get component URL:", error);
       throw error;
     }
   }
