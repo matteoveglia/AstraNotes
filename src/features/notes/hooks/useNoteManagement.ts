@@ -95,33 +95,50 @@ export function useNoteManagement(playlist: Playlist) {
       
       console.log(`[useNoteManagement] Found ${allVersions.length} versions in database`);
       
-      // Process all versions
-      for (const version of allVersions) {
-        // Process draft content
-        if (version.draftContent !== undefined && version.draftContent !== null) {
-          draftMap[version.id] = version.draftContent;
+      allVersions.forEach(v => {
+        draftMap[v.id] = v.draftContent || "";
+        statusMap[v.id] = v.noteStatus || "empty";
+        labelMap[v.id] = v.labelId || "";
+        
+        // Process attachments from version if they exist
+        if (v.attachments && v.attachments.length > 0) {
+          console.log(`[useNoteManagement] Version ${v.id} has ${v.attachments.length} attachments in version object`);
+          
+          // Convert to Attachment format for the UI
+          const attachments = v.attachments.map(att => {
+            // Create an appropriate file object based on what's available
+            let fileObj: File | string;
+            if (att.data) {
+              fileObj = new File([att.data], att.name, { type: att.type });
+            } else if ((att as any).filePath) {
+              fileObj = (att as any).filePath;
+            } else {
+              fileObj = new File([], att.name, { type: att.type });
+            }
+            
+            return {
+              id: att.id,
+              name: att.name,
+              type: att.type,
+              previewUrl: att.previewUrl || "",
+              file: fileObj
+            };
+          });
+          
+          attachmentsMap[v.id] = attachments;
+        }
+      });
+      
+      // Also process any attachments we didn't get directly from the version objects
+      for (const [versionId, attachments] of versionAttachmentsMap.entries()) {
+        // If we already have attachments for this version from the version object, skip
+        if (attachmentsMap[versionId] && attachmentsMap[versionId].length > 0) {
+          continue;
         }
         
-        // Process status
-        if (version.noteStatus) {
-          statusMap[version.id] = version.noteStatus;
-        } else if (version.draftContent?.trim() !== '') {
-          statusMap[version.id] = 'draft';
-        } else if (versionAttachmentsMap.has(version.id) && versionAttachmentsMap.get(version.id).length > 0) {
-          // If there are attachments but no content, still mark as draft
-          statusMap[version.id] = 'draft';
-        } else {
-          statusMap[version.id] = 'empty';
-        }
-        
-        // Process label ID
-        if (version.labelId) {
-          labelMap[version.id] = version.labelId;
-        }
-        
-        // Add attachments from our map
-        if (versionAttachmentsMap.has(version.id)) {
-          attachmentsMap[version.id] = versionAttachmentsMap.get(version.id);
+        if (attachments.length > 0) {
+          console.log(`[useNoteManagement] Adding ${attachments.length} attachments for version ${versionId} from direct DB query`);
+          attachmentsMap[versionId] = attachments;
         }
       }
       

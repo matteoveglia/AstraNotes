@@ -266,6 +266,7 @@ export class PlaylistStore {
 
   async getPlaylist(id: string): Promise<CachedPlaylist | null> {
     try {
+      console.log(`[PlaylistStore] Getting playlist ${id}`);
       // Get the playlist from cache
       const cached = await db.playlists.get(id);
 
@@ -349,6 +350,19 @@ export class PlaylistStore {
       
       console.log(`[PlaylistStore] Loaded ${attachments.length} attachments for playlist ${id}`);
       
+      // Log detailed attachment info for debugging
+      if (attachments.length > 0) {
+        console.log(`[PlaylistStore] First 3 attachments sample:`, 
+          attachments.slice(0, 3).map(a => ({
+            id: a.id,
+            name: a.name,
+            versionId: a.versionId,
+            hasData: !!a.data,
+            hasFilePath: !!(a as any).filePath
+          }))
+        );
+      }
+      
       // Create a map of version IDs to attachments
       const attachmentMap = new Map();
       attachments.forEach(att => {
@@ -358,15 +372,40 @@ export class PlaylistStore {
         attachmentMap.get(att.versionId).push(att);
       });
       
-      // Attach attachments to versions and convert to proper Attachment format
+      // Attach attachments to versions
       cached.versions = cached.versions.map(version => {
-        if (attachmentMap.has(version.id)) {
-          const dbAttachments = attachmentMap.get(version.id);
-          version.attachments = dbAttachments;
+        const versionAttachments = attachmentMap.get(version.id) || [];
+        
+        if (versionAttachments.length > 0) {
+          // Create proper Attachment objects for UI
+          const attachmentObjects = versionAttachments.map((att: NoteAttachment) => {
+            // Create an appropriate file object based on what's available
+            let fileObj: File | string;
+            if (att.data) {
+              fileObj = new File([att.data], att.name, { type: att.type });
+            } else if ((att as any).filePath) {
+              fileObj = (att as any).filePath;
+            } else {
+              fileObj = new File([], att.name, { type: att.type });
+            }
+            
+            return {
+              id: att.id,
+              name: att.name,
+              type: att.type,
+              previewUrl: att.previewUrl || "",
+              file: fileObj
+            };
+          });
           
-          // Log to help diagnose attachment issues
-          console.log(`[PlaylistStore] Version ${version.id} has ${dbAttachments.length} attachments`);
+          // Add attachments to the version object directly
+          (version as any).attachments = attachmentObjects;
+          console.log(`[PlaylistStore] Version ${version.id} has ${attachmentObjects.length} attachments`);
+        } else {
+          // Ensure versions without attachments have an empty array
+          (version as any).attachments = [];
         }
+        
         return version;
       });
 
@@ -485,8 +524,8 @@ export class PlaylistStore {
                 // Dynamically import the fs module
                 const fs = await import('@tauri-apps/plugin-fs');
                 // Get metadata to determine file size
-                const metadata = await fs.metadata(filePath);
-                fileSize = metadata.size || 0;
+                const fileMetadata = await fs.stat(filePath);
+                fileSize = fileMetadata.size || 0;
                 log(`[PlaylistStore] Got Tauri file metadata for ${attachment.name}, size: ${fileSize} bytes`);
               } catch (fsError) {
                 // If we can't get the size, just log and continue
