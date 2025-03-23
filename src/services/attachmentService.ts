@@ -254,7 +254,23 @@ export class AttachmentService {
               const sessionAny = session as any;
               
               // Try different upload methods based on API version
-              if (typeof sessionAny.uploadComponent === 'function') {
+              if (typeof sessionAny.uploadComponentData === 'function') {
+                console.log('Using uploadComponentData method');
+                if (serverLocation && serverLocation.id) {
+                  await sessionAny.uploadComponentData(
+                    component.id,
+                    new Uint8Array(fileData),
+                    serverLocation.id
+                  );
+                } else {
+                  // Try without location
+                  await sessionAny.uploadComponentData(
+                    component.id,
+                    new Uint8Array(fileData)
+                  );
+                }
+                console.log('uploadComponentData method completed successfully');
+              } else if (typeof sessionAny.uploadComponent === 'function') {
                 console.log('Using uploadComponent method');
                 if (serverLocation && serverLocation.id) {
                   await sessionAny.uploadComponent(
@@ -285,10 +301,10 @@ export class AttachmentService {
                 );
                 console.log('upload method completed successfully');
               } else {
-                // Fallback approach using generic call method
-                console.log('Using generic call method with upload_component action');
+                // Fallback approach using legacy upload action
+                console.log('Using legacy upload action');
                 const uploadAction: any = {
-                  action: 'upload_component',
+                  action: 'upload',
                   component_id: component.id,
                   component_data: new Uint8Array(fileData)
                 };
@@ -298,7 +314,7 @@ export class AttachmentService {
                 }
                 
                 await session.call([uploadAction]);
-                console.log('upload_component action completed successfully');
+                console.log('legacy upload action completed successfully');
               }
               
               console.log(`Successfully uploaded data for component ${component.id}`);

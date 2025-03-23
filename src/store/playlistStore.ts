@@ -567,10 +567,17 @@ export class PlaylistStore {
     playlistId: string,
     status: NoteStatus,
     content?: string,
+    hasAttachments: boolean = false,
   ): Promise<void> {
     try {
+      // If content is empty but has attachments, still set as draft
+      let actualStatus = status;
+      if (status === 'empty' && hasAttachments) {
+        actualStatus = 'draft';
+      }
+      
       const modification: any = {
-        noteStatus: status,
+        noteStatus: actualStatus,
         lastModified: Date.now(),
       };
 
@@ -580,7 +587,7 @@ export class PlaylistStore {
       }
 
       log(
-        `[PlaylistStore] Saving note status for version ${versionId}: ${status}`,
+        `[PlaylistStore] Saving note status for version ${versionId}: ${actualStatus} (has attachments: ${hasAttachments})`,
       );
 
       await db.versions

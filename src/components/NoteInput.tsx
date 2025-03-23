@@ -146,28 +146,43 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Add global document-level handlers for better drag event capture
   useEffect(() => {
-    const handleDocumentDragOver = (e: DragEvent) => {
-      // Enable drop on the document level
-      e.preventDefault();
+    const handleDocumentDragEnd = (e: DragEvent) => {
+      // Reset all drag states when dragging ends anywhere in the document
+      dragCountRef.current = 0;
+      setIsDraggingOver(false);
     };
     
-    document.addEventListener('dragover', handleDocumentDragOver);
+    document.addEventListener('dragend', handleDocumentDragEnd);
+    document.addEventListener('drop', handleDocumentDragEnd);
+    
     return () => {
-      document.removeEventListener('dragover', handleDocumentDragOver);
+      document.removeEventListener('dragend', handleDocumentDragEnd);
+      document.removeEventListener('drop', handleDocumentDragEnd);
     };
   }, []);
 
   // Completely rewrite the drag handlers to fix the issues
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (status === "published") return;
+    
+    dragCountRef.current++;
+    setIsDraggingOver(true);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault(); // Critical for enabling drop
-    if (status !== "published") {
-      setIsDraggingOver(true);
-    }
+    // No need to modify state here as it's handled in dragEnter
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only trigger when leaving the component, not child elements
-    if (e.currentTarget === e.target) {
+    e.preventDefault();
+    if (status === "published") return;
+    
+    dragCountRef.current--;
+    // Only reset state when counter reaches 0 (all drag leaves completed)
+    if (dragCountRef.current <= 0) {
+      dragCountRef.current = 0; // Ensure non-negative
       setIsDraggingOver(false);
     }
   };
@@ -307,6 +322,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         isDraggingOver && status !== "published" && "bg-blue-100 border-2 border-dashed border-blue-300",
         "transition-colors duration-150"
       )}
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
