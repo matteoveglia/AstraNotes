@@ -384,8 +384,8 @@ export function useNoteManagement(playlist: Playlist) {
               const labelId = noteLabelIds[versionId] || "";
               const attachments = noteAttachments[versionId] || [];
 
-              // Use the updated publishNoteWithAttachments method
-              const noteId = await ftrackService.publishNoteWithAttachments(
+              // Use the API-based component upload method
+              const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
                 versionId,
                 content,
                 labelId,
@@ -508,8 +508,8 @@ export function useNoteManagement(playlist: Playlist) {
               const labelId = noteLabelIds[versionId] || "";
               const attachments = noteAttachments[versionId] || [];
 
-              // Use the updated publishNoteWithAttachments method
-              const noteId = await ftrackService.publishNoteWithAttachments(
+              // Use the API-based component upload method
+              const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
                 versionId,
                 content,
                 labelId,

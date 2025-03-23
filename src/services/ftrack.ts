@@ -462,6 +462,225 @@ export class FtrackService {
   }
 
   /**
+   * Publish a note with attachments to ftrack using the web UI style attachment upload
+   * This method uses the exact pattern that the ftrack web UI uses, which fixes attachment display issues
+   * @param versionId The ID of the version to attach the note to
+   * @param content The note content
+   * @param labelId Optional label ID
+   * @param attachments Optional array of attachments
+   * @returns The created note ID if successful
+   */
+  async publishNoteWithAttachmentsWebUI(
+    versionId: string,
+    content: string,
+    labelId?: string,
+    attachments?: Attachment[]
+  ): Promise<string | null> {
+    const session = await this.getSession();
+
+    try {
+      if (!this.currentUserId) {
+        throw new Error(
+          "No user ID available - session may not be properly initialized"
+        );
+      }
+
+      // Process content for better markdown rendering in ftrack
+      // Replace single newlines with double newlines
+      const processedContent = content.replace(/\n/g, '\n\n');
+
+      if (attachments?.length) {
+        // If we have attachments, use the combined upload and note creation approach
+        log(`Creating note with ${attachments.length} attachments using web UI pattern`);
+        
+        const result = await AttachmentService.createNoteWithAttachmentsWebUI(
+          session,
+          processedContent,
+          versionId,
+          "AssetVersion",
+          attachments
+        );
+        
+        if (!result.success || !result.noteId) {
+          throw new Error("Failed to create note with attachments");
+        }
+        
+        const noteId = result.noteId;
+        
+        // Link note to label if provided
+        if (labelId) {
+          await session.create("NoteLabelLink", {
+            note_id: noteId,
+            label_id: labelId,
+          });
+        }
+        
+        // Link note to user
+        if (this.currentUserId) {
+          try {
+            await session.create("NoteUserLink", {
+              note_id: noteId,
+              user_id: this.currentUserId,
+            });
+          } catch (userLinkError) {
+            console.warn("Could not link note to user:", userLinkError);
+          }
+        }
+        
+        log("Successfully published note with web UI style attachments:", {
+          noteId,
+          versionId,
+          labelId,
+          attachmentsUploaded: result.attachmentResults?.uploaded || 0,
+          attachmentsFailed: result.attachmentResults?.failed || 0
+        });
+        
+        return noteId;
+      } else {
+        // If no attachments, just create a note normally
+        // Create note
+        const response = await session.create("Note", {
+          content: processedContent,
+          parent_id: versionId,
+          parent_type: "AssetVersion",
+          user_id: this.currentUserId,
+        });
+
+        // Check for successful response
+        if (!response?.data?.id) {
+          log("Invalid response:", response);
+          throw new Error("Failed to create note: Invalid response from server");
+        }
+
+        const noteId = response.data.id;
+
+        // Link note to label if provided
+        if (labelId) {
+          await session.create("NoteLabelLink", {
+            note_id: noteId,
+            label_id: labelId,
+          });
+        }
+        
+        log("Successfully published note:", {
+          noteId,
+          versionId,
+          labelId
+        });
+        
+        return noteId;
+      }
+    } catch (error) {
+      log("Failed to publish note:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Publish a note with attachments to ftrack using the official createComponent method
+   * This approach uses the built-in ftrack API methods for the most reliable upload
+   * @param versionId The ID of the version to attach the note to
+   * @param content The note content
+   * @param labelId Optional label ID
+   * @param attachments Optional array of attachments
+   * @returns The created note ID if successful
+   */
+  async publishNoteWithAttachmentsAPI(
+    versionId: string,
+    content: string,
+    labelId?: string,
+    attachments?: Attachment[]
+  ): Promise<string | null> {
+    const session = await this.getSession();
+
+    try {
+      if (!this.currentUserId) {
+        throw new Error(
+          "No user ID available - session may not be properly initialized"
+        );
+      }
+
+      // Process content for better markdown rendering in ftrack
+      // Replace single newlines with double newlines
+      const processedContent = content.replace(/\n/g, '\n\n');
+
+      if (attachments?.length) {
+        // If we have attachments, use the API-based upload approach
+        log(`Creating note with ${attachments.length} attachments using API createComponent`);
+        
+        const result = await AttachmentService.createNoteWithAttachmentsAPI(
+          session,
+          processedContent,
+          versionId,
+          "AssetVersion",
+          attachments,
+          this.currentUserId // Pass the user ID to properly link the note
+        );
+        
+        if (!result.success || !result.noteId) {
+          throw new Error("Failed to create note with attachments");
+        }
+        
+        const noteId = result.noteId;
+        
+        // Link note to label if provided
+        if (labelId) {
+          await session.create("NoteLabelLink", {
+            note_id: noteId,
+            label_id: labelId,
+          });
+        }
+        
+        log("Successfully published note with API upload attachments:", {
+          noteId,
+          versionId,
+          labelId,
+          attachmentsUploaded: result.attachmentResults?.uploaded || 0,
+          attachmentsFailed: result.attachmentResults?.failed || 0
+        });
+        
+        return noteId;
+      } else {
+        // If no attachments, just create a note normally
+        // Create note
+        const response = await session.create("Note", {
+          content: processedContent,
+          parent_id: versionId,
+          parent_type: "AssetVersion",
+          user_id: this.currentUserId,
+        });
+
+        // Check for successful response
+        if (!response?.data?.id) {
+          log("Invalid response:", response);
+          throw new Error("Failed to create note: Invalid response from server");
+        }
+
+        const noteId = response.data.id;
+
+        // Link note to label if provided
+        if (labelId) {
+          await session.create("NoteLabelLink", {
+            note_id: noteId,
+            label_id: labelId,
+          });
+        }
+        
+        log("Successfully published note:", {
+          noteId,
+          versionId,
+          labelId
+        });
+        
+        return noteId;
+      }
+    } catch (error) {
+      log("Failed to publish note:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Get file URL for a component
    * @param componentId The component ID
    * @returns The URL to access the file
