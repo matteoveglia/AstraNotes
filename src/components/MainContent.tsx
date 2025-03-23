@@ -97,6 +97,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     noteStatuses,
     noteDrafts,
     noteLabelIds,
+    noteAttachments,
     isPublishing,
     saveNoteDraft,
     clearNoteDraft,
@@ -417,6 +418,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           selectedVersions={selectedVersions}
           noteDrafts={noteDrafts}
           noteLabelIds={noteLabelIds}
+          noteAttachments={noteAttachments}
           onSaveNote={saveNoteDraft}
           onClearNote={clearNoteDraft}
           onToggleSelection={toggleVersionSelection}

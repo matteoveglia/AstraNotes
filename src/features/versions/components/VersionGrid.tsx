@@ -8,6 +8,7 @@ import React from "react";
 import { motion } from "motion/react";
 import { AssetVersion, NoteStatus } from "@/types";
 import { NoteInput } from "@/components/NoteInput";
+import { Attachment } from "@/components/NoteAttachments";
 
 interface VersionGridProps {
   versions: AssetVersion[];
@@ -16,7 +17,8 @@ interface VersionGridProps {
   selectedVersions: string[];
   noteDrafts: Record<string, string>;
   noteLabelIds: Record<string, string>;
-  onSaveNote: (versionId: string, content: string, labelId: string) => void;
+  noteAttachments?: Record<string, Attachment[]>;
+  onSaveNote: (versionId: string, content: string, labelId: string, attachments?: Attachment[]) => void;
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
 }
@@ -55,6 +57,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
   selectedVersions,
   noteDrafts,
   noteLabelIds,
+  noteAttachments = {},
   onSaveNote,
   onClearNote,
   onToggleSelection,
@@ -96,9 +99,10 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
               selected={selectedVersions.includes(version.id)}
               initialContent={noteDrafts[version.id]}
               initialLabelId={noteLabelIds[version.id]}
+              initialAttachments={noteAttachments[version.id] || []}
               manuallyAdded={version.manuallyAdded}
-              onSave={(content: string, labelId: string) =>
-                onSaveNote(version.id, content, labelId)
+              onSave={(content: string, labelId: string, attachments?: Attachment[]) =>
+                onSaveNote(version.id, content, labelId, attachments)
               }
               onClear={() => onClearNote(version.id)}
               onSelectToggle={() => onToggleSelection(version.id)}

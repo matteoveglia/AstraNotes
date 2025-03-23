@@ -376,6 +376,13 @@ export class PlaylistStore {
     try {
       log(`[PlaylistStore] Saving ${attachments.length} attachments for version ${versionId}`);
       
+      // Log detail about each attachment
+      if (attachments.length > 0) {
+        attachments.forEach((att, idx) => {
+          log(`[PlaylistStore] Attachment ${idx}: ${att.name}, type: ${att.type}, is File: ${att.file instanceof File}`);
+        });
+      }
+      
       // First, delete any existing attachments for this version+playlist
       await db.attachments
         .where("[versionId+playlistId]")
@@ -389,44 +396,72 @@ export class PlaylistStore {
       
       // Convert Attachment objects to NoteAttachment for storage
       const noteAttachments: NoteAttachment[] = [];
+      const isTauri = typeof window !== 'undefined' && 'window' in globalThis && window.__TAURI__ !== undefined;
       
       for (const attachment of attachments) {
-        if (!attachment.file) continue;
-        
-        // Handle both string paths and File objects
-        let fileSize = 0;
-        let fileData: Blob | undefined = undefined;
-        let filePath: string | undefined = undefined;
-        
-        if (attachment.file instanceof File) {
-          // It's a browser File object
-          fileSize = attachment.file.size;
-          fileData = attachment.file;
-        } else {
-          // It's a file path string (Tauri)
-          fileSize = 0; // We don't know the size without reading the file
-          filePath = attachment.file; // Store the path in a custom field
-          // We don't set fileData since we don't have a Blob
+        if (!attachment.file) {
+          log(`[PlaylistStore] Skipping attachment ${attachment.name} with no file`);
+          continue;
         }
         
-        noteAttachments.push({
-          id: attachment.id,
-          noteId: "", // Will be filled when published
-          versionId,
-          playlistId,
-          name: attachment.name,
-          type: attachment.type,
-          size: fileSize,
-          data: fileData, // Only store actual Blob objects here
-          previewUrl: attachment.previewUrl,
-          createdAt: Date.now(),
-          filePath, // Add custom field for Tauri paths
-        } as NoteAttachment); // Use type assertion since filePath is custom
+        try {
+          // Handle both string paths and File objects
+          let fileSize = 0;
+          let fileData: Blob | undefined = undefined;
+          let filePath: string | undefined = undefined;
+          
+          if (attachment.file instanceof File) {
+            // It's a browser File object
+            fileSize = attachment.file.size;
+            fileData = attachment.file;
+            log(`[PlaylistStore] Processing browser File: ${attachment.name}, size: ${fileSize} bytes`);
+          } else {
+            // It's a file path string (Tauri)
+            filePath = attachment.file;
+            
+            // Try to get file size if we're in Tauri environment
+            if (isTauri) {
+              try {
+                // Dynamically import the fs module
+                const fs = await import('@tauri-apps/plugin-fs');
+                // Get metadata to determine file size
+                const metadata = await fs.metadata(filePath);
+                fileSize = metadata.size || 0;
+                log(`[PlaylistStore] Got Tauri file metadata for ${attachment.name}, size: ${fileSize} bytes`);
+              } catch (fsError) {
+                // If we can't get the size, just log and continue
+                console.error(`[PlaylistStore] Could not get file size for ${filePath}:`, fsError);
+                fileSize = 0;
+              }
+            }
+            
+            log(`[PlaylistStore] Processing Tauri file path: ${filePath}, size: ${fileSize} bytes`);
+          }
+          
+          noteAttachments.push({
+            id: attachment.id,
+            noteId: "", // Will be filled when published
+            versionId,
+            playlistId,
+            name: attachment.name,
+            type: attachment.type,
+            size: fileSize,
+            data: fileData, // Only store actual Blob objects here
+            previewUrl: attachment.previewUrl,
+            createdAt: Date.now(),
+            filePath, // Add custom field for Tauri paths
+          } as NoteAttachment); // Use type assertion since filePath is custom
+        } catch (attachError) {
+          console.error(`[PlaylistStore] Error processing attachment ${attachment.name}:`, attachError);
+        }
       }
       
       // Save new attachments to the database
       if (noteAttachments.length > 0) {
+        log(`[PlaylistStore] Saving ${noteAttachments.length} processed attachments to database`);
         await db.attachments.bulkPut(noteAttachments);
+      } else {
+        log(`[PlaylistStore] No attachments to save after processing`);
       }
       
       // Update the version with the attachment IDs
@@ -435,8 +470,9 @@ export class PlaylistStore {
         version.lastModified = Date.now();
       });
       
+      log(`[PlaylistStore] Successfully saved attachments for version ${versionId}`);
     } catch (error) {
-      console.error("Failed to save attachments:", error);
+      console.error("[PlaylistStore] Failed to save attachments:", error);
       throw error;
     }
   }

@@ -3,24 +3,26 @@
  * Component for displaying a single version with thumbnail and note input.
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { NoteInput } from "@/components/NoteInput";
 import { AssetVersion, NoteStatus } from "@/types";
 import { motion } from "motion/react";
 import { ThumbnailPreview } from "@/features/versions/components/ThumbnailPreview";
+import { Attachment } from "@/components/NoteAttachments";
 
 interface VersionItemProps {
   version: AssetVersion;
   isSelected: boolean;
   thumbnailUrl?: string;
   thumbnailLoading?: boolean;
-  draftContent?: string;
-  labelId?: string;
-  noteStatus?: NoteStatus;
+  draftContent: string;
+  labelId: string;
+  noteStatus: NoteStatus;
   onSelect: () => void;
-  onNoteChange: (content: string, labelId: string) => void;
+  onNoteChange: (content: string, labelId: string, attachments?: Attachment[]) => void;
   onNoteClear: () => void;
+  initialAttachments?: Attachment[];
 }
 
 const itemVariants = {
@@ -39,15 +41,23 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   isSelected,
   thumbnailUrl,
   thumbnailLoading = false,
-  draftContent = "",
-  labelId = "",
-  noteStatus = "empty" as NoteStatus,
+  draftContent,
+  labelId,
+  noteStatus,
   onSelect,
   onNoteChange,
   onNoteClear,
+  initialAttachments = [],
 }) => {
-  const handleNoteInputSave = (content: string, noteLabelId: string) => {
-    onNoteChange(content, noteLabelId);
+  const [localAttachments, setLocalAttachments] = useState<Attachment[]>(initialAttachments);
+
+  useEffect(() => {
+    setLocalAttachments(initialAttachments);
+  }, [initialAttachments]);
+
+  const handleNoteInputSave = (content: string, labelId: string, attachments: Attachment[] = []) => {
+    setLocalAttachments(attachments);
+    onNoteChange(content, labelId, attachments);
   };
 
   return (
@@ -84,6 +94,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
               versionNumber={version.version.toString()}
               initialContent={draftContent}
               initialLabelId={labelId}
+              initialAttachments={localAttachments}
               status={noteStatus}
               onSave={handleNoteInputSave}
               onClear={onNoteClear}

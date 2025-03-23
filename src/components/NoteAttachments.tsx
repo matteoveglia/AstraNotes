@@ -187,20 +187,30 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       // Check if we can access Tauri file system API
       const fs = await import('@tauri-apps/plugin-fs');
       
-      // Read the file for preview - using standard options without encoding parameter
-      const fileData = await fs.readFile(filePath);
-      
-      // Create a blob URL for preview
-      const blob = new Blob([fileData], { type: attachment.type });
-      const previewUrl = URL.createObjectURL(blob);
-      
-      // Update the attachment with the preview URL
-      attachment.previewUrl = previewUrl;
-      
-      // Force a re-render by triggering an update with the same attachments
-      onAddAttachments([]);
+      try {
+        // Get file metadata for size information
+        const metadata = await fs.metadata(filePath);
+        console.log(`File metadata for ${filePath}:`, metadata);
+        
+        // Read the file as binary data
+        const fileData = await fs.readFile(filePath);
+        console.log(`Successfully read file: ${filePath}, size: ${fileData.byteLength} bytes`);
+        
+        // Create a blob URL for preview
+        const blob = new Blob([fileData], { type: attachment.type });
+        const previewUrl = URL.createObjectURL(blob);
+        
+        // Update the attachment with the preview URL and file info
+        attachment.previewUrl = previewUrl;
+        
+        // Force a re-render by triggering an update
+        onAddAttachments([]);
+      } catch (error) {
+        console.error(`Error reading file ${filePath}:`, error);
+        // We'll keep the placeholder image
+      }
     } catch (error) {
-      console.warn(`Could not generate preview for ${filePath}:`, error);
+      console.error(`Error importing Tauri FS module:`, error);
     }
   };
 
@@ -222,6 +232,11 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
   // Handle paste events
   const handlePaste = (e: React.ClipboardEvent) => {
+    // Prevent handling if the parent NoteInput component will handle it
+    if (e.currentTarget !== e.target) {
+      return;
+    }
+    
     const items = e.clipboardData.items;
     const files = [] as File[];
     

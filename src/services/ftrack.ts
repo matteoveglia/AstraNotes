@@ -472,7 +472,7 @@ export class FtrackService {
       
       // Get the server location
       const serverLocationQuery = await session.query(
-        'Location where name is "ftrack.server"'
+        'select Location where name is "ftrack.server"'
       );
       const serverLocation = serverLocationQuery.data[0];
       
@@ -747,6 +747,72 @@ export class FtrackService {
 
     // Initialize new session with updated settings
     this.initSession();
+  }
+
+  /**
+   * Get the HTTP API key from the API
+   */
+  private async getApiKey(session: Session, username: string) {
+    console.log("Getting API key for user:", username);
+    
+    try {
+      // Get the server location - using safer query approach
+      const serverLocationQuery = await session.query(
+        "select Location where name is 'ftrack.server'"
+      );
+      
+      // Add fallback if the query fails
+      let serverLocation = serverLocationQuery.data[0];
+      
+      if (!serverLocation) {
+        console.log("Trying alternative query for server location...");
+        // Try alternative approach to get the server location
+        try {
+          const locationsQuery = await session.query("select Location");
+          console.log(`Found ${locationsQuery.data.length} locations`);
+          
+          serverLocation = locationsQuery.data.find(
+            (loc: any) => loc.name === 'ftrack.server'
+          );
+          
+          if (serverLocation) {
+            console.log("Found server location via alternative query:", serverLocation.id);
+          }
+        } catch (altQueryError) {
+          console.error("Alternative query failed:", altQueryError);
+        }
+      }
+
+      if (!serverLocation) {
+        throw new Error("Could not find ftrack server location");
+      }
+      
+      // Rest of the method...
+    } catch (error) {
+      console.error("Error getting API key:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get components for a version
+   * @param versionId The AssetVersion ID
+   * @returns Array of component objects
+   */
+  async getVersionComponents(versionId: string): Promise<any[]> {
+    try {
+      const session = await this.getSession();
+      
+      // Using query to get all components linked to the version
+      const query = await session.query(
+        `select Component from Component where version_id is ${versionId}`
+      );
+      
+      return query.data;
+    } catch (error) {
+      log("Error getting components for version:", error);
+      return [];
+    }
   }
 }
 
