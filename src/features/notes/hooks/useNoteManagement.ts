@@ -46,6 +46,11 @@ export function useNoteManagement(playlist: Playlist) {
         `[useNoteManagement] Loading drafts for playlist ${playlist.id}`,
       );
 
+      // Log existing attachment state before loading
+      const existingAttachmentCount = Object.values(noteAttachments).reduce(
+        (total, atts) => total + atts.length, 0);
+      console.log(`[useNoteManagement] Before loading - Attachment count: ${existingAttachmentCount}`);
+      
       // Start with clean state when loading a new playlist
       const draftMap: Record<string, string> = {};
       const statusMap: Record<string, NoteStatus> = {};
@@ -107,20 +112,32 @@ export function useNoteManagement(playlist: Playlist) {
           .equals(playlist.id)
           .toArray();
         
-        console.log(`[useNoteManagement] Found ${attachmentsFromDb.length} attachments in attachments table`);
+        console.log(`[useNoteManagement] Found ${attachmentsFromDb.length} attachments in attachments table for playlist ${playlist.id}`);
         
         if (attachmentsFromDb.length > 0) {
           // Group attachments by versionId
-          for (const att of attachmentsFromDb) {
-            if (!attachmentsMap[att.versionId]) {
-              attachmentsMap[att.versionId] = [];
+          const versionAttachmentMap = new Map();
+          
+          // First group by version ID
+          attachmentsFromDb.forEach(att => {
+            if (!versionAttachmentMap.has(att.versionId)) {
+              versionAttachmentMap.set(att.versionId, []);
             }
+            versionAttachmentMap.get(att.versionId).push(att);
+          });
+          
+          // Log attachment counts by version
+          versionAttachmentMap.forEach((atts, versionId) => {
+            console.log(`[useNoteManagement] Version ${versionId} has ${atts.length} attachments`);
+          });
+          
+          // Then convert to the format expected by the UI
+          versionAttachmentMap.forEach((atts, versionId) => {
+            // Create a fresh array for this version's attachments
+            attachmentsMap[versionId] = [];
             
-            // Only add if not already in the attachments list
-            const exists = attachmentsMap[att.versionId].some(existing => existing.id === att.id);
-            if (!exists) {
-              console.log(`[useNoteManagement] Adding attachment ${att.id} for version ${att.versionId}`);
-              
+            // Process each attachment
+            atts.forEach(att => {
               // Create an appropriate file object based on what's available
               let fileObj: File | string;
               if (att.data) {
@@ -131,15 +148,16 @@ export function useNoteManagement(playlist: Playlist) {
                 fileObj = new File([], att.name, { type: att.type });
               }
               
-              attachmentsMap[att.versionId].push({
+              // Add to the version's attachments
+              attachmentsMap[versionId].push({
                 id: att.id,
                 name: att.name,
                 type: att.type,
                 previewUrl: att.previewUrl || "",
                 file: fileObj
               });
-            }
-          }
+            });
+          });
         }
       } catch (error) {
         console.error("Error loading attachments from DB:", error);
@@ -166,6 +184,12 @@ export function useNoteManagement(playlist: Playlist) {
       setNoteStatuses(statusMap);
       setNoteLabelIds(labelMap);
       setNoteAttachments(attachmentsMap);
+      
+      // Log the attachment stats that we're about to set
+      const totalAttachments = Object.values(attachmentsMap).reduce(
+        (total, atts) => total + atts.length, 0);
+      const versionsWithAttachments = Object.keys(attachmentsMap).length;
+      console.log(`[useNoteManagement] Setting ${totalAttachments} attachments for ${versionsWithAttachments} versions`);
       
       // After setting state, explicitly validate the state to ensure consistency
       setTimeout(() => {
@@ -200,8 +224,18 @@ export function useNoteManagement(playlist: Playlist) {
     setSelectedVersions([]);
     
     if (playlist.id) {
-      console.log(`[useNoteManagement] Playlist ID changed to ${playlist.id}`);
-      loadDrafts();
+      console.log(`[useNoteManagement] Playlist ID changed to ${playlist.id}, loading attachments`);
+      
+      // Clear current state before loading new data to prevent stale attachments
+      setNoteDrafts({});
+      setNoteStatuses({});
+      setNoteLabelIds({});
+      setNoteAttachments({});
+      
+      // Wait a bit to ensure any pending state updates are processed
+      setTimeout(() => {
+        loadDrafts();
+      }, 0);
     }
   }, [playlist.id, loadDrafts]);
 
@@ -232,7 +266,7 @@ export function useNoteManagement(playlist: Playlist) {
       [versionId]: attachments,
     }));
     
-    // Determine status for display
+    // Determine status for display - only save non-empty content as drafts
     const currentStatus = noteStatuses[versionId];
     const newStatus = 
       currentStatus === "published"
@@ -387,6 +421,12 @@ export function useNoteManagement(playlist: Playlist) {
               }
 
               const content = noteDrafts[versionId] || "";
+              // Skip if content is empty
+              if (!content.trim()) {
+                console.debug(`[useNoteManagement] Skipping empty note for version ${versionId}`);
+                continue;
+              }
+              
               const labelId = noteLabelIds[versionId] || "";
               const attachments = noteAttachments[versionId] || [];
 
@@ -463,8 +503,24 @@ export function useNoteManagement(playlist: Playlist) {
   const publishAllNotes = async () => {
     setIsPublishing(true);
     try {
-      // Create an array of version objects to publish
-      const versionsToPublish = Object.keys(noteDrafts).map(id => ({ versionId: id }));
+      // Only include versions with non-empty content
+      const versionsToPublish = Object.entries(noteDrafts)
+        .filter(([versionId, content]) => 
+          // Check if content exists and is not empty
+          content && content.trim() !== "" && 
+          // Don't publish already published notes
+          noteStatuses[versionId] !== "published"
+        )
+        .map(([versionId]) => ({ versionId }));
+      
+      console.log(`Publishing ${versionsToPublish.length} notes with content`);
+      
+      // Don't proceed if no versions to publish
+      if (versionsToPublish.length === 0) {
+        toast.showInfo("No draft notes to publish");
+        setIsPublishing(false);
+        return;
+      }
       
       // Call publishWithNotifications with the proper interface
       const publishResults = await publishWithNotifications(
@@ -489,6 +545,12 @@ export function useNoteManagement(playlist: Playlist) {
               }
 
               const content = noteDrafts[versionId] || "";
+              // Skip if content is empty
+              if (!content.trim()) {
+                console.debug(`[useNoteManagement] Skipping empty note for version ${versionId}`);
+                continue;
+              }
+              
               const labelId = noteLabelIds[versionId] || "";
               const attachments = noteAttachments[versionId] || [];
 

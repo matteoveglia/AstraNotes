@@ -144,120 +144,30 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     onClear();
   };
 
-  // Fix for the drag and drop issues - add debugging and improve handlers
+  // Add global document-level handlers for better drag event capture
   useEffect(() => {
-    // Debug function to help diagnose drag and drop issues
-    const logDragInfo = (name: string, e: DragEvent) => {
-      console.log(`[DragDebug] ${name} fired:`, {
-        types: Array.from(e.dataTransfer?.types || []),
-        itemCount: e.dataTransfer?.items?.length,
-        fileCount: e.dataTransfer?.files?.length,
-        itemTypes: Array.from(e.dataTransfer?.items || []).map(item => `${item.kind}:${item.type}`).join(',')
-      });
+    const handleDocumentDragOver = (e: DragEvent) => {
+      // Enable drop on the document level
+      e.preventDefault();
     };
     
-    // Create our own document-level handlers to better intercept drag events
-    const handleDocDragEnter = (e: DragEvent) => {
-      logDragInfo('documentDragEnter', e);
-      // Check if drag has files
-      const hasFiles = Array.from(e.dataTransfer?.items || []).some(item => item.kind === 'file');
-      if (hasFiles && status !== 'published' && componentRef.current) {
-        console.log('[DragDebug] Drag contains files - should activate drop zone');
-      }
-    };
-    
-    const handleDocDragOver = (e: DragEvent) => {
-      // Disable for performance, uncomment if needed
-      // logDragInfo('documentDragOver', e);
-      
-      // Check if we're over our component
-      if (componentRef.current && e.target instanceof Node) {
-        if (componentRef.current.contains(e.target) && status !== 'published') {
-          // We're over our component - check for image files
-          const hasImageFiles = Array.from(e.dataTransfer?.items || []).some(
-            item => item.kind === 'file' && item.type.startsWith('image/')
-          );
-          
-          if (hasImageFiles) {
-            e.preventDefault(); // Important to allow drop
-            setIsDraggingOver(true);
-          }
-        }
-      }
-    };
-    
-    // Add global document listeners
-    document.addEventListener('dragenter', handleDocDragEnter, false);
-    document.addEventListener('dragover', handleDocDragOver, false);
-    
+    document.addEventListener('dragover', handleDocumentDragOver);
     return () => {
-      // Clean up
-      document.removeEventListener('dragenter', handleDocDragEnter, false);
-      document.removeEventListener('dragover', handleDocDragOver, false);
+      document.removeEventListener('dragover', handleDocumentDragOver);
     };
-  }, [status]);
+  }, []);
 
   // Completely rewrite the drag handlers to fix the issues
-  const handleDragEnter = (e: React.DragEvent) => {
-    console.log('[DragDebug] Component dragEnter', {
-      target: e.target,
-      currentTarget: e.currentTarget
-    });
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Increment counter for nested elements
-    dragCountRef.current++;
-    
-    // Skip if published
-    if (status === "published") return;
-    
-    // Check for image files
-    const hasImageFiles = Array.from(e.dataTransfer.items).some(
-      item => item.kind === 'file' && item.type.startsWith('image/')
-    );
-    
-    if (hasImageFiles) {
-      console.log('[DragDebug] Image files detected in dragEnter');
-      setIsDraggingOver(true);
-      e.dataTransfer.dropEffect = "copy";
-    }
-  };
-
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Skip if published
-    if (status === "published") return;
-    
-    // Set visual indicator if dragging image files
-    const hasImageFiles = Array.from(e.dataTransfer.items).some(
-      item => item.kind === 'file' && item.type.startsWith('image/')
-    );
-    
-    if (hasImageFiles) {
+    e.preventDefault(); // Critical for enabling drop
+    if (status !== "published") {
       setIsDraggingOver(true);
-      e.dataTransfer.dropEffect = "copy";
     }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    console.log('[DragDebug] Component dragLeave', {
-      target: e.target,
-      currentTarget: e.currentTarget
-    });
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Decrement counter
-    dragCountRef.current--;
-    
-    // Only reset when we've actually left the component
-    if (dragCountRef.current <= 0) {
-      dragCountRef.current = 0; // Ensure we don't go negative
+    // Only trigger when leaving the component, not child elements
+    if (e.currentTarget === e.target) {
       setIsDraggingOver(false);
     }
   };
@@ -394,10 +304,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       className={cn(
         "flex gap-4 p-4 bg-white rounded-lg border relative",
         manuallyAdded && "border-purple-500 border-2",
-        isDraggingOver && "bg-blue-50 border-blue-300 border-2 border-dashed",
+        isDraggingOver && status !== "published" && "bg-blue-100 border-2 border-dashed border-blue-300",
         "transition-colors duration-150"
       )}
-      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

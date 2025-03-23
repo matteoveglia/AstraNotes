@@ -340,6 +340,35 @@ export class PlaylistStore {
         if (nameCompare !== 0) return nameCompare;
         return (b.version || 0) - (a.version || 0);
       });
+      
+      // Explicitly load attachments for versions
+      const attachments = await db.attachments
+        .where("playlistId")
+        .equals(id)
+        .toArray();
+      
+      console.log(`[PlaylistStore] Loaded ${attachments.length} attachments for playlist ${id}`);
+      
+      // Create a map of version IDs to attachments
+      const attachmentMap = new Map();
+      attachments.forEach(att => {
+        if (!attachmentMap.has(att.versionId)) {
+          attachmentMap.set(att.versionId, []);
+        }
+        attachmentMap.get(att.versionId).push(att);
+      });
+      
+      // Attach attachments to versions and convert to proper Attachment format
+      cached.versions = cached.versions.map(version => {
+        if (attachmentMap.has(version.id)) {
+          const dbAttachments = attachmentMap.get(version.id);
+          version.attachments = dbAttachments;
+          
+          // Log to help diagnose attachment issues
+          console.log(`[PlaylistStore] Version ${version.id} has ${dbAttachments.length} attachments`);
+        }
+        return version;
+      });
 
       return cached;
     } catch (error) {
@@ -383,6 +412,37 @@ export class PlaylistStore {
         });
       }
       
+      // First check if we should preserve existing attachments by checking if any have been deleted
+      const existingAttachments = await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .toArray();
+      
+      if (existingAttachments.length > 0) {
+        log(`[PlaylistStore] Found ${existingAttachments.length} existing attachments for version ${versionId}`);
+        
+        // If the count is the same, we may just be refreshing the state, so keep Blob data
+        if (existingAttachments.length === attachments.length) {
+          const existingIds = new Set(existingAttachments.map(att => att.id));
+          const newIds = new Set(attachments.map(att => att.id));
+          
+          // Check if the sets of IDs are the same
+          const sameIds = existingIds.size === newIds.size && 
+            [...existingIds].every(id => newIds.has(id));
+          
+          if (sameIds) {
+            log("[PlaylistStore] Attachment sets are identical - preserving existing data");
+            // Update the version record with the existing attachments to maintain consistency
+            await db.versions.where("[playlistId+id]").equals([playlistId, versionId]).modify((version) => {
+              version.attachments = existingAttachments;
+              version.lastModified = Date.now();
+            });
+            return;
+          }
+        }
+      }
+      
+      // If we get here, we need to save the new attachments
       // First, delete any existing attachments for this version+playlist
       await db.attachments
         .where("[versionId+playlistId]")

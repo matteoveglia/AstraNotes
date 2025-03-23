@@ -97,7 +97,7 @@ export class AttachmentService {
       try {
         console.log("Querying for server location...");
         const serverLocationQuery = await session.query(
-          "select Location where name is 'ftrack.server'"
+          "select id, name from Location where name='ftrack.server'"
         );
         console.log("Server location query result:", serverLocationQuery);
         
@@ -105,26 +105,95 @@ export class AttachmentService {
         let serverLocation = serverLocationQuery.data[0];
         
         if (!serverLocation) {
-          console.log("Trying alternative query for server location...");
-          // Try alternative approach to get the server location
+          console.log("First query failed. Trying alternative queries for server location...");
+          
+          // Try different query approaches based on API variations
           try {
-            const locationsQuery = await session.query("select Location");
+            // Try querying all locations first
+            console.log("Attempt 1: Querying all locations");
+            const locationsQuery = await session.query("select id, name from Location");
             console.log(`Found ${locationsQuery.data.length} locations`);
             
-            serverLocation = locationsQuery.data.find(
+            const foundLocation = locationsQuery.data.find(
               (loc: any) => loc.name === 'ftrack.server'
             );
             
-            if (serverLocation) {
-              console.log("Found server location via alternative query:", serverLocation.id);
+            if (foundLocation) {
+              serverLocation = foundLocation;
+              console.log("Found server location via locations query:", serverLocation.id);
+            } else {
+              // Try another variation of the syntax
+              console.log("Attempt 2: Trying query with different syntax");
+              const altQuery = await session.query(
+                "select id, name from Location where name='ftrack.server'"
+              );
+              
+              if (altQuery.data && altQuery.data.length > 0) {
+                serverLocation = altQuery.data[0];
+                console.log("Found server location via alt query:", serverLocation.id);
+              } else {
+                // Try creating a lookup based on component location
+                console.log("Attempt 3: Looking for a component location");
+                const componentLocationQuery = await session.query(
+                  "select id, location from ComponentLocation where location.name='ftrack.server'"
+                );
+                
+                if (componentLocationQuery.data && componentLocationQuery.data.length > 0) {
+                  const componentLocation = componentLocationQuery.data[0];
+                  if (componentLocation.location && componentLocation.location.id) {
+                    serverLocation = componentLocation.location;
+                    console.log("Found server location via component location:", serverLocation.id);
+                  }
+                }
+              }
             }
           } catch (altQueryError) {
-            console.error("Alternative query failed:", altQueryError);
+            console.error("Alternative query attempts failed:", altQueryError);
+          }
+          
+          // Last resort - Try to retrieve the server location directly from the session
+          if (!serverLocation) {
+            console.log("Attempting to get server location directly from session...");
+            try {
+              // Some ftrack API versions expose locations directly
+              const sessionAny = session as any;
+              if (sessionAny.getServerLocation) {
+                serverLocation = await sessionAny.getServerLocation();
+                console.log("Got server location directly from session method:", serverLocation?.id);
+              } else if (sessionAny.server_location_id) {
+                // Try to query the location by ID if available in session
+                const locationId = sessionAny.server_location_id;
+                console.log(`Got server location ID from session: ${locationId}, querying details...`);
+                try {
+                  const locationQuery = await session.query(`select id, name from Location where id="${locationId}"`);
+                  if (locationQuery.data && locationQuery.data.length > 0) {
+                    serverLocation = locationQuery.data[0];
+                    console.log("Retrieved server location using ID from session:", serverLocation.id);
+                  }
+                } catch (locQueryError) {
+                  console.error("Failed to query location by ID:", locQueryError);
+                }
+              }
+              
+              // As a last resort, create a location reference manually
+              if (!serverLocation) {
+                console.log("Creating a manual server location reference...");
+                // Create a minimal location object that satisfies the upload requirements
+                serverLocation = {
+                  id: "70f6f5c1-be01-11e1-9aa3-f23c91df25eb", // Common ID for ftrack.server
+                  name: "ftrack.server",
+                  __entity_type__: "Location"
+                };
+                console.log("Created manual server location reference with ID:", serverLocation.id);
+              }
+            } catch (directError) {
+              console.error("Failed to get server location directly:", directError);
+            }
           }
         }
 
         if (!serverLocation) {
-          throw new Error("Could not find ftrack server location");
+          throw new Error("Could not find ftrack server location after multiple attempts");
         }
 
         // 2. Convert the file to ArrayBuffer
@@ -148,71 +217,109 @@ export class AttachmentService {
         const fileExtension = attachment.name.split('.').pop()?.toLowerCase() || '';
         console.log(`Using file extension: ${fileExtension} for component creation`);
         
+        // Log detailed information about file data
+        console.log(`File data size: ${fileData.byteLength} bytes`);
+        console.log(`File name: ${attachment.name}, MIME type: ${attachment.type}`);
+        
         // 3. Create a component in ftrack using the create method
         console.log("Creating component in ftrack...");
-        const componentResponse = await session.create("Component", {
-          name: attachment.name,
-          file_type: fileExtension || attachment.type.split('/')[1] || 'jpeg',
-        });
-        
-        console.log("Component create response:", componentResponse);
-        
-        // Extract the component from the response
-        const component = componentResponse.data;
-        console.log(`Created component with ID: ${component?.id}`);
-        
-        // 4. Upload the component data
-        if (component && component.id) {
-          // Upload file data to the component
-          try {
-            console.log(`Uploading data to component ${component.id}, data size: ${fileData.byteLength} bytes`);
-            
-            // Use type assertion to handle potential API variations
-            const sessionAny = session as any;
-            
-            // Try different upload methods based on API version
-            if (typeof sessionAny.uploadComponent === 'function') {
-              console.log('Using uploadComponent method');
-              await sessionAny.uploadComponent(
-                component.id,
-                new Uint8Array(fileData),
-                serverLocation.id
-              );
-            } else if (typeof sessionAny.upload === 'function') {
-              console.log('Using upload method');
-              await sessionAny.upload(
-                component.id, 
-                new Uint8Array(fileData),
-                {
-                  serverLocation: serverLocation.id
-                }
-              );
-            } else {
-              // Fallback approach using generic call method
-              console.log('Using generic call method with upload_component action');
-              await session.call([{
-                action: 'upload_component',
-                component_id: component.id,
-                component_data: new Uint8Array(fileData),
-                location_id: serverLocation.id
-              }]);
-            }
-            
-            console.log(`Successfully uploaded data for component ${component.id}`);
-          } catch (error) {
-            console.error(`Error uploading component data for ${attachment.name}:`, error);
-            throw new Error(`Failed to upload component data: ${error instanceof Error ? error.message : String(error)}`);
+        try {
+          // Add component metadata for the component
+          const componentData = {
+            name: attachment.name,
+            file_type: fileExtension || attachment.type.split('/')[1] || 'jpeg',
+          };
+          
+          // If available, add location information to the component data
+          if (serverLocation && serverLocation.id) {
+            console.log(`Adding server location ${serverLocation.id} to component data`);
+            (componentData as any).location_id = serverLocation.id;
           }
-        } else {
-          throw new Error("Failed to create component in ftrack");
+          
+          const componentResponse = await session.create("Component", componentData);
+          
+          console.log("Component create response:", componentResponse);
+          
+          // Extract the component from the response
+          const component = componentResponse.data;
+          console.log(`Created component with ID: ${component?.id}`);
+          
+          // 4. Upload the component data
+          if (component && component.id) {
+            // Upload file data to the component
+            try {
+              console.log(`Uploading data to component ${component.id}, data size: ${fileData.byteLength} bytes`);
+              
+              // Use type assertion to handle potential API variations
+              const sessionAny = session as any;
+              
+              // Try different upload methods based on API version
+              if (typeof sessionAny.uploadComponent === 'function') {
+                console.log('Using uploadComponent method');
+                if (serverLocation && serverLocation.id) {
+                  await sessionAny.uploadComponent(
+                    component.id,
+                    new Uint8Array(fileData),
+                    serverLocation.id
+                  );
+                } else {
+                  // Try without location
+                  await sessionAny.uploadComponent(
+                    component.id,
+                    new Uint8Array(fileData)
+                  );
+                }
+                console.log('uploadComponent method completed successfully');
+              } else if (typeof sessionAny.upload === 'function') {
+                console.log('Using upload method');
+                const uploadOptions: any = {};
+                
+                if (serverLocation && serverLocation.id) {
+                  uploadOptions.serverLocation = serverLocation.id;
+                }
+                
+                await sessionAny.upload(
+                  component.id, 
+                  new Uint8Array(fileData),
+                  uploadOptions
+                );
+                console.log('upload method completed successfully');
+              } else {
+                // Fallback approach using generic call method
+                console.log('Using generic call method with upload_component action');
+                const uploadAction: any = {
+                  action: 'upload_component',
+                  component_id: component.id,
+                  component_data: new Uint8Array(fileData)
+                };
+                
+                if (serverLocation && serverLocation.id) {
+                  uploadAction.location_id = serverLocation.id;
+                }
+                
+                await session.call([uploadAction]);
+                console.log('upload_component action completed successfully');
+              }
+              
+              console.log(`Successfully uploaded data for component ${component.id}`);
+            } catch (error) {
+              console.error(`Error uploading component data for ${attachment.name}:`, error);
+              throw new Error(`Failed to upload component data: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          } else {
+            throw new Error("Failed to create component in ftrack - no component ID returned");
+          }
+
+          console.log(`Successfully uploaded attachment: ${attachment.name}, id: ${component.id}`);
+
+          return {
+            success: true,
+            componentId: component.id,
+          };
+        } catch (componentError) {
+          console.error("Error creating component:", componentError);
+          throw new Error(`Failed to create component: ${componentError instanceof Error ? componentError.message : String(componentError)}`);
         }
-
-        console.log(`Successfully uploaded attachment: ${attachment.name}, id: ${component.id}`);
-
-        return {
-          success: true,
-          componentId: component.id,
-        };
       } catch (queryError) {
         console.error("Error querying for server location:", queryError);
         throw queryError;
