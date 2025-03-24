@@ -48,132 +48,99 @@ export function useNoteManagement(playlist: Playlist) {
   // Load drafts from database
   const loadDrafts = useCallback(async () => {
     try {
-      console.debug(
-        `[useNoteManagement] Loading drafts for playlist ${playlist.id}`,
-      );
+      console.debug(`[useNoteManagement] Loading drafts for playlist ${playlist.id}`);
 
-      // Start with clean state when loading a new playlist
-      const draftMap: Record<string, string> = {};
-      const statusMap: Record<string, NoteStatus> = {};
-      const labelMap: Record<string, string> = {};
-      const attachmentsMap: Record<string, Attachment[]> = {};
-
-      // First get versions with their draft content and status
+      // Get versions from the current playlist
       const versions = await db.versions
         .where("playlistId")
         .equals(playlist.id)
-        .filter((v) => !v.isRemoved)
+        .filter(v => !v.isRemoved)
         .toArray();
 
-      console.debug(
-        `[useNoteManagement] Processing ${versions.length} versions for playlist ${playlist.id}`,
-      );
-
-      // Process versions first for drafts, statuses and labels
-      versions.forEach((v) => {
-        draftMap[v.id] = v.draftContent || "";
-        statusMap[v.id] = v.noteStatus || "empty";
-        labelMap[v.id] = v.labelId || "";
-      });
-
-      // Now ensure we have the latest attachment data directly from the database
-      const dbAttachments = await db.attachments
+      // Get attachments for this playlist
+      const attachments = await db.attachments
         .where("playlistId")
         .equals(playlist.id)
         .toArray();
 
-      // Group attachments by version ID for processing
+      console.debug(`[useNoteManagement] Loaded ${versions.length} versions and ${attachments.length} attachments`);
+      
+      // Group attachments by version ID
       const attachmentsByVersion = new Map<string, NoteAttachment[]>();
-
-      // First process direct db attachments
-      for (const att of dbAttachments) {
+      attachments.forEach(att => {
         if (!attachmentsByVersion.has(att.versionId)) {
           attachmentsByVersion.set(att.versionId, []);
         }
         attachmentsByVersion.get(att.versionId)!.push(att);
-      }
+      });
 
-      // Process each version's attachments
-      for (const versionId of Object.keys(draftMap)) {
-        // Find this version's attachments
-        const attachments = attachmentsByVersion.get(versionId) || [];
+      // Prepare maps for state updates
+      const draftMap: Record<string, string> = {};
+      const statusMap: Record<string, NoteStatus> = {};
+      const labelMap: Record<string, string> = {};
+      const attachmentMap: Record<string, Attachment[]> = {};
 
-        if (attachments.length > 0) {
-          try {
-            // Process attachments into UI format
-            const uiAttachments = attachments.map((att) => {
-              try {
-                // Create an appropriate file object based on what's available
-                let fileObj: File | string;
-
-                if (att.data) {
-                  // If we have binary data, create a File
-                  try {
-                    fileObj = new File([att.data], att.name, {
-                      type: att.type,
-                    });
-                  } catch (fileError) {
-                    // Reduce logging noise
-                    fileObj = new File([], att.name, { type: att.type });
-                  }
-                } else if ((att as any).filePath) {
-                  // If it's a Tauri path, use the string
-                  fileObj = (att as any).filePath;
-                } else {
-                  // Fallback to empty file
-                  fileObj = new File([], att.name, { type: att.type });
-                }
-
-                return {
-                  id: att.id,
-                  name: att.name,
-                  type: att.type,
-                  previewUrl: att.previewUrl || "",
-                  file: fileObj,
-                };
-              } catch (attError) {
-                console.error(
-                  `Error processing attachment ${att.id}:`,
-                  attError,
-                );
-                // Return a fallback attachment to avoid breaking the UI
-                return {
-                  id: att.id || crypto.randomUUID(),
-                  name: att.name || "Unknown file",
-                  type: att.type || "application/octet-stream",
-                  previewUrl: "",
-                  file: new File([], att.name || "placeholder.dat"),
-                };
-              }
-            });
-
-            attachmentsMap[versionId] = uiAttachments;
-          } catch (error) {
-            console.error(
-              `[useNoteManagement] Error processing attachments for version ${versionId}:`,
-              error,
-            );
-          }
+      // Process each version
+      for (const version of versions) {
+        // Process draft content
+        draftMap[version.id] = version.draftContent || "";
+        labelMap[version.id] = version.labelId || "";
+        
+        // Get attachments for this version
+        const versionAttachments = attachmentsByVersion.get(version.id) || [];
+        
+        // Convert to UI attachments
+        if (versionAttachments.length > 0) {
+          attachmentMap[version.id] = versionAttachments.map(att => {
+            // Create a file object if available, otherwise use path
+            let file: File | string;
+            if (att.filePath) {
+              file = att.filePath;
+            } else if (att.data instanceof Blob) {
+              file = new File([att.data], att.name, { type: att.type });
+            } else {
+              // Create empty file as fallback
+              file = new File([], att.name, { type: att.type });
+            }
+            
+            return {
+              id: att.id,
+              name: att.name,
+              type: att.type,
+              previewUrl: att.previewUrl || "",
+              file
+            };
+          });
+        }
+        
+        // Determine the correct status based on content and attachments
+        // This is critical to ensure the publish button appears correctly
+        if (version.noteStatus === "published") {
+          // Always keep published status
+          statusMap[version.id] = "published";
+        } else if (version.draftContent?.trim() || versionAttachments.length > 0) {
+          // If there's content or attachments, it's a draft
+          statusMap[version.id] = "draft";
+        } else {
+          // Otherwise it's empty
+          statusMap[version.id] = "empty";
         }
       }
+      
+      // Log summary of loaded data
+      console.debug(
+        `[useNoteManagement] Loaded ${Object.keys(draftMap).length} drafts, ` +
+        `${Object.keys(attachmentMap).length} versions with attachments, ` +
+        `${Object.values(statusMap).filter(s => s === "draft").length} drafts, ` +
+        `${Object.values(statusMap).filter(s => s === "published").length} published notes`
+      );
 
-      // Update UI state once with all data
+      // Update all states at once to avoid race conditions
       setNoteDrafts(draftMap);
       setNoteStatuses(statusMap);
       setNoteLabelIds(labelMap);
-      setNoteAttachments(attachmentsMap);
-
-      // Log the attachment stats - only log a summary, not details
-      const totalAttachments = Object.values(attachmentsMap).reduce(
-        (total, atts) => total + atts.length,
-        0,
-      );
-
-      if (totalAttachments > 0) {
-        console.debug(
-          `[useNoteManagement] Loaded ${totalAttachments} attachments for ${Object.keys(attachmentsMap).length} versions`,
-        );
-      }
+      setNoteAttachments(attachmentMap);
+      
     } catch (error) {
       console.error("Failed to load drafts:", error);
     }
@@ -193,22 +160,12 @@ export function useNoteManagement(playlist: Playlist) {
   useEffect(() => {
     // Reset selections when switching playlists
     setSelectedVersions([]);
-
+    
     if (playlist.id) {
-      console.log(
-        `[useNoteManagement] Playlist ID changed to ${playlist.id}, loading attachments`,
-      );
-
-      // Clear current state before loading new data to prevent stale attachments
-      setNoteDrafts({});
-      setNoteStatuses({});
-      setNoteLabelIds({});
-      setNoteAttachments({});
-
-      // Load immediately instead of using setTimeout to avoid race conditions
+      console.debug(`[useNoteManagement] Playlist changed to ${playlist.id}, loading drafts`);
       loadDrafts();
     }
-  }, [playlist.id, loadDrafts]);
+  }, [playlist, playlist.id, loadDrafts]);
 
   // Save a note draft with attachments - with debouncing
   const saveNoteDraft = async (

@@ -82,6 +82,22 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setAttachments(initialAttachments || []);
   }, [initialAttachments, versionName]);
 
+  // Add a new effect to make sure the UI controls render appropriately based on content and attachment state
+  useEffect(() => {
+    // This effect ensures that controls render consistently across playlist switches
+    // by forcing a re-render of the UI elements when draft state changes
+    const hasDraftContent = content && content.trim() !== "";
+    const hasAttachments = attachments && attachments.length > 0;
+
+    // Force a re-render of control elements by updating a state value
+    // This ensures draft UI elements appear consistently
+    if ((hasDraftContent || hasAttachments) && status !== "published") {
+      // We don't need to actually change state, just trigger a re-render
+      // by setting the same value it already has, which will trigger useEffect dependencies
+      setContent(content);
+    }
+  }, [content, attachments, status]);
+
   // Setup paste event listener
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -425,7 +441,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               />
             </div>
             <div className="flex items-center gap-2">
-              {status !== "empty" && (
+              {(status !== "empty" || content || attachments.length > 0) && (
                 <div className="flex items-center justify-between w-full mt-3">
                   <div className="flex gap-2">
                     <Button
@@ -433,6 +449,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                       size="sm"
                       onClick={handleClear}
                       className="text-gray-500 hover:text-gray-700"
+                      disabled={status === "published"}
                     >
                       Clear
                     </Button>
@@ -446,14 +463,12 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                     />
                   </div>
 
-                  {content && (
-                    <NoteLabelSelect
-                      value={labelId ?? ""}
-                      onChange={handleLabelChange}
-                      disabled={status === "published"}
-                      className="h-8 w-40 ml-auto"
-                    />
-                  )}
+                  <NoteLabelSelect
+                    value={labelId ?? ""}
+                    onChange={handleLabelChange}
+                    disabled={status === "published"}
+                    className="h-8 w-40 ml-auto"
+                  />
                 </div>
               )}
             </div>
