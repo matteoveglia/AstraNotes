@@ -299,11 +299,6 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
   return (
     <div
-      className={cn(
-        "relative",
-        isDragging &&
-          "bg-secondary/50 border-2 border-dashed border-primary/50 rounded-md p-2",
-      )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -313,7 +308,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
         <Button
           ref={buttonRef}
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           className={cn(
             "flex items-center space-x-1",
@@ -344,11 +339,11 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       {showAttachments && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 bg-background border border-border rounded-md shadow-md p-3 mt-2 w-72"
+          className="absolute z-50 bg-background border border-border rounded-md shadow-lg p-3 mt-2 w-72"
         >
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Attachments</h3>
+              <h3 className="text-sm font-semibold">Attachments</h3>
               <Button
                 type="button"
                 variant="ghost"
@@ -364,13 +359,13 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {attachments.length === 0 ? (
                 <div className="text-xs text-muted-foreground py-2">
-                  No attachments added
+                  Drop images or click to add
                 </div>
               ) : (
                 attachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center justify-between border border-border rounded-md p-2"
+                    className="flex items-center justify-between border border-border rounded- p-2"
                   >
                     <div className="flex items-center space-x-2">
                       <img
@@ -407,7 +402,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
                 onClick={handleAttachmentClick}
                 className="w-full"
               >
-                Add Image
+                Add Attachment
               </Button>
             )}
           </div>
