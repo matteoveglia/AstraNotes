@@ -56,7 +56,8 @@ export class AstraNotesDB extends Dexie {
       playlists: "id, lastAccessed, lastChecked",
       versions:
         "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus",
-      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt"
+      attachments:
+        "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
 
     this.versions.hook("creating", function (primKey, obj) {
@@ -89,7 +90,7 @@ export class AstraNotesDB extends Dexie {
       .where("playlistId")
       .noneOf([...activePlaylistIds])
       .delete();
-      
+
     // Delete attachments from inactive playlists
     await this.attachments
       .where("playlistId")

@@ -18,7 +18,12 @@ interface VersionGridProps {
   noteDrafts: Record<string, string>;
   noteLabelIds: Record<string, string>;
   noteAttachments?: Record<string, Attachment[]>;
-  onSaveNote: (versionId: string, content: string, labelId: string, attachments?: Attachment[]) => void;
+  onSaveNote: (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
 }
@@ -101,9 +106,11 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
               initialLabelId={noteLabelIds[version.id]}
               initialAttachments={noteAttachments[version.id] || []}
               manuallyAdded={version.manuallyAdded}
-              onSave={(content: string, labelId: string, attachments?: Attachment[]) =>
-                onSaveNote(version.id, content, labelId, attachments)
-              }
+              onSave={(
+                content: string,
+                labelId: string,
+                attachments?: Attachment[],
+              ) => onSaveNote(version.id, content, labelId, attachments)}
               onClear={() => onClearNote(version.id)}
               onSelectToggle={() => onToggleSelection(version.id)}
             />

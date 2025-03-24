@@ -331,7 +331,7 @@ export class FtrackService {
 
       // Process content for better markdown rendering in ftrack
       // Replace single newlines with double newlines
-      const processedContent = content.replace(/\n/g, '\n\n');
+      const processedContent = content.replace(/\n/g, "\n\n");
 
       // Create note
       const response = await session.create("Note", {
@@ -362,14 +362,14 @@ export class FtrackService {
         versionId,
         labelId,
       });
-      
+
       return noteId;
     } catch (error) {
       log("Failed to publish note:", error);
       throw error;
     }
   }
-  
+
   /**
    * Publish a note with attachments to ftrack
    * @param versionId The ID of the version to attach the note to
@@ -382,20 +382,20 @@ export class FtrackService {
     versionId: string,
     content: string,
     labelId?: string,
-    attachments?: Attachment[]
+    attachments?: Attachment[],
   ): Promise<string | null> {
     const session = await this.getSession();
 
     try {
       if (!this.currentUserId) {
         throw new Error(
-          "No user ID available - session may not be properly initialized"
+          "No user ID available - session may not be properly initialized",
         );
       }
 
       // Process content for better markdown rendering in ftrack
       // Replace single newlines with double newlines
-      const processedContent = content.replace(/\n/g, '\n\n');
+      const processedContent = content.replace(/\n/g, "\n\n");
 
       // Create note
       const response = await session.create("Note", {
@@ -424,26 +424,30 @@ export class FtrackService {
       // Handle attachments if any
       if (attachments && attachments.length > 0) {
         log(`Uploading ${attachments.length} attachments for note ${noteId}`);
-        
+
         // Upload all attachments
         const uploadResult = await AttachmentService.uploadAttachments(
           session,
-          attachments
+          attachments,
         );
-        
+
         if (uploadResult.componentIds.length > 0) {
           // Attach uploaded components to the note
           await AttachmentService.attachComponentsToNote(
             session,
             noteId,
-            uploadResult.componentIds
+            uploadResult.componentIds,
           );
-          
-          log(`Successfully attached ${uploadResult.componentIds.length} components to note ${noteId}`);
+
+          log(
+            `Successfully attached ${uploadResult.componentIds.length} components to note ${noteId}`,
+          );
         }
-        
+
         if (uploadResult.failed.length > 0) {
-          console.warn(`Failed to upload ${uploadResult.failed.length} attachments`);
+          console.warn(
+            `Failed to upload ${uploadResult.failed.length} attachments`,
+          );
         }
       }
 
@@ -453,7 +457,7 @@ export class FtrackService {
         labelId,
         attachmentsCount: attachments?.length || 0,
       });
-      
+
       return noteId;
     } catch (error) {
       log("Failed to publish note:", error);
@@ -474,39 +478,41 @@ export class FtrackService {
     versionId: string,
     content: string,
     labelId?: string,
-    attachments?: Attachment[]
+    attachments?: Attachment[],
   ): Promise<string | null> {
     const session = await this.getSession();
 
     try {
       if (!this.currentUserId) {
         throw new Error(
-          "No user ID available - session may not be properly initialized"
+          "No user ID available - session may not be properly initialized",
         );
       }
 
       // Process content for better markdown rendering in ftrack
       // Replace single newlines with double newlines
-      const processedContent = content.replace(/\n/g, '\n\n');
+      const processedContent = content.replace(/\n/g, "\n\n");
 
       if (attachments?.length) {
         // If we have attachments, use the combined upload and note creation approach
-        log(`Creating note with ${attachments.length} attachments using web UI pattern`);
-        
+        log(
+          `Creating note with ${attachments.length} attachments using web UI pattern`,
+        );
+
         const result = await AttachmentService.createNoteWithAttachmentsWebUI(
           session,
           processedContent,
           versionId,
           "AssetVersion",
-          attachments
+          attachments,
         );
-        
+
         if (!result.success || !result.noteId) {
           throw new Error("Failed to create note with attachments");
         }
-        
+
         const noteId = result.noteId;
-        
+
         // Link note to label if provided
         if (labelId) {
           await session.create("NoteLabelLink", {
@@ -514,7 +520,7 @@ export class FtrackService {
             label_id: labelId,
           });
         }
-        
+
         // Link note to user
         if (this.currentUserId) {
           try {
@@ -526,15 +532,15 @@ export class FtrackService {
             console.warn("Could not link note to user:", userLinkError);
           }
         }
-        
+
         log("Successfully published note with web UI style attachments:", {
           noteId,
           versionId,
           labelId,
           attachmentsUploaded: result.attachmentResults?.uploaded || 0,
-          attachmentsFailed: result.attachmentResults?.failed || 0
+          attachmentsFailed: result.attachmentResults?.failed || 0,
         });
-        
+
         return noteId;
       } else {
         // If no attachments, just create a note normally
@@ -549,7 +555,9 @@ export class FtrackService {
         // Check for successful response
         if (!response?.data?.id) {
           log("Invalid response:", response);
-          throw new Error("Failed to create note: Invalid response from server");
+          throw new Error(
+            "Failed to create note: Invalid response from server",
+          );
         }
 
         const noteId = response.data.id;
@@ -561,13 +569,13 @@ export class FtrackService {
             label_id: labelId,
           });
         }
-        
+
         log("Successfully published note:", {
           noteId,
           versionId,
-          labelId
+          labelId,
         });
-        
+
         return noteId;
       }
     } catch (error) {
@@ -589,43 +597,47 @@ export class FtrackService {
     versionId: string,
     content: string,
     labelId?: string,
-    attachments?: Attachment[]
+    attachments?: Attachment[],
   ): Promise<string | null> {
     const session = await this.getSession();
 
     try {
       if (!this.currentUserId) {
         throw new Error(
-          "No user ID available - session may not be properly initialized"
+          "No user ID available - session may not be properly initialized",
         );
       }
 
       // Process content for better markdown rendering in ftrack
       // Replace single newlines with double newlines
-      const processedContent = content.replace(/\n/g, '\n\n');
+      const processedContent = content.replace(/\n/g, "\n\n");
 
       if (attachments?.length) {
         // If we have attachments, use the API-based upload approach
-        log(`Creating note with ${attachments.length} attachments using API createComponent`);
-        
+        log(
+          `Creating note with ${attachments.length} attachments using API createComponent`,
+        );
+
         const result = await AttachmentService.createNoteWithAttachmentsAPI(
           session,
           processedContent,
           versionId,
           "AssetVersion",
           attachments,
-          this.currentUserId // Pass the user ID to properly link the note
+          this.currentUserId, // Pass the user ID to properly link the note
         );
-        
+
         if (!result.success || !result.noteId) {
-          const errorDetails = result.attachmentResults?.errors?.map(e => e.message).join('; ');
-          const errorMessage = `Failed to create note with attachments: ${errorDetails || 'Unknown error'}`;
+          const errorDetails = result.attachmentResults?.errors
+            ?.map((e) => e.message)
+            .join("; ");
+          const errorMessage = `Failed to create note with attachments: ${errorDetails || "Unknown error"}`;
           log(errorMessage);
           throw new Error(errorMessage);
         }
-        
+
         const noteId = result.noteId;
-        
+
         // Link note to label if provided
         if (labelId) {
           await session.create("NoteLabelLink", {
@@ -633,15 +645,15 @@ export class FtrackService {
             label_id: labelId,
           });
         }
-        
+
         log("Successfully published note with API upload attachments:", {
           noteId,
           versionId,
           labelId,
           attachmentsUploaded: result.attachmentResults?.uploaded || 0,
-          attachmentsFailed: result.attachmentResults?.failed || 0
+          attachmentsFailed: result.attachmentResults?.failed || 0,
         });
-        
+
         return noteId;
       } else {
         // If no attachments, just create a note normally
@@ -655,7 +667,9 @@ export class FtrackService {
         // Check for successful response
         if (!response?.data?.id) {
           log("Invalid response:", response);
-          throw new Error("Failed to create note: Invalid response from server");
+          throw new Error(
+            "Failed to create note: Invalid response from server",
+          );
         }
 
         const noteId = response.data.id;
@@ -667,13 +681,13 @@ export class FtrackService {
             label_id: labelId,
           });
         }
-        
+
         log("Successfully published note:", {
           noteId,
           versionId,
-          labelId
+          labelId,
         });
-        
+
         return noteId;
       }
     } catch (error) {
@@ -690,34 +704,34 @@ export class FtrackService {
   async getComponentUrl(componentId: string): Promise<string | null> {
     try {
       const session = await this.getSession();
-      
+
       // Get the server location
       const serverLocationQuery = await session.query(
-        'select Location where name is "ftrack.server"'
+        'select Location where name is "ftrack.server"',
       );
       const serverLocation = serverLocationQuery.data[0];
-      
+
       if (!serverLocation) {
         throw new Error("Could not find ftrack server location");
       }
-      
+
       // Get component
       const componentQuery = await session.query(
-        `select id, name from Component where id is "${componentId}"`
+        `select id, name from Component where id is "${componentId}"`,
       );
       const component = componentQuery.data[0];
-      
+
       if (!component) {
         throw new Error(`Component not found: ${componentId}`);
       }
-      
+
       // Get URL for the component
       const url = session.getComponentUrl(component.id);
-      
+
       if (!url) {
         throw new Error(`Could not get URL for component: ${componentId}`);
       }
-      
+
       return url;
     } catch (error) {
       console.error("Failed to get component URL:", error);
@@ -975,29 +989,33 @@ export class FtrackService {
    */
   private async getApiKey(session: Session, username: string) {
     console.log("Getting API key for user:", username);
-    
+
     try {
       // Get the server location - using safer query approach
       const serverLocationQuery = await session.query(
-        "select Location where name is 'ftrack.server'"
+        "select Location where name is 'ftrack.server'",
       );
-      
+
       // Add fallback if the query fails
-      let serverLocation: { [key: string]: any } | undefined = serverLocationQuery.data[0];
-      
+      let serverLocation: { [key: string]: any } | undefined =
+        serverLocationQuery.data[0];
+
       if (!serverLocation) {
         console.log("Trying alternative query for server location...");
         // Try alternative approach to get the server location
         try {
           const locationsQuery = await session.query("select Location");
           console.log(`Found ${locationsQuery.data.length} locations`);
-          
+
           serverLocation = locationsQuery.data.find(
-            (loc: any) => loc.name === 'ftrack.server'
+            (loc: any) => loc.name === "ftrack.server",
           );
-          
+
           if (serverLocation) {
-            console.log("Found server location via alternative query:", serverLocation.id);
+            console.log(
+              "Found server location via alternative query:",
+              serverLocation.id,
+            );
           }
         } catch (altQueryError) {
           console.error("Alternative query failed:", altQueryError);
@@ -1007,7 +1025,7 @@ export class FtrackService {
       if (!serverLocation) {
         throw new Error("Could not find ftrack server location");
       }
-      
+
       // Rest of the method...
     } catch (error) {
       console.error("Error getting API key:", error);
@@ -1023,12 +1041,12 @@ export class FtrackService {
   async getVersionComponents(versionId: string): Promise<any[]> {
     try {
       const session = await this.getSession();
-      
+
       // Using query to get all components linked to the version
       const query = await session.query(
-        `select Component from Component where version_id is ${versionId}`
+        `select Component from Component where version_id is ${versionId}`,
       );
-      
+
       return query.data;
     } catch (error) {
       log("Error getting components for version:", error);

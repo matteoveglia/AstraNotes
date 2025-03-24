@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { Toast } from '@/components/ui/toast';
+import type { Meta, StoryObj } from "@storybook/react";
+import { Toast } from "@/components/ui/toast";
 
 type ToastProps = React.ComponentProps<typeof Toast> & {
   title?: string;
@@ -7,9 +7,9 @@ type ToastProps = React.ComponentProps<typeof Toast> & {
 };
 
 const meta: Meta<ToastProps> = {
-  title: 'Components/UI/Toast',
+  title: "Components/UI/Toast",
   component: Toast,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;
@@ -18,7 +18,7 @@ type Story = StoryObj<ToastProps>;
 
 export const Primary: Story = {
   args: {
-    title: 'Toast Title',
-    description: 'This is a toast message',
+    title: "Toast Title",
+    description: "This is a toast message",
   },
 };

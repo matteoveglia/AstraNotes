@@ -104,11 +104,11 @@ interface VersionSearchWrapperProps {
 }
 
 // Create a wrapper component that will handle the mock setup and auto-populate search results
-const VersionSearchWrapper: React.FC<VersionSearchWrapperProps> = ({ 
-  args, 
+const VersionSearchWrapper: React.FC<VersionSearchWrapperProps> = ({
+  args,
   autoPopulateSearch = false,
   filterFn = null,
-  initialSearchTerm = ""
+  initialSearchTerm = "",
 }) => {
   // Set up the mock ftrackService for this story
   useEffect(() => {
@@ -116,40 +116,45 @@ const VersionSearchWrapper: React.FC<VersionSearchWrapperProps> = ({
     const mockFtrackService = {
       searchVersions: async ({ searchTerm }: { searchTerm: string }) => {
         // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         // If no search term and not auto-populating, return empty array
         if (!searchTerm && !autoPopulateSearch) return [];
-        
+
         // If we have a custom filter function, use it
         if (filterFn) {
           return filterFn(searchTerm);
         }
-        
+
         // Default search behavior - match any part of the name or version
         const lowerSearchTerm = searchTerm.toLowerCase();
-        return mockVersions.filter(version => {
+        return mockVersions.filter((version) => {
           const lowerName = version.name.toLowerCase();
           const versionString = `v${version.version}`;
-          return lowerName.includes(lowerSearchTerm) || versionString.includes(searchTerm);
+          return (
+            lowerName.includes(lowerSearchTerm) ||
+            versionString.includes(searchTerm)
+          );
         });
       },
       testConnection: () => Promise.resolve(true),
-      updateSettings: () => console.log("Settings updated")
+      updateSettings: () => console.log("Settings updated"),
     };
 
     // @ts-ignore - We're adding this for the story
     (window as any).ftrackService = mockFtrackService;
-    
+
     // If we have an initial search term, we need to trigger the search input
     if (initialSearchTerm && autoPopulateSearch) {
       // Find the search input and set its value
       setTimeout(() => {
-        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        const searchInput = document.querySelector(
+          'input[placeholder*="Search"]',
+        ) as HTMLInputElement;
         if (searchInput) {
           // Set the value and dispatch an input event
           searchInput.value = initialSearchTerm;
-          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
         }
       }, 100);
     }
@@ -179,71 +184,72 @@ type Story = StoryObj<typeof VersionSearch>;
 
 export const Default: Story = {
   args: {
-    onVersionSelect: (version: AssetVersion) => console.log("Version selected:", version),
-    onVersionsSelect: (versions: AssetVersion[]) => console.log("Multiple versions selected:", versions),
+    onVersionSelect: (version: AssetVersion) =>
+      console.log("Version selected:", version),
+    onVersionsSelect: (versions: AssetVersion[]) =>
+      console.log("Multiple versions selected:", versions),
     onClearAdded: () => console.log("Cleared added versions"),
     hasManuallyAddedVersions: false,
     isQuickNotes: false,
     currentVersions: [],
   },
   render: (args) => (
-    <VersionSearchWrapper 
-      args={args} 
-      autoPopulateSearch={false}
-    />
+    <VersionSearchWrapper args={args} autoPopulateSearch={false} />
   ),
 };
 
 export const WithCurrentVersions: Story = {
   args: {
-    onVersionSelect: (version: AssetVersion) => console.log("Version selected:", version),
-    onVersionsSelect: (versions: AssetVersion[]) => console.log("Multiple versions selected:", versions),
+    onVersionSelect: (version: AssetVersion) =>
+      console.log("Version selected:", version),
+    onVersionsSelect: (versions: AssetVersion[]) =>
+      console.log("Multiple versions selected:", versions),
     onClearAdded: () => console.log("Cleared added versions"),
     hasManuallyAddedVersions: true,
     isQuickNotes: false,
     currentVersions: mockCurrentVersions,
   },
   render: (args) => (
-    <VersionSearchWrapper 
-      args={args} 
-      autoPopulateSearch={false}
-    />
+    <VersionSearchWrapper args={args} autoPopulateSearch={false} />
   ),
 };
 
 export const QuickNotesMode: Story = {
   args: {
-    onVersionSelect: (version: AssetVersion) => console.log("Version selected:", version),
-    onVersionsSelect: (versions: AssetVersion[]) => console.log("Multiple versions selected:", versions),
+    onVersionSelect: (version: AssetVersion) =>
+      console.log("Version selected:", version),
+    onVersionsSelect: (versions: AssetVersion[]) =>
+      console.log("Multiple versions selected:", versions),
     onClearAdded: () => console.log("Cleared added versions"),
     hasManuallyAddedVersions: true,
     isQuickNotes: true,
     currentVersions: mockCurrentVersions,
   },
   render: (args) => (
-    <VersionSearchWrapper 
-      args={args} 
-      autoPopulateSearch={false}
-    />
+    <VersionSearchWrapper args={args} autoPopulateSearch={false} />
   ),
 };
 
 // Helper component to demonstrate the search functionality with pre-filled search
 export const WithPrefilledSearch: Story = {
   args: {
-    onVersionSelect: (version: AssetVersion) => console.log("Version selected:", version),
-    onVersionsSelect: (versions: AssetVersion[]) => console.log("Multiple versions selected:", versions),
+    onVersionSelect: (version: AssetVersion) =>
+      console.log("Version selected:", version),
+    onVersionsSelect: (versions: AssetVersion[]) =>
+      console.log("Multiple versions selected:", versions),
     onClearAdded: () => console.log("Cleared added versions"),
     hasManuallyAddedVersions: false,
     isQuickNotes: false,
     currentVersions: mockCurrentVersions,
   },
   render: (args) => (
-    <VersionSearchWrapper 
-      args={args} 
+    <VersionSearchWrapper
+      args={args}
       autoPopulateSearch={true}
       initialSearchTerm="s"
-      filterFn={(searchTerm: string) => mockVersions.filter(v => v.name.toLowerCase().includes("shot"))}
+      filterFn={(searchTerm: string) =>
+        mockVersions.filter((v) => v.name.toLowerCase().includes("shot"))
+      }
     />
   ),
 };
@@ -251,16 +257,18 @@ export const WithPrefilledSearch: Story = {
 // Story to demonstrate multi-selection mode
 export const MultiSelectionMode: Story = {
   args: {
-    onVersionSelect: (version: AssetVersion) => console.log("Version selected:", version),
-    onVersionsSelect: (versions: AssetVersion[]) => console.log("Multiple versions selected:", versions),
+    onVersionSelect: (version: AssetVersion) =>
+      console.log("Version selected:", version),
+    onVersionsSelect: (versions: AssetVersion[]) =>
+      console.log("Multiple versions selected:", versions),
     onClearAdded: () => console.log("Cleared added versions"),
     hasManuallyAddedVersions: false,
     isQuickNotes: false,
     currentVersions: [],
   },
   render: (args) => (
-    <VersionSearchWrapper 
-      args={args} 
+    <VersionSearchWrapper
+      args={args}
       autoPopulateSearch={true}
       filterFn={() => mockVersions} // Return all versions
     />

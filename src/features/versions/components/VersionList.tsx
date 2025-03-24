@@ -19,7 +19,12 @@ interface VersionListProps {
   noteStatuses: Record<string, NoteStatus>;
   noteAttachments?: Record<string, Attachment[]>;
   onVersionSelect: (versionId: string) => void;
-  onNoteChange: (versionId: string, content: string, labelId: string, attachments?: Attachment[]) => void;
+  onNoteChange: (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onNoteClear: (versionId: string) => void;
   searchQuery?: string;
 }

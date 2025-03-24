@@ -29,7 +29,11 @@ export interface NoteInputProps {
   initialLabelId?: string;
   initialAttachments?: Attachment[];
   manuallyAdded?: boolean;
-  onSave: (content: string, labelId: string, attachments?: Attachment[]) => void;
+  onSave: (
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onClear: () => void;
   onSelectToggle: () => void;
 }
@@ -51,7 +55,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const [content, setContent] = useState(initialContent);
   const [labelId, setLabelId] = useState(initialLabelId);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [attachments, setAttachments] = useState<Attachment[]>(initialAttachments || []);
+  const [attachments, setAttachments] = useState<Attachment[]>(
+    initialAttachments || [],
+  );
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const markdownEditorRef = useRef<MarkdownEditorRef>(null);
   const componentRef = useRef<HTMLDivElement>(null);
@@ -65,29 +71,40 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setLabelId(initialLabelId);
   }, [initialLabelId]);
 
+  // Update attachments when initialAttachments changes
+  useEffect(() => {
+    // Only log when there are attachments to reduce noise
+    if (initialAttachments?.length > 0) {
+      console.debug(
+        `[NoteInput] Updating attachments for ${versionName}: ${initialAttachments.length} attachments`,
+      );
+    }
+    setAttachments(initialAttachments || []);
+  }, [initialAttachments, versionName]);
+
   // Setup paste event listener
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (status === "published") return; // Don't allow paste if published
-      
+
       if (e.clipboardData?.items) {
         const items = Array.from(e.clipboardData.items);
-        
-        const imageItems = items.filter(item => 
-          item.kind === 'file' && item.type.startsWith('image/')
+
+        const imageItems = items.filter(
+          (item) => item.kind === "file" && item.type.startsWith("image/"),
         );
-        
+
         if (imageItems.length > 0) {
           e.preventDefault(); // Prevent default paste behavior for images
-          
+
           const newAttachments: Attachment[] = [];
-          
+
           imageItems.forEach((item, index) => {
             const file = item.getAsFile();
             if (file) {
               const id = `pasted-${Date.now()}-${index}`;
               const previewUrl = URL.createObjectURL(file);
-              
+
               newAttachments.push({
                 id,
                 file,
@@ -97,10 +114,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               });
             }
           });
-          
+
           if (newAttachments.length > 0) {
-            setAttachments(prev => [...prev, ...newAttachments]);
-            
+            setAttachments((prev) => [...prev, ...newAttachments]);
+
             // Also save the note with the new attachments
             onSave(content, labelId || "", [...attachments, ...newAttachments]);
           }
@@ -111,13 +128,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     // Add the event listener to the component
     const element = componentRef.current;
     if (element) {
-      element.addEventListener('paste', handlePaste);
+      element.addEventListener("paste", handlePaste);
     }
 
     // Clean up
     return () => {
       if (element) {
-        element.removeEventListener('paste', handlePaste);
+        element.removeEventListener("paste", handlePaste);
       }
     };
   }, [content, labelId, attachments, onSave, status]);
@@ -134,12 +151,12 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   const handleClear = () => {
     setContent("");
-    
+
     // Clean up attachment preview URLs
-    attachments.forEach(attachment => {
+    attachments.forEach((attachment) => {
       URL.revokeObjectURL(attachment.previewUrl);
     });
-    
+
     setAttachments([]);
     onClear();
   };
@@ -151,13 +168,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       dragCountRef.current = 0;
       setIsDraggingOver(false);
     };
-    
-    document.addEventListener('dragend', handleDocumentDragEnd);
-    document.addEventListener('drop', handleDocumentDragEnd);
-    
+
+    document.addEventListener("dragend", handleDocumentDragEnd);
+    document.addEventListener("drop", handleDocumentDragEnd);
+
     return () => {
-      document.removeEventListener('dragend', handleDocumentDragEnd);
-      document.removeEventListener('drop', handleDocumentDragEnd);
+      document.removeEventListener("dragend", handleDocumentDragEnd);
+      document.removeEventListener("drop", handleDocumentDragEnd);
     };
   }, []);
 
@@ -165,7 +182,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     if (status === "published") return;
-    
+
     dragCountRef.current++;
     setIsDraggingOver(true);
   };
@@ -178,7 +195,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     if (status === "published") return;
-    
+
     dragCountRef.current--;
     // Only reset state when counter reaches 0 (all drag leaves completed)
     if (dragCountRef.current <= 0) {
@@ -188,90 +205,105 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    console.log('[DragDebug] Drop event', {
+    console.log("[DragDebug] Drop event", {
       fileCount: e.dataTransfer.files.length,
       target: e.target,
-      currentTarget: e.currentTarget
+      currentTarget: e.currentTarget,
     });
-    
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Reset counter and visual state
     dragCountRef.current = 0;
     setIsDraggingOver(false);
-    
+
     // Skip if published
     if (status === "published") return;
-    
+
     // Process dropped files
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      console.log('[DragDebug] Processing dropped files:', e.dataTransfer.files.length);
-      const fileNames = Array.from(e.dataTransfer.files).map(f => f.name).join(', ');
-      console.log('[DragDebug] Dropped file names:', fileNames);
-      
+      console.log(
+        "[DragDebug] Processing dropped files:",
+        e.dataTransfer.files.length,
+      );
+      const fileNames = Array.from(e.dataTransfer.files)
+        .map((f) => f.name)
+        .join(", ");
+      console.log("[DragDebug] Dropped file names:", fileNames);
+
       handleAddFiles(e.dataTransfer.files);
     } else {
-      console.log('[DragDebug] Drop event contained no files');
+      console.log("[DragDebug] Drop event contained no files");
     }
   };
 
   // Enhanced file processing with better logging
   const handleAddFiles = (files: FileList) => {
-    console.log('Processing dropped/selected files:', files.length);
-    const imageFiles = Array.from(files).filter(file => {
-      const isImage = file.type.startsWith('image/');
-      console.log(`File: ${file.name}, type: ${file.type}, is image: ${isImage}`);
+    console.log("Processing dropped/selected files:", files.length);
+    const imageFiles = Array.from(files).filter((file) => {
+      const isImage = file.type.startsWith("image/");
+      console.log(
+        `File: ${file.name}, type: ${file.type}, is image: ${isImage}`,
+      );
       return isImage;
     });
-    
-    console.log('Image files found:', imageFiles.length);
+
+    console.log("Image files found:", imageFiles.length);
     if (imageFiles.length > 0) {
       const newAttachments: Attachment[] = imageFiles.map((file, index) => {
         const id = `file-${Date.now()}-${index}`;
         const previewUrl = URL.createObjectURL(file);
-        console.log(`Created attachment: ${id}, ${file.name}, preview URL created`);
-        
+        console.log(
+          `Created attachment: ${id}, ${file.name}, preview URL created`,
+        );
+
         return {
           id,
           file,
           name: file.name,
           type: file.type,
-          previewUrl
+          previewUrl,
         };
       });
-      
+
       const updatedAttachments = [...attachments, ...newAttachments];
       setAttachments(updatedAttachments);
-      
+
       // Debounce the save operation to avoid race conditions
       console.log(`Saving ${updatedAttachments.length} attachments`);
       onSave(content, labelId || "", updatedAttachments);
     }
   };
 
-  const handleAddAttachments = useCallback((newAttachments: Attachment[]) => {
-    setAttachments(prev => {
-      const updated = [...prev, ...newAttachments];
-      onSave(content, labelId || "", updated);
-      return updated;
-    });
-  }, [content, labelId, onSave]);
+  const handleAddAttachments = useCallback(
+    (newAttachments: Attachment[]) => {
+      setAttachments((prev) => {
+        const updated = [...prev, ...newAttachments];
+        onSave(content, labelId || "", updated);
+        return updated;
+      });
+    },
+    [content, labelId, onSave],
+  );
 
-  const handleRemoveAttachment = useCallback((id: string) => {
-    setAttachments(prev => {
-      // Find the attachment to remove its preview URL
-      const attachment = prev.find(att => att.id === id);
-      if (attachment) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
-      
-      // Filter out the removed attachment
-      const updated = prev.filter(attachment => attachment.id !== id);
-      onSave(content, labelId || "", updated);
-      return updated;
-    });
-  }, [content, labelId, onSave]);
+  const handleRemoveAttachment = useCallback(
+    (id: string) => {
+      setAttachments((prev) => {
+        // Find the attachment to remove its preview URL
+        const attachment = prev.find((att) => att.id === id);
+        if (attachment) {
+          URL.revokeObjectURL(attachment.previewUrl);
+        }
+
+        // Filter out the removed attachment
+        const updated = prev.filter((attachment) => attachment.id !== id);
+        onSave(content, labelId || "", updated);
+        return updated;
+      });
+    },
+    [content, labelId, onSave],
+  );
 
   // Function to prepare content for ftrack
   const prepareContentForFtrack = (content: string) => {
@@ -280,7 +312,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       return markdownEditorRef.current.processContentForFtrack(content);
     }
     // Fallback implementation
-    return content.replace(/\n/g, '\n\n');
+    return content.replace(/\n/g, "\n\n");
   };
 
   const getStatusColor = () => {
@@ -314,13 +346,15 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={componentRef}
       className={cn(
         "flex gap-4 p-4 bg-white rounded-lg border relative",
         manuallyAdded && "border-purple-500 border-2",
-        isDraggingOver && status !== "published" && "bg-blue-100 border-2 border-dashed border-blue-300",
-        "transition-colors duration-150"
+        isDraggingOver &&
+          status !== "published" &&
+          "bg-blue-100 border-2 border-dashed border-blue-300",
+        "transition-colors duration-150",
       )}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
@@ -333,7 +367,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           <p className="text-blue-800 font-medium">Drop images to attach</p>
         </div>
       )}
-      
+
       <div
         className={cn(
           "flex-shrink-0 w-32 min-h-[85px] bg-gray-100 rounded overflow-hidden",
@@ -371,9 +405,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1">
-              <h3 className="font-semibold truncate">
-                {versionName}
-              </h3>
+              <h3 className="font-semibold truncate">{versionName}</h3>
               <span className="font-medium text-base text-gray-500">
                 - v{versionNumber}
               </span>
@@ -404,7 +436,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                     >
                       Clear
                     </Button>
-                    
+
                     {/* Add the attachment component */}
                     <NoteAttachments
                       attachments={attachments}
@@ -413,7 +445,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                       disabled={status === "published"}
                     />
                   </div>
-                  
+
                   {content && (
                     <NoteLabelSelect
                       value={labelId ?? ""}

@@ -20,7 +20,11 @@ interface VersionItemProps {
   labelId: string;
   noteStatus: NoteStatus;
   onSelect: () => void;
-  onNoteChange: (content: string, labelId: string, attachments?: Attachment[]) => void;
+  onNoteChange: (
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onNoteClear: () => void;
   initialAttachments?: Attachment[];
 }
@@ -49,13 +53,18 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   onNoteClear,
   initialAttachments = [],
 }) => {
-  const [localAttachments, setLocalAttachments] = useState<Attachment[]>(initialAttachments);
+  const [localAttachments, setLocalAttachments] =
+    useState<Attachment[]>(initialAttachments);
 
   useEffect(() => {
     setLocalAttachments(initialAttachments);
   }, [initialAttachments]);
 
-  const handleNoteInputSave = (content: string, labelId: string, attachments: Attachment[] = []) => {
+  const handleNoteInputSave = (
+    content: string,
+    labelId: string,
+    attachments: Attachment[] = [],
+  ) => {
     setLocalAttachments(attachments);
     onNoteChange(content, labelId, attachments);
   };
