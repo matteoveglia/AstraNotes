@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,32 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Add click outside listener
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      // Only close dropdown if it's open and click was outside dropdown and button
+      if (
+        showAttachments &&
+        dropdownRef.current && 
+        buttonRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setShowAttachments(false);
+      }
+    }
+    
+    // Add global event listeners
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Cleanup on unmount
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAttachments]);
 
   // Helper function to determine mime type from file name
   const getFileTypeFromName = (fileName: string): string => {
@@ -285,6 +311,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
     >
       <div className="flex items-center space-x-2">
         <Button
+          ref={buttonRef}
           type="button"
           variant="ghost"
           size="sm"
@@ -315,7 +342,10 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
       {/* Attachment Dropdown Content */}
       {showAttachments && (
-        <div className="absolute z-50 bg-background border border-border rounded-md shadow-md p-3 mt-2 w-72">
+        <div
+          ref={dropdownRef}
+          className="absolute z-50 bg-background border border-border rounded-md shadow-md p-3 mt-2 w-72"
+        >
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-medium">Attachments</h3>

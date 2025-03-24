@@ -45,27 +45,62 @@ export function useNoteManagement(playlist: Playlist) {
     >
   >({});
 
+  // Add a ref to track the current playlist ID to prevent race conditions
+  const currentPlaylistIdRef = useRef<string | null>(null);
+  
+  // Add tracking of created object URLs to prevent memory leaks
+  const createdURLs = useRef<Set<string>>(new Set());
+
+  // Add cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup all object URLs when component unmounts
+      createdURLs.current.forEach(url => {
+        URL.revokeObjectURL(url);
+      });
+      createdURLs.current.clear();
+    };
+  }, []);
+
   // Load drafts from database
   const loadDrafts = useCallback(async () => {
     try {
+      // Skip if playlist ID has changed since function was called
+      if (currentPlaylistIdRef.current !== playlist.id) {
+        console.debug(`[useNoteManagement] Playlist ID changed during load, aborting`);
+        return;
+      }
+
       console.debug(`[useNoteManagement] Loading drafts for playlist ${playlist.id}`);
 
-      // Get versions from the current playlist
-      const versions = await db.versions
-        .where("playlistId")
-        .equals(playlist.id)
-        .filter(v => !v.isRemoved)
-        .toArray();
-
-      // Get attachments for this playlist
-      const attachments = await db.attachments
-        .where("playlistId")
-        .equals(playlist.id)
-        .toArray();
+      // Fetch versions and attachments in parallel for better performance
+      const [versions, attachments] = await Promise.all([
+        db.versions
+          .where("playlistId")
+          .equals(playlist.id)
+          .filter(v => !v.isRemoved)
+          .toArray(),
+        db.attachments
+          .where("playlistId")
+          .equals(playlist.id)
+          .toArray()
+      ]);
 
       console.debug(`[useNoteManagement] Loaded ${versions.length} versions and ${attachments.length} attachments`);
       
-      // Group attachments by version ID
+      // Skip if playlist ID has changed during DB queries
+      if (currentPlaylistIdRef.current !== playlist.id) {
+        console.debug(`[useNoteManagement] Playlist ID changed during load, aborting`);
+        return;
+      }
+      
+      // Process in a more memory-efficient way by building maps first
+      const draftMap: Record<string, string> = {};
+      const statusMap: Record<string, NoteStatus> = {};
+      const labelMap: Record<string, string> = {};
+      const attachmentMap: Record<string, Attachment[]> = {};
+      
+      // Group attachments by version ID for faster lookup
       const attachmentsByVersion = new Map<string, NoteAttachment[]>();
       attachments.forEach(att => {
         if (!attachmentsByVersion.has(att.versionId)) {
@@ -74,32 +109,29 @@ export function useNoteManagement(playlist: Playlist) {
         attachmentsByVersion.get(att.versionId)!.push(att);
       });
 
-      // Prepare maps for state updates
-      const draftMap: Record<string, string> = {};
-      const statusMap: Record<string, NoteStatus> = {};
-      const labelMap: Record<string, string> = {};
-      const attachmentMap: Record<string, Attachment[]> = {};
-
-      // Process each version
-      for (const version of versions) {
-        // Process draft content
+      // Process each version and its attachments
+      versions.forEach(version => {
+        // Process basic version data
         draftMap[version.id] = version.draftContent || "";
         labelMap[version.id] = version.labelId || "";
         
-        // Get attachments for this version
+        // Process attachments for this version
         const versionAttachments = attachmentsByVersion.get(version.id) || [];
-        
-        // Convert to UI attachments
         if (versionAttachments.length > 0) {
           attachmentMap[version.id] = versionAttachments.map(att => {
-            // Create a file object if available, otherwise use path
+            // Create appropriate file reference
             let file: File | string;
             if (att.filePath) {
-              file = att.filePath;
+              file = att.filePath; // For Tauri file paths
             } else if (att.data instanceof Blob) {
-              file = new File([att.data], att.name, { type: att.type });
+              try {
+                file = new File([att.data], att.name, { type: att.type });
+              } catch (error) {
+                console.warn(`Failed to create File from stored data for ${att.name}:`, error);
+                file = new File([], att.name, { type: att.type }); // Fallback empty file
+              }
             } else {
-              // Create empty file as fallback
+              // Create a placeholder file if no data is available
               file = new File([], att.name, { type: att.type });
             }
             
@@ -114,7 +146,6 @@ export function useNoteManagement(playlist: Playlist) {
         }
         
         // Determine the correct status based on content and attachments
-        // This is critical to ensure the publish button appears correctly
         if (version.noteStatus === "published") {
           // Always keep published status
           statusMap[version.id] = "published";
@@ -125,7 +156,7 @@ export function useNoteManagement(playlist: Playlist) {
           // Otherwise it's empty
           statusMap[version.id] = "empty";
         }
-      }
+      });
       
       // Log summary of loaded data
       console.debug(
@@ -135,7 +166,13 @@ export function useNoteManagement(playlist: Playlist) {
         `${Object.values(statusMap).filter(s => s === "published").length} published notes`
       );
 
-      // Update all states at once to avoid race conditions
+      // Skip if playlist ID has changed during processing
+      if (currentPlaylistIdRef.current !== playlist.id) {
+        console.debug(`[useNoteManagement] Playlist ID changed during processing, aborting`);
+        return;
+      }
+
+      // Update all states at once to reduce renders
       setNoteDrafts(draftMap);
       setNoteStatuses(statusMap);
       setNoteLabelIds(labelMap);
@@ -153,6 +190,7 @@ export function useNoteManagement(playlist: Playlist) {
     console.log(
       `[useNoteManagement] Loading drafts for playlist with ${playlist.versions.length} versions`,
     );
+    currentPlaylistIdRef.current = playlist.id;
     loadDrafts();
   }, [playlist.versions, loadDrafts]);
 
@@ -162,18 +200,54 @@ export function useNoteManagement(playlist: Playlist) {
     setSelectedVersions([]);
     
     if (playlist.id) {
-      console.debug(`[useNoteManagement] Playlist changed to ${playlist.id}, loading drafts`);
+      console.log(`[useNoteManagement] Playlist changed to ${playlist.id}, loading data...`);
+      
+      // Update ref immediately to track current playlist ID
+      currentPlaylistIdRef.current = playlist.id;
+      
+      // Reset states to avoid displaying stale data during loading
+      setNoteDrafts({});
+      setNoteStatuses({});
+      setNoteLabelIds({});
+      setNoteAttachments({});
+      
+      // Load data after clearing states
       loadDrafts();
     }
-  }, [playlist, playlist.id, loadDrafts]);
+  }, [playlist.id, loadDrafts]);
 
-  // Save a note draft with attachments - with debouncing
+  // Add a recovery function for attachment errors
+  const recoverFromAttachmentError = (versionId: string) => {
+    console.log(`[useNoteManagement] Recovering from attachment error for version ${versionId}`);
+    
+    // Remove problematic attachments from state
+    setNoteAttachments(prev => {
+      const updated = { ...prev };
+      delete updated[versionId];
+      return updated;
+    });
+    
+    // Update status appropriately based on content
+    const content = noteDrafts[versionId];
+    const newStatus = content && content.trim() !== "" ? "draft" : "empty";
+    
+    setNoteStatuses(prev => ({
+      ...prev,
+      [versionId]: newStatus
+    }));
+  };
+
+  // Save a note draft with attachments - with debouncing and retry
   const saveNoteDraft = async (
     versionId: string,
     content: string,
     labelId: string,
     attachments: Attachment[] = [],
   ) => {
+    const MAX_RETRIES = 2;
+    let retryCount = 0;
+    let success = false;
+
     // Store this save operation in our pending saves
     pendingSavesRef.current[versionId] = {
       content,
@@ -219,54 +293,95 @@ export function useNoteManagement(playlist: Playlist) {
 
     // Schedule actual save after a short delay to avoid race conditions
     saveTimerRef.current = setTimeout(async () => {
-      try {
-        // Get the latest values that might have been updated during the delay
-        const pendingSave = pendingSavesRef.current[versionId];
-        if (!pendingSave) return; // Safety check
+      while (retryCount <= MAX_RETRIES && !success) {
+        try {
+          // Get the latest values that might have been updated during the delay
+          const pendingSave = pendingSavesRef.current[versionId];
+          if (!pendingSave) return; // Safety check
 
-        const { content, labelId, attachments } = pendingSave;
+          const { content, labelId, attachments } = pendingSave;
 
-        // Remove this save from pending operations
-        delete pendingSavesRef.current[versionId];
+          // Remove this save from pending operations
+          delete pendingSavesRef.current[versionId];
 
-        // Check status again with the latest content and attachments
-        const currentStatus = noteStatuses[versionId];
-        const hasAttachments = attachments && attachments.length > 0;
-        const newStatus =
-          currentStatus === "published"
-            ? "published"
-            : content.trim() !== "" || hasAttachments
-              ? "draft"
-              : "empty";
+          // Check status again with the latest content and attachments
+          const currentStatus = noteStatuses[versionId];
+          const hasAttachments = attachments && attachments.length > 0;
+          const newStatus =
+            currentStatus === "published"
+              ? "published"
+              : content.trim() !== "" || hasAttachments
+                ? "draft"
+                : "empty";
 
-        console.debug(
-          `[useNoteManagement] Saving note ${versionId} with status: ${newStatus} (previous: ${currentStatus}) and ${attachments.length} attachments`,
-        );
+          console.debug(
+            `[useNoteManagement] Saving note ${versionId} with status: ${newStatus} (previous: ${currentStatus}) and ${attachments.length} attachments${retryCount > 0 ? ` (retry ${retryCount})` : ''}`,
+          );
 
-        // Save draft content, status, and label to database
-        await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+          // Save draft content, status, and label to database
+          await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
 
-        // Also update the status separately to ensure it's set correctly, passing attachments info
-        if (newStatus !== currentStatus) {
-          await playlistStore.saveNoteStatus(
+          // Also update the status separately to ensure it's set correctly, passing attachments info
+          if (newStatus !== currentStatus) {
+            await playlistStore.saveNoteStatus(
+              versionId,
+              playlist.id,
+              newStatus,
+              content,
+              hasAttachments, // Pass attachment info to saveNoteStatus
+            );
+          }
+
+          // Save attachments to database - this is where most errors happen
+          await playlistStore.saveAttachments(
             versionId,
             playlist.id,
-            newStatus,
-            content,
-            hasAttachments, // Pass attachment info to saveNoteStatus
+            attachments,
           );
+          
+          // If we get here, the save was successful
+          success = true;
+          
+        } catch (error) {
+          retryCount++;
+          console.error(`[useNoteManagement] Failed to save note (attempt ${retryCount}/${MAX_RETRIES}):`, error);
+          
+          // Wait before retrying
+          if (retryCount <= MAX_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+          
+          // If we're out of retries, try a fallback approach
+          if (retryCount > MAX_RETRIES) {
+            console.error(`[useNoteManagement] All retry attempts failed for version ${versionId}, trying fallback...`);
+            
+            try {
+              // Try to save just the content without attachments as a last resort
+              await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+              
+              // Update status (without attachments this time)
+              const fallbackStatus = content.trim() !== "" ? "draft" : "empty";
+              await playlistStore.saveNoteStatus(
+                versionId,
+                playlist.id,
+                fallbackStatus,
+                content,
+                false, // No attachments
+              );
+              
+              // Remove problematic attachments and update UI accordingly
+              recoverFromAttachmentError(versionId);
+              
+              // Log the recovery
+              console.debug(`[useNoteManagement] Successfully recovered note content for ${versionId} without attachments`);
+              success = true;
+            } catch (fallbackError) {
+              console.error(`[useNoteManagement] Fallback save also failed for ${versionId}:`, fallbackError);
+            }
+          }
         }
-
-        // Save attachments to database
-        await playlistStore.saveAttachments(
-          versionId,
-          playlist.id,
-          attachments,
-        );
-      } catch (error) {
-        console.error("Failed to save note:", error);
       }
-    }, 100); // Small delay to debounce multiple rapid changes
+    }, 150); // Small delay to debounce multiple rapid changes
   };
 
   // Clear a note draft
@@ -276,6 +391,7 @@ export function useNoteManagement(playlist: Playlist) {
     attachmentsToClean.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
+        createdURLs.current.delete(attachment.previewUrl);
       }
     });
 
@@ -633,6 +749,7 @@ export function useNoteManagement(playlist: Playlist) {
         attachments.forEach((attachment) => {
           if (attachment.previewUrl) {
             URL.revokeObjectURL(attachment.previewUrl);
+            createdURLs.current.delete(attachment.previewUrl);
           }
         });
       });
