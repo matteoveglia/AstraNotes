@@ -18,7 +18,7 @@ export interface Attachment {
 interface AttachmentUploadResult {
   success: boolean;
   componentId?: string;
-  error?: Error;
+  error?: Error | unknown;
 }
 
 interface UploadMetadataResponse {
@@ -167,21 +167,20 @@ export class AttachmentService {
    * Get API authentication headers from session
    */
   private static getAuthHeaders(session: Session): Record<string, string> {
-    // Extract authentication details from the session
-    const sessionAny = session as any;
-    const apiUser = sessionAny.apiUser;
-    const apiKey = sessionAny.apiKey;
+    // Add type assertion for session
+    const sessionAny = session as unknown as {
+      apiUser: string;
+      apiKey: string;
+    };
+    
+    const { apiUser, apiKey } = sessionAny;
     
     if (!apiUser || !apiKey) {
       throw new Error('Missing API authentication credentials');
     }
     
-    // Create Basic Auth token
-    const authToken = btoa(`${apiUser}:${apiKey}`);
-    
-    // Return headers object
     return {
-      'Authorization': `Basic ${authToken}`
+      'Authorization': `Basic ${btoa(`${apiUser}:${apiKey}`)}`
     };
   }
   
@@ -189,14 +188,20 @@ export class AttachmentService {
    * Get server URL from session
    */
   private static getServerUrl(session: Session): string {
-    const sessionAny = session as any;
+    // Add type assertion for session
+    const sessionAny = session as unknown as {
+      server?: string;
+      serverUrl?: string;
+      url?: string;
+    };
+    
     const apiUrl = sessionAny.server || sessionAny.serverUrl || sessionAny.url;
     
     if (!apiUrl) {
       throw new Error('Could not determine API URL from session');
     }
     
-    return apiUrl.replace('/api', ''); // Remove API path if present
+    return apiUrl.replace('/api', '');
   }
   
   /**
@@ -210,7 +215,7 @@ export class AttachmentService {
     try {
       console.log(`Uploading attachment: ${attachment.name} (${attachment.type})`);
 
-      // Convert string file path to File object if needed
+      // Add type guard for file
       let file: File;
       if (typeof attachment.file === 'string') {
         file = await getFileFromPath(attachment.file);
@@ -1063,91 +1068,7 @@ export class AttachmentService {
   }
 
   /**
-   * Validate attachments before upload
-   * This can be used to ensure attachments meet ftrack requirements
-   */
-  static validateAttachment(attachment: Attachment): { 
-    valid: boolean;
-    errors: string[];
-    warnings: string[];
-  } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    
-    // Check for required fields
-    if (!attachment.id) {
-      errors.push('Attachment is missing an ID');
-    }
-    
-    if (!attachment.name) {
-      errors.push('Attachment is missing a name');
-    }
-    
-    if (!attachment.type) {
-      warnings.push('Attachment is missing a MIME type');
-    }
-    
-    // Check file
-    if (!attachment.file) {
-      errors.push('Attachment has no file data');
-    } else {
-      // Check file type specific validations
-      const fileExtension = attachment.name.split('.').pop()?.toLowerCase() || '';
-      
-      // Check for image files
-      const isImage = attachment.type.startsWith('image/') || 
-                     ['jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff', 'bmp'].includes(fileExtension);
-      
-      // Check for video files
-      const isVideo = attachment.type.startsWith('video/') ||
-                     ['mp4', 'mov', 'avi', 'webm', 'wmv', 'mkv'].includes(fileExtension);
-      
-      // Check for PDF files
-      const isPdf = attachment.type === 'application/pdf' || fileExtension === 'pdf';
-      
-      // For image files
-      if (isImage) {
-        // Check that the file extension matches the MIME type
-        if (attachment.type.startsWith('image/')) {
-          const mimeSubtype = attachment.type.split('/')[1];
-          if (fileExtension && mimeSubtype !== fileExtension && 
-              !(mimeSubtype === 'jpeg' && fileExtension === 'jpg')) {
-            warnings.push(`Image file extension (${fileExtension}) doesn't match MIME type (${mimeSubtype})`);
-          }
-        }
-      }
-      
-      // For video files
-      if (isVideo) {
-        // Check for supported video formats
-        if (!['mp4', 'mov', 'avi', 'webm'].includes(fileExtension)) {
-          warnings.push(`Video format (${fileExtension}) might not be supported by ftrack web player`);
-        }
-      }
-      
-      // Check file size if it's a File object
-      if (attachment.file instanceof File) {
-        const fileSizeInMB = attachment.file.size / (1024 * 1024);
-        if (fileSizeInMB > 100) {
-          warnings.push(`File size (${fileSizeInMB.toFixed(2)} MB) exceeds 100 MB, may cause upload issues`);
-        }
-        
-        // Additional warning for common problems
-        if (attachment.file.size === 0) {
-          errors.push('File has zero bytes, cannot upload');
-        }
-      }
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }
-
-  /**
-   * Batch validate multiple attachments
+   * Validate multiple attachments for upload
    */
   static validateAttachments(attachments: Attachment[]): {
     valid: boolean;
@@ -1158,6 +1079,15 @@ export class AttachmentService {
     }>;
     validAttachments: Attachment[];
   } {
+    // Default return for empty array
+    if (!attachments || attachments.length === 0) {
+      return {
+        valid: true,
+        invalidAttachments: [],
+        validAttachments: []
+      };
+    }
+    
     const invalidAttachments: Array<{
       attachment: Attachment;
       errors: string[];
@@ -1166,33 +1096,85 @@ export class AttachmentService {
     
     const validAttachments: Attachment[] = [];
     
-    for (const attachment of attachments) {
-      const result = this.validateAttachment(attachment);
+    // Validate each attachment
+    attachments.forEach(attachment => {
+      const validation = this.validateAttachment(attachment);
       
-      if (!result.valid) {
+      if (!validation.valid) {
         invalidAttachments.push({
           attachment,
-          errors: result.errors,
-          warnings: result.warnings
+          errors: validation.errors,
+          warnings: validation.warnings
         });
       } else {
-        // If there are warnings but no errors, it's still valid
-        if (result.warnings.length > 0) {
+        // If only warnings, still consider it valid but add to invalid list with empty errors
+        if (validation.warnings.length > 0) {
           invalidAttachments.push({
             attachment,
             errors: [],
-            warnings: result.warnings
+            warnings: validation.warnings
           });
         }
         
         validAttachments.push(attachment);
       }
+    });
+    
+    return {
+      valid: invalidAttachments.length === 0 || invalidAttachments.every(ia => ia.errors.length === 0),
+      invalidAttachments,
+      validAttachments
+    };
+  }
+
+  /**
+   * Validate a single attachment
+   */
+  static validateAttachment(attachment: Attachment): { 
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    // Check for required fields
+    if (!attachment.name) {
+      errors.push('Attachment name is required');
+    }
+    
+    if (!attachment.file) {
+      errors.push('Attachment file is required');
+    }
+    
+    // Check file size if it's a File object
+    if (attachment.file instanceof File) {
+      const fileSizeMB = attachment.file.size / (1024 * 1024);
+      if (fileSizeMB > 100) {
+        errors.push(`File size (${fileSizeMB.toFixed(2)}MB) exceeds maximum size of 100MB`);
+      } else if (fileSizeMB > 50) {
+        warnings.push(`Large file (${fileSizeMB.toFixed(2)}MB) may take a long time to upload`);
+      }
+      
+      // Check file type
+      if (!attachment.type) {
+        warnings.push('Attachment type is missing');
+      }
+    }
+    
+    // For file paths, we can only do basic checks
+    if (typeof attachment.file === 'string') {
+      // Check if the path has a valid extension
+      const fileExtension = attachment.file.split('.').pop()?.toLowerCase();
+      if (!fileExtension) {
+        warnings.push('File path does not include a file extension');
+      }
     }
     
     return {
-      valid: invalidAttachments.every(item => item.errors.length === 0),
-      invalidAttachments,
-      validAttachments
+      valid: errors.length === 0,
+      errors,
+      warnings
     };
   }
 
@@ -1419,10 +1401,10 @@ export class AttachmentService {
         success: false,
         error: error instanceof Error ? error : new Error(String(error))
       };
-    }
   }
+}
 
-  /**
+/**
    * Create a note with attachments in a single operation using the web UI approach
    */
   static async createNoteWithAttachmentsWebUI(
@@ -1507,6 +1489,7 @@ export class AttachmentService {
 
   /**
    * Upload an attachment using the official createComponent method
+   * Using the minimal approach that was proven to work in previous commits
    */
   static async uploadAttachmentWithCreateComponent(
     session: Session,
@@ -1516,67 +1499,81 @@ export class AttachmentService {
     try {
       console.log(`Uploading attachment using createComponent: ${attachment.name} (${attachment.type})`);
       
+      // Initial progress update
+      if (onProgress) onProgress(0);
+      
       // Convert string file path to File object if needed
       let file: File;
-      if (typeof attachment.file === 'string') {
-        file = await getFileFromPath(attachment.file);
-      } else if (attachment.file instanceof File) {
-        file = attachment.file;
-      } else {
-        throw new Error('Attachment file must be a File object or file path string');
+      try {
+        if (typeof attachment.file === 'string') {
+          file = await getFileFromPath(attachment.file);
+        } else if (attachment.file instanceof File) {
+          file = attachment.file;
+        } else {
+          throw new Error('Attachment file must be a File object or file path string');
+        }
+      } catch (fileError) {
+        console.error('Error preparing file for upload:', fileError);
+        return {
+          success: false,
+          error: fileError instanceof Error ? fileError : new Error(`Failed to prepare file: ${String(fileError)}`)
+        };
       }
       
-      // Check file properties
+      // Simple file properties
       const fileName = file.name;
       const fileSize = file.size;
       const fileType = file.type;
-      const extension = fileName.split('.').pop()?.toLowerCase() || '';
       
       console.log(`File details: name=${fileName}, size=${fileSize}, type=${fileType}`);
       
-      // Set up optional data for the component
-      let componentData: Record<string, any> = {};
+      // Minimal component data - no metadata at all
+      const componentData = {
+        name: 'ftrackreview-image'  // Just use this for all files for now
+      };
       
-      // For images, use the special ftrackreview-image component name
-      const isImage = fileType.startsWith('image/') || 
-                     ['jpg', 'jpeg', 'png', 'gif', 'webp', 'tiff', 'bmp'].includes(extension);
-                       
-      // For videos, use the special ftrackreview-mp4 component name
-      const isVideo = fileType.startsWith('video/') ||
-                     ['mp4', 'mov', 'avi', 'webm', 'wmv', 'mkv'].includes(extension);
-      
-      // Set special names based on content type
-      if (isImage) {
-        componentData.name = 'ftrackreview-image';
-        console.log('Using special component name for images: ftrackreview-image');
-      } else if (isVideo) {
-        componentData.name = 'ftrackreview-mp4';
-        console.log('Using special component name for videos: ftrackreview-mp4');
-      }
+      if (onProgress) onProgress(10);
       
       // Use the createComponent method from the ftrack API
-      console.log('Calling session.createComponent...');
-      
-      const response = await session.createComponent(file, {
-        data: componentData,
-        onProgress: progress => {
-          console.log(`Upload progress: ${progress}%`);
-          if (onProgress) {
-            onProgress(progress);
+      try {
+        const response = await session.createComponent(file, {
+          data: componentData,
+          onProgress: progress => {
+            const scaledProgress = 10 + Math.floor(progress * 0.8);
+            console.log(`Upload progress: ${progress}%`);
+            if (onProgress) {
+              onProgress(scaledProgress);
+            }
           }
+        });
+        
+        if (!response || !response[0]?.data?.id) {
+          throw new Error('Invalid response from createComponent: no component ID returned');
         }
-      });
-      
-      // Extract component ID from the response
-      const componentId = response[0].data.id;
-      console.log(`Component created successfully with ID: ${componentId}`);
-      
-      return {
-        success: true,
-        componentId
-      };
+        
+        // Extract component ID from the response
+        const componentId = response[0].data.id;
+        console.log(`Component created successfully with ID: ${componentId}`);
+        
+        // Simplest approach - no metadata
+        // Final progress update
+        if (onProgress) onProgress(100);
+        
+        return {
+          success: true,
+          componentId: componentId as string
+        };
+      } catch (uploadError) {
+        console.error('Error during component creation:', uploadError);
+        return {
+          success: false,
+          error: uploadError instanceof Error ? 
+            uploadError : 
+            new Error(`Failed to create component: ${String(uploadError)}`)
+        };
+      }
     } catch (error) {
-      console.error('Error uploading attachment with createComponent:', error);
+      console.error('Unhandled error in uploadAttachmentWithCreateComponent:', error);
       return {
         success: false,
         error: error instanceof Error ? error : new Error(String(error))
@@ -1586,6 +1583,10 @@ export class AttachmentService {
 
   /**
    * Create a note with attachments using the official createComponent method
+   * This method handles the complete process of:
+   * 1. Uploading attachments using the official API
+   * 2. Creating a note with proper user association
+   * 3. Linking attachments to the note
    */
   static async createNoteWithAttachmentsAPI(
     session: Session,
@@ -1602,40 +1603,106 @@ export class AttachmentService {
       uploaded: number;
       failed: number;
       componentIds: string[];
+      errors?: Error[];
     }
   }> {
     try {
-      console.log(`Creating note with ${attachments.length} attachments using createComponent`);
+      console.log(`Creating note with ${attachments.length} attachments using createComponent API`);
+      
+      // Validate attachments before attempting upload
+      const validation = this.validateAttachments(attachments);
+      if (!validation.valid) {
+        console.warn(`Some attachments did not pass validation:`, 
+          validation.invalidAttachments.map(ia => ({
+            name: ia.attachment.name,
+            errors: ia.errors,
+            warnings: ia.warnings
+          }))
+        );
+        
+        // Continue with valid attachments only
+        attachments = validation.validAttachments;
+      }
+      
+      // Skip the entire process if no valid attachments and no content
+      if (attachments.length === 0 && (!noteContent || !noteContent.trim())) {
+        return {
+          success: false,
+          attachmentResults: {
+            uploaded: 0,
+            failed: 0,
+            componentIds: [],
+            errors: [new Error('No valid attachments or content to upload')]
+          }
+        };
+      }
+      
+      const errors: Error[] = [];
       
       // 1. Upload all attachments first
       console.log(`Uploading ${attachments.length} attachments`);
       
+      // Track overall progress for all attachments
+      let overallProgress = 0;
+      const progressStep = attachments.length > 0 ? 100 / attachments.length : 0;
+      
       const results = await Promise.all(
-        attachments.map(async (attachment) => {
-          const result = await this.uploadAttachmentWithCreateComponent(
-            session, 
-            attachment,
-            progress => {
-              if (onProgress) {
-                onProgress(attachment, progress);
+        attachments.map(async (attachment, index) => {
+          try {
+            const result = await this.uploadAttachmentWithCreateComponent(
+              session, 
+              attachment,
+              progress => {
+                if (onProgress) {
+                  // Update the specific attachment progress
+                  onProgress(attachment, progress);
+                  
+                  // Calculate overall progress
+                  const attachmentContribution = progressStep * (progress / 100);
+                  overallProgress = Math.min(
+                    95, // Cap at 95% to leave room for note creation
+                    (progressStep * index) + attachmentContribution
+                  );
+                }
               }
-            }
-          );
-          
-          return {
-            attachment,
-            result
-          };
+            );
+            
+            return {
+              attachment,
+              result
+            };
+          } catch (error) {
+            console.error(`Error uploading attachment ${attachment.name}:`, error);
+            errors.push(error instanceof Error ? error : new Error(`Upload failed: ${String(error)}`));
+            return {
+              attachment,
+              result: { 
+                success: false, 
+                error: error instanceof Error ? error : new Error(`Upload failed: ${String(error)}`)
+              }
+            };
+          }
         })
       );
       
       const successful = results.filter(r => r.result.success);
       const failed = results.filter(r => !r.result.success);
       const componentIds = successful
-        .map(r => r.result.componentId)
-        .filter(id => id !== undefined) as string[];
+        .map(r => r.result.success && r.result.componentId)
+        .filter((id): id is string => id !== undefined);
       
       console.log(`Successfully uploaded ${successful.length} attachments, ${failed.length} failed`);
+      
+      // Collect errors from failed uploads
+      failed.forEach(f => {
+        if (f.result.error) {
+          errors.push(
+            f.result.error instanceof Error ? 
+              f.result.error : 
+              new Error(String(f.result.error))
+          );
+        }
+      });
       
       // 2. Create the note
       console.log(`Creating note with content: ${noteContent.substring(0, 50)}${noteContent.length > 50 ? '...' : ''}`);
@@ -1651,33 +1718,90 @@ export class AttachmentService {
       if (userId) {
         noteData.user_id = userId;
         console.log(`Setting note user_id to: ${userId}`);
+      } else {
+        console.warn('No user ID provided for note creation, this may cause permission issues');
+        
+        // Try to get user information from the session as a fallback
+        try {
+          const userInfo = await session.getServerInformation();
+          if (userInfo?.user_information?.id) {
+            noteData.user_id = userInfo.user_information.id;
+            console.log(`Retrieved user ID from session: ${noteData.user_id}`);
+          }
+        } catch (userError) {
+          console.warn('Could not retrieve user info from session:', userError);
+        }
       }
       
-      const noteResponse = await session.create('Note', noteData);
-      
-      const noteId = noteResponse.data.id;
-      console.log(`Successfully created note: ${noteId}`);
+      let noteId: string | undefined;
+      try {
+        const noteResponse = await session.create('Note', noteData);
+        
+        if (!noteResponse?.data?.id) {
+          throw new Error('Failed to create note: Invalid response from server');
+        }
+        
+        noteId = noteResponse.data.id;
+        console.log(`Successfully created note: ${noteId}`);
+      } catch (noteError) {
+        console.error('Error creating note:', noteError);
+        errors.push(noteError instanceof Error ? 
+          noteError : 
+          new Error(`Failed to create note: ${String(noteError)}`)
+        );
+        
+        return {
+          success: false,
+          attachmentResults: {
+            uploaded: componentIds.length,
+            failed: failed.length,
+            componentIds: componentIds as string[],
+            errors
+          }
+        };
+      }
       
       // 3. Link attachments to the note
-      if (componentIds.length > 0) {
+      if (componentIds.length > 0 && noteId) {
         console.log(`Linking ${componentIds.length} attachments to note ${noteId}`);
-        const linkResult = await this.attachComponentsToNote(session, noteId, componentIds);
-        console.log(`Linking attachments result: ${linkResult ? 'success' : 'failed'}`);
+        
+        try {
+          const linkResult = await this.attachComponentsToNote(session, noteId, componentIds);
+          console.log(`Linking attachments result: ${linkResult ? 'success' : 'failed'}`);
+          
+          if (!linkResult) {
+            errors.push(new Error('Failed to link some attachments to note'));
+          }
+        } catch (linkError) {
+          console.error('Error linking attachments to note:', linkError);
+          errors.push(linkError instanceof Error ? 
+            linkError : 
+            new Error(`Failed to link attachments: ${String(linkError)}`)
+          );
+        }
       }
       
+      // Final result
       return {
         success: true,
-        noteId,
+        noteId: noteId as string,
         attachmentResults: {
           uploaded: componentIds.length,
           failed: failed.length,
-          componentIds
+          componentIds: componentIds as string[],
+          errors: errors.length > 0 ? errors : undefined
         }
       };
     } catch (error) {
       console.error('Failed to create note with attachments:', error);
       return {
-        success: false
+        success: false,
+        attachmentResults: {
+          uploaded: 0,
+          failed: attachments.length,
+          componentIds: [],
+          errors: [error instanceof Error ? error : new Error(String(error))]
+        }
       };
     }
   }

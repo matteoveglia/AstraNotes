@@ -39,19 +39,14 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   // Helper function to determine mime type from file name
   const getFileTypeFromName = (fileName: string): string => {
     const extension = fileName.split('.').pop()?.toLowerCase() || '';
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'image/png';
-    }
+    const imageTypes: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp'
+    };
+    return imageTypes[extension] || 'image/*';
   };
 
   // Check if we're in a Tauri environment
@@ -122,8 +117,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
                 file: path, // Store the path directly
                 name: fileName,
                 type: getFileTypeFromName(fileName),
-                // Use a data URL placeholder for preview - this will be generated when needed
-                previewUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAO5SURBVGhD7ZjPS1RRFMffm5nxR0H+qDRDyE1QVIsoIRdFBdWiWtSioIVU0KJFRdCiRRAt2gYt2gVt2rRpEURB9KMogqIiKIoWURQpRppamjrO6/vOvGbGmeHNvPEpUc4HPu+dufee776Z+74z96moVKoGK1SFEuwfTAA7mAB2MAHsYALYwQSwgwlgBxPADiaAHbIcuLvH0fMlIyQRKc3ZBKYzw+rH9Iy+v3isYpMl+TI1rvpfPFaz2ZT+9M3K1t3G1xdnbwINDg6qtnNd+lOYi1euqolkQn/yz+JzEQiR0Ln23NMRfHLngr6iImJqNJrUbcJsZ9Q76nzgCZyZPeJcKV28FnBfPNIjnZRQvK9t7bbJVYC0/BhILlEzM3nIuVK6mAB20J2jxuLlWL+i/eK0lJa5iajW31YBYZ7QJnPfpkUtFovpFuF0aljtffNUjY2NSYuQf/o4VVKCzRLAhcnmk8mkbhEmUr+ll1C4sD0VDQ8P61YhJydlMdK9gO8FFWAEu7q6ihYhX5ks/GxLzUCnq7tb3Zmc1Dex68AZ0Jy9ZV6PXm5W95cW5Zrcmd68HZ2vPCnPqd6BJ3BgeEhW6P9hfnlZ3q6iE4E+kYF9A9uLXrDNbGYgKK29d/Q9EpfOeHWf1dSBq+A6dIVL1wElN9yWkIBHnlbnRNpvnxC55hO6TxFwrHrlmr5VKoEJwAWGO/yWCw/7TfQEusLGQ/v157ATmMD5/Yfgbvzx5SXRCiH5dzPZ/MWjPWrfkTM6QogurEO+v3xCLonvr2zp3TYBeNmH19RG6a8p/CLnFxaklRBiB9t8TiEQJoRXcDFYh+z83C+tVb4srclaoAgBrMaQ6r/6sGAVCnHsBmq02rdWxvIcxQmgO+rriRtv5A1dLnSoiBVQzJyUTCA89vnqM12Q3EnEatS6AxLbJ5Pz9v64ug8vwXTuuVoOsHnIlnNdsmE2YH4rYAZiux6pSyP3ZMNsQILI9JYZcIAnkBkYU3P9D/Ro8KHNN1fV4ItN2ieLzdvRIQIPFx8b8ATw0wZlU+tpGQ2CTGBY4PeQwRc4LQNPgLtwlwwGQ6awKI4c7yw/wHZSYP62PAcI4IBXp1wI8zCJSYRJV5nfnHZS8ApBt5Qip7aFEnY7wfQQcPR6WzVe7CpYkw4+gViBIdjztx9z2UmYQbYzBxjD3gSCpIgZ+B8wAexgAtjBBLCDCWAHE8AWFep3L++bKpU1vSkAAAAASUVORK5CYII=",
+                previewUrl: "", // Remove invalid base64 placeholder
               });
 
               // Try to generate a preview if possible
@@ -153,7 +147,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
               file: path, 
               name: fileName,
               type: getFileTypeFromName(fileName),
-              previewUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAO5SURBVGhD7ZjPS1RRFMffm5nxR0H+qDRDyE1QVIsoIRdFBdWiWtSioIVU0KJFRdCiRRAt2gYt2gVt2rRpEURB9KMogqIiKIoWURQpRppamjrO6/vOvGbGmeHNvPEpUc4HPu+dufee776Z+74z96moVKoGK1SFEuwfTAA7mAB2MAHsYALYwQSwgwlgBxPADiaAHbIcuLvH0fMlIyQRKc3ZBKYzw+rH9Iy+v3isYpMl+TI1rvpfPFaz2ZT+9M3K1t3G1xdnbwINDg6qtnNd+lOYi1euqolkQn/yz+JzEQiR0Ln23NMRfHLngr6iImJqNJrUbcJsZ9Q76nzgCZyZPeJcKV28FnBfPNIjnZRQvK9t7bbJVYC0/BhILlEzM3nIuVK6mAB20J2jxuLlWL+i/eK0lJa5iajW31YBYZ7QJnPfpkUtFovpFuF0aljtffNUjY2NSYuQf/o4VVKCzRLAhcnmk8mkbhEmUr+ll1C4sD0VDQ8P61YhJydlMdK9gO8FFWAEu7q6ihYhX5ks/GxLzUCnq7tb3Zmc1Dex68AZ0Jy9ZV6PXm5W95cW5Zrcmd68HZ2vPCnPqd6BJ3BgeEhW6P9hfnlZ3q6iE4E+kYF9A9uLXrDNbGYgKK29d/Q9EpfOeHWf1dSBq+A6dIVL1wElN9yWkIBHnlbnRNpvnxC55hO6TxFwrHrlmr5VKoEJwAWGO/yWCw/7TfQEusLGQ/v157ATmMD5/Yfgbvzx5SXRCiH5dzPZ/MWjPWrfkTM6QogurEO+v3xCLonvr2zp3TYBeNmH19RG6a8p/CLnFxaklRBiB9t8TiEQJoRXcDFYh+z83C+tVb4srclaoAgBrMaQ6r/6sGAVCnHsBmq02rdWxvIcxQmgO+rriRtv5A1dLnSoiBVQzJyUTCA89vnqM12Q3EnEatS6AxLbJ5Pz9v64ug8vwXTuuVoOsHnIlnNdsmE2YH4rYAZiux6pSyP3ZMNsQILI9JYZcIAnkBkYU3P9D/Ro8KHNN1fV4ItN2ieLzdvRIQIPFx8b8ATw0wZlU+tpGQ2CTGBY4PeQwRc4LQNPgLtwlwwGQ6awKI4c7yw/wHZSYP62PAcI4IBXp1wI8zCJSYRJV5nfnHZS8ApBt5Qip7aFEnY7wfQQcPR6WzVe7CpYkw4+gViBIdjztx9z2UmYQbYzBxjD3gSCpIgZ+B8wAexgAtjBBLCDCWAHE8AWFep3L++bKpU1vSkAAAAASUVORK5CYII="
+              previewUrl: "", // Remove invalid base64 placeholder
             };
             
             newAttachments.push(attachment);
@@ -189,8 +183,8 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       
       try {
         // Get file metadata for size information
-        const metadata = await fs.metadata(filePath);
-        console.log(`File metadata for ${filePath}:`, metadata);
+        const fileInfo = await fs.stat(filePath);
+        console.log(`File info for ${filePath}:`, fileInfo);
         
         // Read the file as binary data
         const fileData = await fs.readFile(filePath);

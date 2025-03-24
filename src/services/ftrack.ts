@@ -618,7 +618,10 @@ export class FtrackService {
         );
         
         if (!result.success || !result.noteId) {
-          throw new Error("Failed to create note with attachments");
+          const errorDetails = result.attachmentResults?.errors?.map(e => e.message).join('; ');
+          const errorMessage = `Failed to create note with attachments: ${errorDetails || 'Unknown error'}`;
+          log(errorMessage);
+          throw new Error(errorMessage);
         }
         
         const noteId = result.noteId;
@@ -642,7 +645,6 @@ export class FtrackService {
         return noteId;
       } else {
         // If no attachments, just create a note normally
-        // Create note
         const response = await session.create("Note", {
           content: processedContent,
           parent_id: versionId,
@@ -981,7 +983,7 @@ export class FtrackService {
       );
       
       // Add fallback if the query fails
-      let serverLocation = serverLocationQuery.data[0];
+      let serverLocation: { [key: string]: any } | undefined = serverLocationQuery.data[0];
       
       if (!serverLocation) {
         console.log("Trying alternative query for server location...");

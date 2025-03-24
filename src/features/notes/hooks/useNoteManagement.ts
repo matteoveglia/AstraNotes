@@ -9,7 +9,6 @@ import { Playlist, NoteStatus, AssetVersion } from "@/types";
 import { playlistStore } from "@/store/playlistStore";
 import { db, type CachedVersion } from "@/store/db";
 import { ftrackService } from "@/services/ftrack";
-import Dexie from "dexie";
 import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
 import { useErrorHandler, categorizeError } from "@/utils/errorHandling";
@@ -375,16 +374,23 @@ export function useNoteManagement(playlist: Playlist) {
               }
 
               const content = noteDrafts[versionId] || "";
-              // Skip if content is empty
-              if (!content.trim()) {
+              // Skip if content is empty and no attachments
+              const attachments = noteAttachments[versionId] || [];
+              if (!content.trim() && attachments.length === 0) {
                 console.debug(`[useNoteManagement] Skipping empty note for version ${versionId}`);
                 continue;
               }
               
               const labelId = noteLabelIds[versionId] || "";
-              const attachments = noteAttachments[versionId] || [];
 
-              // Use the API-based component upload method
+              // Track progress for this particular note
+              const handleProgress = (attachment: Attachment, progress: number) => {
+                // Could use this to update UI with per-attachment progress
+                console.debug(`[useNoteManagement] Upload progress for ${attachment.name}: ${progress}%`);
+              };
+
+              // Use the API-based component upload method with progress tracking
+              console.debug(`[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`);
               const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
                 versionId,
                 content,
@@ -401,6 +407,7 @@ export function useNoteManagement(playlist: Playlist) {
                   playlist.id,
                   "published",
                   content,
+                  attachments.length > 0 // Pass attachment info
                 );
 
                 // Update in memory
@@ -457,17 +464,18 @@ export function useNoteManagement(playlist: Playlist) {
   const publishAllNotes = async () => {
     setIsPublishing(true);
     try {
-      // Only include versions with non-empty content
+      // Include versions with either non-empty content or attachments
       const versionsToPublish = Object.entries(noteDrafts)
         .filter(([versionId, content]) => 
-          // Check if content exists and is not empty
-          content && content.trim() !== "" && 
+          // Include if has content or attachments
+          (content && content.trim() !== "" || 
+           (noteAttachments[versionId] && noteAttachments[versionId].length > 0)) && 
           // Don't publish already published notes
           noteStatuses[versionId] !== "published"
         )
         .map(([versionId]) => ({ versionId }));
       
-      console.log(`Publishing ${versionsToPublish.length} notes with content`);
+      console.log(`Publishing ${versionsToPublish.length} notes with content or attachments`);
       
       // Don't proceed if no versions to publish
       if (versionsToPublish.length === 0) {
@@ -499,16 +507,24 @@ export function useNoteManagement(playlist: Playlist) {
               }
 
               const content = noteDrafts[versionId] || "";
-              // Skip if content is empty
-              if (!content.trim()) {
+              const attachments = noteAttachments[versionId] || [];
+              
+              // Skip if content is empty and no attachments
+              if (!content.trim() && attachments.length === 0) {
                 console.debug(`[useNoteManagement] Skipping empty note for version ${versionId}`);
                 continue;
               }
               
               const labelId = noteLabelIds[versionId] || "";
-              const attachments = noteAttachments[versionId] || [];
 
-              // Use the API-based component upload method
+              // Track progress for this particular note
+              const handleProgress = (attachment: Attachment, progress: number) => {
+                // Could use this to update UI with per-attachment progress
+                console.debug(`[useNoteManagement] Upload progress for ${attachment.name}: ${progress}%`);
+              };
+
+              // Use the API-based component upload method with progress tracking
+              console.debug(`[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`);
               const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
                 versionId,
                 content,
@@ -525,6 +541,7 @@ export function useNoteManagement(playlist: Playlist) {
                   playlist.id,
                   "published",
                   content,
+                  attachments.length > 0 // Pass attachment info
                 );
 
                 // Update in memory
