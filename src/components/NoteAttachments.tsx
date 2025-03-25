@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useToast } from "@/components/ui/toast";
 
 // TypeScript declaration for Tauri
 declare global {
@@ -11,12 +12,17 @@ declare global {
   }
 }
 
+// Add these constants at the top of the file
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB absolute maximum
+const WARNING_FILE_SIZE = 5 * 1024 * 1024; // 5MB warning threshold
+
 export interface Attachment {
   id: string;
   file: File | string; // Can be a browser File or a Tauri file path string
   name: string;
   type: string;
   previewUrl: string;
+  size?: number; // Add size property for proper tracking
 }
 
 interface NoteAttachmentsProps {
@@ -37,6 +43,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const toast = useToast();
 
   // Add click outside listener
   useEffect(() => {
@@ -86,9 +93,24 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
     if (!files || files.length === 0) return;
 
     const newAttachments: Attachment[] = [];
+    const oversizedFiles: string[] = [];
+    const largeFiles: string[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const fileSize = file.size;
+      
+      // Check if file exceeds maximum size
+      if (fileSize > MAX_FILE_SIZE) {
+        oversizedFiles.push(`${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
+        continue;
+      }
+      
+      // Track large files for warning
+      if (fileSize > WARNING_FILE_SIZE) {
+        largeFiles.push(`${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
+      }
+      
       if (file.type.startsWith("image/")) {
         const id = `attachment-${Date.now()}-${i}`;
         const previewUrl = URL.createObjectURL(file);
@@ -99,8 +121,23 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
           name: file.name,
           type: file.type,
           previewUrl,
+          size: fileSize
         });
       }
+    }
+
+    // Show warnings if any files were too large
+    if (oversizedFiles.length > 0) {
+      toast.showError(
+        `The following files exceed the 15MB limit: ${oversizedFiles.join(", ")}`
+      );
+    }
+    
+    // Show warnings for large files that were accepted but may cause performance issues
+    if (largeFiles.length > 0) {
+      toast.showWarning(
+        `The following files are large and may cause performance issues: ${largeFiles.join(", ")}`
+      );
     }
 
     if (newAttachments.length > 0) {
@@ -131,6 +168,8 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       if (selected) {
         // Process the selected files
         const newAttachments: Attachment[] = [];
+        const oversizedFiles: string[] = [];
+        const largeFiles: string[] = [];
 
         if (Array.isArray(selected)) {
           // Handle multiple file selection
@@ -143,23 +182,22 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
             try {
               // For Tauri, we'll pass the file path directly
-              // The fileToArrayBuffer function will handle reading it
-              newAttachments.push({
+              // Size validation will happen in generateTauriPreview
+              const attachment: Attachment = {
                 id: `attachment-${Date.now()}-${i}`,
                 file: path, // Store the path directly
                 name: fileName,
                 type: getFileTypeFromName(fileName),
-                previewUrl: "", // Remove invalid base64 placeholder
-              });
+                previewUrl: "", // Will be populated in generateTauriPreview
+              };
+              
+              newAttachments.push(attachment);
 
-              // Try to generate a preview if possible
+              // Generate preview and perform size validation
               if (isTauri) {
                 try {
-                  // We'll load a small preview asynchronously to avoid blocking
-                  generateTauriPreview(
-                    path,
-                    newAttachments[newAttachments.length - 1],
-                  );
+                  // We'll load a small preview asynchronously and also check file size
+                  generateTauriPreview(path, attachment);
                 } catch (previewError) {
                   console.warn(
                     `Could not generate preview for ${fileName}:`,
@@ -172,7 +210,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
             }
           }
         } else if (selected) {
-          // Handle single file selection
+          // Handle single file selection (same structure as above)
           const path = String(selected);
           const fileName =
             path.indexOf("/") > -1
@@ -186,15 +224,15 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
               file: path,
               name: fileName,
               type: getFileTypeFromName(fileName),
-              previewUrl: "", // Remove invalid base64 placeholder
+              previewUrl: "", // Will be populated in generateTauriPreview
             };
 
             newAttachments.push(attachment);
 
-            // Try to generate a preview if possible
+            // Generate preview and perform size validation
             if (isTauri) {
               try {
-                // We'll load a small preview asynchronously to avoid blocking
+                // We'll load a small preview asynchronously and also check file size
                 generateTauriPreview(path, attachment);
               } catch (previewError) {
                 console.warn(
@@ -229,23 +267,45 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       try {
         // Get file metadata for size information
         const fileInfo = await fs.stat(filePath);
+        const fileSize = fileInfo.size || 0;
+        
         console.log(`File info for ${filePath}:`, fileInfo);
+        
+        // Set the size on the attachment
+        attachment.size = fileSize;
+        
+        // Check if file is too large and provide warning
+        if (fileSize > MAX_FILE_SIZE) {
+          toast.showError(
+            `File ${attachment.name} exceeds the 15MB limit (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause issues`
+          );
+          return; // Skip loading the preview for oversized files
+        }
+        
+        // Warn about large files
+        if (fileSize > WARNING_FILE_SIZE) {
+          toast.showWarning(
+            `File ${attachment.name} is large (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause performance issues`
+          );
+        }
 
-        // Read the file as binary data
-        const fileData = await fs.readFile(filePath);
-        console.log(
-          `Successfully read file: ${filePath}, size: ${fileData.byteLength} bytes`,
-        );
+        // Read the file as binary data - only if below the extreme size limit
+        if (fileSize < MAX_FILE_SIZE * 2) { // Extra safety margin, don't even try to load truly huge files
+          const fileData = await fs.readFile(filePath);
+          console.log(
+            `Successfully read file: ${filePath}, size: ${fileData.byteLength} bytes`,
+          );
 
-        // Create a blob URL for preview
-        const blob = new Blob([fileData], { type: attachment.type });
-        const previewUrl = URL.createObjectURL(blob);
+          // Create a blob URL for preview
+          const blob = new Blob([fileData], { type: attachment.type });
+          const previewUrl = URL.createObjectURL(blob);
 
-        // Update the attachment with the preview URL and file info
-        attachment.previewUrl = previewUrl;
+          // Update the attachment with the preview URL and file info
+          attachment.previewUrl = previewUrl;
 
-        // Force a re-render by triggering an update
-        onAddAttachments([]);
+          // Force a re-render by triggering an update
+          onAddAttachments([]);
+        }
       } catch (error) {
         console.error(`Error reading file ${filePath}:`, error);
         // We'll keep the placeholder image

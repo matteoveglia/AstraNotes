@@ -24,6 +24,8 @@ export interface NoteAttachment {
   previewUrl: string;
   createdAt: number;
   filePath?: string; // For Tauri file paths
+  dataRemoved?: boolean; // Flag to indicate data was intentionally removed
+  errorMessage?: string; // Store any error message that occurred during processing
 }
 
 export interface CachedVersion extends AssetVersion {

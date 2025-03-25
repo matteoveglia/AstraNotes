@@ -584,24 +584,36 @@ export class PlaylistStore {
             saveCount++;
           } catch (err) {
             errorCount++;
+            
+            // Check specifically for DataCloneError which indicates serialization problems
+            const isSerializationError = 
+              typeof err === 'object' && err !== null && 
+              ((err as Error).name === 'DataCloneError' || 
+              String(err).includes('could not be cloned') ||
+              String(err).includes('could not be serialized'));
+            
             console.error(
-              `[PlaylistStore] Failed to save attachment ${att.id}:`,
-              err,
+              `[PlaylistStore] Failed to save attachment ${att.id}: ${isSerializationError ? 'SERIALIZATION ERROR' : 'GENERAL ERROR'}`,
+              err
             );
 
             // Try again with a safe version without the binary data
             try {
               const { data, ...safeAttachment } = att;
-              await db.attachments.put(safeAttachment as NoteAttachment);
-              log(
-                `[PlaylistStore] Successfully saved attachment ${att.id} without binary data`,
-              );
+              await db.attachments.put({
+                ...safeAttachment,
+                size: att.size || 0, // Preserve size information
+                dataRemoved: true, // Flag to indicate data was removed
+                errorMessage: String(err) // Store the error message for debugging
+              } as NoteAttachment);
+              
+              log(`[PlaylistStore] Successfully saved attachment ${att.id} without binary data`);
               saveCount++;
               errorCount--; // Decrement error count since we recovered
             } catch (retryErr) {
               console.error(
                 `[PlaylistStore] Failed to save attachment ${att.id} without binary data:`,
-                retryErr,
+                retryErr
               );
             }
           }
