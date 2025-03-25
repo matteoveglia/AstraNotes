@@ -82,6 +82,63 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setAttachments(initialAttachments || []);
   }, [initialAttachments, versionName]);
 
+  // Add an effect to listen for the custom event for clearing all notes
+  useEffect(() => {
+    const handleClearAllNotesEvent = () => {
+      console.debug(`[NoteInput] Received clear-all-notes event for ${versionName}, forcing state refresh`);
+      
+      // Force component refresh if status is empty
+      if (status === "empty") {
+        if (content) {
+          console.debug(`[NoteInput] Forcing content clear for ${versionName} from event handler`);
+          setContent("");
+        }
+        
+        // Force clear attachments
+        if (attachments.length > 0) {
+          console.debug(`[NoteInput] Forcing attachments clear for ${versionName} from event handler`);
+          // Clean up attachment preview URLs
+          attachments.forEach((attachment) => {
+            if (attachment.previewUrl) {
+              URL.revokeObjectURL(attachment.previewUrl);
+            }
+          });
+          setAttachments([]);
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('astranotes:clear-all-notes-completed', handleClearAllNotesEvent);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('astranotes:clear-all-notes-completed', handleClearAllNotesEvent);
+    };
+  }, [versionName, status, content, attachments]);
+
+  // Add explicit effect to respond to status changes
+  useEffect(() => {
+    // When status changes to "empty", force content clearing
+    if (status === "empty") {
+      if (content) {
+        console.debug(`[NoteInput] Status empty for ${versionName}, force clearing content: "${content}"`);
+        setContent("");
+      }
+      
+      if (attachments.length > 0) {
+        console.debug(`[NoteInput] Status empty for ${versionName}, force clearing ${attachments.length} attachments`);
+        // Clean up attachment preview URLs
+        attachments.forEach((attachment) => {
+          if (attachment.previewUrl) {
+            URL.revokeObjectURL(attachment.previewUrl);
+          }
+        });
+        setAttachments([]);
+      }
+    }
+  }, [status, versionName, content, attachments]);
+
   // Add a new effect to make sure the UI controls render appropriately based on content and attachment state
   useEffect(() => {
     // This effect ensures that controls render consistently across playlist switches
@@ -441,7 +498,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               />
             </div>
             <div className="flex items-center gap-2">
-              {(status !== "empty" || content || attachments.length > 0) && (
+              {status !== "empty" && (content.trim() !== "" || attachments.length > 0) && (
                 <div className="flex items-center justify-between w-full mt-3">
                   <div className="flex gap-2">
                     <Button
