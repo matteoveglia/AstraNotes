@@ -23,6 +23,7 @@ export interface NoteAttachment {
   data?: Blob; // For browser storage
   previewUrl: string;
   createdAt: number;
+  filePath?: string; // For Tauri file paths
 }
 
 export interface CachedVersion extends AssetVersion {

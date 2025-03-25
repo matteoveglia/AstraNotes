@@ -37,28 +37,28 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  
+
   // Add click outside listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       // Only close dropdown if it's open and click was outside dropdown and button
       if (
         showAttachments &&
-        dropdownRef.current && 
-        buttonRef.current && 
+        dropdownRef.current &&
+        buttonRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         !buttonRef.current.contains(event.target as Node)
       ) {
         setShowAttachments(false);
       }
     }
-    
+
     // Add global event listeners
-    document.addEventListener('mousedown', handleClickOutside);
-    
+    document.addEventListener("mousedown", handleClickOutside);
+
     // Cleanup on unmount
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showAttachments]);
 

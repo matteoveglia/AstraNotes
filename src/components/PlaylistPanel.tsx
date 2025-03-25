@@ -204,7 +204,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   return (
     <div className="w-72 border-r p-4 overflow-y-auto relative">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Playlists</h2>
+        <h2 className="text-lg font-bold">Playlists</h2>
         <Button
           variant="ghost"
           size="sm"
@@ -230,8 +230,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         </div>
       ) : (
         <motion.div
-          className="space-y-2 overflow-y-auto"
-          style={{ height: "calc(100vh - 200px)" }}
+          className="space-y-2 overflow-y-auto max-h-[calc(100vh-8rem)] pr-2"
           variants={gridVariants}
           initial="hidden"
           animate="visible"

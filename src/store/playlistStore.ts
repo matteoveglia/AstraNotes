@@ -424,7 +424,7 @@ export class PlaylistStore {
   ): Promise<void> {
     try {
       log(
-        `[PlaylistStore] Saving ${attachments.length} attachments for version ${versionId}`
+        `[PlaylistStore] Saving ${attachments.length} attachments for version ${versionId}`,
       );
 
       // First check if we should preserve existing attachments by checking if any have been deleted
@@ -435,7 +435,7 @@ export class PlaylistStore {
 
       if (existingAttachments.length > 0) {
         log(
-          `[PlaylistStore] Found ${existingAttachments.length} existing attachments for version ${versionId}`
+          `[PlaylistStore] Found ${existingAttachments.length} existing attachments for version ${versionId}`,
         );
 
         // If the count is the same, we may just be refreshing the state, so keep Blob data
@@ -450,7 +450,7 @@ export class PlaylistStore {
 
           if (sameIds) {
             log(
-              "[PlaylistStore] Attachment sets are identical - preserving existing data"
+              "[PlaylistStore] Attachment sets are identical - preserving existing data",
             );
             // Update the version record with the existing attachments to maintain consistency
             await db.versions
@@ -488,7 +488,7 @@ export class PlaylistStore {
       for (const attachment of attachments) {
         if (!attachment.file) {
           log(
-            `[PlaylistStore] Skipping attachment ${attachment.name} with no file`
+            `[PlaylistStore] Skipping attachment ${attachment.name} with no file`,
           );
           continue;
         }
@@ -502,19 +502,20 @@ export class PlaylistStore {
           if (attachment.file instanceof File) {
             // It's a browser File object
             fileSize = attachment.file.size;
-            
+
             // For large files, don't store the binary data directly to avoid indexedDB errors
-            if (fileSize > 5 * 1024 * 1024) { // 5MB limit
+            if (fileSize > 5 * 1024 * 1024) {
+              // 5MB limit
               log(
-                `[PlaylistStore] File ${attachment.name} exceeds 5MB, storing reference only`
+                `[PlaylistStore] File ${attachment.name} exceeds 5MB, storing reference only`,
               );
               // Don't set fileData, just store metadata
             } else {
               fileData = attachment.file;
             }
-            
+
             log(
-              `[PlaylistStore] Processing browser File: ${attachment.name}, size: ${fileSize} bytes`
+              `[PlaylistStore] Processing browser File: ${attachment.name}, size: ${fileSize} bytes`,
             );
           } else {
             // It's a file path string (Tauri)
@@ -529,20 +530,20 @@ export class PlaylistStore {
                 const fileMetadata = await fs.stat(filePath);
                 fileSize = fileMetadata.size || 0;
                 log(
-                  `[PlaylistStore] Got Tauri file metadata for ${attachment.name}, size: ${fileSize} bytes`
+                  `[PlaylistStore] Got Tauri file metadata for ${attachment.name}, size: ${fileSize} bytes`,
                 );
               } catch (fsError) {
                 // If we can't get the size, just log and continue
                 console.error(
                   `[PlaylistStore] Could not get file size for ${filePath}:`,
-                  fsError
+                  fsError,
                 );
                 fileSize = 0;
               }
             }
 
             log(
-              `[PlaylistStore] Processing Tauri file path: ${filePath}, size: ${fileSize} bytes`
+              `[PlaylistStore] Processing Tauri file path: ${filePath}, size: ${fileSize} bytes`,
             );
           }
 
@@ -562,7 +563,7 @@ export class PlaylistStore {
         } catch (attachError) {
           console.error(
             `[PlaylistStore] Error processing attachment ${attachment.name}:`,
-            attachError
+            attachError,
           );
         }
       }
@@ -570,12 +571,12 @@ export class PlaylistStore {
       // Save attachments to the database one by one to avoid bulk errors
       if (noteAttachments.length > 0) {
         log(
-          `[PlaylistStore] Saving ${noteAttachments.length} processed attachments to database`
+          `[PlaylistStore] Saving ${noteAttachments.length} processed attachments to database`,
         );
-        
+
         let saveCount = 0;
         let errorCount = 0;
-        
+
         // Save each attachment individually to isolate errors
         for (const att of noteAttachments) {
           try {
@@ -583,28 +584,38 @@ export class PlaylistStore {
             saveCount++;
           } catch (err) {
             errorCount++;
-            console.error(`[PlaylistStore] Failed to save attachment ${att.id}:`, err);
-            
+            console.error(
+              `[PlaylistStore] Failed to save attachment ${att.id}:`,
+              err,
+            );
+
             // Try again with a safe version without the binary data
             try {
               const { data, ...safeAttachment } = att;
               await db.attachments.put(safeAttachment as NoteAttachment);
-              log(`[PlaylistStore] Successfully saved attachment ${att.id} without binary data`);
+              log(
+                `[PlaylistStore] Successfully saved attachment ${att.id} without binary data`,
+              );
               saveCount++;
               errorCount--; // Decrement error count since we recovered
             } catch (retryErr) {
-              console.error(`[PlaylistStore] Failed to save attachment ${att.id} without binary data:`, retryErr);
+              console.error(
+                `[PlaylistStore] Failed to save attachment ${att.id} without binary data:`,
+                retryErr,
+              );
             }
           }
         }
-        
-        log(`[PlaylistStore] Saved ${saveCount}/${noteAttachments.length} attachments with ${errorCount} errors`);
+
+        log(
+          `[PlaylistStore] Saved ${saveCount}/${noteAttachments.length} attachments with ${errorCount} errors`,
+        );
       } else {
         log(`[PlaylistStore] No attachments to save after processing`);
       }
 
       // Make safe copies of attachments for version record (without binary data)
-      const safeAttachments = noteAttachments.map(att => {
+      const safeAttachments = noteAttachments.map((att) => {
         const { data, ...safeAtt } = att;
         return safeAtt;
       });
@@ -619,7 +630,7 @@ export class PlaylistStore {
         });
 
       log(
-        `[PlaylistStore] Successfully saved attachments for version ${versionId}`
+        `[PlaylistStore] Successfully saved attachments for version ${versionId}`,
       );
     } catch (error) {
       console.error("[PlaylistStore] Failed to save attachments:", error);
