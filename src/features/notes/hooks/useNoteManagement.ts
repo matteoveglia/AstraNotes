@@ -26,6 +26,10 @@ export function useNoteManagement(playlist: Playlist) {
   >({});
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [lastPublishTime, setLastPublishTime] = useState<Date | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const [publishedVersionsCount, setPublishedVersionsCount] = useState<number>(0);
+  const [publishingErrors, setPublishingErrors] = useState<string[]>([]);
 
   // Setup hooks
   const toast = useToast();
@@ -51,6 +55,50 @@ export function useNoteManagement(playlist: Playlist) {
   // Add tracking of created object URLs to prevent memory leaks
   const createdURLs = useRef<Set<string>>(new Set());
 
+  // State to track user interaction for more aggressive debouncing
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const interactionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Set up user interaction tracking
+  useEffect(() => {
+    const startInteraction = () => setIsUserInteracting(true);
+    const endInteraction = () => {
+      // Clear any existing timer
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+      }
+      
+      // Use debounce to detect end of interaction
+      interactionTimerRef.current = setTimeout(() => {
+        setIsUserInteracting(false);
+        
+        // When user stops interacting, apply any pending saves immediately
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+          
+          // Process all pending saves
+          Object.keys(pendingSavesRef.current).forEach((versionId) => {
+            const { content, labelId, attachments } = pendingSavesRef.current[versionId];
+            processSaveDraft(versionId, content, labelId, attachments);
+          });
+        }
+      }, 500);
+    };
+    
+    document.addEventListener('keydown', startInteraction);
+    document.addEventListener('keyup', endInteraction);
+    
+    return () => {
+      document.removeEventListener('keydown', startInteraction);
+      document.removeEventListener('keyup', endInteraction);
+      
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+      }
+    };
+  }, []);
+  
   // Add cleanup on component unmount
   useEffect(() => {
     return () => {
@@ -61,6 +109,182 @@ export function useNoteManagement(playlist: Playlist) {
       createdURLs.current.clear();
     };
   }, []);
+  
+  // Helper function to process the actual save operation
+  const processSaveDraft = async (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments: Attachment[] = [],
+  ) => {
+    const MAX_RETRIES = 2;
+    let retryCount = 0;
+    let success = false;
+
+    while (retryCount <= MAX_RETRIES && !success) {
+      try {
+        // Remove this save from pending operations
+        delete pendingSavesRef.current[versionId];
+
+        // Check status again with the latest content and attachments
+        const currentStatus = noteStatuses[versionId];
+        const hasAttachments = attachments && attachments.length > 0;
+        const newStatus =
+          currentStatus === "published"
+            ? "published"
+            : content.trim() !== "" || hasAttachments
+              ? "draft"
+              : "empty";
+
+        console.debug(
+          `[useNoteManagement] Saving note ${versionId} with status: ${newStatus} (previous: ${currentStatus}) and ${attachments.length} attachments${retryCount > 0 ? ` (retry ${retryCount})` : ""}`,
+        );
+
+        // Save draft content, status, and label to database
+        await playlistStore.saveDraft(
+          versionId,
+          playlist.id,
+          content,
+          labelId,
+        );
+
+        // Also update the status separately to ensure it's set correctly, passing attachments info
+        if (newStatus !== currentStatus) {
+          await playlistStore.saveNoteStatus(
+            versionId,
+            playlist.id,
+            newStatus,
+            content,
+            hasAttachments, // Pass attachment info to saveNoteStatus
+          );
+        }
+
+        // Save attachments to database - this is where most errors happen
+        await playlistStore.saveAttachments(
+          versionId,
+          playlist.id,
+          attachments,
+        );
+
+        // If we get here, the save was successful
+        success = true;
+      } catch (error) {
+        retryCount++;
+        console.error(
+          `[useNoteManagement] Failed to save note (attempt ${retryCount}/${MAX_RETRIES}):`,
+          error,
+        );
+
+        // Wait before retrying
+        if (retryCount <= MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        // If we're out of retries, try a fallback approach
+        if (retryCount > MAX_RETRIES) {
+          console.error(
+            `[useNoteManagement] All retry attempts failed for version ${versionId}, trying fallback...`,
+          );
+
+          try {
+            // Try to save just the content without attachments as a last resort
+            await playlistStore.saveDraft(
+              versionId,
+              playlist.id,
+              content,
+              labelId,
+            );
+
+            // Update status (without attachments this time)
+            const fallbackStatus = content.trim() !== "" ? "draft" : "empty";
+            await playlistStore.saveNoteStatus(
+              versionId,
+              playlist.id,
+              fallbackStatus,
+              content,
+              false, // No attachments
+            );
+
+            // Remove problematic attachments and update UI accordingly
+            recoverFromAttachmentError(versionId);
+
+            // Log the recovery
+            console.debug(
+              `[useNoteManagement] Successfully recovered note content for ${versionId} without attachments`,
+            );
+            success = true;
+          } catch (fallbackError) {
+            console.error(
+              `[useNoteManagement] Fallback save also failed for ${versionId}:`,
+              fallbackError,
+            );
+          }
+        }
+      }
+    }
+  };
+
+  // Save a note draft with attachments - with adaptive debouncing based on user interaction
+  const saveNoteDraft = async (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments: Attachment[] = [],
+  ) => {
+    // Store this save operation in our pending saves
+    pendingSavesRef.current[versionId] = {
+      content,
+      labelId,
+      attachments,
+    };
+
+    // Cancel any existing timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // Update in-memory state immediately for responsive UI
+    setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
+    setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
+    setNoteAttachments((prev) => ({
+      ...prev,
+      [versionId]: attachments,
+    }));
+
+    // Determine status for display - consider both content and attachments
+    const currentStatus = noteStatuses[versionId];
+    const hasAttachments = attachments && attachments.length > 0;
+    const newStatus =
+      currentStatus === "published"
+        ? "published"
+        : content.trim() !== "" || hasAttachments
+          ? "draft"
+          : "empty";
+
+    // Update status immediately for UI responsiveness if needed
+    if (currentStatus !== "published" && currentStatus !== newStatus) {
+      setNoteStatuses((prev) => ({
+        ...prev,
+        [versionId]: newStatus,
+      }));
+    }
+
+    // Unselect if empty (no content and no attachments)
+    if (content.trim() === "" && !hasAttachments) {
+      setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
+    }
+
+    // Use a longer delay during user interaction (typing) for better performance
+    const debounceDelay = isUserInteracting ? 350 : 150;
+
+    // Add initial 15ms delay for first save
+    const initialDelay = isUserInteracting ? 30 : 0;
+
+    // Schedule actual save after a short delay to avoid race conditions and allow batching
+    saveTimerRef.current = setTimeout(() => {
+      processSaveDraft(versionId, content, labelId, attachments);
+    }, initialDelay + debounceDelay);
+  };
 
   // Load drafts from database
   const loadDrafts = useCallback(async () => {
@@ -251,172 +475,6 @@ export function useNoteManagement(playlist: Playlist) {
       ...prev,
       [versionId]: newStatus,
     }));
-  };
-
-  // Save a note draft with attachments - with debouncing and retry
-  const saveNoteDraft = async (
-    versionId: string,
-    content: string,
-    labelId: string,
-    attachments: Attachment[] = [],
-  ) => {
-    const MAX_RETRIES = 2;
-    let retryCount = 0;
-    let success = false;
-
-    // Store this save operation in our pending saves
-    pendingSavesRef.current[versionId] = {
-      content,
-      labelId,
-      attachments,
-    };
-
-    // Cancel any existing timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-
-    // Update in-memory state immediately for responsive UI
-    setNoteDrafts((prev) => ({ ...prev, [versionId]: content }));
-    setNoteLabelIds((prev) => ({ ...prev, [versionId]: labelId }));
-    setNoteAttachments((prev) => ({
-      ...prev,
-      [versionId]: attachments,
-    }));
-
-    // Determine status for display - consider both content and attachments
-    const currentStatus = noteStatuses[versionId];
-    const hasAttachments = attachments && attachments.length > 0;
-    const newStatus =
-      currentStatus === "published"
-        ? "published"
-        : content.trim() !== "" || hasAttachments
-          ? "draft"
-          : "empty";
-
-    // Update status immediately for UI responsiveness if needed
-    if (currentStatus !== "published" && currentStatus !== newStatus) {
-      setNoteStatuses((prev) => ({
-        ...prev,
-        [versionId]: newStatus,
-      }));
-    }
-
-    // Unselect if empty (no content and no attachments)
-    if (content.trim() === "" && !hasAttachments) {
-      setSelectedVersions((prev) => prev.filter((id) => id !== versionId));
-    }
-
-    // Schedule actual save after a short delay to avoid race conditions
-    saveTimerRef.current = setTimeout(async () => {
-      while (retryCount <= MAX_RETRIES && !success) {
-        try {
-          // Get the latest values that might have been updated during the delay
-          const pendingSave = pendingSavesRef.current[versionId];
-          if (!pendingSave) return; // Safety check
-
-          const { content, labelId, attachments } = pendingSave;
-
-          // Remove this save from pending operations
-          delete pendingSavesRef.current[versionId];
-
-          // Check status again with the latest content and attachments
-          const currentStatus = noteStatuses[versionId];
-          const hasAttachments = attachments && attachments.length > 0;
-          const newStatus =
-            currentStatus === "published"
-              ? "published"
-              : content.trim() !== "" || hasAttachments
-                ? "draft"
-                : "empty";
-
-          console.debug(
-            `[useNoteManagement] Saving note ${versionId} with status: ${newStatus} (previous: ${currentStatus}) and ${attachments.length} attachments${retryCount > 0 ? ` (retry ${retryCount})` : ""}`,
-          );
-
-          // Save draft content, status, and label to database
-          await playlistStore.saveDraft(
-            versionId,
-            playlist.id,
-            content,
-            labelId,
-          );
-
-          // Also update the status separately to ensure it's set correctly, passing attachments info
-          if (newStatus !== currentStatus) {
-            await playlistStore.saveNoteStatus(
-              versionId,
-              playlist.id,
-              newStatus,
-              content,
-              hasAttachments, // Pass attachment info to saveNoteStatus
-            );
-          }
-
-          // Save attachments to database - this is where most errors happen
-          await playlistStore.saveAttachments(
-            versionId,
-            playlist.id,
-            attachments,
-          );
-
-          // If we get here, the save was successful
-          success = true;
-        } catch (error) {
-          retryCount++;
-          console.error(
-            `[useNoteManagement] Failed to save note (attempt ${retryCount}/${MAX_RETRIES}):`,
-            error,
-          );
-
-          // Wait before retrying
-          if (retryCount <= MAX_RETRIES) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-
-          // If we're out of retries, try a fallback approach
-          if (retryCount > MAX_RETRIES) {
-            console.error(
-              `[useNoteManagement] All retry attempts failed for version ${versionId}, trying fallback...`,
-            );
-
-            try {
-              // Try to save just the content without attachments as a last resort
-              await playlistStore.saveDraft(
-                versionId,
-                playlist.id,
-                content,
-                labelId,
-              );
-
-              // Update status (without attachments this time)
-              const fallbackStatus = content.trim() !== "" ? "draft" : "empty";
-              await playlistStore.saveNoteStatus(
-                versionId,
-                playlist.id,
-                fallbackStatus,
-                content,
-                false, // No attachments
-              );
-
-              // Remove problematic attachments and update UI accordingly
-              recoverFromAttachmentError(versionId);
-
-              // Log the recovery
-              console.debug(
-                `[useNoteManagement] Successfully recovered note content for ${versionId} without attachments`,
-              );
-              success = true;
-            } catch (fallbackError) {
-              console.error(
-                `[useNoteManagement] Fallback save also failed for ${versionId}:`,
-                fallbackError,
-              );
-            }
-          }
-        }
-      }
-    }, 150); // Small delay to debounce multiple rapid changes
   };
 
   // Clear a note draft
@@ -962,16 +1020,16 @@ export function useNoteManagement(playlist: Playlist) {
   }, [noteStatuses]);
 
   return {
-    // State
-    selectedVersions,
-    noteStatuses,
     noteDrafts,
+    noteStatuses,
     noteLabelIds,
     noteAttachments,
-    selectedLabel,
+    selectedVersions,
     isPublishing,
-
-    // Actions
+    lastPublishTime,
+    progress,
+    publishedVersionsCount,
+    publishingErrors,
     saveNoteDraft,
     clearNoteDraft,
     toggleVersionSelection,
@@ -979,7 +1037,7 @@ export function useNoteManagement(playlist: Playlist) {
     publishAllNotes,
     clearAllNotes,
     setAllLabels,
-    setSelectedLabel,
+    isUserInteracting,
     getDraftCount,
   };
 }

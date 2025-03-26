@@ -2,6 +2,7 @@
  * @fileoverview useThumbnailLoading.ts
  * Custom hook for managing thumbnail loading and caching.
  * Handles batch loading, caching, and abort control.
+ * Implements adaptive loading priority based on user interaction.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -19,16 +20,45 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
   const [loadingStatus, setLoadingStatus] = useState<
     Record<string, LoadingStatus>
   >({});
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+  const interactionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Set mounted flag
     isMountedRef.current = true;
 
+    // Track user interaction globally
+    const startInteraction = () => setIsUserInteracting(true);
+    const endInteraction = () => {
+      // Clear any existing timer
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+      }
+      
+      // Use debounce to avoid flickering state
+      interactionTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsUserInteracting(false);
+        }
+      }, 1000);
+    };
+    
+    document.addEventListener('keydown', startInteraction);
+    document.addEventListener('keyup', endInteraction);
+    
     // Cleanup function
     return () => {
       isMountedRef.current = false;
+      document.removeEventListener('keydown', startInteraction);
+      document.removeEventListener('keyup', endInteraction);
+      
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+        interactionTimerRef.current = null;
+      }
+      
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -42,7 +72,9 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
     session: any,
     abortController: AbortController,
   ) => {
-    const batchSize = 5; // Number of thumbnails to load at once
+    // Adapt batch size and delay based on user interaction state
+    const batchSize = isUserInteracting ? 2 : 5; // Smaller batches during interaction
+    const interBatchDelay = isUserInteracting ? 200 : 50; // Longer delay between batches during interaction
 
     for (let i = 0; i < versionsToLoad.length; i += batchSize) {
       // Check if loading should be aborted
@@ -53,7 +85,7 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
       // Get the next batch
       const batch = versionsToLoad.slice(i, i + batchSize);
       console.debug(
-        `[useThumbnailLoading] Loading thumbnail batch ${i / batchSize + 1}/${Math.ceil(versionsToLoad.length / batchSize)}`,
+        `[useThumbnailLoading] Loading thumbnail batch ${i / batchSize + 1}/${Math.ceil(versionsToLoad.length / batchSize)} (${isUserInteracting ? "user interacting" : "idle"})`,
       );
 
       // Process batch in parallel
@@ -127,8 +159,8 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
         console.error("Failed to load thumbnail batch:", error);
       }
 
-      // Small delay between batches to prevent UI freezing
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Adaptive delay between batches based on user interaction state
+      await new Promise((resolve) => setTimeout(resolve, interBatchDelay));
     }
   };
 
@@ -210,6 +242,7 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
     isLoading: Object.values(loadingStatus).some(
       (status) => status === "loading",
     ),
+    isUserInteracting,
     clearThumbnails: () => {
       setThumbnails({});
       setLoadingStatus({});
