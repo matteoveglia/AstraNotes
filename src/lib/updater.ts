@@ -29,7 +29,9 @@ export function isUpdateCheckDue(): boolean {
  * Updates the state if an update is available
  * @param showNoUpdateDialog If true, shows a dialog when no updates are available
  */
-export async function silentCheckForUpdates(showNoUpdateDialog = false): Promise<boolean> {
+export async function silentCheckForUpdates(
+  showNoUpdateDialog = false,
+): Promise<boolean> {
   try {
     console.log("Running silent update check...");
 
@@ -45,7 +47,7 @@ export async function silentCheckForUpdates(showNoUpdateDialog = false): Promise
     } else {
       console.log("No updates available");
       useUpdateStore.getState().setUpdateAvailable(false);
-      
+
       // Show dialog if requested (when triggered from Settings)
       if (showNoUpdateDialog) {
         await message("No update available", {
@@ -53,7 +55,7 @@ export async function silentCheckForUpdates(showNoUpdateDialog = false): Promise
           kind: "info",
         });
       }
-      
+
       return false;
     }
   } catch (error) {

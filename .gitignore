@@ -30,14 +30,13 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
-.w*
+.cu*
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 private
-TODO.md
 
 # Environment variables
 .env

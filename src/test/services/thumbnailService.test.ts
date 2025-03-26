@@ -3,7 +3,7 @@ import {
   fetchThumbnail,
   clearThumbnailCache,
   _testing,
-} from "./thumbnailService";
+} from "@/services/thumbnailService";
 
 // Mock the thumbnail settings store
 vi.mock("../store/thumbnailSettingsStore", () => ({

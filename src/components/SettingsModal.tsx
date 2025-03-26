@@ -135,6 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Clear all tables
       await db.playlists.clear();
       await db.versions.clear();
+      await db.attachments.clear();
 
       // Reset any polling that might be happening
       playlistStore.stopPolling();

@@ -1,10 +1,10 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { AlertDialog } from '@/components/ui/alert-dialog';
+import type { Meta, StoryObj } from "@storybook/react";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 
 const meta: Meta<typeof AlertDialog> = {
-  title: 'Components/UI/AlertDialog',
+  title: "Components/UI/AlertDialog",
   component: AlertDialog,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;

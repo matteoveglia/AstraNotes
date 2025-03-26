@@ -6,11 +6,13 @@
  * - Draft content persistence
  * - Playlist synchronization
  * - Change detection and polling
+ * - Attachment management
  */
 
-import { db } from "./db";
+import { db, NoteAttachment } from "./db";
 import { Playlist, AssetVersion, NoteStatus } from "../types";
 import { FtrackService } from "../services/ftrack";
+import { Attachment } from "@/components/NoteAttachments";
 
 const DEBUG = true;
 function log(...args: any[]): void {
@@ -36,7 +38,7 @@ interface FtrackVersion {
   updatedAt: string;
 }
 
-interface StorableVersion {
+interface StorableVersion extends AssetVersion {
   id: string;
   playlistId: string;
   lastModified: number;
@@ -51,6 +53,7 @@ interface StorableVersion {
   updatedAt: string;
   manuallyAdded?: boolean;
   noteStatus?: NoteStatus;
+  attachments?: NoteAttachment[];
 }
 
 interface CachedVersion extends StorableVersion {
@@ -263,6 +266,7 @@ export class PlaylistStore {
 
   async getPlaylist(id: string): Promise<CachedPlaylist | null> {
     try {
+      console.log(`[PlaylistStore] Getting playlist ${id}`);
       // Get the playlist from cache
       const cached = await db.playlists.get(id);
 
@@ -338,6 +342,51 @@ export class PlaylistStore {
         return (b.version || 0) - (a.version || 0);
       });
 
+      // Explicitly load attachments for versions
+      const attachments = await db.attachments
+        .where("playlistId")
+        .equals(id)
+        .toArray();
+
+      console.log(
+        `[PlaylistStore] Loaded ${attachments.length} attachments for playlist ${id}`,
+      );
+
+      // Create a safe serializable copy of attachments to avoid blob serialization issues
+      const safeAttachments = attachments.map((att) => {
+        // Create a copy without the data property to avoid serialization issues
+        const { data, ...safePart } = att;
+        return safePart;
+      });
+
+      // Create a map of version IDs to attachments for efficient lookup
+      const attachmentMap = new Map();
+      safeAttachments.forEach((att) => {
+        if (!attachmentMap.has(att.versionId)) {
+          attachmentMap.set(att.versionId, []);
+        }
+        attachmentMap.get(att.versionId).push(att);
+      });
+
+      // Attach attachments to version objects
+      cached.versions = cached.versions.map((version) => {
+        const versionAttachments = attachmentMap.get(version.id) || [];
+
+        if (versionAttachments.length > 0) {
+          console.log(
+            `[PlaylistStore] Version ${version.id} has ${versionAttachments.length} attachments`,
+          );
+
+          // Store the raw attachment reference data on the version
+          (version as any).attachments = versionAttachments;
+        } else {
+          // Ensure versions without attachments have an empty array
+          (version as any).attachments = [];
+        }
+
+        return version;
+      });
+
       return cached;
     } catch (error) {
       console.error("Failed to get playlist:", error);
@@ -352,111 +401,279 @@ export class PlaylistStore {
     labelId: string = "",
   ): Promise<void> {
     try {
-      // First, get the version from the current playlist
-      const version = await db.versions.get([playlistId, versionId]);
+      log(`[PlaylistStore] Saving draft for version ${versionId}`);
 
-      if (version) {
-        // Update existing version in this playlist
-        const updatedVersion = {
-          ...version,
-          // Keep existing draft content unless new content is provided
-          draftContent: content !== undefined ? content : version.draftContent,
-          noteStatus: version.noteStatus,
-          labelId,
-          lastModified: Date.now(),
-          isRemoved: version.isRemoved || false,
-        };
-        await db.versions.put(updatedVersion);
-        log(`Updated draft for version ${versionId} in playlist ${playlistId}`);
-      } else {
-        // Version not found in this playlist
-        // Check if the version exists in the playlist object
-        const playlist = await this.getPlaylist(playlistId);
-        if (!playlist) {
-          throw new Error(`Playlist not found: ${playlistId}`);
-        }
-
-        // Find the version in the playlist's versions array
-        const versionInPlaylist = playlist.versions?.find(
-          (v) => v.id === versionId,
-        );
-
-        if (!versionInPlaylist) {
-          // For Quick Notes, we need to handle the case where the version might not be in the playlist yet
-          if (playlistId === "quick-notes") {
-            // Check if the version exists in any other playlist
-            const existingVersion = await db.versions
-              .where("id")
-              .equals(versionId)
-              .first();
-
-            if (existingVersion) {
-              // Create a new version entry for Quick Notes based on the existing version
-              const newVersion: CachedVersion = {
-                ...existingVersion,
-                playlistId,
-                draftContent: content,
-                labelId,
-                lastModified: Date.now(),
-                manuallyAdded: true,
-              };
-
-              // Add it to the database
-              await db.versions.put(newVersion);
-
-              // Update the playlist's addedVersions array
-              if (!playlist.addedVersions.includes(versionId)) {
-                playlist.addedVersions = [...playlist.addedVersions, versionId];
-                playlist.hasModifications = true;
-                await this.cachePlaylist(playlist);
-              }
-
-              log(
-                `Created new draft for version ${versionId} in Quick Notes based on existing version`,
-              );
-              return;
-            } else {
-              console.error(
-                `Cannot save draft: Version not found in any playlist – "${versionId}"`,
-              );
-              return;
-            }
-          } else {
-            console.error(
-              `Cannot save draft: Version not found in playlist – "${versionId}"`,
-            );
-            return;
-          }
-        }
-
-        // Create a new version entry for this playlist
-        const newVersion: CachedVersion = {
-          ...versionInPlaylist,
-          playlistId,
+      await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, versionId])
+        .modify({
           draftContent: content,
           labelId,
           lastModified: Date.now(),
-          // Preserve manuallyAdded flag from existing version or from the version itself
-          manuallyAdded: versionInPlaylist.manuallyAdded || false,
-        };
-        await db.versions.put(newVersion);
+        });
+    } catch (error) {
+      console.error("Failed to save draft:", error);
+      throw error;
+    }
+  }
 
-        // If this is a manually added version, update the playlist's addedVersions array
-        if (
-          newVersion.manuallyAdded &&
-          !playlist.addedVersions.includes(versionId)
-        ) {
-          playlist.addedVersions = [...playlist.addedVersions, versionId];
-          playlist.hasModifications = true;
-          await this.cachePlaylist(playlist);
+  async saveAttachments(
+    versionId: string,
+    playlistId: string,
+    attachments: Attachment[],
+  ): Promise<void> {
+    try {
+      log(
+        `[PlaylistStore] Saving ${attachments.length} attachments for version ${versionId}`,
+      );
+
+      // First check if we should preserve existing attachments by checking if any have been deleted
+      const existingAttachments = await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .toArray();
+
+      if (existingAttachments.length > 0) {
+        log(
+          `[PlaylistStore] Found ${existingAttachments.length} existing attachments for version ${versionId}`,
+        );
+
+        // If the count is the same, we may just be refreshing the state, so keep Blob data
+        if (existingAttachments.length === attachments.length) {
+          const existingIds = new Set(existingAttachments.map((att) => att.id));
+          const newIds = new Set(attachments.map((att) => att.id));
+
+          // Check if the sets of IDs are the same
+          const sameIds =
+            existingIds.size === newIds.size &&
+            [...existingIds].every((id) => newIds.has(id));
+
+          if (sameIds) {
+            log(
+              "[PlaylistStore] Attachment sets are identical - preserving existing data",
+            );
+            // Update the version record with the existing attachments to maintain consistency
+            await db.versions
+              .where("[playlistId+id]")
+              .equals([playlistId, versionId])
+              .modify((version) => {
+                version.attachments = existingAttachments;
+                version.lastModified = Date.now();
+              });
+            return;
+          }
+        }
+      }
+
+      // If we get here, we need to save the new attachments
+      // First, delete any existing attachments for this version+playlist
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+
+      // If there are no attachments to save, we're done
+      if (attachments.length === 0) {
+        return;
+      }
+
+      // Convert Attachment objects to NoteAttachment for storage
+      const noteAttachments: NoteAttachment[] = [];
+      const isTauri =
+        typeof window !== "undefined" &&
+        "window" in globalThis &&
+        window.__TAURI__ !== undefined;
+
+      // Process each attachment individually
+      for (const attachment of attachments) {
+        if (!attachment.file) {
+          log(
+            `[PlaylistStore] Skipping attachment ${attachment.name} with no file`,
+          );
+          continue;
+        }
+
+        try {
+          // Handle both string paths and File objects
+          let fileSize = 0;
+          let fileData: Blob | undefined = undefined;
+          let filePath: string | undefined = undefined;
+
+          if (attachment.file instanceof File) {
+            // It's a browser File object
+            fileSize = attachment.file.size;
+
+            // For large files, don't store the binary data directly to avoid indexedDB errors
+            if (fileSize > 5 * 1024 * 1024) {
+              // 5MB limit
+              log(
+                `[PlaylistStore] File ${attachment.name} exceeds 5MB, storing reference only`,
+              );
+              // Don't set fileData, just store metadata
+            } else {
+              fileData = attachment.file;
+            }
+
+            log(
+              `[PlaylistStore] Processing browser File: ${attachment.name}, size: ${fileSize} bytes`,
+            );
+          } else {
+            // It's a file path string (Tauri)
+            filePath = attachment.file;
+
+            // Try to get file size if we're in Tauri environment
+            if (isTauri) {
+              try {
+                // Dynamically import the fs module
+                const fs = await import("@tauri-apps/plugin-fs");
+                // Get metadata to determine file size
+                const fileMetadata = await fs.stat(filePath);
+                fileSize = fileMetadata.size || 0;
+                log(
+                  `[PlaylistStore] Got Tauri file metadata for ${attachment.name}, size: ${fileSize} bytes`,
+                );
+              } catch (fsError) {
+                // If we can't get the size, just log and continue
+                console.error(
+                  `[PlaylistStore] Could not get file size for ${filePath}:`,
+                  fsError,
+                );
+                fileSize = 0;
+              }
+            }
+
+            log(
+              `[PlaylistStore] Processing Tauri file path: ${filePath}, size: ${fileSize} bytes`,
+            );
+          }
+
+          noteAttachments.push({
+            id: attachment.id,
+            noteId: "", // Will be filled when published
+            versionId,
+            playlistId,
+            name: attachment.name,
+            type: attachment.type,
+            size: fileSize,
+            data: fileData, // Only store actual Blob objects here for small files
+            previewUrl: attachment.previewUrl,
+            createdAt: Date.now(),
+            filePath, // Add custom field for Tauri paths
+          } as NoteAttachment); // Use type assertion since filePath is custom
+        } catch (attachError) {
+          console.error(
+            `[PlaylistStore] Error processing attachment ${attachment.name}:`,
+            attachError,
+          );
+        }
+      }
+
+      // Save attachments to the database one by one to avoid bulk errors
+      if (noteAttachments.length > 0) {
+        log(
+          `[PlaylistStore] Saving ${noteAttachments.length} processed attachments to database`,
+        );
+
+        let saveCount = 0;
+        let errorCount = 0;
+
+        // Save each attachment individually to isolate errors
+        for (const att of noteAttachments) {
+          try {
+            await db.attachments.put(att);
+            saveCount++;
+          } catch (err) {
+            errorCount++;
+
+            // Check specifically for DataCloneError which indicates serialization problems
+            const isSerializationError =
+              typeof err === "object" &&
+              err !== null &&
+              ((err as Error).name === "DataCloneError" ||
+                String(err).includes("could not be cloned") ||
+                String(err).includes("could not be serialized"));
+
+            console.error(
+              `[PlaylistStore] Failed to save attachment ${att.id}: ${isSerializationError ? "SERIALIZATION ERROR" : "GENERAL ERROR"}`,
+              err,
+            );
+
+            // Try again with a safe version without the binary data
+            try {
+              const { data, ...safeAttachment } = att;
+              await db.attachments.put({
+                ...safeAttachment,
+                size: att.size || 0, // Preserve size information
+                dataRemoved: true, // Flag to indicate data was removed
+                errorMessage: String(err), // Store the error message for debugging
+              } as NoteAttachment);
+
+              log(
+                `[PlaylistStore] Successfully saved attachment ${att.id} without binary data`,
+              );
+              saveCount++;
+              errorCount--; // Decrement error count since we recovered
+            } catch (retryErr) {
+              console.error(
+                `[PlaylistStore] Failed to save attachment ${att.id} without binary data:`,
+                retryErr,
+              );
+            }
+          }
         }
 
         log(
-          `Created new draft for version ${versionId} in playlist ${playlistId}`,
+          `[PlaylistStore] Saved ${saveCount}/${noteAttachments.length} attachments with ${errorCount} errors`,
         );
+      } else {
+        log(`[PlaylistStore] No attachments to save after processing`);
       }
+
+      // Make safe copies of attachments for version record (without binary data)
+      const safeAttachments = noteAttachments.map((att) => {
+        const { data, ...safeAtt } = att;
+        return safeAtt;
+      });
+
+      // Update the version with the attachment IDs
+      await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, versionId])
+        .modify((version) => {
+          version.attachments = safeAttachments;
+          version.lastModified = Date.now();
+        });
+
+      log(
+        `[PlaylistStore] Successfully saved attachments for version ${versionId}`,
+      );
     } catch (error) {
-      console.error("Failed to save draft:", error);
+      console.error("[PlaylistStore] Failed to save attachments:", error);
+      // Don't throw the error - this allows the UI to continue functioning
+      // even if some attachments fail to save
+    }
+  }
+
+  async clearAttachments(versionId: string, playlistId: string): Promise<void> {
+    try {
+      log(`[PlaylistStore] Clearing attachments for version ${versionId}`);
+
+      // Delete all attachments for this version from the attachments table
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+
+      // Update the version to remove the attachments
+      await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, versionId])
+        .modify((version) => {
+          version.attachments = [];
+          version.lastModified = Date.now();
+        });
+    } catch (error) {
+      console.error("Failed to clear attachments:", error);
       throw error;
     }
   }
@@ -466,48 +683,33 @@ export class PlaylistStore {
     playlistId: string,
     status: NoteStatus,
     content?: string,
+    hasAttachments: boolean = false,
   ): Promise<void> {
     try {
-      console.debug(
-        `[playlistStore] Saving note status for ${versionId}: ${status}`,
+      // If content is empty but has attachments, still set as draft
+      let actualStatus = status;
+      if (status === "empty" && hasAttachments) {
+        actualStatus = "draft";
+      }
+
+      const modification: any = {
+        noteStatus: actualStatus,
+        lastModified: Date.now(),
+      };
+
+      // If content is provided, update it as well
+      if (content !== undefined) {
+        modification.draftContent = content;
+      }
+
+      log(
+        `[PlaylistStore] Saving note status for version ${versionId}: ${actualStatus} (has attachments: ${hasAttachments})`,
       );
 
-      const version = await db.versions.get([playlistId, versionId]);
-      if (version) {
-        // Special case: Allow clearing published notes when content is empty and status is "empty"
-        const isExplicitClear =
-          status === "empty" && (!content || content.trim() === "");
-
-        // Critical: Never downgrade a published note to a draft UNLESS it's an explicit clear
-        // Only allow upgrading from draft to published or explicit clearing
-        const finalStatus =
-          version.noteStatus === "published" && !isExplicitClear
-            ? "published" // Preserve published status
-            : status; // Allow changes for non-published notes or explicit clears
-
-        if (version.noteStatus === "published" && status !== "published") {
-          if (isExplicitClear) {
-            console.debug(
-              `[playlistStore] Clearing published note ${versionId} as requested`,
-            );
-          } else {
-            console.debug(
-              `[playlistStore] 🔒 Preserving published status for note ${versionId} (attempted change to ${status})`,
-            );
-          }
-        }
-
-        const updatedVersion = {
-          ...version,
-          // Keep existing draft content unless new content is provided
-          draftContent: content !== undefined ? content : version.draftContent,
-          noteStatus: finalStatus,
-          lastModified: Date.now(),
-          isRemoved: version.isRemoved || false,
-        };
-
-        await db.versions.put(updatedVersion);
-      }
+      await db.versions
+        .where("[playlistId+id]")
+        .equals([playlistId, versionId])
+        .modify(modification);
     } catch (error) {
       console.error("Failed to save note status:", error);
       throw error;
@@ -533,6 +735,24 @@ export class PlaylistStore {
       const noteStatusMap = new Map(
         existingVersions.map((v) => [v.id, v.noteStatus]),
       );
+
+      // Create a map of attachment arrays by version ID
+      // Make sure to create a safe copy without binary data to prevent serialization errors
+      const attachmentsMap = new Map();
+
+      existingVersions.forEach((v) => {
+        if (v.attachments && v.attachments.length > 0) {
+          // Create safe copies of attachments that exclude binary data
+          const safeAttachments = v.attachments.map((att) => {
+            // Exclude data property and any File/Blob references that can't be serialized
+            const { data, file, ...safePart } = att as any;
+            return safePart;
+          });
+          attachmentsMap.set(v.id, safeAttachments);
+        } else {
+          attachmentsMap.set(v.id, []);
+        }
+      });
 
       // Create a lookup map of existing versions
       const existingVersionMap = new Map(
@@ -562,6 +782,35 @@ export class PlaylistStore {
                 "empty";
             }
 
+            // Get safe attachments for this version
+            const safeAttachments = attachmentsMap.get(version.id) || [];
+
+            // If version has its own attachments, create safe copies
+            if (
+              (version as any).attachments &&
+              (version as any).attachments.length > 0
+            ) {
+              try {
+                // Create safe copies of attachments that exclude binary data
+                const versionSafeAttachments = (version as any).attachments.map(
+                  (att: any) => {
+                    // Exclude data property and any File/Blob references
+                    const { data, file, ...safePart } = att;
+                    return safePart;
+                  },
+                );
+
+                // Use the newly processed attachments
+                safeAttachments.push(...versionSafeAttachments);
+              } catch (attachError) {
+                console.warn(
+                  `Could not process attachments for version ${version.id}:`,
+                  attachError,
+                );
+                // Continue with existing safe attachments
+              }
+            }
+
             const versionToSave = {
               ...version,
               playlistId: playlist.id,
@@ -576,6 +825,8 @@ export class PlaylistStore {
                 existingVersion?.manuallyAdded ||
                 version.manuallyAdded ||
                 false,
+              // Store safe serializable attachments
+              attachments: safeAttachments,
             };
 
             await db.versions.put(versionToSave, [playlist.id, version.id]);

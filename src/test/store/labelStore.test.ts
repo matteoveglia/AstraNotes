@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useLabelStore } from "./labelStore";
-import { ftrackService } from "../services/ftrack";
+import { useLabelStore } from "@/store/labelStore";
+import { ftrackService } from "@/services/ftrack";
 
 // Mock the ftrack service
 vi.mock("../services/ftrack", () => ({

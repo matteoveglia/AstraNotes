@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { motion } from "motion/react";
+import { showContextMenu } from "@/utils/menu";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -53,27 +54,48 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
   playlist,
   isActive,
   onClick,
-}) => (
-  <motion.div
-    key={playlist.id}
-    className={cn(
-      "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
-      isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
-      playlist.status === "removed" && "text-red-500",
-      playlist.status === "added" && "text-green-500",
-    )}
-    onClick={onClick}
-    variants={itemVariants}
-  >
-    <span>{playlist.title}</span>
-    {playlist.status === "removed" && (
-      <MinusCircle className="h-4 w-4 text-red-500" />
-    )}
-    {playlist.status === "added" && (
-      <PlusCircle className="h-4 w-4 text-green-500" />
-    )}
-  </motion.div>
-);
+}) => {
+  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+    e.preventDefault();
+    const options = [
+      {
+        label: "Remove Playlist",
+        action: () => console.log("Remove playlist:", playlist.id),
+        disabled: playlist.isQuickNotes,
+      },
+      {
+        label: "Rename Playlist",
+        action: () => console.log("Rename playlist:", playlist.id),
+        disabled: playlist.isQuickNotes,
+      },
+    ];
+
+    showContextMenu(e, options);
+  };
+
+  return (
+    <motion.div
+      key={playlist.id}
+      className={cn(
+        "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
+        isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
+        playlist.status === "removed" && "text-red-500",
+        playlist.status === "added" && "text-green-500",
+      )}
+      onClick={onClick}
+      onContextMenu={handleContextMenu}
+      variants={itemVariants}
+    >
+      <span>{playlist.title}</span>
+      {playlist.status === "removed" && (
+        <MinusCircle className="h-4 w-4 text-red-500" />
+      )}
+      {playlist.status === "added" && (
+        <PlusCircle className="h-4 w-4 text-green-500" />
+      )}
+    </motion.div>
+  );
+};
 
 interface PlaylistPanelProps {
   playlists: Playlist[];
@@ -197,14 +219,18 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setPlaylists(finalPlaylists);
   };
 
-  const hasRemovedPlaylists = playlists.some(
+  const hasRemovedPlaylists = playlists?.some(
     (p) => !p.isQuickNotes && p.status === "removed",
   );
+
+  // Separate Quick Notes from other playlists
+  const quickNotesPlaylist = playlists.find(p => p.id === QUICK_NOTES_ID || p.isQuickNotes);
+  const otherPlaylists = playlists.filter(p => p.id !== QUICK_NOTES_ID && !p.isQuickNotes);
 
   return (
     <div className="w-72 border-r p-4 overflow-y-auto relative">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Playlists</h2>
+        <h2 className="text-lg font-bold">Playlists</h2>
         <Button
           variant="ghost"
           size="sm"
@@ -218,6 +244,18 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         </Button>
       </div>
 
+      {/* Quick Notes section - fixed at the top */}
+      {quickNotesPlaylist && (
+
+      <PlaylistItem
+        key={quickNotesPlaylist.id}
+        playlist={quickNotesPlaylist}
+        isActive={activePlaylist !== null && quickNotesPlaylist.id === activePlaylist}
+        onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
+      />
+      )}
+
+      {/* Scrollable playlists section */}
       {loading ? (
         <div className="flex items-center justify-center text-gray-500 h-[300px]">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -230,19 +268,17 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         </div>
       ) : (
         <motion.div
-          className="space-y-2 overflow-y-auto"
-          style={{ height: "calc(100vh - 200px)" }}
+          className="overflow-y-auto max-h-[calc(100vh-11rem)] pr-2"
           variants={gridVariants}
           initial="hidden"
           animate="visible"
         >
-          {playlists.map((playlist) => (
+          <h3 className="text-sm font-semibold py-2">Ftrack Playlists</h3>
+          {otherPlaylists.map((playlist) => (
             <PlaylistItem
               key={playlist.id}
               playlist={playlist}
-              isActive={
-                activePlaylist !== null && playlist.id === activePlaylist
-              }
+              isActive={activePlaylist !== null && playlist.id === activePlaylist}
               onClick={() => onPlaylistSelect(playlist.id)}
             />
           ))}

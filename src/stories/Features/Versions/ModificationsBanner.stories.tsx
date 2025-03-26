@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ModificationsBanner } from "./ModificationsBanner";
+import { ModificationsBanner } from "@/features/versions/components/ModificationsBanner";
 import { AssetVersion } from "@/types";
 
 const meta: Meta<typeof ModificationsBanner> = {

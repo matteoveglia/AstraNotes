@@ -7,6 +7,7 @@ import React, { useMemo } from "react";
 import { AssetVersion, NoteStatus } from "@/types";
 import { VersionItem } from "./VersionItem";
 import { motion } from "motion/react";
+import { Attachment } from "@/components/NoteAttachments";
 
 interface VersionListProps {
   versions: AssetVersion[];
@@ -16,8 +17,14 @@ interface VersionListProps {
   noteDrafts: Record<string, string>;
   noteLabelIds: Record<string, string>;
   noteStatuses: Record<string, NoteStatus>;
+  noteAttachments?: Record<string, Attachment[]>;
   onVersionSelect: (versionId: string) => void;
-  onNoteChange: (versionId: string, content: string, labelId: string) => void;
+  onNoteChange: (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onNoteClear: (versionId: string) => void;
   searchQuery?: string;
 }
@@ -46,6 +53,7 @@ export const VersionList: React.FC<VersionListProps> = ({
   noteDrafts,
   noteLabelIds,
   noteStatuses,
+  noteAttachments = {},
   onVersionSelect,
   onNoteChange,
   onNoteClear,
@@ -94,9 +102,10 @@ export const VersionList: React.FC<VersionListProps> = ({
           draftContent={noteDrafts[version.id] || ""}
           labelId={noteLabelIds[version.id] || ""}
           noteStatus={(noteStatuses[version.id] || "empty") as NoteStatus}
+          initialAttachments={noteAttachments[version.id] || []}
           onSelect={() => onVersionSelect(version.id)}
-          onNoteChange={(content, labelId) =>
-            onNoteChange(version.id, content, labelId)
+          onNoteChange={(content, labelId, attachments) =>
+            onNoteChange(version.id, content, labelId, attachments)
           }
           onNoteClear={() => onNoteClear(version.id)}
         />

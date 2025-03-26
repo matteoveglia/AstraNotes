@@ -103,6 +103,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   const handleConfirmClear = () => {
     onClearAllNotes();
     setClearAlertOpen(false);
+    toast.showToast("All notes have been cleared", "success");
   };
 
   return (

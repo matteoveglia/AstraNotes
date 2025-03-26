@@ -113,7 +113,7 @@ export const Connected: Story = {
     window.mockConnectionStatus.isConnected = true;
     window.mockSettings.settings.autoRefreshEnabled = true;
     window.mockUpdateStore.updateAvailable = false;
-    
+
     return <TopBar {...args} />;
   },
 };
@@ -126,7 +126,7 @@ export const Disconnected: Story = {
     // Reset and set disconnected state
     resetMocks();
     window.mockConnectionStatus.isConnected = false;
-    
+
     return <TopBar {...args} />;
   },
 };
@@ -140,7 +140,7 @@ export const AutoUpdatesOff: Story = {
     resetMocks();
     window.mockConnectionStatus.isConnected = true;
     window.mockSettings.settings.autoRefreshEnabled = false;
-    
+
     return <TopBar {...args} />;
   },
 };
@@ -156,10 +156,10 @@ export const UpdateAvailable: Story = {
     window.mockUpdateStore.updateAvailable = true;
     window.mockUpdateStore.updateVersion = "1.1.0";
     window.mockUpdateStore.firstNotifiedAt = Date.now() - 1000 * 60 * 60 * 24; // 1 day ago
-    
+
     // Override the shouldShowNotification function
     window.mockUpdateStore.shouldShowNotification = () => true;
-    
+
     return <TopBar {...args} />;
   },
 };
@@ -174,12 +174,13 @@ export const UpdateHighlighted: Story = {
     window.mockConnectionStatus.isConnected = true;
     window.mockUpdateStore.updateAvailable = true;
     window.mockUpdateStore.updateVersion = "1.1.0";
-    window.mockUpdateStore.firstNotifiedAt = Date.now() - 1000 * 60 * 60 * 24 * 6; // 6 days ago
-    
+    window.mockUpdateStore.firstNotifiedAt =
+      Date.now() - 1000 * 60 * 60 * 24 * 6; // 6 days ago
+
     // Override both notification functions
     window.mockUpdateStore.shouldShowNotification = () => true;
     window.mockUpdateStore.shouldHighlightNotification = () => true;
-    
+
     return <TopBar {...args} />;
   },
 };

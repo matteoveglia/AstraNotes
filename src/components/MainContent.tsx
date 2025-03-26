@@ -45,6 +45,10 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Initialize playlist in store
   useEffect(() => {
+    // Reset merged playlist immediately when playlist ID changes
+    // This ensures we don't show stale data while loading
+    setMergedPlaylist(null);
+
     const initializePlaylist = async () => {
       setIsInitializing(true);
       console.debug(`[MainContent] Initializing playlist ${playlist.id}`);
@@ -58,13 +62,18 @@ export const MainContent: React.FC<MainContentProps> = ({
 
         // Then get the merged version with proper data from IndexedDB
         const cached = await playlistStore.getPlaylist(playlist.id);
-        if (cached) {
-          setMergedPlaylist({
-            ...playlist,
-            versions: cached.versions,
-          });
-        } else {
-          setMergedPlaylist(playlist);
+
+        // Only update state if component is still mounted and we're still looking at the same playlist
+        // This prevents race conditions when rapidly switching playlists
+        if (isMountedRef.current) {
+          if (cached) {
+            setMergedPlaylist({
+              ...playlist,
+              versions: cached.versions,
+            });
+          } else {
+            setMergedPlaylist(playlist);
+          }
         }
       } catch (error) {
         console.error(`Failed to initialize playlist ${playlist.id}:`, error);
@@ -97,6 +106,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     noteStatuses,
     noteDrafts,
     noteLabelIds,
+    noteAttachments,
     isPublishing,
     saveNoteDraft,
     clearNoteDraft,
@@ -417,6 +427,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           selectedVersions={selectedVersions}
           noteDrafts={noteDrafts}
           noteLabelIds={noteLabelIds}
+          noteAttachments={noteAttachments}
           onSaveNote={saveNoteDraft}
           onClearNote={clearNoteDraft}
           onToggleSelection={toggleVersionSelection}
