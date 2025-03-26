@@ -99,18 +99,22 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fileSize = file.size;
-      
+
       // Check if file exceeds maximum size
       if (fileSize > MAX_FILE_SIZE) {
-        oversizedFiles.push(`${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
+        oversizedFiles.push(
+          `${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`,
+        );
         continue;
       }
-      
+
       // Track large files for warning
       if (fileSize > WARNING_FILE_SIZE) {
-        largeFiles.push(`${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
+        largeFiles.push(
+          `${file.name} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`,
+        );
       }
-      
+
       if (file.type.startsWith("image/")) {
         const id = `attachment-${Date.now()}-${i}`;
         const previewUrl = URL.createObjectURL(file);
@@ -121,7 +125,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
           name: file.name,
           type: file.type,
           previewUrl,
-          size: fileSize
+          size: fileSize,
         });
       }
     }
@@ -129,14 +133,14 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
     // Show warnings if any files were too large
     if (oversizedFiles.length > 0) {
       toast.showError(
-        `The following files exceed the 15MB limit: ${oversizedFiles.join(", ")}`
+        `The following files exceed the 15MB limit: ${oversizedFiles.join(", ")}`,
       );
     }
-    
+
     // Show warnings for large files that were accepted but may cause performance issues
     if (largeFiles.length > 0) {
       toast.showWarning(
-        `The following files are large and may cause performance issues: ${largeFiles.join(", ")}`
+        `The following files are large and may cause performance issues: ${largeFiles.join(", ")}`,
       );
     }
 
@@ -190,7 +194,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
                 type: getFileTypeFromName(fileName),
                 previewUrl: "", // Will be populated in generateTauriPreview
               };
-              
+
               newAttachments.push(attachment);
 
               // Generate preview and perform size validation
@@ -268,29 +272,30 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
         // Get file metadata for size information
         const fileInfo = await fs.stat(filePath);
         const fileSize = fileInfo.size || 0;
-        
+
         console.log(`File info for ${filePath}:`, fileInfo);
-        
+
         // Set the size on the attachment
         attachment.size = fileSize;
-        
+
         // Check if file is too large and provide warning
         if (fileSize > MAX_FILE_SIZE) {
           toast.showError(
-            `File ${attachment.name} exceeds the 15MB limit (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause issues`
+            `File ${attachment.name} exceeds the 15MB limit (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause issues`,
           );
           return; // Skip loading the preview for oversized files
         }
-        
+
         // Warn about large files
         if (fileSize > WARNING_FILE_SIZE) {
           toast.showWarning(
-            `File ${attachment.name} is large (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause performance issues`
+            `File ${attachment.name} is large (${(fileSize / (1024 * 1024)).toFixed(2)} MB) and may cause performance issues`,
           );
         }
 
         // Read the file as binary data - only if below the extreme size limit
-        if (fileSize < MAX_FILE_SIZE * 2) { // Extra safety margin, don't even try to load truly huge files
+        if (fileSize < MAX_FILE_SIZE * 2) {
+          // Extra safety margin, don't even try to load truly huge files
           const fileData = await fs.readFile(filePath);
           console.log(
             `Successfully read file: ${filePath}, size: ${fileData.byteLength} bytes`,

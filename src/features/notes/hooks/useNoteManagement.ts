@@ -781,37 +781,37 @@ export function useNoteManagement(playlist: Playlist) {
     try {
       // Get all version IDs that need to be cleared
       const versionIds = Object.keys(noteDrafts);
-      
+
       // First, clear selection
       setSelectedVersions([]);
-      
+
       // Force a re-render by creating completely new objects with explicit values
       const emptyStatuses: Record<string, NoteStatus> = {};
       const emptyDrafts: Record<string, string> = {};
       const emptyLabelIds: Record<string, string> = {};
       const emptyAttachments: Record<string, Attachment[]> = {};
-      
-      versionIds.forEach(versionId => {
+
+      versionIds.forEach((versionId) => {
         emptyStatuses[versionId] = "empty";
         emptyDrafts[versionId] = "";
         emptyLabelIds[versionId] = "";
         emptyAttachments[versionId] = [];
       });
-      
+
       // Force UI update with a more aggressive approach - apply updates in sequence
       // First set the status to empty to trigger the status effect in NoteInput
       setNoteStatuses({ ...emptyStatuses });
-      
+
       // Then apply the other changes with minimal delay to allow React to process
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       setNoteDrafts({ ...emptyDrafts });
-      
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
       setNoteLabelIds({ ...emptyLabelIds });
-      
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
       setNoteAttachments({ ...emptyAttachments });
-      
+
       // Clean up attachment previews after state update
       setTimeout(() => {
         Object.values(noteAttachments).forEach((attachments) => {
@@ -823,86 +823,94 @@ export function useNoteManagement(playlist: Playlist) {
           });
         });
       }, 0);
-      
+
       // Force React to flush state changes before DB operations
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       // Add a direct DOM manipulation to force redraw
       // This is a last resort approach that can help with stubborn rendering issues
-      document.querySelectorAll('.w-full.mt-3').forEach(el => {
+      document.querySelectorAll(".w-full.mt-3").forEach((el) => {
         if (el instanceof HTMLElement) {
-          el.style.display = 'none';
+          el.style.display = "none";
           // Force a reflow
           void el.offsetHeight;
           // Then restore display
           setTimeout(() => {
-            el.style.display = '';
+            el.style.display = "";
           }, 0);
         }
       });
-      
+
       // Process database updates in batches
       const batchSize = 5;
       for (let i = 0; i < versionIds.length; i += batchSize) {
-        const batch = versionIds.slice(i, Math.min(i + batchSize, versionIds.length));
-        
+        const batch = versionIds.slice(
+          i,
+          Math.min(i + batchSize, versionIds.length),
+        );
+
         // Clear attachments first
         await Promise.all(
           batch.map((versionId) =>
-            playlistStore.clearAttachments(versionId, playlist.id)
-          )
+            playlistStore.clearAttachments(versionId, playlist.id),
+          ),
         );
-        
+
         // Then clear draft content
         await Promise.all(
           batch.map((versionId) =>
-            playlistStore.saveDraft(versionId, playlist.id, "", "")
-          )
+            playlistStore.saveDraft(versionId, playlist.id, "", ""),
+          ),
         );
-        
+
         // Finally update status
         await Promise.all(
           batch.map((versionId) =>
-            playlistStore.saveNoteStatus(versionId, playlist.id, "empty", "")
-          )
+            playlistStore.saveNoteStatus(versionId, playlist.id, "empty", ""),
+          ),
         );
       }
 
-      console.debug(`[useNoteManagement] Successfully cleared all notes for playlist ${playlist.id}`);
-      
+      console.debug(
+        `[useNoteManagement] Successfully cleared all notes for playlist ${playlist.id}`,
+      );
+
       // Dispatch a custom event to force NoteInput components to check their state
-      window.dispatchEvent(new CustomEvent('astranotes:clear-all-notes-completed'));
-      
+      window.dispatchEvent(
+        new CustomEvent("astranotes:clear-all-notes-completed"),
+      );
     } catch (error) {
       console.error("Failed to clear all notes:", error);
-      
+
       // Ensure UI is cleared even if DB operations fail
       // Create fallback empty objects with explicit values
       const fallbackEmptyStatuses: Record<string, NoteStatus> = {};
       const fallbackEmptyDrafts: Record<string, string> = {};
       const fallbackEmptyLabelIds: Record<string, string> = {};
       const fallbackEmptyAttachments: Record<string, Attachment[]> = {};
-      
-      Object.keys(noteDrafts).forEach(versionId => {
+
+      Object.keys(noteDrafts).forEach((versionId) => {
         fallbackEmptyStatuses[versionId] = "empty";
         fallbackEmptyDrafts[versionId] = "";
         fallbackEmptyLabelIds[versionId] = "";
         fallbackEmptyAttachments[versionId] = [];
       });
-      
+
       // Apply fallback updates in sequence as well
       setSelectedVersions([]);
       setNoteStatuses({ ...fallbackEmptyStatuses });
-      
+
       setTimeout(() => {
         setNoteDrafts({ ...fallbackEmptyDrafts });
         setTimeout(() => {
           setNoteLabelIds({ ...fallbackEmptyLabelIds });
           setTimeout(() => {
             setNoteAttachments({ ...fallbackEmptyAttachments });
-            
+
             // Dispatch the custom event here too
-            window.dispatchEvent(new CustomEvent('astranotes:clear-all-notes-completed'));
+            window.dispatchEvent(
+              new CustomEvent("astranotes:clear-all-notes-completed"),
+            );
           }, 10);
         }, 10);
       }, 10);

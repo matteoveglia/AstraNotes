@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useApiWithNotifications } from "./network";
+import { useApiWithNotifications } from "@/utils/network";
 
 // Mock the toast component
 vi.mock("@/components/ui/toast", () => ({

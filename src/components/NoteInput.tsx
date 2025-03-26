@@ -85,18 +85,24 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   // Add an effect to listen for the custom event for clearing all notes
   useEffect(() => {
     const handleClearAllNotesEvent = () => {
-      console.debug(`[NoteInput] Received clear-all-notes event for ${versionName}, forcing state refresh`);
-      
+      console.debug(
+        `[NoteInput] Received clear-all-notes event for ${versionName}, forcing state refresh`,
+      );
+
       // Force component refresh if status is empty
       if (status === "empty") {
         if (content) {
-          console.debug(`[NoteInput] Forcing content clear for ${versionName} from event handler`);
+          console.debug(
+            `[NoteInput] Forcing content clear for ${versionName} from event handler`,
+          );
           setContent("");
         }
-        
+
         // Force clear attachments
         if (attachments.length > 0) {
-          console.debug(`[NoteInput] Forcing attachments clear for ${versionName} from event handler`);
+          console.debug(
+            `[NoteInput] Forcing attachments clear for ${versionName} from event handler`,
+          );
           // Clean up attachment preview URLs
           attachments.forEach((attachment) => {
             if (attachment.previewUrl) {
@@ -109,11 +115,17 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     };
 
     // Add event listener
-    window.addEventListener('astranotes:clear-all-notes-completed', handleClearAllNotesEvent);
-    
+    window.addEventListener(
+      "astranotes:clear-all-notes-completed",
+      handleClearAllNotesEvent,
+    );
+
     // Clean up
     return () => {
-      window.removeEventListener('astranotes:clear-all-notes-completed', handleClearAllNotesEvent);
+      window.removeEventListener(
+        "astranotes:clear-all-notes-completed",
+        handleClearAllNotesEvent,
+      );
     };
   }, [versionName, status, content, attachments]);
 
@@ -122,12 +134,16 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     // When status changes to "empty", force content clearing
     if (status === "empty") {
       if (content) {
-        console.debug(`[NoteInput] Status empty for ${versionName}, force clearing content: "${content}"`);
+        console.debug(
+          `[NoteInput] Status empty for ${versionName}, force clearing content: "${content}"`,
+        );
         setContent("");
       }
-      
+
       if (attachments.length > 0) {
-        console.debug(`[NoteInput] Status empty for ${versionName}, force clearing ${attachments.length} attachments`);
+        console.debug(
+          `[NoteInput] Status empty for ${versionName}, force clearing ${attachments.length} attachments`,
+        );
         // Clean up attachment preview URLs
         attachments.forEach((attachment) => {
           if (attachment.previewUrl) {
@@ -498,35 +514,36 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               />
             </div>
             <div className="flex items-center gap-2">
-              {status !== "empty" && (content.trim() !== "" || attachments.length > 0) && (
-                <div className="flex items-center justify-between w-full mt-3">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClear}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      Clear
-                    </Button>
+              {status !== "empty" &&
+                (content.trim() !== "" || attachments.length > 0) && (
+                  <div className="flex items-center justify-between w-full mt-3">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClear}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        Clear
+                      </Button>
 
-                    {/* Add the attachment component */}
-                    <NoteAttachments
-                      attachments={attachments}
-                      onAddAttachments={handleAddAttachments}
-                      onRemoveAttachment={handleRemoveAttachment}
+                      {/* Add the attachment component */}
+                      <NoteAttachments
+                        attachments={attachments}
+                        onAddAttachments={handleAddAttachments}
+                        onRemoveAttachment={handleRemoveAttachment}
+                        disabled={status === "published"}
+                      />
+                    </div>
+
+                    <NoteLabelSelect
+                      value={labelId ?? ""}
+                      onChange={handleLabelChange}
                       disabled={status === "published"}
+                      className="h-8 w-40 ml-auto"
                     />
                   </div>
-
-                  <NoteLabelSelect
-                    value={labelId ?? ""}
-                    onChange={handleLabelChange}
-                    disabled={status === "published"}
-                    className="h-8 w-40 ml-auto"
-                  />
-                </div>
-              )}
+                )}
             </div>
           </div>
 

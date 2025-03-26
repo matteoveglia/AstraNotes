@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderWithUserEvent, screen } from "../test/utils";
-import { TopBar } from "./TopBar";
+import { renderWithUserEvent, screen } from "@/test/utils";
+import { TopBar } from "@/components/TopBar";
 
 // Mock any hooks, store, or context the component might be using
 vi.mock("@/store/uiStore", () => ({

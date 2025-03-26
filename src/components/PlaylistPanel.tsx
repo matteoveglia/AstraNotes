@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { motion } from "motion/react";
+import { showContextMenu } from "@/utils/menu";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -53,27 +54,48 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
   playlist,
   isActive,
   onClick,
-}) => (
-  <motion.div
-    key={playlist.id}
-    className={cn(
-      "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
-      isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
-      playlist.status === "removed" && "text-red-500",
-      playlist.status === "added" && "text-green-500",
-    )}
-    onClick={onClick}
-    variants={itemVariants}
-  >
-    <span>{playlist.title}</span>
-    {playlist.status === "removed" && (
-      <MinusCircle className="h-4 w-4 text-red-500" />
-    )}
-    {playlist.status === "added" && (
-      <PlusCircle className="h-4 w-4 text-green-500" />
-    )}
-  </motion.div>
-);
+}) => {
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const options = [
+      {
+        label: "Remove Playlist",
+        action: () => console.log("Remove playlist:", playlist.id),
+        disabled: playlist.isQuickNotes,
+      },
+      {
+        label: "Rename Playlist",
+        action: () => console.log("Rename playlist:", playlist.id),
+        disabled: playlist.isQuickNotes,
+      },
+    ];
+
+    showContextMenu(e, options);
+  };
+
+  return (
+    <motion.div
+      key={playlist.id}
+      className={cn(
+        "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
+        isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
+        playlist.status === "removed" && "text-red-500",
+        playlist.status === "added" && "text-green-500",
+      )}
+      onClick={onClick}
+      onContextMenu={handleContextMenu}
+      variants={itemVariants}
+    >
+      <span>{playlist.title}</span>
+      {playlist.status === "removed" && (
+        <MinusCircle className="h-4 w-4 text-red-500" />
+      )}
+      {playlist.status === "added" && (
+        <PlusCircle className="h-4 w-4 text-green-500" />
+      )}
+    </motion.div>
+  );
+};
 
 interface PlaylistPanelProps {
   playlists: Playlist[];
@@ -197,7 +219,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setPlaylists(finalPlaylists);
   };
 
-  const hasRemovedPlaylists = playlists.some(
+  const hasRemovedPlaylists = playlists?.some(
     (p) => !p.isQuickNotes && p.status === "removed",
   );
 
@@ -235,7 +257,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           initial="hidden"
           animate="visible"
         >
-          {playlists.map((playlist) => (
+          {playlists?.map((playlist) => (
             <PlaylistItem
               key={playlist.id}
               playlist={playlist}

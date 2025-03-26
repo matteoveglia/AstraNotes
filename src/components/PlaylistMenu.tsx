@@ -29,6 +29,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "../store/playlistsStore";
 import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
@@ -51,6 +60,8 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     }>
   >([]);
   const [clearAlertOpen, setClearAlertOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
   const toast = useToast();
 
   const { playlists, activePlaylistId } = usePlaylistsStore();
@@ -106,6 +117,27 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     toast.showToast("All notes have been cleared", "success");
   };
 
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      toast.showToast("Playlist name cannot be empty", "error");
+      return;
+    }
+
+    try {
+      const playlistStore = usePlaylistsStore.getState();
+      await playlistStore.createPlaylist(newPlaylistName);
+      setCreateDialogOpen(false);
+      setNewPlaylistName("");
+      toast.showToast(
+        `Playlist "${newPlaylistName}" created successfully`,
+        "success",
+      );
+    } catch (error) {
+      console.error("Failed to create playlist:", error);
+      toast.showToast("Failed to create playlist", "error");
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -115,6 +147,15 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            onClick={() => setCreateDialogOpen(true)}
+            className="flex items-center gap-2"
+            role="button"
+            aria-label="Create Playlist"
+          >
+            Create Playlist
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleExportClick}
             className="flex items-center gap-2"
@@ -168,6 +209,25 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Playlist</DialogTitle>
+            <DialogDescription>
+              Enter a name for your new playlist.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Playlist name"
+            value={newPlaylistName}
+            onChange={(e) => setNewPlaylistName(e.target.value)}
+          />
+          <DialogFooter>
+            <Button onClick={handleCreatePlaylist}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
