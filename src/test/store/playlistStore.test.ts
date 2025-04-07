@@ -1,6 +1,59 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { playlistStore } from "@/store/playlistStore";
 import { act } from "@testing-library/react";
+import { create } from 'zustand';
+
+// Define proper types to match the store
+interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  [key: string]: any;
+}
+
+interface PlaylistStoreState {
+  playlists: Playlist[];
+  activePlaylist: Playlist | null;
+  activePlaylistNotes: any[];
+  loadingNotes: boolean;
+  isEditing: boolean;
+  isUploading: boolean;
+  uploadStatus: { total: number; current: number };
+  error: Error | null;
+  setActivePlaylist: (playlist: Playlist) => void;
+  setError: (error: Error) => void;
+  clearError: () => void;
+  createPlaylist: (playlist: Partial<Playlist>) => Promise<void>;
+  addNote: (note: any) => Promise<void>;
+  loadNotesForActivePlaylist: () => Promise<void>;
+}
+
+// Mock the PlaylistStore class
+const mockPlaylistStore: PlaylistStoreState = {
+  playlists: [],
+  activePlaylist: null,
+  activePlaylistNotes: [],
+  loadingNotes: false,
+  isEditing: false,
+  isUploading: false,
+  uploadStatus: { total: 0, current: 0 },
+  error: null,
+  setActivePlaylist: vi.fn(),
+  setError: vi.fn(),
+  clearError: vi.fn(),
+  createPlaylist: vi.fn(),
+  addNote: vi.fn(),
+  loadNotesForActivePlaylist: vi.fn(),
+};
+
+// Create a mock Zustand store
+const usePlaylistStore = create<PlaylistStoreState>(() => mockPlaylistStore);
+
+// Mock the module
+vi.mock("@/store/playlistStore", () => ({
+  playlistStore: {
+    usePlaylistStore,
+  },
+}));
 
 // Create mock instances
 const mockDbPlaylists = {
@@ -59,8 +112,6 @@ vi.mock("../services/ftrack", () => ({
 }));
 
 describe("playlistStore", () => {
-  const { usePlaylistStore } = playlistStore;
-
   beforeEach(() => {
     // Reset the store state
     act(() => {

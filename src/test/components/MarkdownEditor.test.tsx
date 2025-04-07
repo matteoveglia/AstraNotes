@@ -11,7 +11,7 @@ vi.mock("@/components/ui/toast", () => ({
 
 // Mock react-markdown
 vi.mock("react-markdown", () => ({
-  default: ({ children }) => (
+  default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="markdown-content">{children}</div>
   ),
 }));
@@ -22,7 +22,7 @@ vi.mock("rehype-raw", () => ({ default: vi.fn() }));
 
 // Mock CodeMirror editor
 vi.mock("@uiw/react-codemirror", () => ({
-  default: ({ value, onChange }) => (
+  default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
     <textarea
       data-testid="codemirror-editor"
       value={value}
@@ -34,7 +34,7 @@ vi.mock("@uiw/react-codemirror", () => ({
 describe("MarkdownEditor", () => {
   it("should render in read mode by default", () => {
     renderWithUserEvent(
-      <MarkdownEditor content="**Test content**" onChange={vi.fn()} />,
+      <MarkdownEditor value="**Test content**" onChange={vi.fn()} />,
     );
 
     // Should render the markdown content
@@ -45,7 +45,7 @@ describe("MarkdownEditor", () => {
 
   it("should switch to edit mode when clicked", async () => {
     const { user } = renderWithUserEvent(
-      <MarkdownEditor content="Test content" onChange={vi.fn()} />,
+      <MarkdownEditor value="Test content" onChange={vi.fn()} />,
     );
 
     // Click to edit
@@ -61,7 +61,7 @@ describe("MarkdownEditor", () => {
   it("should call onChange when content is updated", async () => {
     const mockOnChange = vi.fn();
     const { user } = renderWithUserEvent(
-      <MarkdownEditor content="Initial content" onChange={mockOnChange} />,
+      <MarkdownEditor value="Initial content" onChange={mockOnChange} />,
     );
 
     // Click to edit

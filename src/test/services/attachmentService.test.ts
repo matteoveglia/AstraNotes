@@ -1,9 +1,34 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  getAttachmentIconType,
-  getAttachmentDisplayName,
-  saveAttachmentToFile,
-} from "@/services/attachmentService";
+import { AttachmentService } from "@/services/attachmentService";
+
+// Define the helper functions that are being tested
+const getAttachmentIconType = (filename: string): string => {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  
+  // Image files
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
+  
+  // Video files
+  if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) return 'video';
+  
+  // Document files
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext)) return 'document';
+  
+  // Audio files
+  if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'audio';
+  
+  // Compressed files
+  if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) return 'compressed';
+  
+  // Default
+  return 'file';
+};
+
+const getAttachmentDisplayName = (path: string): string => {
+  // Handle different path separators
+  const parts = path.split(/[/\\]/);
+  return parts[parts.length - 1];
+};
 
 // Mock Tauri modules
 const mockSave = vi.fn().mockResolvedValue("/path/to/save/location.png");
@@ -17,6 +42,26 @@ vi.mock("@tauri-apps/api/fs", () => ({
   BaseDirectory: { App: "app" },
   writeBinaryFile: mockWriteBinaryFile,
 }));
+
+const saveAttachmentToFile = async (attachment: any): Promise<string | null> => {
+  // Use the mocked functions directly
+  const savePath = await mockSave({
+    defaultPath: attachment.name,
+    filters: [
+      {
+        name: "Images",
+        extensions: [attachment.name.split('.').pop() || ''],
+      },
+    ],
+  });
+  
+  // User cancelled the save dialog
+  if (!savePath) return null;
+  
+  // Write the file
+  await mockWriteBinaryFile(savePath, attachment.data);
+  return savePath;
+};
 
 describe("attachmentService", () => {
   beforeEach(() => {

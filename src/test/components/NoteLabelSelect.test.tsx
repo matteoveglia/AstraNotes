@@ -17,14 +17,14 @@ vi.mock("@/store/labelStore", () => ({
 
 // Mock UI components
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }) => <div data-testid="dropdown">{children}</div>,
-  DropdownMenuTrigger: ({ children }) => (
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown">{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
     <button data-testid="dropdown-trigger">{children}</button>
   ),
-  DropdownMenuContent: ({ children }) => (
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dropdown-content">{children}</div>
   ),
-  DropdownMenuItem: ({ children, onSelect }) => (
+  DropdownMenuItem: ({ children, onSelect }: { children: React.ReactNode, onSelect?: () => void }) => (
     <div data-testid="dropdown-item" onClick={onSelect}>
       {children}
     </div>
@@ -33,7 +33,7 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick }) => (
+  Button: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => (
     <button data-testid="button" onClick={onClick}>
       {children}
     </button>
@@ -49,7 +49,7 @@ vi.mock("lucide-react", () => ({
 describe("NoteLabelSelect", () => {
   it("should render with no label selected initially", () => {
     renderWithUserEvent(
-      <NoteLabelSelect selectedLabelId="" onLabelSelect={vi.fn()} />,
+      <NoteLabelSelect value="" onChange={vi.fn()} />,
     );
 
     // Should show the dropdown trigger with "Add Label" text
@@ -60,7 +60,7 @@ describe("NoteLabelSelect", () => {
 
   it("should display selected label when one is selected", () => {
     renderWithUserEvent(
-      <NoteLabelSelect selectedLabelId="label1" onLabelSelect={vi.fn()} />,
+      <NoteLabelSelect value="label1" onChange={vi.fn()} />,
     );
 
     // Should show the selected label name
@@ -70,7 +70,7 @@ describe("NoteLabelSelect", () => {
 
   it("should show dropdown content when clicked", async () => {
     const { user } = renderWithUserEvent(
-      <NoteLabelSelect selectedLabelId="" onLabelSelect={vi.fn()} />,
+      <NoteLabelSelect value="" onChange={vi.fn()} />,
     );
 
     // Click to open dropdown
@@ -91,7 +91,7 @@ describe("NoteLabelSelect", () => {
   it("should call onLabelSelect when a label is selected", async () => {
     const mockOnLabelSelect = vi.fn();
     const { user } = renderWithUserEvent(
-      <NoteLabelSelect selectedLabelId="" onLabelSelect={mockOnLabelSelect} />,
+      <NoteLabelSelect value="" onChange={mockOnLabelSelect} />,
     );
 
     // Click to open dropdown
