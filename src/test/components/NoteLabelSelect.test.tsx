@@ -17,14 +17,22 @@ vi.mock("@/store/labelStore", () => ({
 
 // Mock UI components
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="dropdown">{children}</div>,
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dropdown">{children}</div>
+  ),
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
     <button data-testid="dropdown-trigger">{children}</button>
   ),
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="dropdown-content">{children}</div>
   ),
-  DropdownMenuItem: ({ children, onSelect }: { children: React.ReactNode, onSelect?: () => void }) => (
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+  }: {
+    children: React.ReactNode;
+    onSelect?: () => void;
+  }) => (
     <div data-testid="dropdown-item" onClick={onSelect}>
       {children}
     </div>
@@ -33,7 +41,13 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick }: { children: React.ReactNode, onClick?: () => void }) => (
+  Button: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
     <button data-testid="button" onClick={onClick}>
       {children}
     </button>
@@ -48,9 +62,7 @@ vi.mock("lucide-react", () => ({
 
 describe("NoteLabelSelect", () => {
   it("should render with no label selected initially", () => {
-    renderWithUserEvent(
-      <NoteLabelSelect value="" onChange={vi.fn()} />,
-    );
+    renderWithUserEvent(<NoteLabelSelect value="" onChange={vi.fn()} />);
 
     // Should show the dropdown trigger with "Add Label" text
     const trigger = screen.getByTestId("dropdown-trigger");
@@ -59,9 +71,7 @@ describe("NoteLabelSelect", () => {
   });
 
   it("should display selected label when one is selected", () => {
-    renderWithUserEvent(
-      <NoteLabelSelect value="label1" onChange={vi.fn()} />,
-    );
+    renderWithUserEvent(<NoteLabelSelect value="label1" onChange={vi.fn()} />);
 
     // Should show the selected label name
     const trigger = screen.getByTestId("dropdown-trigger");

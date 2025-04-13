@@ -224,8 +224,12 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   );
 
   // Separate Quick Notes from other playlists
-  const quickNotesPlaylist = playlists.find(p => p.id === QUICK_NOTES_ID || p.isQuickNotes);
-  const otherPlaylists = playlists.filter(p => p.id !== QUICK_NOTES_ID && !p.isQuickNotes);
+  const quickNotesPlaylist = playlists.find(
+    (p) => p.id === QUICK_NOTES_ID || p.isQuickNotes,
+  );
+  const otherPlaylists = playlists.filter(
+    (p) => p.id !== QUICK_NOTES_ID && !p.isQuickNotes,
+  );
 
   return (
     <div className="w-72 border-r p-4 overflow-y-auto relative">
@@ -246,13 +250,14 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       {/* Quick Notes section - fixed at the top */}
       {quickNotesPlaylist && (
-
-      <PlaylistItem
-        key={quickNotesPlaylist.id}
-        playlist={quickNotesPlaylist}
-        isActive={activePlaylist !== null && quickNotesPlaylist.id === activePlaylist}
-        onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
-      />
+        <PlaylistItem
+          key={quickNotesPlaylist.id}
+          playlist={quickNotesPlaylist}
+          isActive={
+            activePlaylist !== null && quickNotesPlaylist.id === activePlaylist
+          }
+          onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
+        />
       )}
 
       {/* Scrollable playlists section */}
@@ -278,7 +283,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             <PlaylistItem
               key={playlist.id}
               playlist={playlist}
-              isActive={activePlaylist !== null && playlist.id === activePlaylist}
+              isActive={
+                activePlaylist !== null && playlist.id === activePlaylist
+              }
               onClick={() => onPlaylistSelect(playlist.id)}
             />
           ))}

@@ -28,7 +28,8 @@ export function useNoteManagement(playlist: Playlist) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [lastPublishTime, setLastPublishTime] = useState<Date | null>(null);
   const [progress, setProgress] = useState<number>(0);
-  const [publishedVersionsCount, setPublishedVersionsCount] = useState<number>(0);
+  const [publishedVersionsCount, setPublishedVersionsCount] =
+    useState<number>(0);
   const [publishingErrors, setPublishingErrors] = useState<string[]>([]);
 
   // Setup hooks
@@ -58,7 +59,7 @@ export function useNoteManagement(playlist: Playlist) {
   // State to track user interaction for more aggressive debouncing
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const interactionTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Set up user interaction tracking
   useEffect(() => {
     const startInteraction = () => setIsUserInteracting(true);
@@ -67,38 +68,39 @@ export function useNoteManagement(playlist: Playlist) {
       if (interactionTimerRef.current) {
         clearTimeout(interactionTimerRef.current);
       }
-      
+
       // Use debounce to detect end of interaction
       interactionTimerRef.current = setTimeout(() => {
         setIsUserInteracting(false);
-        
+
         // When user stops interacting, apply any pending saves immediately
         if (saveTimerRef.current) {
           clearTimeout(saveTimerRef.current);
           saveTimerRef.current = null;
-          
+
           // Process all pending saves
           Object.keys(pendingSavesRef.current).forEach((versionId) => {
-            const { content, labelId, attachments } = pendingSavesRef.current[versionId];
+            const { content, labelId, attachments } =
+              pendingSavesRef.current[versionId];
             processSaveDraft(versionId, content, labelId, attachments);
           });
         }
       }, 500);
     };
-    
-    document.addEventListener('keydown', startInteraction);
-    document.addEventListener('keyup', endInteraction);
-    
+
+    document.addEventListener("keydown", startInteraction);
+    document.addEventListener("keyup", endInteraction);
+
     return () => {
-      document.removeEventListener('keydown', startInteraction);
-      document.removeEventListener('keyup', endInteraction);
-      
+      document.removeEventListener("keydown", startInteraction);
+      document.removeEventListener("keyup", endInteraction);
+
       if (interactionTimerRef.current) {
         clearTimeout(interactionTimerRef.current);
       }
     };
   }, []);
-  
+
   // Add cleanup on component unmount
   useEffect(() => {
     return () => {
@@ -109,7 +111,7 @@ export function useNoteManagement(playlist: Playlist) {
       createdURLs.current.clear();
     };
   }, []);
-  
+
   // Helper function to process the actual save operation
   const processSaveDraft = async (
     versionId: string,
@@ -141,12 +143,7 @@ export function useNoteManagement(playlist: Playlist) {
         );
 
         // Save draft content, status, and label to database
-        await playlistStore.saveDraft(
-          versionId,
-          playlist.id,
-          content,
-          labelId,
-        );
+        await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
 
         // Also update the status separately to ensure it's set correctly, passing attachments info
         if (newStatus !== currentStatus) {

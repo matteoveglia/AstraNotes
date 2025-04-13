@@ -14,6 +14,23 @@ import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
 import { AttachmentService } from "./attachmentService";
 
+interface Status {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+interface StatusPanelData {
+  versionId: string;
+  versionStatusId: string;
+  taskId?: string;
+  taskStatusId?: string;
+  parentId?: string;
+  parentStatusId?: string;
+  parentType?: string;
+  projectId: string;
+}
+
 const DEBUG = true;
 
 function log(...args: any[]) {
@@ -1051,6 +1068,188 @@ export class FtrackService {
     } catch (error) {
       log("Error getting components for version:", error);
       return [];
+    }
+  }
+
+  /**
+   * Fetch applicable statuses for a given entity type and ID
+   */
+  async fetchApplicableStatuses(
+    entityType: string,
+    entityId: string,
+  ): Promise<Status[]> {
+    try {
+      const session = await this.getSession();
+
+      // 1. Get Project Schema ID and Object Type ID (if applicable) from the entity
+      log(`Fetching project/object info for ${entityType} ID: ${entityId}`);
+      let projection = "project.project_schema_id";
+      // Add object_type_id projection for TypedContext entities (like Shot, Sequence, etc.)
+      if (entityType !== "AssetVersion" && entityType !== "Task") {
+        projection += ", object_type_id";
+      }
+      const entityQuery = await session.query(
+        `select ${projection} from ${entityType} where id is "${entityId}"`,
+      );
+
+      if (!entityQuery.data || entityQuery.data.length === 0) {
+        throw new Error(`Entity ${entityType} with id ${entityId} not found.`);
+      }
+      const entityData = entityQuery.data[0];
+      const schemaId = entityData.project.project_schema_id;
+      const objectTypeId = entityData.object_type_id; // Will be undefined for AssetVersion/Task
+      log(
+        `Found project schema ID: ${schemaId}, Object Type ID: ${objectTypeId || "N/A"}`,
+      );
+
+      // 2. Get the Project Schema details, explicitly selecting the overrides relationship
+      // It's often safer to select the relationship and then the nested attributes
+      const schemaQuery = await session.query(
+        `select
+          asset_version_workflow_schema_id,
+          task_workflow_schema_id,
+          task_workflow_schema_overrides.type_id,
+          task_workflow_schema_overrides.workflow_schema_id
+        from ProjectSchema
+        where id is "${schemaId}"`,
+      );
+      log("Raw ProjectSchema query result:", schemaQuery); // Log the raw result
+
+      if (!schemaQuery.data?.[0]) {
+        throw new Error("Could not find workflow schema");
+      }
+
+      const schema = schemaQuery.data[0];
+      let workflowSchemaId: string | null = null;
+
+      // 3. Determine the correct Workflow Schema ID based on entity type and object type overrides
+      switch (entityType) {
+        case "AssetVersion":
+          workflowSchemaId = schema.asset_version_workflow_schema_id;
+          break;
+        case "Task":
+          // Basic implementation: uses default task workflow.
+          // TODO: Enhance to check for overrides based on Task's specific 'type_id' if needed.
+          workflowSchemaId = schema.task_workflow_schema_id;
+          break;
+        default:
+          // Handle TypedContext entities (Shot, Sequence, etc.)
+          log(`Handling default case for entityType: ${entityType}, objectTypeId: ${objectTypeId}`);
+          const overrides = schema.task_workflow_schema_overrides;
+          log("Fetched overrides:", JSON.stringify(overrides, null, 2)); // Log the structure
+
+          if (objectTypeId && overrides && Array.isArray(overrides)) {
+             // Check for an override matching the entity's object_type_id
+            const override = overrides.find(
+              (ov: any) => ov && ov.type_id === objectTypeId, // Add null check for ov
+            );
+             log(`Searching for override with type_id: ${objectTypeId}`);
+            if (override && override.workflow_schema_id) {
+              workflowSchemaId = override.workflow_schema_id;
+              log(
+                `Override Found! Using workflow override for Object Type ${objectTypeId}: ${workflowSchemaId}`,
+              );
+            } else {
+               log(`No specific override found for type_id: ${objectTypeId} in the fetched overrides.`);
+            }
+          } else {
+             log(`No overrides array found or objectTypeId is missing. Overrides: ${JSON.stringify(overrides)}`);
+          }
+
+          // If no override found, fall back to the default task workflow schema
+          if (!workflowSchemaId) {
+            workflowSchemaId = schema.task_workflow_schema_id;
+            log(
+              `No override applied for ${entityType} (Object Type ${objectTypeId || "N/A"}), using default task workflow: ${workflowSchemaId}`,
+            );
+          }
+          break;
+      }
+
+      if (!workflowSchemaId) {
+        throw new Error(`No workflow schema found for ${entityType}`);
+      }
+
+      // Get the statuses from the workflow schema
+      const statusQuery = await session.query(
+        `select statuses.id, statuses.name, statuses.color
+        from WorkflowSchema
+        where id is "${workflowSchemaId}"`,
+      );
+
+      if (!statusQuery.data?.[0]?.statuses) {
+        return [];
+      }
+
+      return statusQuery.data[0].statuses.map((status: any) => ({
+        id: status.id,
+        name: status.name,
+        color: status.color,
+      }));
+    } catch (error) {
+      log("Failed to fetch applicable statuses:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all necessary data for the status panel
+   */
+  async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
+    try {
+      const session = await this.getSession();
+      if (!session) throw new Error("No active ftrack session");
+
+      // Fetch the asset version and its parent shot with their status IDs
+      const query = `select 
+        id,
+        status_id,
+        asset.parent.id,
+        asset.parent.name,
+        asset.parent.status_id,
+        asset.parent.object_type.name,
+        asset.parent.project.id
+      from AssetVersion 
+      where id is "${assetVersionId}"`;
+
+      const result = await session.query(query);
+      const version = result.data[0];
+      
+      if (!version) {
+        throw new Error("Asset version not found");
+      }
+
+      // Get the shot (parent) details
+      const parent = version.asset.parent;
+
+      return {
+        versionId: version.id,
+        versionStatusId: version.status_id,
+        parentId: parent.id,
+        parentStatusId: parent.status_id,
+        parentType: parent.object_type.name,
+        projectId: parent.project.id
+      };
+    } catch (error) {
+      console.error("Error fetching status panel data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update the status of an entity
+   */
+  async updateEntityStatus(
+    entityType: string,
+    entityId: string,
+    statusId: string,
+  ): Promise<void> {
+    try {
+      const session = await this.getSession();
+      await session.update(entityType, entityId, { status_id: statusId });
+    } catch (error) {
+      log("Failed to update entity status:", error);
+      throw error;
     }
   }
 }

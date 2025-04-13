@@ -22,7 +22,13 @@ vi.mock("rehype-raw", () => ({ default: vi.fn() }));
 
 // Mock CodeMirror editor
 vi.mock("@uiw/react-codemirror", () => ({
-  default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  default: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
     <textarea
       data-testid="codemirror-editor"
       value={value}

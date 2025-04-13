@@ -36,7 +36,7 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
       if (interactionTimerRef.current) {
         clearTimeout(interactionTimerRef.current);
       }
-      
+
       // Use debounce to avoid flickering state
       interactionTimerRef.current = setTimeout(() => {
         if (isMountedRef.current) {
@@ -44,21 +44,21 @@ export function useThumbnailLoading(versions: AssetVersion[]) {
         }
       }, 1000);
     };
-    
-    document.addEventListener('keydown', startInteraction);
-    document.addEventListener('keyup', endInteraction);
-    
+
+    document.addEventListener("keydown", startInteraction);
+    document.addEventListener("keyup", endInteraction);
+
     // Cleanup function
     return () => {
       isMountedRef.current = false;
-      document.removeEventListener('keydown', startInteraction);
-      document.removeEventListener('keyup', endInteraction);
-      
+      document.removeEventListener("keydown", startInteraction);
+      document.removeEventListener("keyup", endInteraction);
+
       if (interactionTimerRef.current) {
         clearTimeout(interactionTimerRef.current);
         interactionTimerRef.current = null;
       }
-      
+
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;

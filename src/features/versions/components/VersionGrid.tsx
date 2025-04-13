@@ -113,6 +113,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
               ) => onSaveNote(version.id, content, labelId, attachments)}
               onClear={() => onClearNote(version.id)}
               onSelectToggle={() => onToggleSelection(version.id)}
+              assetVersionId={version.id}
             />
           </motion.div>
         );

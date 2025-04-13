@@ -3,25 +3,26 @@ import { AttachmentService } from "@/services/attachmentService";
 
 // Define the helper functions that are being tested
 const getAttachmentIconType = (filename: string): string => {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+
   // Image files
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
-  
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+
   // Video files
-  if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) return 'video';
-  
+  if (["mp4", "mov", "avi", "webm"].includes(ext)) return "video";
+
   // Document files
-  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext)) return 'document';
-  
+  if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"].includes(ext))
+    return "document";
+
   // Audio files
-  if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'audio';
-  
+  if (["mp3", "wav", "ogg", "flac"].includes(ext)) return "audio";
+
   // Compressed files
-  if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) return 'compressed';
-  
+  if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "compressed";
+
   // Default
-  return 'file';
+  return "file";
 };
 
 const getAttachmentDisplayName = (path: string): string => {
@@ -43,21 +44,23 @@ vi.mock("@tauri-apps/api/fs", () => ({
   writeBinaryFile: mockWriteBinaryFile,
 }));
 
-const saveAttachmentToFile = async (attachment: any): Promise<string | null> => {
+const saveAttachmentToFile = async (
+  attachment: any,
+): Promise<string | null> => {
   // Use the mocked functions directly
   const savePath = await mockSave({
     defaultPath: attachment.name,
     filters: [
       {
         name: "Images",
-        extensions: [attachment.name.split('.').pop() || ''],
+        extensions: [attachment.name.split(".").pop() || ""],
       },
     ],
   });
-  
+
   // User cancelled the save dialog
   if (!savePath) return null;
-  
+
   // Write the file
   await mockWriteBinaryFile(savePath, attachment.data);
   return savePath;

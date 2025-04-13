@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
 import { NoteAttachments, Attachment } from "./NoteAttachments";
+import { NoteStatusPanel } from "./NoteStatusPanel";
 
 export interface NoteInputProps {
   versionName: string;
@@ -36,6 +37,7 @@ export interface NoteInputProps {
   ) => void;
   onClear: () => void;
   onSelectToggle: () => void;
+  assetVersionId: string;
 }
 
 export const NoteInput: React.FC<NoteInputProps> = ({
@@ -51,6 +53,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   onSave,
   onClear,
   onSelectToggle,
+  assetVersionId,
 }) => {
   const [content, setContent] = useState(initialContent);
   const [labelId, setLabelId] = useState(initialLabelId);
@@ -62,6 +65,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const markdownEditorRef = useRef<MarkdownEditorRef>(null);
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
+  const [isStatusPanelVisible, setIsStatusPanelVisible] = useState(false);
+  const statusButtonRef = useRef<HTMLButtonElement>(null);
+  const statusPanelRef = useRef<HTMLDivElement>(null);
+  const [isDropdownMenuOpen, setIsDropdownMenuOpen] = useState(false); // New state
+
+  // Add a timeout ref to handle hover delay
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(); // Ensure type allows undefined
 
   useEffect(() => {
     setContent(initialContent);
@@ -434,146 +444,209 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
+  // Clear any existing timeout when entering the button or panel area
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = undefined;
+    }
+    setIsStatusPanelVisible(true);
+  };
+
+  // Set a timeout to hide the panel, but only if a dropdown isn't open
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (!isDropdownMenuOpen) { // Check dropdown state
+        setIsStatusPanelVisible(false);
+      }
+    }, 300); // 300ms delay
+  };
+
+  // Callback for NoteStatusPanel to report dropdown state changes
+  const handleDropdownOpenChange = (isOpen: boolean) => {
+    setIsDropdownMenuOpen(isOpen);
+    // If a dropdown is closing, we might need to re-evaluate hiding the panel
+    if (!isOpen) {
+       // Trigger mouse leave logic again to potentially hide if mouse is outside
+       handleMouseLeave();
+    } else {
+      // If dropdown is opening, ensure any pending hide timeout is cancelled
+       if (hoverTimeoutRef.current) {
+         clearTimeout(hoverTimeoutRef.current);
+         hoverTimeoutRef.current = undefined;
+       }
+    }
+  };
+
   return (
-    <div
-      ref={componentRef}
-      className={cn(
-        "flex gap-4 p-4 bg-white rounded-lg border relative",
-        manuallyAdded && "border-purple-500 border-2",
-        isDraggingOver &&
-          status !== "published" &&
-          "bg-blue-100 border-2 border-dashed border-blue-300",
-        "transition-colors duration-150",
-      )}
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Show a semi-transparent overlay when dragging */}
-      {isDraggingOver && status !== "published" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-blue-100/70 z-20 rounded">
-          <p className="text-blue-800 font-medium">Drop images to attach</p>
-        </div>
-      )}
-
+    <div className="relative">
       <div
+        ref={componentRef}
         className={cn(
-          "flex-shrink-0 w-32 min-h-[85px] bg-gray-100 rounded overflow-hidden",
-          thumbnailUrl ? "cursor-pointer" : "cursor-default",
+          "flex gap-4 p-4 bg-white rounded-lg border relative",
+          manuallyAdded && "border-purple-500 border-2",
+          isDraggingOver &&
+            status !== "published" &&
+            "bg-blue-100 border-2 border-dashed border-blue-300",
+          "transition-colors duration-150",
         )}
-        onClick={openThumbnailModal}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
-        {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={versionName}
-            className="w-full h-full object-contain"
-          />
-        ) : (
-          <div className="relative flex h-full w-full flex-col items-center justify-center rounded-md bg-zinc-200 px-5 py-2 dark:bg-zinc-800">
-            <BorderTrail
-              style={{
-                boxShadow:
-                  "0px 0px 60px 30px rgb(255 255 255 / 50%), 0 0 100px 60px rgb(0 0 0 / 50%), 0 0 140px 90px rgb(0 0 0 / 50%)",
-              }}
-              size={100}
-            />
-            <div
-              className="flex h-full animate-pulse flex-col items-start justify-center space-y-2"
-              role="status"
-              aria-label="Loading..."
-            >
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
+        {/* Show a semi-transparent overlay when dragging */}
+        {isDraggingOver && status !== "published" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-100/70 z-20 rounded">
+            <p className="text-blue-800 font-medium">Drop images to attach</p>
           </div>
         )}
-      </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1">
-              <h3 className="font-semibold truncate">{versionName}</h3>
-              <span className="font-medium text-base text-gray-500">
-                - v{versionNumber}
-              </span>
+        <div
+          className={cn(
+            "flex-shrink-0 w-32 min-h-[85px] bg-gray-100 rounded overflow-hidden",
+            thumbnailUrl ? "cursor-pointer" : "cursor-default",
+          )}
+          onClick={openThumbnailModal}
+        >
+          {thumbnailUrl ? (
+            <img
+              src={thumbnailUrl}
+              alt={versionName}
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <div className="relative flex h-full w-full flex-col items-center justify-center rounded-md bg-zinc-200 px-5 py-2 dark:bg-zinc-800">
+              <BorderTrail
+                style={{
+                  boxShadow:
+                    "0px 0px 60px 30px rgb(255 255 255 / 50%), 0 0 100px 60px rgb(0 0 0 / 50%), 0 0 140px 90px rgb(0 0 0 / 50%)",
+                }}
+                size={100}
+              />
+              <div
+                className="flex h-full animate-pulse flex-col items-start justify-center space-y-2"
+                role="status"
+                aria-label="Loading..."
+              >
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <div className="flex gap-2">
-              <MarkdownEditor
-                ref={markdownEditorRef}
-                value={content}
-                onChange={handleChange}
-                disabled={status === "published"}
-                className="w-full"
-              />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <h3 className="font-semibold truncate">{versionName}</h3>
+                <span className="font-medium text-base text-gray-500">
+                  - v{versionNumber}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {status !== "empty" &&
-                (content.trim() !== "" || attachments.length > 0) && (
-                  <div className="flex items-center justify-between w-full mt-3">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleClear}
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        Clear
-                      </Button>
+          </div>
 
-                      {/* Add the attachment component */}
-                      <NoteAttachments
-                        attachments={attachments}
-                        onAddAttachments={handleAddAttachments}
-                        onRemoveAttachment={handleRemoveAttachment}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <div className="flex gap-2">
+                <MarkdownEditor
+                  ref={markdownEditorRef}
+                  value={content}
+                  onChange={handleChange}
+                  disabled={status === "published"}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {status !== "empty" &&
+                  (content.trim() !== "" || attachments.length > 0) && (
+                    <div className="flex items-center justify-between w-full mt-3">
+                      {/* Use items-center to vertically align buttons/components in this row */}
+                      <div className="flex gap-2 items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClear}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          Clear
+                        </Button>
+
+                        {/* Add the attachment component */}
+                        <NoteAttachments
+                          attachments={attachments}
+                          onAddAttachments={handleAddAttachments}
+                          onRemoveAttachment={handleRemoveAttachment}
+                          disabled={status === "published"}
+                        />
+
+                        {/* Add the status panel button and container */}
+                        {/* Statuses Button and Panel Container - Apply hover handlers here */}
+                        <div
+                          className="relative"
+                          onMouseEnter={handleMouseEnter} // Use the new handler
+                          onMouseLeave={handleMouseLeave} // Use the new handler
+                        >
+                          <Button
+                            ref={statusButtonRef}
+                            variant="outline"
+                            size="sm"
+                            className="text-gray-500 hover:text-gray-700"
+                            // No hover handlers needed directly on the button
+                          >
+                            Statuses
+                          </Button>
+                          {/* Keep existing NoteStatusPanel structure but ensure it's inside the hover zone */}
+                          {/* The panel itself doesn't need hover handlers as the parent div handles it */}
+                          <NoteStatusPanel
+                            assetVersionId={assetVersionId}
+                            isVisible={isStatusPanelVisible}
+                            onVisibilityChange={setIsStatusPanelVisible} // Keep this prop
+                            onDropdownOpenChange={handleDropdownOpenChange} // Add the new callback
+                          />
+                        </div>
+                      </div>
+
+                      <NoteLabelSelect
+                        value={labelId ?? ""}
+                        onChange={handleLabelChange}
                         disabled={status === "published"}
+                        className="h-8 w-40 ml-auto"
                       />
                     </div>
-
-                    <NoteLabelSelect
-                      value={labelId ?? ""}
-                      onChange={handleLabelChange}
-                      disabled={status === "published"}
-                      className="h-8 w-40 ml-auto"
-                    />
-                  </div>
-                )}
+                  )}
+              </div>
             </div>
+
+            <div
+              onClick={
+                status === "empty" || status === "published"
+                  ? undefined
+                  : onSelectToggle
+              }
+              className={cn(
+                "w-5 rounded-full transition-colors", // Reverted to original size/alignment
+                status === "empty" || status === "published"
+                  ? "cursor-default"
+                  : "cursor-pointer",
+                getStatusColor(),
+              )}
+              title={getStatusTitle()}
+            />
           </div>
-
-          <div
-            onClick={
-              status === "empty" || status === "published"
-                ? undefined
-                : onSelectToggle
-            }
-            className={cn(
-              "w-5 rounded-full transition-colors",
-              status === "empty" || status === "published"
-                ? "cursor-default"
-                : "cursor-pointer",
-              getStatusColor(),
-            )}
-            title={getStatusTitle()}
-          />
         </div>
-      </div>
 
-      {thumbnailUrl && (
-        <ThumbnailModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          thumbnailUrl={thumbnailUrl}
-          versionName={versionName}
-          versionNumber={versionNumber}
-        />
-      )}
+        {thumbnailUrl && (
+          <ThumbnailModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            thumbnailUrl={thumbnailUrl}
+            versionName={versionName}
+            versionNumber={versionNumber}
+          />
+        )}
+      </div>
     </div>
   );
 };

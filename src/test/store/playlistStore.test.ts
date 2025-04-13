@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act } from "@testing-library/react";
-import { create } from 'zustand';
+import { create } from "zustand";
 
 // Define proper types to match the store
 interface Playlist {

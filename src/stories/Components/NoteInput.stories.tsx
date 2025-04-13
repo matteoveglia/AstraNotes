@@ -29,6 +29,7 @@ export const Empty: Story = {
     onSave: (content, labelId) => console.log("Save", { content, labelId }),
     onClear: () => console.log("Clear"),
     onSelectToggle: () => console.log("Toggle Selection"),
+    assetVersionId: "mock-version-id",
   },
 };
 
@@ -43,6 +44,7 @@ export const WithDraft: Story = {
     onClear: () => console.log("Clear"),
     onSelectToggle: () => console.log("Toggle Selection"),
     initialLabelId: "",
+    assetVersionId: "mock-version-id",
   },
 };
 
@@ -56,6 +58,7 @@ export const Published: Story = {
     onSave: (content, labelId) => console.log("Save", { content, labelId }),
     onClear: () => console.log("Clear"),
     onSelectToggle: () => console.log("Toggle Selection"),
+    assetVersionId: "mock-version-id",
   },
 };
 
@@ -69,5 +72,6 @@ export const Selected: Story = {
     onSave: (content, labelId) => console.log("Save", { content, labelId }),
     onClear: () => console.log("Clear"),
     onSelectToggle: () => console.log("Toggle Selection"),
+    assetVersionId: "mock-version-id",
   },
 };
