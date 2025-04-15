@@ -30,15 +30,15 @@ interface StatusPanelData {
 interface NoteStatusPanelProps {
   assetVersionId: string;
   isVisible: boolean;
-  onVisibilityChange: (visible: boolean) => void; // Keep this if still needed internally
-  onDropdownOpenChange: (isOpen: boolean) => void; // Add the new prop
+  onDropdownOpenChange: (isOpen: boolean) => void;
+  className?: string;
 }
 
 export function NoteStatusPanel({
   assetVersionId,
   isVisible,
-  onVisibilityChange,
-  onDropdownOpenChange // Add the prop here
+  onDropdownOpenChange,
+  className
 }: NoteStatusPanelProps) {
   const [currentStatuses, setCurrentStatuses] =
     useState<StatusPanelData | null>(null);
@@ -63,12 +63,15 @@ export function NoteStatusPanel({
         const statusData = await ftrackService.fetchStatusPanelData(assetVersionId);
         setCurrentStatuses(statusData);
 
-        // Fetch applicable statuses for version and parent
+        // Fetch applicable statuses for version and parent using new schema mapping
         const [versionStatusList, parentStatusList] = await Promise.all([
-          ftrackService.fetchApplicableStatuses("AssetVersion", assetVersionId),
-          statusData.parentId ? ftrackService.fetchApplicableStatuses(statusData.parentType || "Shot", statusData.parentId) : Promise.resolve([])
+          ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
+          statusData.parentId && statusData.parentType
+            ? ftrackService.getStatusesForEntity(statusData.parentType, statusData.parentId)
+            : Promise.resolve([])
         ]);
-
+        console.debug('[NoteStatusPanel] Version statuses:', versionStatusList);
+        console.debug('[NoteStatusPanel] Parent statuses:', parentStatusList);
         setVersionStatuses(versionStatusList);
         setParentStatuses(parentStatusList);
       } catch (error) {
@@ -87,35 +90,6 @@ export function NoteStatusPanel({
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [isVisible, assetVersionId, showError]);
-
-  // This useEffect for click outside might be redundant now if NoteInput handles hover correctly
-  // Consider removing or simplifying if the hover logic in NoteInput is sufficient.
-  // For now, let's keep it but adjust the logic slightly.
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // If either select dropdown is open, don't handle click outside here
-      // Let the Select component handle its own closing.
-      if (isVersionSelectOpen || isParentSelectOpen) {
-        return;
-      }
-
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-         // If click is outside the panel AND no dropdown is open, maybe hide?
-         // This might still conflict with NoteInput's hover logic.
-         // Let's comment this out for now, relying on NoteInput's hover.
-         // onVisibilityChange(false);
-      }
-    };
-
-    if (isVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-    // Depend on the individual select open states
-  }, [isVisible, onVisibilityChange, isVersionSelectOpen, isParentSelectOpen]);
 
   const handleStatusChange = async (statusId: string, type: 'version' | 'parent') => {
     if (!currentStatuses) return;
@@ -139,11 +113,13 @@ export function NoteStatusPanel({
   if (!isVisible) return null;
 
   return (
-    <div 
+    <div
       ref={panelRef}
-      className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[200px]"
+      className={cn(
+        "absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[200px]",
+        className
+      )}
       style={{ transform: 'translateX(50%)' }}
-      // Remove internal mouse enter/leave logic, NoteInput handles this now
     >
       <div className="space-y-4">
         {isLoading && (

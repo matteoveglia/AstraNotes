@@ -73,6 +73,74 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   // Add a timeout ref to handle hover delay
   const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(); // Ensure type allows undefined
 
+  // --- Panel visibility logic ---
+  // Track mouse over state for button and panel
+  const isMouseOverButton = useRef(false);
+  const isMouseOverPanel = useRef(false);
+
+  const openStatusPanel = () => {
+    setIsStatusPanelVisible(true);
+  };
+
+  // Only close if mouse is not over button or panel and dropdown is not open
+  const tryCloseStatusPanel = () => {
+    if (!isMouseOverButton.current && !isMouseOverPanel.current && !isDropdownMenuOpen) {
+      setIsStatusPanelVisible(false);
+    }
+  };
+
+  // Button mouse events
+  const handleButtonMouseEnter = () => {
+    isMouseOverButton.current = true;
+    setIsStatusPanelVisible(true);
+  };
+  const handleButtonMouseLeave = () => {
+    isMouseOverButton.current = false;
+    setTimeout(tryCloseStatusPanel, 100);
+  };
+
+  // Panel mouse events
+  const handlePanelMouseEnter = () => {
+    isMouseOverPanel.current = true;
+  };
+  const handlePanelMouseLeave = () => {
+    isMouseOverPanel.current = false;
+    setTimeout(tryCloseStatusPanel, 100);
+  };
+
+  // Click outside or Escape closes panel
+  useEffect(() => {
+    if (!isStatusPanelVisible) return;
+    function handleClick(e: MouseEvent) {
+      const panel = statusPanelRef.current;
+      const button = statusButtonRef.current;
+      if (
+        panel && !panel.contains(e.target as Node) &&
+        button && !button.contains(e.target as Node)
+      ) {
+        setIsStatusPanelVisible(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsStatusPanelVisible(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isStatusPanelVisible]);
+  // --- End panel visibility logic ---
+
+  // Callback for NoteStatusPanel to report dropdown state changes
+  const handleDropdownOpenChange = (isOpen: boolean) => {
+    setIsDropdownMenuOpen(isOpen);
+    if (!isOpen) {
+      setTimeout(tryCloseStatusPanel, 100);
+    }
+  };
+
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
@@ -444,40 +512,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
-  // Clear any existing timeout when entering the button or panel area
-  const handleMouseEnter = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = undefined;
-    }
-    setIsStatusPanelVisible(true);
-  };
-
-  // Set a timeout to hide the panel, but only if a dropdown isn't open
-  const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (!isDropdownMenuOpen) { // Check dropdown state
-        setIsStatusPanelVisible(false);
-      }
-    }, 300); // 300ms delay
-  };
-
-  // Callback for NoteStatusPanel to report dropdown state changes
-  const handleDropdownOpenChange = (isOpen: boolean) => {
-    setIsDropdownMenuOpen(isOpen);
-    // If a dropdown is closing, we might need to re-evaluate hiding the panel
-    if (!isOpen) {
-       // Trigger mouse leave logic again to potentially hide if mouse is outside
-       handleMouseLeave();
-    } else {
-      // If dropdown is opening, ensure any pending hide timeout is cancelled
-       if (hoverTimeoutRef.current) {
-         clearTimeout(hoverTimeoutRef.current);
-         hoverTimeoutRef.current = undefined;
-       }
-    }
-  };
-
   return (
     <div className="relative">
       <div
@@ -585,26 +619,30 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         {/* Statuses Button and Panel Container - Apply hover handlers here */}
                         <div
                           className="relative"
-                          onMouseEnter={handleMouseEnter} // Use the new handler
-                          onMouseLeave={handleMouseLeave} // Use the new handler
+                          onMouseEnter={handleButtonMouseEnter}
+                          onMouseLeave={handleButtonMouseLeave}
+                          ref={statusPanelRef}
                         >
                           <Button
                             ref={statusButtonRef}
                             variant="outline"
                             size="sm"
                             className="text-gray-500 hover:text-gray-700"
-                            // No hover handlers needed directly on the button
+                            onClick={openStatusPanel}
                           >
                             Statuses
                           </Button>
-                          {/* Keep existing NoteStatusPanel structure but ensure it's inside the hover zone */}
-                          {/* The panel itself doesn't need hover handlers as the parent div handles it */}
-                          <NoteStatusPanel
-                            assetVersionId={assetVersionId}
-                            isVisible={isStatusPanelVisible}
-                            onVisibilityChange={setIsStatusPanelVisible} // Keep this prop
-                            onDropdownOpenChange={handleDropdownOpenChange} // Add the new callback
-                          />
+                          <div
+                            onMouseEnter={handlePanelMouseEnter}
+                            onMouseLeave={handlePanelMouseLeave}
+                          >
+                            <NoteStatusPanel
+                              assetVersionId={assetVersionId}
+                              isVisible={isStatusPanelVisible}
+                              onDropdownOpenChange={handleDropdownOpenChange}
+                              className="" // for outside click detection
+                            />
+                          </div>
                         </div>
                       </div>
 
