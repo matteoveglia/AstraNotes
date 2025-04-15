@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
+import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 
 interface Status {
   id: string;
@@ -113,86 +114,60 @@ export function NoteStatusPanel({
   if (!isVisible) return null;
 
   return (
-    <div
-      ref={panelRef}
-      className={cn(
-        "absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[200px]",
-        className
-      )}
-      style={{ transform: 'translateX(50%)' }}
+    <DismissableLayer
+      disableOutsidePointerEvents={false}
+      onEscapeKeyDown={() => {
+        if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+      }}
+      onPointerDownOutside={() => {
+        if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+      }}
     >
-      <div className="flex justify-between items-center mb-2">
-        <span className="font-semibold text-base">Statuses</span>
-        <button
-          type="button"
-          className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          aria-label="Close"
-          onClick={() => {
-            // Call parent to close panel
-            if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
-          }}
-        >
-          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
-      <div className="space-y-4">
-        {isLoading && (
-          <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
+      <div
+        ref={panelRef}
+        className={cn(
+          "absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[200px]",
+          className
         )}
-
-        <div>
-          <h3 className="text-sm font-medium mb-2">Version Status</h3>
-          <Select
-            value={currentStatuses?.versionStatusId}
-            onValueChange={(value) => handleStatusChange(value, 'version')}
-            onOpenChange={(open) => {
-              setIsVersionSelectOpen(open);
-              // Call the callback passed from NoteInput
-              onDropdownOpenChange(open || isParentSelectOpen);
+        style={{ transform: 'translateX(50%)' }}
+      >
+        <div className="flex justify-between items-center mb-2">
+          <span className="font-semibold text-base">Statuses</span>
+          <button
+            type="button"
+            className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Close"
+            onClick={() => {
+              if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
             }}
           >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              {versionStatuses.map((status) => (
-                <SelectItem key={status.id} value={status.id}>
-                  <div className="flex items-center gap-2">
-                    {status.color && (
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      />
-                    )}
-                    {status.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
+        <div className="space-y-4">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          )}
 
-        {currentStatuses?.parentId && (
           <div>
-            <h3 className="text-sm font-medium mb-2">Shot Status</h3>
+            <h3 className="text-sm font-medium mb-2">Version Status</h3>
             <Select
-              value={currentStatuses?.parentStatusId}
-              onValueChange={(value) => handleStatusChange(value, 'parent')}
-            onOpenChange={(open) => {
-              setIsParentSelectOpen(open);
-              // Call the callback passed from NoteInput
-              onDropdownOpenChange(open || isVersionSelectOpen);
-            }}
+              value={currentStatuses?.versionStatusId}
+              onValueChange={(value) => handleStatusChange(value, 'version')}
+              onOpenChange={(open) => {
+                setIsVersionSelectOpen(open);
+                onDropdownOpenChange(open || isParentSelectOpen);
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                {parentStatuses.map((status) => (
+                {versionStatuses.map((status) => (
                   <SelectItem key={status.id} value={status.id}>
                     <div className="flex items-center gap-2">
                       {status.color && (
@@ -208,8 +183,41 @@ export function NoteStatusPanel({
               </SelectContent>
             </Select>
           </div>
-        )}
+
+          {currentStatuses?.parentId && (
+            <div>
+              <h3 className="text-sm font-medium mb-2">Shot Status</h3>
+              <Select
+                value={currentStatuses?.parentStatusId}
+                onValueChange={(value) => handleStatusChange(value, 'parent')}
+                onOpenChange={(open) => {
+                  setIsParentSelectOpen(open);
+                  onDropdownOpenChange(open || isVersionSelectOpen);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentStatuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      <div className="flex items-center gap-2">
+                        {status.color && (
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: status.color }}
+                          />
+                        )}
+                        {status.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </DismissableLayer>
   );
 }

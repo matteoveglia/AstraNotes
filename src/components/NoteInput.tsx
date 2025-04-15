@@ -84,59 +84,41 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Only close if mouse is not over button or panel and dropdown is not open
   const tryCloseStatusPanel = () => {
-    if (!isMouseOverButton.current && !isMouseOverPanel.current && !isDropdownMenuOpen) {
+    // If any dropdown is open, forcibly keep the panel open
+    if (isDropdownMenuOpen) {
+      setIsStatusPanelVisible(true);
+      return;
+    }
+    if (!isMouseOverButton.current && !isMouseOverPanel.current) {
       setIsStatusPanelVisible(false);
     }
   };
 
-  // Button mouse events
-  const handleButtonMouseEnter = () => {
+  // Button pointer events
+  const handleButtonPointerEnter = () => {
     isMouseOverButton.current = true;
     setIsStatusPanelVisible(true);
   };
-  const handleButtonMouseLeave = () => {
+  const handleButtonPointerLeave = () => {
     isMouseOverButton.current = false;
-    setTimeout(tryCloseStatusPanel, 100);
+    setTimeout(tryCloseStatusPanel, 300);
   };
 
-  // Panel mouse events
-  const handlePanelMouseEnter = () => {
+  // Panel pointer events
+  const handlePanelPointerEnter = () => {
     isMouseOverPanel.current = true;
   };
-  const handlePanelMouseLeave = () => {
+  const handlePanelPointerLeave = () => {
     isMouseOverPanel.current = false;
-    setTimeout(tryCloseStatusPanel, 100);
+    setTimeout(tryCloseStatusPanel, 300);
   };
-
-  // Click outside or Escape closes panel
-  useEffect(() => {
-    if (!isStatusPanelVisible) return;
-    function handleClick(e: MouseEvent) {
-      const panel = statusPanelRef.current;
-      const button = statusButtonRef.current;
-      if (
-        panel && !panel.contains(e.target as Node) &&
-        button && !button.contains(e.target as Node)
-      ) {
-        setIsStatusPanelVisible(false);
-      }
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setIsStatusPanelVisible(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [isStatusPanelVisible]);
-  // --- End panel visibility logic ---
 
   // Callback for NoteStatusPanel to report dropdown state changes
   const handleDropdownOpenChange = (isOpen: boolean) => {
     setIsDropdownMenuOpen(isOpen);
-    if (!isOpen) {
+    if (isOpen) {
+      setIsStatusPanelVisible(true); // Force panel open when dropdown opens
+    } else {
       setTimeout(tryCloseStatusPanel, 100);
     }
   };
@@ -619,8 +601,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         {/* Statuses Button and Panel Container - Apply hover handlers here */}
                         <div
                           className="relative"
-                          onMouseEnter={handleButtonMouseEnter}
-                          onMouseLeave={handleButtonMouseLeave}
+                          onPointerEnter={handleButtonPointerEnter}
+                          onPointerLeave={handleButtonPointerLeave}
                           ref={statusPanelRef}
                         >
                           <Button
@@ -633,8 +615,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                             Statuses
                           </Button>
                           <div
-                            onMouseEnter={handlePanelMouseEnter}
-                            onMouseLeave={handlePanelMouseLeave}
+                            onPointerEnter={handlePanelPointerEnter}
+                            onPointerLeave={handlePanelPointerLeave}
                           >
                             <NoteStatusPanel
                               assetVersionId={assetVersionId}
