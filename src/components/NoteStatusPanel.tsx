@@ -30,15 +30,13 @@ interface StatusPanelData {
 
 interface NoteStatusPanelProps {
   assetVersionId: string;
-  isVisible: boolean;
-  onDropdownOpenChange: (isOpen: boolean) => void;
+  onClose?: () => void;
   className?: string;
 }
 
 export function NoteStatusPanel({
   assetVersionId,
-  isVisible,
-  onDropdownOpenChange,
+  onClose,
   className
 }: NoteStatusPanelProps) {
   const [currentStatuses, setCurrentStatuses] =
@@ -46,6 +44,7 @@ export function NoteStatusPanel({
   const [versionStatuses, setVersionStatuses] = useState<Status[]>([]);
   const [parentStatuses, setParentStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
   // Track open state for each select individually
   const [isVersionSelectOpen, setIsVersionSelectOpen] = useState(false);
@@ -56,7 +55,7 @@ export function NoteStatusPanel({
     let timeoutId: NodeJS.Timeout;
 
     const fetchData = async () => {
-      if (!isVisible || !assetVersionId) return;
+      if (!isOpen || !assetVersionId) return;
 
       setIsLoading(true);
       try {
@@ -83,14 +82,14 @@ export function NoteStatusPanel({
       }
     };
 
-    if (isVisible) {
+    if (isOpen) {
       timeoutId = setTimeout(fetchData, 100); // Small delay to prevent unnecessary API calls
     }
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isVisible, assetVersionId, showError]);
+  }, [isOpen, assetVersionId, showError]);
 
   const handleStatusChange = async (statusId: string, type: 'version' | 'parent') => {
     if (!currentStatuses) return;
@@ -111,22 +110,52 @@ export function NoteStatusPanel({
     }
   };
 
-  if (!isVisible) return null;
+  if (!isOpen) {
+    if (onClose) onClose();
+    return null;
+  }
 
   return (
     <DismissableLayer
       disableOutsidePointerEvents={false}
       onEscapeKeyDown={() => {
-        if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+        console.debug('[NoteStatusPanel] DismissableLayer: Escape key down, closing panel');
+        setIsOpen(false);
+        if (onClose) onClose();
       }}
-      onPointerDownOutside={() => {
-        if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+      onPointerDownOutside={event => {
+        const target = event.target as HTMLElement;
+        if (
+          target.closest('[data-select-trigger]') ||
+          target.closest('[data-select-content]')
+        ) {
+          console.debug('[NoteStatusPanel] DismissableLayer: PointerDownOutside on dropdown, keeping panel open');
+          event.preventDefault();
+          return;
+        }
+        console.debug('[NoteStatusPanel] DismissableLayer: PointerDownOutside, closing panel');
+        setIsOpen(false);
+        if (onClose) onClose();
+      }}
+      onFocusOutside={event => {
+        const target = event.target as HTMLElement;
+        if (
+          target.closest('[data-select-trigger]') ||
+          target.closest('[data-select-content]')
+        ) {
+          console.debug('[NoteStatusPanel] DismissableLayer: FocusOutside on dropdown, keeping panel open');
+          event.preventDefault();
+          return;
+        }
+        console.debug('[NoteStatusPanel] DismissableLayer: FocusOutside, closing panel');
+        setIsOpen(false);
+        if (onClose) onClose();
       }}
     >
       <div
         ref={panelRef}
         className={cn(
-          "absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[200px]",
+          "absolute -right-11 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
           className
         )}
         style={{ transform: 'translateX(50%)' }}
@@ -138,7 +167,8 @@ export function NoteStatusPanel({
             className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close"
             onClick={() => {
-              if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+              setIsOpen(false);
+              if (onClose) onClose();
             }}
           >
             <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -160,7 +190,6 @@ export function NoteStatusPanel({
               onValueChange={(value) => handleStatusChange(value, 'version')}
               onOpenChange={(open) => {
                 setIsVersionSelectOpen(open);
-                onDropdownOpenChange(open || isParentSelectOpen);
               }}
             >
               <SelectTrigger className="w-full">
@@ -192,7 +221,6 @@ export function NoteStatusPanel({
                 onValueChange={(value) => handleStatusChange(value, 'parent')}
                 onOpenChange={(open) => {
                   setIsParentSelectOpen(open);
-                  onDropdownOpenChange(open || isVersionSelectOpen);
                 }}
               >
                 <SelectTrigger className="w-full">

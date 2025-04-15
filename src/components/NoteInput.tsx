@@ -65,7 +65,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const markdownEditorRef = useRef<MarkdownEditorRef>(null);
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
-  const [isStatusPanelVisible, setIsStatusPanelVisible] = useState(false);
+  const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
   const statusPanelRef = useRef<HTMLDivElement>(null);
   const [isDropdownMenuOpen, setIsDropdownMenuOpen] = useState(false); // New state
@@ -79,25 +79,25 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const isMouseOverPanel = useRef(false);
 
   const openStatusPanel = () => {
-    setIsStatusPanelVisible(true);
+    setIsStatusPanelOpen(true);
   };
 
   // Only close if mouse is not over button or panel and dropdown is not open
   const tryCloseStatusPanel = () => {
     // If any dropdown is open, forcibly keep the panel open
     if (isDropdownMenuOpen) {
-      setIsStatusPanelVisible(true);
+      setIsStatusPanelOpen(true);
       return;
     }
     if (!isMouseOverButton.current && !isMouseOverPanel.current) {
-      setIsStatusPanelVisible(false);
+      setIsStatusPanelOpen(false);
     }
   };
 
   // Button pointer events
   const handleButtonPointerEnter = () => {
     isMouseOverButton.current = true;
-    setIsStatusPanelVisible(true);
+    setIsStatusPanelOpen(true);
   };
   const handleButtonPointerLeave = () => {
     isMouseOverButton.current = false;
@@ -117,7 +117,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const handleDropdownOpenChange = (isOpen: boolean) => {
     setIsDropdownMenuOpen(isOpen);
     if (isOpen) {
-      setIsStatusPanelVisible(true); // Force panel open when dropdown opens
+      setIsStatusPanelOpen(true); // Force panel open when dropdown opens
     } else {
       setTimeout(tryCloseStatusPanel, 100);
     }
@@ -494,6 +494,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
+  const handleStatusPanelToggle = () => {
+    setIsStatusPanelOpen((open) => !open);
+  };
+
   return (
     <div className="relative">
       <div
@@ -598,33 +602,23 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         />
 
                         {/* Add the status panel button and container */}
-                        {/* Statuses Button and Panel Container - Apply hover handlers here */}
-                        <div
-                          className="relative"
-                          onPointerEnter={handleButtonPointerEnter}
-                          onPointerLeave={handleButtonPointerLeave}
-                          ref={statusPanelRef}
-                        >
+                        <div className="relative">
                           <Button
                             ref={statusButtonRef}
                             variant="outline"
                             size="sm"
                             className="text-gray-500 hover:text-gray-700"
-                            onClick={openStatusPanel}
+                            onClick={handleStatusPanelToggle}
                           >
                             Statuses
                           </Button>
-                          <div
-                            onPointerEnter={handlePanelPointerEnter}
-                            onPointerLeave={handlePanelPointerLeave}
-                          >
+                          {isStatusPanelOpen && (
                             <NoteStatusPanel
                               assetVersionId={assetVersionId}
-                              isVisible={isStatusPanelVisible}
-                              onDropdownOpenChange={handleDropdownOpenChange}
-                              className="" // for outside click detection
+                              onClose={() => setIsStatusPanelOpen(false)}
+                              className=""
                             />
-                          </div>
+                          )}
                         </div>
                       </div>
 
