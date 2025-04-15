@@ -567,7 +567,7 @@ export const MarkdownEditor = forwardRef<
             }),
           }}
           disabled={disabled}
-          spellCheck={true}
+          spellCheck={false}
           readOnly={disabled}
         />
       </div>

@@ -1447,7 +1447,23 @@ export class FtrackService {
         log(`[SchemaStatusMapping] No project_schema_id for entity: ${entityType} ${entityId}`);
         return [];
       }
-      // 2. Use mapping
+      // Special handling for AssetVersion (uses workflow schema, not Schema/SchemaStatus)
+      if (entityType === 'AssetVersion') {
+        // Get the ProjectSchema to find asset_version_workflow_schema_id
+        const schemaResult = await session.query(`select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`);
+        const schema = schemaResult.data[0];
+        const workflowSchemaId = schema?.asset_version_workflow_schema_id;
+        if (!workflowSchemaId) {
+          log(`[SchemaStatusMapping] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`);
+          return [];
+        }
+        // Find the workflow schema and its statuses
+        const workflowSchema = this.allWorkflowSchemas.find((ws: any) => ws.id === workflowSchemaId);
+        const statuses = workflowSchema?.statuses?.map((s: any) => ({ id: s.id, name: s.name, color: s.color })) || [];
+        log(`[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`, statuses);
+        return statuses;
+      }
+      // 2. Use mapping for all other types
       const statuses = this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
       log(`[SchemaStatusMapping] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`, statuses);
       return statuses;

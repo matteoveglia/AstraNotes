@@ -121,6 +121,22 @@ export function NoteStatusPanel({
       )}
       style={{ transform: 'translateX(50%)' }}
     >
+      <div className="flex justify-between items-center mb-2">
+        <span className="font-semibold text-base">Statuses</span>
+        <button
+          type="button"
+          className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Close"
+          onClick={() => {
+            // Call parent to close panel
+            if (typeof onDropdownOpenChange === 'function') onDropdownOpenChange(false);
+          }}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
       <div className="space-y-4">
         {isLoading && (
           <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
