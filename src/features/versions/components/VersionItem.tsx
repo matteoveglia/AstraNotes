@@ -109,6 +109,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
               onClear={onNoteClear}
               onSelectToggle={onSelect}
               selected={isSelected}
+              assetVersionId={version.id}
             />
           </div>
         </CardContent>

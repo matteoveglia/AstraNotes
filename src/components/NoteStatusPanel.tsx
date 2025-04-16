@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
+import { motion } from "motion/react";
 
 interface Status {
   id: string;
@@ -48,7 +49,7 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
 export function NoteStatusPanel({
   assetVersionId,
   onClose,
-  className
+  className,
 }: NoteStatusPanelProps) {
   const [currentStatuses, setCurrentStatuses] =
     useState<StatusPanelData | null>(null);
@@ -75,7 +76,8 @@ export function NoteStatusPanel({
       setIsLoading(true);
       try {
         // Always fetch currentStatuses first
-        const statusData = await ftrackService.fetchStatusPanelData(assetVersionId);
+        const statusData =
+          await ftrackService.fetchStatusPanelData(assetVersionId);
         setCurrentStatuses(statusData);
         const cacheKey = getCacheKey(assetVersionId, statusData.parentId);
         const cached = statusPanelCache[cacheKey];
@@ -85,14 +87,20 @@ export function NoteStatusPanel({
           // Use cached data
           versionStatusList = cached.versionStatuses;
           parentStatusList = cached.parentStatuses;
-          console.debug('[NoteStatusPanel] Using cached status panel data', cacheKey);
+          console.debug(
+            "[NoteStatusPanel] Using cached status panel data",
+            cacheKey,
+          );
         } else {
           // Fetch applicable statuses for version and parent using new schema mapping
           [versionStatusList, parentStatusList] = await Promise.all([
             ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
             statusData.parentId && statusData.parentType
-              ? ftrackService.getStatusesForEntity(statusData.parentType, statusData.parentId)
-              : Promise.resolve([])
+              ? ftrackService.getStatusesForEntity(
+                  statusData.parentType,
+                  statusData.parentId,
+                )
+              : Promise.resolve([]),
           ]);
           // Update cache
           statusPanelCache[cacheKey] = {
@@ -101,7 +109,7 @@ export function NoteStatusPanel({
             versionStatuses: versionStatusList,
             parentStatuses: parentStatusList,
           };
-          console.debug('[NoteStatusPanel] Cached status panel data', cacheKey);
+          console.debug("[NoteStatusPanel] Cached status panel data", cacheKey);
         }
         if (!cancelled) {
           setVersionStatuses(versionStatusList);
@@ -123,17 +131,36 @@ export function NoteStatusPanel({
     };
   }, [assetVersionId]);
 
-  const handleStatusChange = async (statusId: string, type: 'version' | 'parent') => {
+  const handleStatusChange = async (
+    statusId: string,
+    type: "version" | "parent",
+  ) => {
     if (!currentStatuses) return;
 
     try {
-      if (type === 'version') {
-        await ftrackService.updateEntityStatus("AssetVersion", currentStatuses.versionId, statusId);
-        setCurrentStatuses(prev => prev ? { ...prev, versionStatusId: statusId } : null);
+      if (type === "version") {
+        await ftrackService.updateEntityStatus(
+          "AssetVersion",
+          currentStatuses.versionId,
+          statusId,
+        );
+        setCurrentStatuses((prev) =>
+          prev ? { ...prev, versionStatusId: statusId } : null,
+        );
         showSuccess("Version status updated");
-      } else if (type === 'parent' && currentStatuses.parentId && currentStatuses.parentType) {
-        await ftrackService.updateEntityStatus(currentStatuses.parentType, currentStatuses.parentId, statusId);
-        setCurrentStatuses(prev => prev ? { ...prev, parentStatusId: statusId } : null);
+      } else if (
+        type === "parent" &&
+        currentStatuses.parentId &&
+        currentStatuses.parentType
+      ) {
+        await ftrackService.updateEntityStatus(
+          currentStatuses.parentType,
+          currentStatuses.parentId,
+          statusId,
+        );
+        setCurrentStatuses((prev) =>
+          prev ? { ...prev, parentStatusId: statusId } : null,
+        );
         showSuccess("Shot status updated");
       }
     } catch (error) {
@@ -147,43 +174,57 @@ export function NoteStatusPanel({
     <DismissableLayer
       disableOutsidePointerEvents={false}
       onEscapeKeyDown={() => {
-        console.debug('[NoteStatusPanel] DismissableLayer: Escape key down, closing panel');
+        console.debug(
+          "[NoteStatusPanel] DismissableLayer: Escape key down, closing panel",
+        );
         if (onClose) onClose();
       }}
-      onPointerDownOutside={event => {
+      onPointerDownOutside={(event) => {
         const target = event.target as HTMLElement;
         if (
-          target.closest('[data-select-trigger]') ||
-          target.closest('[data-select-content]')
+          target.closest("[data-select-trigger]") ||
+          target.closest("[data-select-content]")
         ) {
-          console.debug('[NoteStatusPanel] DismissableLayer: PointerDownOutside on dropdown, keeping panel open');
+          console.debug(
+            "[NoteStatusPanel] DismissableLayer: PointerDownOutside on dropdown, keeping panel open",
+          );
           event.preventDefault();
           return;
         }
-        console.debug('[NoteStatusPanel] DismissableLayer: PointerDownOutside, closing panel');
+        console.debug(
+          "[NoteStatusPanel] DismissableLayer: PointerDownOutside, closing panel",
+        );
         if (onClose) onClose();
       }}
-      onFocusOutside={event => {
+      onFocusOutside={(event) => {
         const target = event.target as HTMLElement;
         if (
-          target.closest('[data-select-trigger]') ||
-          target.closest('[data-select-content]')
+          target.closest("[data-select-trigger]") ||
+          target.closest("[data-select-content]")
         ) {
-          console.debug('[NoteStatusPanel] DismissableLayer: FocusOutside on dropdown, keeping panel open');
+          console.debug(
+            "[NoteStatusPanel] DismissableLayer: FocusOutside on dropdown, keeping panel open",
+          );
           event.preventDefault();
           return;
         }
-        console.debug('[NoteStatusPanel] DismissableLayer: FocusOutside, closing panel');
+        console.debug(
+          "[NoteStatusPanel] DismissableLayer: FocusOutside, closing panel",
+        );
         if (onClose) onClose();
       }}
     >
-      <div
+      <motion.div
         ref={panelRef}
         className={cn(
-          "absolute -right-7 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
-          className
+          "absolute -right-34 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
+          className,
         )}
-        style={{ transform: 'translateX(50%)' }}
+        style={{ transform: "translateX(50%)" }}
+        initial={{ opacity: 0, scale: 0.95, y: 0 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 0 }}
+        transition={{ type: "spring", duration: 0.25 }}
       >
         <div className="flex justify-between items-center mb-2">
           <span className="font-semibold text-sm">Statuses</span>
@@ -195,8 +236,18 @@ export function NoteStatusPanel({
               if (onClose) onClose();
             }}
           >
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M4 4L12 12M12 4L4 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -211,7 +262,7 @@ export function NoteStatusPanel({
             <h3 className="text-sm font-medium mb-2">Version Status</h3>
             <Select
               value={currentStatuses?.versionStatusId}
-              onValueChange={(value) => handleStatusChange(value, 'version')}
+              onValueChange={(value) => handleStatusChange(value, "version")}
               onOpenChange={(open) => {
                 setIsVersionSelectOpen(open);
               }}
@@ -242,7 +293,7 @@ export function NoteStatusPanel({
               <h3 className="text-sm font-medium mb-2">Shot Status</h3>
               <Select
                 value={currentStatuses?.parentStatusId}
-                onValueChange={(value) => handleStatusChange(value, 'parent')}
+                onValueChange={(value) => handleStatusChange(value, "parent")}
                 onOpenChange={(open) => {
                   setIsParentSelectOpen(open);
                 }}
@@ -269,7 +320,7 @@ export function NoteStatusPanel({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </DismissableLayer>
   );
 }

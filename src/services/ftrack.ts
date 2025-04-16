@@ -1110,7 +1110,9 @@ export class FtrackService {
       const session = await this.getSession();
 
       // 1. Get Project Schema ID and Object Type ID (if applicable) from the entity
-      log(`[fetchApplicableStatuses] entityType: ${entityType}, entityId: ${entityId}`);
+      log(
+        `[fetchApplicableStatuses] entityType: ${entityType}, entityId: ${entityId}`,
+      );
       let projection = "project.project_schema_id";
       if (entityType !== "AssetVersion" && entityType !== "Task") {
         projection += ", object_type_id";
@@ -1120,13 +1122,17 @@ export class FtrackService {
       );
 
       if (!entityQuery.data || entityQuery.data.length === 0) {
-        log(`[fetchApplicableStatuses] Entity not found: ${entityType} ${entityId}`);
+        log(
+          `[fetchApplicableStatuses] Entity not found: ${entityType} ${entityId}`,
+        );
         throw new Error(`Entity ${entityType} with id ${entityId} not found.`);
       }
       const entityData = entityQuery.data[0];
       const schemaId = entityData.project.project_schema_id;
       const objectTypeId = entityData.object_type_id;
-      log(`[fetchApplicableStatuses] schemaId: ${schemaId}, objectTypeId: ${objectTypeId}`);
+      log(
+        `[fetchApplicableStatuses] schemaId: ${schemaId}, objectTypeId: ${objectTypeId}`,
+      );
 
       // 2. Get the Project Schema details, explicitly selecting the overrides relationship
       const schemaQuery = await session.query(
@@ -1138,7 +1144,10 @@ export class FtrackService {
         from ProjectSchema
         where id is "${schemaId}"`,
       );
-      log("[fetchApplicableStatuses] Raw ProjectSchema query result:", schemaQuery);
+      log(
+        "[fetchApplicableStatuses] Raw ProjectSchema query result:",
+        schemaQuery,
+      );
 
       if (!schemaQuery.data?.[0]) {
         log("[fetchApplicableStatuses] Could not find workflow schema");
@@ -1156,34 +1165,51 @@ export class FtrackService {
           workflowSchemaId = schema.task_workflow_schema_id;
           break;
         default:
-          log(`[fetchApplicableStatuses] Handling default case for entityType: ${entityType}, objectTypeId: ${objectTypeId}`);
+          log(
+            `[fetchApplicableStatuses] Handling default case for entityType: ${entityType}, objectTypeId: ${objectTypeId}`,
+          );
           const overrides = schema.task_workflow_schema_overrides;
-          log("[fetchApplicableStatuses] Fetched overrides:", JSON.stringify(overrides, null, 2));
+          log(
+            "[fetchApplicableStatuses] Fetched overrides:",
+            JSON.stringify(overrides, null, 2),
+          );
 
           if (objectTypeId && overrides && Array.isArray(overrides)) {
             const override = overrides.find(
               (ov: any) => ov && ov.type_id === objectTypeId,
             );
-            log(`[fetchApplicableStatuses] Searching for override with type_id: ${objectTypeId}`);
+            log(
+              `[fetchApplicableStatuses] Searching for override with type_id: ${objectTypeId}`,
+            );
             if (override && override.workflow_schema_id) {
               workflowSchemaId = override.workflow_schema_id;
-              log(`[fetchApplicableStatuses] Override Found! Using workflow override for Object Type ${objectTypeId}: ${workflowSchemaId}`);
+              log(
+                `[fetchApplicableStatuses] Override Found! Using workflow override for Object Type ${objectTypeId}: ${workflowSchemaId}`,
+              );
             } else {
-              log(`[fetchApplicableStatuses] No specific override found for type_id: ${objectTypeId} in the fetched overrides.`);
+              log(
+                `[fetchApplicableStatuses] No specific override found for type_id: ${objectTypeId} in the fetched overrides.`,
+              );
             }
           } else {
-            log(`[fetchApplicableStatuses] No overrides array found or objectTypeId is missing. Overrides: ${JSON.stringify(overrides)}`);
+            log(
+              `[fetchApplicableStatuses] No overrides array found or objectTypeId is missing. Overrides: ${JSON.stringify(overrides)}`,
+            );
           }
 
           if (!workflowSchemaId) {
             workflowSchemaId = schema.task_workflow_schema_id;
-            log(`[fetchApplicableStatuses] No override applied for ${entityType} (Object Type ${objectTypeId || "N/A"}), using default task workflow: ${workflowSchemaId}`);
+            log(
+              `[fetchApplicableStatuses] No override applied for ${entityType} (Object Type ${objectTypeId || "N/A"}), using default task workflow: ${workflowSchemaId}`,
+            );
           }
           break;
       }
 
       if (!workflowSchemaId) {
-        log(`[fetchApplicableStatuses] No workflow schema found for ${entityType}`);
+        log(
+          `[fetchApplicableStatuses] No workflow schema found for ${entityType}`,
+        );
         throw new Error(`No workflow schema found for ${entityType}`);
       }
 
@@ -1194,13 +1220,21 @@ export class FtrackService {
         where id is "${workflowSchemaId}"`,
       );
 
-      log(`[fetchApplicableStatuses] statusQuery.data:`, JSON.stringify(statusQuery.data, null, 2));
+      log(
+        `[fetchApplicableStatuses] statusQuery.data:`,
+        JSON.stringify(statusQuery.data, null, 2),
+      );
       if (!statusQuery.data?.[0]?.statuses) {
-        log(`[fetchApplicableStatuses] No statuses found in workflow schema ${workflowSchemaId}`);
+        log(
+          `[fetchApplicableStatuses] No statuses found in workflow schema ${workflowSchemaId}`,
+        );
         return [];
       }
 
-      log(`[fetchApplicableStatuses] Returning statuses for ${entityType} (${entityId}):`, statusQuery.data[0].statuses);
+      log(
+        `[fetchApplicableStatuses] Returning statuses for ${entityType} (${entityId}):`,
+        statusQuery.data[0].statuses,
+      );
       return statusQuery.data[0].statuses.map((status: any) => ({
         id: status.id,
         name: status.name,
@@ -1234,7 +1268,7 @@ export class FtrackService {
 
       const result = await session.query(query);
       const version = result.data[0];
-      
+
       if (!version) {
         throw new Error("Asset version not found");
       }
@@ -1248,7 +1282,7 @@ export class FtrackService {
         parentId: parent.id,
         parentStatusId: parent.status_id,
         parentType: parent.object_type.name,
-        projectId: parent.project.id
+        projectId: parent.project.id,
       };
     } catch (error) {
       console.error("Error fetching status panel data:", error);
@@ -1281,68 +1315,97 @@ export class FtrackService {
     try {
       const session = await this.getSession();
       // 1. Fetch all statuses
-      const statusResult = await session.query('select id, name, color from Status');
-      this.allStatuses = statusResult.data.map((s: any) => ({ id: s.id, name: s.name, color: s.color }));
-      log('[StatusMapping] All statuses:', this.allStatuses);
+      const statusResult = await session.query(
+        "select id, name, color from Status",
+      );
+      this.allStatuses = statusResult.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        color: s.color,
+      }));
+      log("[StatusMapping] All statuses:", this.allStatuses);
 
       // 2. Fetch all object types
-      const objectTypeResult = await session.query('select id, name from ObjectType');
+      const objectTypeResult = await session.query(
+        "select id, name from ObjectType",
+      );
       this.allObjectTypes = objectTypeResult.data;
-      log('[StatusMapping] All object types:', this.allObjectTypes);
+      log("[StatusMapping] All object types:", this.allObjectTypes);
 
       // 3. Fetch all workflow schemas (with statuses)
-      const workflowSchemaResult = await session.query('select id, name, statuses.id, statuses.name, statuses.color from WorkflowSchema');
+      const workflowSchemaResult = await session.query(
+        "select id, name, statuses.id, statuses.name, statuses.color from WorkflowSchema",
+      );
       this.allWorkflowSchemas = workflowSchemaResult.data;
-      log('[StatusMapping] All workflow schemas:', this.allWorkflowSchemas);
+      log("[StatusMapping] All workflow schemas:", this.allWorkflowSchemas);
 
       // 4. Fetch all project schema overrides for the current project schema
       // First, get the current project schema id (from any entity, e.g., current user)
-      const userResult = await session.query(`select project.project_schema_id from User where username is "${this.settings?.apiUser}"`);
+      const userResult = await session.query(
+        `select project.project_schema_id from User where username is "${this.settings?.apiUser}"`,
+      );
       const schemaId = userResult.data[0]?.project?.project_schema_id;
       if (!schemaId) {
-        log('[StatusMapping] Could not determine current project schema id');
+        log("[StatusMapping] Could not determine current project schema id");
         return;
       }
-      const overrideResult = await session.query(`select type_id, workflow_schema_id from ProjectSchemaOverride where project_schema_id is "${schemaId}"`);
+      const overrideResult = await session.query(
+        `select type_id, workflow_schema_id from ProjectSchemaOverride where project_schema_id is "${schemaId}"`,
+      );
       this.allOverrides = overrideResult.data;
-      log('[StatusMapping] All project schema overrides:', this.allOverrides);
+      log("[StatusMapping] All project schema overrides:", this.allOverrides);
 
       // 5. Fetch the ProjectSchema itself for default workflow schema ids
-      const schemaResult = await session.query(`select asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema where id is "${schemaId}"`);
+      const schemaResult = await session.query(
+        `select asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema where id is "${schemaId}"`,
+      );
       const schema = schemaResult.data[0];
-      log('[StatusMapping] ProjectSchema:', schema);
+      log("[StatusMapping] ProjectSchema:", schema);
 
       // 6. Build mapping for each object type
       this.statusMapping = {};
       for (const objType of this.allObjectTypes) {
         let workflowSchemaId: string | null = null;
         // Check for override
-        const override = this.allOverrides.find((ov: any) => ov.type_id === objType.id);
+        const override = this.allOverrides.find(
+          (ov: any) => ov.type_id === objType.id,
+        );
         if (override) {
           workflowSchemaId = override.workflow_schema_id;
-          log(`[StatusMapping] Override for ${objType.name}: ${workflowSchemaId}`);
+          log(
+            `[StatusMapping] Override for ${objType.name}: ${workflowSchemaId}`,
+          );
         } else {
           // Use default
-          if (objType.name === 'AssetVersion') {
+          if (objType.name === "AssetVersion") {
             workflowSchemaId = schema.asset_version_workflow_schema_id;
           } else {
             workflowSchemaId = schema.task_workflow_schema_id;
           }
-          log(`[StatusMapping] Default for ${objType.name}: ${workflowSchemaId}`);
+          log(
+            `[StatusMapping] Default for ${objType.name}: ${workflowSchemaId}`,
+          );
         }
         // Find statuses for this workflow schema
-        const workflowSchema = this.allWorkflowSchemas.find((ws: any) => ws.id === workflowSchemaId);
-        const statuses = workflowSchema?.statuses?.map((s: any) => ({ id: s.id, name: s.name, color: s.color })) || [];
+        const workflowSchema = this.allWorkflowSchemas.find(
+          (ws: any) => ws.id === workflowSchemaId,
+        );
+        const statuses =
+          workflowSchema?.statuses?.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+          })) || [];
         this.statusMapping[objType.name] = {
-          workflowSchemaId: workflowSchemaId || '',
+          workflowSchemaId: workflowSchemaId || "",
           statuses,
         };
         log(`[StatusMapping] Statuses for ${objType.name}:`, statuses);
       }
       this.statusMappingReady = true;
-      log('[StatusMapping] Mapping complete:', this.statusMapping);
+      log("[StatusMapping] Mapping complete:", this.statusMapping);
     } catch (error) {
-      log('[StatusMapping] Failed to build status mapping:', error);
+      log("[StatusMapping] Failed to build status mapping:", error);
       this.statusMappingReady = false;
     }
   }
@@ -1352,7 +1415,7 @@ export class FtrackService {
    */
   getApplicableStatusesForType(entityType: string): Status[] {
     if (!this.statusMappingReady) {
-      log('[StatusMapping] Mapping not ready, returning empty');
+      log("[StatusMapping] Mapping not ready, returning empty");
       return [];
     }
     const entry = this.statusMapping[entityType];
@@ -1360,7 +1423,10 @@ export class FtrackService {
       log(`[StatusMapping] No mapping for entityType: ${entityType}`);
       return [];
     }
-    log(`[StatusMapping] Returning statuses for ${entityType}:`, entry.statuses);
+    log(
+      `[StatusMapping] Returning statuses for ${entityType}:`,
+      entry.statuses,
+    );
     return entry.statuses;
   }
 
@@ -1372,29 +1438,43 @@ export class FtrackService {
     try {
       const session = await this.getSession();
       // 1. Fetch all ProjectSchemas
-      const projectSchemasResult = await session.query('select id, name from ProjectSchema');
+      const projectSchemasResult = await session.query(
+        "select id, name from ProjectSchema",
+      );
       const allProjectSchemas = projectSchemasResult.data;
-      log('[SchemaStatusMapping] All ProjectSchemas:', allProjectSchemas);
+      log("[SchemaStatusMapping] All ProjectSchemas:", allProjectSchemas);
 
       // 2. Fetch all ObjectTypes
-      const objectTypeResult = await session.query('select id, name from ObjectType');
+      const objectTypeResult = await session.query(
+        "select id, name from ObjectType",
+      );
       const allObjectTypes = objectTypeResult.data;
-      log('[SchemaStatusMapping] All ObjectTypes:', allObjectTypes);
+      log("[SchemaStatusMapping] All ObjectTypes:", allObjectTypes);
 
       // 3. Fetch all Statuses
-      const statusResult = await session.query('select id, name, color from Status');
-      const allStatuses = statusResult.data.map((s: any) => ({ id: s.id, name: s.name, color: s.color }));
-      log('[SchemaStatusMapping] All Statuses:', allStatuses);
+      const statusResult = await session.query(
+        "select id, name, color from Status",
+      );
+      const allStatuses = statusResult.data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        color: s.color,
+      }));
+      log("[SchemaStatusMapping] All Statuses:", allStatuses);
 
       // 4. Fetch all Schema (the link between ProjectSchema and ObjectType)
-      const schemaResult = await session.query('select id, project_schema_id, object_type_id from Schema');
+      const schemaResult = await session.query(
+        "select id, project_schema_id, object_type_id from Schema",
+      );
       const allSchemas = schemaResult.data;
-      log('[SchemaStatusMapping] All Schema:', allSchemas);
+      log("[SchemaStatusMapping] All Schema:", allSchemas);
 
       // 5. Fetch all SchemaStatus (the link between Schema and Status)
-      const schemaStatusResult = await session.query('select schema_id, status_id from SchemaStatus');
+      const schemaStatusResult = await session.query(
+        "select schema_id, status_id from SchemaStatus",
+      );
       const allSchemaStatuses = schemaStatusResult.data;
-      log('[SchemaStatusMapping] All SchemaStatus:', allSchemaStatuses);
+      log("[SchemaStatusMapping] All SchemaStatus:", allSchemaStatuses);
 
       // Build mapping
       this.schemaStatusMapping = {};
@@ -1402,24 +1482,36 @@ export class FtrackService {
         const schemaId = projectSchema.id;
         this.schemaStatusMapping[schemaId] = {};
         // Find all Schema rows for this ProjectSchema
-        const schemasForProject = allSchemas.filter((sc: any) => sc.project_schema_id === schemaId);
+        const schemasForProject = allSchemas.filter(
+          (sc: any) => sc.project_schema_id === schemaId,
+        );
         for (const schema of schemasForProject) {
-          const objectType = allObjectTypes.find((ot: any) => ot.id === schema.object_type_id);
+          const objectType = allObjectTypes.find(
+            (ot: any) => ot.id === schema.object_type_id,
+          );
           if (!objectType) continue;
           // Find all SchemaStatus rows for this Schema
-          const schemaStatuses = allSchemaStatuses.filter((ss: any) => ss.schema_id === schema.id);
+          const schemaStatuses = allSchemaStatuses.filter(
+            (ss: any) => ss.schema_id === schema.id,
+          );
           // Map to Status objects
           const statuses = schemaStatuses
             .map((ss: any) => allStatuses.find((st) => st.id === ss.status_id))
             .filter(Boolean) as Status[];
           this.schemaStatusMapping[schemaId][objectType.name] = statuses;
-          log(`[SchemaStatusMapping] ProjectSchema ${schemaId} (${projectSchema.name}), ObjectType ${objectType.name}:`, statuses);
+          log(
+            `[SchemaStatusMapping] ProjectSchema ${schemaId} (${projectSchema.name}), ObjectType ${objectType.name}:`,
+            statuses,
+          );
         }
       }
       this.schemaStatusMappingReady = true;
-      log('[SchemaStatusMapping] Mapping complete:', this.schemaStatusMapping);
+      log("[SchemaStatusMapping] Mapping complete:", this.schemaStatusMapping);
     } catch (error) {
-      log('[SchemaStatusMapping] Failed to build schema status mapping:', error);
+      log(
+        "[SchemaStatusMapping] Failed to build schema status mapping:",
+        error,
+      );
       this.schemaStatusMappingReady = false;
     }
   }
@@ -1428,47 +1520,74 @@ export class FtrackService {
    * Get valid statuses for an entity (by id and type) using the schema mapping.
    * Looks up the entity's project, then its ProjectSchema, then the allowed statuses for the entity's type.
    */
-  async getStatusesForEntity(entityType: string, entityId: string): Promise<Status[]> {
+  async getStatusesForEntity(
+    entityType: string,
+    entityId: string,
+  ): Promise<Status[]> {
     if (!this.schemaStatusMappingReady) {
-      log('[SchemaStatusMapping] Mapping not ready, returning empty');
+      log("[SchemaStatusMapping] Mapping not ready, returning empty");
       return [];
     }
     try {
       const session = await this.getSession();
       // 1. Get the entity's project and project_schema_id
-      const entityQuery = await session.query(`select project.id, project.project_schema_id from ${entityType} where id is "${entityId}"`);
+      const entityQuery = await session.query(
+        `select project.id, project.project_schema_id from ${entityType} where id is "${entityId}"`,
+      );
       const entityData = entityQuery.data[0];
       if (!entityData) {
-        log(`[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`);
+        log(
+          `[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`,
+        );
         return [];
       }
       const projectSchemaId = entityData.project?.project_schema_id;
       if (!projectSchemaId) {
-        log(`[SchemaStatusMapping] No project_schema_id for entity: ${entityType} ${entityId}`);
+        log(
+          `[SchemaStatusMapping] No project_schema_id for entity: ${entityType} ${entityId}`,
+        );
         return [];
       }
       // Special handling for AssetVersion (uses workflow schema, not Schema/SchemaStatus)
-      if (entityType === 'AssetVersion') {
+      if (entityType === "AssetVersion") {
         // Get the ProjectSchema to find asset_version_workflow_schema_id
-        const schemaResult = await session.query(`select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`);
+        const schemaResult = await session.query(
+          `select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`,
+        );
         const schema = schemaResult.data[0];
         const workflowSchemaId = schema?.asset_version_workflow_schema_id;
         if (!workflowSchemaId) {
-          log(`[SchemaStatusMapping] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`);
+          log(
+            `[SchemaStatusMapping] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`,
+          );
           return [];
         }
         // Find the workflow schema and its statuses
-        const workflowSchema = this.allWorkflowSchemas.find((ws: any) => ws.id === workflowSchemaId);
-        const statuses = workflowSchema?.statuses?.map((s: any) => ({ id: s.id, name: s.name, color: s.color })) || [];
-        log(`[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`, statuses);
+        const workflowSchema = this.allWorkflowSchemas.find(
+          (ws: any) => ws.id === workflowSchemaId,
+        );
+        const statuses =
+          workflowSchema?.statuses?.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+          })) || [];
+        log(
+          `[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`,
+          statuses,
+        );
         return statuses;
       }
       // 2. Use mapping for all other types
-      const statuses = this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
-      log(`[SchemaStatusMapping] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`, statuses);
+      const statuses =
+        this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
+      log(
+        `[SchemaStatusMapping] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`,
+        statuses,
+      );
       return statuses;
     } catch (error) {
-      log('[SchemaStatusMapping] Failed to get statuses for entity:', error);
+      log("[SchemaStatusMapping] Failed to get statuses for entity:", error);
       return [];
     }
   }

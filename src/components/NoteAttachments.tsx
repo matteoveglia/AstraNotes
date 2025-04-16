@@ -4,6 +4,7 @@ import { Paperclip, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "@/components/ui/toast";
+import { motion } from "motion/react";
 
 // TypeScript declaration for Tauri
 declare global {
@@ -402,9 +403,13 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
       {/* Attachment Dropdown Content */}
       {showAttachments && (
-        <div
+        <motion.div
           ref={dropdownRef}
           className="absolute z-50 bg-background border border-border rounded-md shadow-lg p-3 mt-2 w-72"
+          initial={{ opacity: 0, scale: 0.95, y: 0 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 0 }}
+          transition={{ type: "spring", duration: 0.25 }}
         >
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center">
@@ -471,7 +476,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
               </Button>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );

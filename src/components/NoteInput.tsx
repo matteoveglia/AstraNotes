@@ -66,8 +66,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
-  const statusButtonRef = useRef<HTMLButtonElement>(null);
-  const statusPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setContent(initialContent);
@@ -550,13 +548,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         {/* Add the status panel button and container */}
                         <div className="relative">
                           <Button
-                            ref={statusButtonRef}
                             type="button"
                             variant="outline"
                             size="sm"
                             className={cn(
                               "flex items-center space-x-1",
-                              status === "published" && "opacity-50 cursor-not-allowed"
+                              status === "published" &&
+                                "opacity-50 cursor-not-allowed",
                             )}
                             onClick={handleStatusPanelToggle}
                             disabled={status === "published"}
