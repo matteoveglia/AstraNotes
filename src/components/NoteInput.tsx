@@ -13,7 +13,7 @@ import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2 } from "lucide-react";
+import { Loader2, Workflow } from "lucide-react";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
@@ -68,60 +68,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const statusButtonRef = useRef<HTMLButtonElement>(null);
   const statusPanelRef = useRef<HTMLDivElement>(null);
-  const [isDropdownMenuOpen, setIsDropdownMenuOpen] = useState(false); // New state
-
-  // Add a timeout ref to handle hover delay
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(); // Ensure type allows undefined
-
-  // --- Panel visibility logic ---
-  // Track mouse over state for button and panel
-  const isMouseOverButton = useRef(false);
-  const isMouseOverPanel = useRef(false);
-
-  const openStatusPanel = () => {
-    setIsStatusPanelOpen(true);
-  };
-
-  // Only close if mouse is not over button or panel and dropdown is not open
-  const tryCloseStatusPanel = () => {
-    // If any dropdown is open, forcibly keep the panel open
-    if (isDropdownMenuOpen) {
-      setIsStatusPanelOpen(true);
-      return;
-    }
-    if (!isMouseOverButton.current && !isMouseOverPanel.current) {
-      setIsStatusPanelOpen(false);
-    }
-  };
-
-  // Button pointer events
-  const handleButtonPointerEnter = () => {
-    isMouseOverButton.current = true;
-    setIsStatusPanelOpen(true);
-  };
-  const handleButtonPointerLeave = () => {
-    isMouseOverButton.current = false;
-    setTimeout(tryCloseStatusPanel, 300);
-  };
-
-  // Panel pointer events
-  const handlePanelPointerEnter = () => {
-    isMouseOverPanel.current = true;
-  };
-  const handlePanelPointerLeave = () => {
-    isMouseOverPanel.current = false;
-    setTimeout(tryCloseStatusPanel, 300);
-  };
-
-  // Callback for NoteStatusPanel to report dropdown state changes
-  const handleDropdownOpenChange = (isOpen: boolean) => {
-    setIsDropdownMenuOpen(isOpen);
-    if (isOpen) {
-      setIsStatusPanelOpen(true); // Force panel open when dropdown opens
-    } else {
-      setTimeout(tryCloseStatusPanel, 100);
-    }
-  };
 
   useEffect(() => {
     setContent(initialContent);
@@ -605,12 +551,18 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         <div className="relative">
                           <Button
                             ref={statusButtonRef}
+                            type="button"
                             variant="outline"
                             size="sm"
-                            className="text-gray-500 hover:text-gray-700"
+                            className={cn(
+                              "flex items-center space-x-1",
+                              status === "published" && "opacity-50 cursor-not-allowed"
+                            )}
                             onClick={handleStatusPanelToggle}
+                            disabled={status === "published"}
                           >
-                            Statuses
+                            <Workflow className="h-4 w-4" />
+                            <span>Statuses</span>
                           </Button>
                           {isStatusPanelOpen && (
                             <NoteStatusPanel

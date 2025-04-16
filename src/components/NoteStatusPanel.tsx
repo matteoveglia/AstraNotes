@@ -34,6 +34,17 @@ interface NoteStatusPanelProps {
   className?: string;
 }
 
+// Add a simple in-memory cache for status data
+const statusPanelCache: {
+  [key: string]: {
+    timestamp: number;
+    currentStatuses: StatusPanelData;
+    versionStatuses: Status[];
+    parentStatuses: Status[];
+  };
+} = {};
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
 export function NoteStatusPanel({
   assetVersionId,
   onClose,
@@ -44,52 +55,73 @@ export function NoteStatusPanel({
   const [versionStatuses, setVersionStatuses] = useState<Status[]>([]);
   const [parentStatuses, setParentStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
   // Track open state for each select individually
   const [isVersionSelectOpen, setIsVersionSelectOpen] = useState(false);
   const [isParentSelectOpen, setIsParentSelectOpen] = useState(false);
   const { showSuccess, showError } = useToast();
 
+  // Helper to get cache key
+  const getCacheKey = (assetVersionId: string, parentId?: string) => {
+    return `${assetVersionId}:${parentId || "none"}`;
+  };
+
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    let cancelled = false;
 
     const fetchData = async () => {
-      if (!isOpen || !assetVersionId) return;
-
+      if (!assetVersionId) return;
       setIsLoading(true);
       try {
-        // Fetch current statuses
+        // Always fetch currentStatuses first
         const statusData = await ftrackService.fetchStatusPanelData(assetVersionId);
         setCurrentStatuses(statusData);
-
-        // Fetch applicable statuses for version and parent using new schema mapping
-        const [versionStatusList, parentStatusList] = await Promise.all([
-          ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
-          statusData.parentId && statusData.parentType
-            ? ftrackService.getStatusesForEntity(statusData.parentType, statusData.parentId)
-            : Promise.resolve([])
-        ]);
-        console.debug('[NoteStatusPanel] Version statuses:', versionStatusList);
-        console.debug('[NoteStatusPanel] Parent statuses:', parentStatusList);
-        setVersionStatuses(versionStatusList);
-        setParentStatuses(parentStatusList);
+        const cacheKey = getCacheKey(assetVersionId, statusData.parentId);
+        const cached = statusPanelCache[cacheKey];
+        let versionStatusList: Status[] = [];
+        let parentStatusList: Status[] = [];
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          // Use cached data
+          versionStatusList = cached.versionStatuses;
+          parentStatusList = cached.parentStatuses;
+          console.debug('[NoteStatusPanel] Using cached status panel data', cacheKey);
+        } else {
+          // Fetch applicable statuses for version and parent using new schema mapping
+          [versionStatusList, parentStatusList] = await Promise.all([
+            ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
+            statusData.parentId && statusData.parentType
+              ? ftrackService.getStatusesForEntity(statusData.parentType, statusData.parentId)
+              : Promise.resolve([])
+          ]);
+          // Update cache
+          statusPanelCache[cacheKey] = {
+            timestamp: Date.now(),
+            currentStatuses: statusData,
+            versionStatuses: versionStatusList,
+            parentStatuses: parentStatusList,
+          };
+          console.debug('[NoteStatusPanel] Cached status panel data', cacheKey);
+        }
+        if (!cancelled) {
+          setVersionStatuses(versionStatusList);
+          setParentStatuses(parentStatusList);
+        }
       } catch (error) {
         console.error("Error fetching statuses:", error);
         showError("Failed to fetch statuses");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    if (isOpen) {
-      timeoutId = setTimeout(fetchData, 100); // Small delay to prevent unnecessary API calls
-    }
+    timeoutId = setTimeout(fetchData, 100); // Small delay to prevent unnecessary API calls
 
     return () => {
+      cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isOpen, assetVersionId, showError]);
+  }, [assetVersionId]);
 
   const handleStatusChange = async (statusId: string, type: 'version' | 'parent') => {
     if (!currentStatuses) return;
@@ -110,17 +142,12 @@ export function NoteStatusPanel({
     }
   };
 
-  if (!isOpen) {
-    if (onClose) onClose();
-    return null;
-  }
-
+  // Panel is always open when rendered; closing is handled by parent
   return (
     <DismissableLayer
       disableOutsidePointerEvents={false}
       onEscapeKeyDown={() => {
         console.debug('[NoteStatusPanel] DismissableLayer: Escape key down, closing panel');
-        setIsOpen(false);
         if (onClose) onClose();
       }}
       onPointerDownOutside={event => {
@@ -134,7 +161,6 @@ export function NoteStatusPanel({
           return;
         }
         console.debug('[NoteStatusPanel] DismissableLayer: PointerDownOutside, closing panel');
-        setIsOpen(false);
         if (onClose) onClose();
       }}
       onFocusOutside={event => {
@@ -148,26 +174,24 @@ export function NoteStatusPanel({
           return;
         }
         console.debug('[NoteStatusPanel] DismissableLayer: FocusOutside, closing panel');
-        setIsOpen(false);
         if (onClose) onClose();
       }}
     >
       <div
         ref={panelRef}
         className={cn(
-          "absolute -right-11 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
+          "absolute -right-7 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
           className
         )}
         style={{ transform: 'translateX(50%)' }}
       >
         <div className="flex justify-between items-center mb-2">
-          <span className="font-semibold text-base">Statuses</span>
+          <span className="font-semibold text-sm">Statuses</span>
           <button
             type="button"
             className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close"
             onClick={() => {
-              setIsOpen(false);
               if (onClose) onClose();
             }}
           >
