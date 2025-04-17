@@ -68,7 +68,10 @@ export function NoteStatusPanel({
   };
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    // Clear stale cache on mount to ensure fresh data
+    Object.keys(statusPanelCache).forEach((key) => {
+      delete statusPanelCache[key];
+    });
     let cancelled = false;
 
     const fetchData = async () => {
@@ -123,11 +126,10 @@ export function NoteStatusPanel({
       }
     };
 
-    timeoutId = setTimeout(fetchData, 100); // Small delay to prevent unnecessary API calls
+    fetchData();
 
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [assetVersionId]);
 
@@ -254,7 +256,7 @@ export function NoteStatusPanel({
         <div className="space-y-4">
           {isLoading && (
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin" data-testid="loader" />
             </div>
           )}
 
