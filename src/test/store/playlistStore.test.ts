@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { usePlaylistsStore } from '@/store/playlistsStore';
 import { ftrackService } from '@/services/ftrack';
+import { createMockPlaylist } from '@/test/utils';
 
 // Mock only getPlaylists on ftrackService
 vi.mock('@/services/ftrack', () => ({
@@ -33,18 +34,13 @@ describe('usePlaylistsStore', () => {
   });
 
   it('loadPlaylists should fetch and set playlists', async () => {
-    const mockPlaylists = [
-      {
-        id: 'p1',
-        name: 'Playlist 1',
-        title: 'Playlist 1',
-        notes: [],
-        versions: [],
-        createdAt: '',
-        updatedAt: '',
-        isQuickNotes: false,
-      },
-    ];
+    const mockPlaylist = createMockPlaylist({
+      id: 'p1',
+      name: 'Playlist 1',
+      title: 'Playlist 1',
+      notes: [],
+    });
+    const mockPlaylists = [mockPlaylist];
     (ftrackService.getPlaylists as vi.Mock).mockResolvedValue(mockPlaylists);
 
     const promise = usePlaylistsStore.getState().loadPlaylists();
@@ -78,16 +74,12 @@ describe('usePlaylistsStore', () => {
 
   it('updatePlaylist should replace an existing playlist', async () => {
     // Seed store with a second playlist 'p2'
-    const existing = {
+    const existing = createMockPlaylist({
       id: 'p2',
       name: 'Old Name',
       title: 'Old Name',
       notes: [],
-      versions: [],
-      createdAt: '',
-      updatedAt: '',
-      isQuickNotes: false,
-    };
+    });
     usePlaylistsStore.setState((state) => ({
       ...state,
       playlists: [initialState.playlists[0], existing],
@@ -96,18 +88,13 @@ describe('usePlaylistsStore', () => {
       error: null,
     }));
 
-    const freshList = [
-      {
-        id: 'p2',
-        name: 'New Name',
-        title: 'New Name',
-        notes: [],
-        versions: [],
-        createdAt: '',
-        updatedAt: '',
-        isQuickNotes: false,
-      },
-    ];
+    const freshPlaylist = createMockPlaylist({
+      id: 'p2',
+      name: 'New Name',
+      title: 'New Name',
+      notes: [],
+    });
+    const freshList = [freshPlaylist];
     (ftrackService.getPlaylists as vi.Mock).mockResolvedValue(freshList);
 
     await usePlaylistsStore.getState().updatePlaylist('p2');
@@ -130,16 +117,12 @@ describe('usePlaylistsStore', () => {
   });
 
   it('updatePlaylist should not remove a non-existent playlist', async () => {
-    const existing = {
+    const existing = createMockPlaylist({
       id: 'p3',
       name: 'P3',
       title: 'P3',
       notes: [],
-      versions: [],
-      createdAt: '',
-      updatedAt: '',
-      isQuickNotes: false,
-    };
+    });
     usePlaylistsStore.setState((state) => ({
       ...state,
       playlists: [initialState.playlists[0], existing],
@@ -148,18 +131,13 @@ describe('usePlaylistsStore', () => {
       error: null,
     }));
 
-    const otherList = [
-      {
-        id: 'other',
-        name: 'Other',
-        title: 'Other',
-        notes: [],
-        versions: [],
-        createdAt: '',
-        updatedAt: '',
-        isQuickNotes: false,
-      },
-    ];
+    const otherPlaylist = createMockPlaylist({
+      id: 'other',
+      name: 'Other',
+      title: 'Other',
+      notes: [],
+    });
+    const otherList = [otherPlaylist];
     (ftrackService.getPlaylists as vi.Mock).mockResolvedValue(otherList);
 
     await usePlaylistsStore.getState().updatePlaylist('p3');

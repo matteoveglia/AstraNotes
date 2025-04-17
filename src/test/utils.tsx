@@ -36,3 +36,6 @@ export * from "@testing-library/react";
 
 // Override render method
 export { customRender as render, setupUserEvent, renderWithUserEvent };
+
+// Re-export mock data factories for easy access in tests
+export * from './utils/factories';
