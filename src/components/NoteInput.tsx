@@ -13,7 +13,10 @@ import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow } from "lucide-react";
+import { Loader2, Workflow, ExternalLink } from "lucide-react";
+import { open } from "@tauri-apps/plugin-shell";
+import { useSettings } from "@/store/settingsStore";
+import { ftrackService } from "@/services/ftrack";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
@@ -66,6 +69,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
+  const { settings } = useSettings();
+  const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 
   useEffect(() => {
     setContent(initialContent);
@@ -442,6 +447,21 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setIsStatusPanelOpen((open) => !open);
   };
 
+  // Fetch projectId for this asset version
+  useEffect(() => {
+    ftrackService.fetchStatusPanelData(assetVersionId)
+      .then((data) => setFtrackProjectId(data.projectId))
+      .catch((err) => console.error("Failed to fetch projectId for ftrack:", err));
+  }, [assetVersionId]);
+
+  // Handler to open the asset version in ftrack
+  const handleOpenInFtrack = () => {
+    const baseUrl = settings.serverUrl.replace(/\/$/, "");
+    if (!baseUrl || !assetVersionId || !ftrackProjectId) return;
+    const url = `${baseUrl}/#slideEntityId=${assetVersionId}&slideEntityType=assetversion&view=versions_v1&itemId=projects&entityId=${ftrackProjectId}&entityType=show`;
+    open(url);
+  };
+
   return (
     <div className="relative">
       <div
@@ -500,7 +520,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <h3 className="font-semibold truncate">{versionName}</h3>
@@ -509,6 +529,16 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 </span>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center space-x-1 hover:bg-purple-100"
+              onClick={handleOpenInFtrack}
+              title="Open in ftrack"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span>Open in ftrack</span>
+            </Button>
           </div>
 
           <div className="flex gap-3">
@@ -565,14 +595,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                             />
                           )}
                         </div>
-                      </div>
 
-                      <NoteLabelSelect
-                        value={labelId ?? ""}
-                        onChange={handleLabelChange}
-                        disabled={status === "published"}
-                        className="h-8 w-40 ml-auto"
-                      />
+                        <NoteLabelSelect
+                          value={labelId ?? ""}
+                          onChange={handleLabelChange}
+                          disabled={status === "published"}
+                          className="h-8 w-40 ml-auto"
+                        />
+                      </div>
                     </div>
                   )}
               </div>

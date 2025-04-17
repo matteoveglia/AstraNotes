@@ -13,6 +13,7 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 - 📊 **Quick Notes**: Create notes on any version, on the fly, without a playlist
 - 📤 **CSV Export**: Export notes to CSV
 - 🖼️ **Thumbnail Previews**
+- ⚙️ **Status Management**: View and update shot and version statuses directly
 - 🔄 **Auto-update**
 
 ## Installation
