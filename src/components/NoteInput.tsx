@@ -551,13 +551,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                             type="button"
                             variant="outline"
                             size="sm"
-                            className={cn(
-                              "flex items-center space-x-1",
-                              status === "published" &&
-                                "opacity-50 cursor-not-allowed",
-                            )}
+                            className="flex items-center space-x-1"
                             onClick={handleStatusPanelToggle}
-                            disabled={status === "published"}
                           >
                             <Workflow className="h-4 w-4" />
                             <span>Statuses</span>
