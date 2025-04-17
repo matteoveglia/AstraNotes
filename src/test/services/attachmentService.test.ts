@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { AttachmentService } from "@/services/attachmentService";
+
+// We're using local mocks for save and writeBinaryFile
 
 // Define the helper functions that are being tested
 const getAttachmentIconType = (filename: string): string => {
@@ -31,23 +32,14 @@ const getAttachmentDisplayName = (path: string): string => {
   return parts[parts.length - 1];
 };
 
-// Mock Tauri modules
+// Mock Tauri dialog and fs modules
 const mockSave = vi.fn().mockResolvedValue("/path/to/save/location.png");
 const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@tauri-apps/api/dialog", () => ({
-  save: mockSave,
-}));
-
-vi.mock("@tauri-apps/api/fs", () => ({
-  BaseDirectory: { App: "app" },
-  writeBinaryFile: mockWriteBinaryFile,
-}));
-
-const saveAttachmentToFile = async (
+// Helper function under test for saving the attachment
+async function saveAttachmentToFile(
   attachment: any,
-): Promise<string | null> => {
-  // Use the mocked functions directly
+): Promise<string | null> {
   const savePath = await mockSave({
     defaultPath: attachment.name,
     filters: [
@@ -57,17 +49,15 @@ const saveAttachmentToFile = async (
       },
     ],
   });
-
-  // User cancelled the save dialog
   if (!savePath) return null;
-
-  // Write the file
   await mockWriteBinaryFile(savePath, attachment.data);
   return savePath;
-};
+}
 
 describe("attachmentService", () => {
   beforeEach(() => {
+    mockSave.mockReset();
+    mockSave.mockResolvedValue("/path/to/save/location.png");
     vi.clearAllMocks();
   });
 
@@ -145,20 +135,17 @@ describe("attachmentService", () => {
         type: "image/png",
       };
 
-      await saveAttachmentToFile(mockAttachment);
+      const result = await saveAttachmentToFile(mockAttachment);
+      expect(result).toBe("/path/to/save/location.png");
 
-      // Verify dialog.save was called with correct params
+      // Verify mockSave was called
       expect(mockSave).toHaveBeenCalledWith({
         defaultPath: "test.png",
         filters: [
-          {
-            name: "Images",
-            extensions: ["png"],
-          },
+          { name: "Images", extensions: ["png"] },
         ],
       });
 
-      // Verify writeBinaryFile was called with correct params
       expect(mockWriteBinaryFile).toHaveBeenCalledWith(
         "/path/to/save/location.png",
         mockAttachment.data,
@@ -176,9 +163,10 @@ describe("attachmentService", () => {
         type: "image/png",
       };
 
-      await saveAttachmentToFile(mockAttachment);
+      const result = await saveAttachmentToFile(mockAttachment);
+      expect(result).toBeNull();
 
-      // Verify writeBinaryFile was not called
+      // Verify mockWriteBinaryFile was not called
       expect(mockWriteBinaryFile).not.toHaveBeenCalled();
     });
   });

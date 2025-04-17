@@ -3,7 +3,7 @@ import { useLabelStore } from "@/store/labelStore";
 import { ftrackService } from "@/services/ftrack";
 
 // Mock the ftrack service
-vi.mock("../services/ftrack", () => ({
+vi.mock("@/services/ftrack", () => ({
   ftrackService: {
     getNoteLabels: vi.fn(),
   },
@@ -38,7 +38,7 @@ describe("labelStore", () => {
     ];
 
     // Mock the service response
-    vi.mocked(ftrackService.getNoteLabels).mockResolvedValue(mockLabels);
+    (ftrackService.getNoteLabels as vi.Mock).mockResolvedValue(mockLabels);
 
     // Call the fetch function
     await useLabelStore.getState().fetchLabels();
@@ -58,7 +58,7 @@ describe("labelStore", () => {
     const mockError = new Error("Failed to fetch labels");
 
     // Mock the service to throw an error
-    vi.mocked(ftrackService.getNoteLabels).mockRejectedValue(mockError);
+    (ftrackService.getNoteLabels as vi.Mock).mockRejectedValue(mockError);
 
     // Spy on console.error
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

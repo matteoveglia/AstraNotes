@@ -1,8 +1,9 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { renderWithUserEvent, screen, waitFor } from "../utils";
+import { renderWithUserEvent, screen } from "../utils";
 import { NoteLabelSelect } from "@/components/NoteLabelSelect";
 
-// Mock stores
+// Mock label store
 vi.mock("@/store/labelStore", () => ({
   useLabelStore: () => ({
     labels: [
@@ -15,66 +16,56 @@ vi.mock("@/store/labelStore", () => ({
   }),
 }));
 
-// Mock UI components
-vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown">{children}</div>
-  ),
-  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
-    <button data-testid="dropdown-trigger">{children}</button>
-  ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown-content">{children}</div>
-  ),
-  DropdownMenuItem: ({
-    children,
-    onSelect,
-  }: {
-    children: React.ReactNode;
-    onSelect?: () => void;
-  }) => (
-    <div data-testid="dropdown-item" onClick={onSelect}>
-      {children}
-    </div>
-  ),
-  DropdownMenuSeparator: () => <div data-testid="dropdown-separator" />,
+// Mock settings store (no defaultLabelId)
+vi.mock("@/store/settingsStore", () => ({
+  useSettings: () => ({ settings: { defaultLabelId: "" } }),
 }));
 
-vi.mock("@/components/ui/button", () => ({
-  Button: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-  }) => (
-    <button data-testid="button" onClick={onClick}>
+// Mock Radix Select primitives to simple HTML equivalents
+vi.mock("@/components/ui/select", () => ({
+  Select: ({ value, onValueChange, children, disabled }: any) => (
+    <select
+      value={value}
+      onChange={e => onValueChange?.(e.target.value)}
+      disabled={disabled}
+      data-testid="mock-select"
+    >
       {children}
-    </button>
+    </select>
   ),
+  SelectTrigger: ({ children, ...props }: any) => <>{children}</>,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children, ...props }: any) => (
+    <option value={value} {...props}>{children}</option>
+  ),
+  SelectValue: ({ children }: any) => <>{children}</>,
 }));
 
 // Mock LucideIcons
 vi.mock("lucide-react", () => ({
   ChevronDown: () => <span data-testid="chevron-down-icon" />,
   Tag: () => <span data-testid="tag-icon" />,
+  Check: () => <span data-testid="check-icon" />,
 }));
 
 describe("NoteLabelSelect", () => {
-  it("should render with no label selected initially", () => {
-    renderWithUserEvent(<NoteLabelSelect value="" onChange={vi.fn()} />);
+  it("should render with default first label when no value provided", () => {
+    const mockOnChange = vi.fn();
+    renderWithUserEvent(<NoteLabelSelect value="" onChange={mockOnChange} />);
 
-    // Should show the dropdown trigger with "Add Label" text
-    const trigger = screen.getByTestId("dropdown-trigger");
+    // Should show first label name as default
+    const trigger = screen.getByRole("combobox");
     expect(trigger).toBeInTheDocument();
-    expect(trigger).toHaveTextContent("Add Label");
+    expect(trigger).toHaveTextContent("Bug");
+    // onChange should be called once with default label ID
+    expect(mockOnChange).toHaveBeenCalledWith("label1");
   });
 
   it("should display selected label when one is selected", () => {
     renderWithUserEvent(<NoteLabelSelect value="label1" onChange={vi.fn()} />);
 
     // Should show the selected label name
-    const trigger = screen.getByTestId("dropdown-trigger");
+    const trigger = screen.getByRole("combobox");
     expect(trigger).toHaveTextContent("Bug");
   });
 
@@ -84,18 +75,12 @@ describe("NoteLabelSelect", () => {
     );
 
     // Click to open dropdown
-    const trigger = screen.getByTestId("dropdown-trigger");
+    const trigger = screen.getByRole("combobox");
     await user.click(trigger);
 
-    // Should show dropdown content
-    const content = screen.getByTestId("dropdown-content");
-    expect(content).toBeInTheDocument();
-
-    // Should show label items
-    const items = screen.getAllByTestId("dropdown-item");
-    expect(items.length).toBeGreaterThan(0);
-    expect(items[0]).toHaveTextContent("Bug");
-    expect(items[1]).toHaveTextContent("Feature");
+    // Should show dropdown options as role option
+    expect(screen.getByRole("option", { name: "Bug" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Feature" })).toBeInTheDocument();
   });
 
   it("should call onLabelSelect when a label is selected", async () => {
@@ -105,12 +90,11 @@ describe("NoteLabelSelect", () => {
     );
 
     // Click to open dropdown
-    const trigger = screen.getByTestId("dropdown-trigger");
+    const trigger = screen.getByRole("combobox");
     await user.click(trigger);
 
     // Select first label (Bug)
-    const items = screen.getAllByTestId("dropdown-item");
-    await user.click(items[0]);
+    await user.click(screen.getByRole("option", { name: "Bug" }));
 
     // Should call onLabelSelect with the selected label ID
     expect(mockOnLabelSelect).toHaveBeenCalledWith("label1");
