@@ -26,7 +26,7 @@ vi.mock("@/components/ui/select", () => ({
   Select: ({ value, onValueChange, children, disabled }: any) => (
     <select
       value={value}
-      onChange={e => onValueChange?.(e.target.value)}
+      onChange={(e) => onValueChange?.(e.target.value)}
       disabled={disabled}
       data-testid="mock-select"
     >
@@ -36,7 +36,9 @@ vi.mock("@/components/ui/select", () => ({
   SelectTrigger: ({ children, ...props }: any) => <>{children}</>,
   SelectContent: ({ children }: any) => <>{children}</>,
   SelectItem: ({ value, children, ...props }: any) => (
-    <option value={value} {...props}>{children}</option>
+    <option value={value} {...props}>
+      {children}
+    </option>
   ),
   SelectValue: ({ children }: any) => <>{children}</>,
 }));

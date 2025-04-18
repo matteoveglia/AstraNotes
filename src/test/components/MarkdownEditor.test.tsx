@@ -4,8 +4,8 @@ import { MarkdownEditor } from "@/components/MarkdownEditor";
 import React from "react";
 
 // Partially mock toast module to include ToastProvider
-vi.mock("@/components/ui/toast", async (importOriginal) => {
-  const actual = await importOriginal();
+vi.mock("@/components/ui/toast", async (importOriginal: () => Promise<any>) => {
+  const actual: any = await importOriginal();
   return {
     ...actual,
     useToast: () => ({ toast: vi.fn() }),
@@ -58,7 +58,7 @@ describe("MarkdownEditor", () => {
       return (
         <MarkdownEditor
           value={val}
-          onChange={v => {
+          onChange={(v) => {
             setVal(v);
             mockOnChange(v);
           }}

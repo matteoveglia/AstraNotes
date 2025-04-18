@@ -9,7 +9,7 @@
  * - Label management
  */
 
-import type { FtrackSettings, Playlist, Note, AssetVersion } from "../types";
+import type { FtrackSettings, Playlist, Note, AssetVersion } from "@/types";
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
 import { AttachmentService } from "./attachmentService";

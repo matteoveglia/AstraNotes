@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import type { Playlist } from "../types";
+import type { Playlist } from "@/types";
 import {
   Loader2,
   AlertCircle,

@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Playlist, AssetVersion } from "../types";
+import { Playlist, AssetVersion } from "@/types";
 import { playlistStore } from "../store/playlistStore";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";

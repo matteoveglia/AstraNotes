@@ -4,7 +4,7 @@ import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
 import { SettingsModal } from "./components/SettingsModal";
-import type { Playlist, AssetVersion } from "./types";
+import type { Playlist, AssetVersion } from "@/types";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";

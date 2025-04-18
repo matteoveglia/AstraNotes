@@ -9,7 +9,7 @@
 import React from "react";
 import { Button } from "./ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { AssetVersion } from "../types";
+import { AssetVersion } from "@/types";
 import {
   Tooltip,
   TooltipContent,

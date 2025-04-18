@@ -37,9 +37,7 @@ const mockSave = vi.fn().mockResolvedValue("/path/to/save/location.png");
 const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
 
 // Helper function under test for saving the attachment
-async function saveAttachmentToFile(
-  attachment: any,
-): Promise<string | null> {
+async function saveAttachmentToFile(attachment: any): Promise<string | null> {
   const savePath = await mockSave({
     defaultPath: attachment.name,
     filters: [
@@ -141,9 +139,7 @@ describe("attachmentService", () => {
       // Verify mockSave was called
       expect(mockSave).toHaveBeenCalledWith({
         defaultPath: "test.png",
-        filters: [
-          { name: "Images", extensions: ["png"] },
-        ],
+        filters: [{ name: "Images", extensions: ["png"] }],
       });
 
       expect(mockWriteBinaryFile).toHaveBeenCalledWith(

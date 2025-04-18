@@ -64,7 +64,10 @@ describe("ErrorBoundary", () => {
     );
 
     // onError should be called with error and errorInfo
-    expect(mockOnError).toHaveBeenCalledWith(expect.any(Error), expect.any(Object));
+    expect(mockOnError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.any(Object),
+    );
     expect(mockOnError).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "Test error",
@@ -98,11 +101,13 @@ describe("ErrorBoundary", () => {
     const { rerender } = render(
       <ErrorBoundary key={resetKey}>
         <ThrowOnce resetKey={resetKey} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     // Wait for error UI
-    const retryButton = await screen.findByRole("button", { name: /try again/i });
+    const retryButton = await screen.findByRole("button", {
+      name: /try again/i,
+    });
     expect(retryButton).toBeInTheDocument();
 
     await act(async () => {
@@ -111,13 +116,16 @@ describe("ErrorBoundary", () => {
       rerender(
         <ErrorBoundary key={resetKey}>
           <ThrowOnce resetKey={resetKey} />
-        </ErrorBoundary>
+        </ErrorBoundary>,
       );
     });
 
-    await waitFor(() => {
-      expect(screen.queryByText(/Recovered/)).toBeInTheDocument();
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Recovered/)).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
 
     spy.mockRestore();
   });

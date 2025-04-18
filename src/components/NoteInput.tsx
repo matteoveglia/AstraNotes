@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
-import { NoteStatus } from "../types";
+import { NoteStatus } from "@/types";
 import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
@@ -449,9 +449,12 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Fetch projectId for this asset version
   useEffect(() => {
-    ftrackService.fetchStatusPanelData(assetVersionId)
+    ftrackService
+      .fetchStatusPanelData(assetVersionId)
       .then((data) => setFtrackProjectId(data.projectId))
-      .catch((err) => console.error("Failed to fetch projectId for ftrack:", err));
+      .catch((err) =>
+        console.error("Failed to fetch projectId for ftrack:", err),
+      );
   }, [assetVersionId]);
 
   // Handler to open the asset version in ftrack
@@ -595,14 +598,13 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                             />
                           )}
                         </div>
-
-                        <NoteLabelSelect
-                          value={labelId ?? ""}
-                          onChange={handleLabelChange}
-                          disabled={status === "published"}
-                          className="h-8 w-40 ml-auto"
-                        />
                       </div>
+                      <NoteLabelSelect
+                        value={labelId ?? ""}
+                        onChange={handleLabelChange}
+                        disabled={status === "published"}
+                        className="h-8 w-40"
+                      />
                     </div>
                   )}
               </div>

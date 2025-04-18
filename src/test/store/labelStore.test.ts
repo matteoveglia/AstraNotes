@@ -38,7 +38,7 @@ describe("labelStore", () => {
     ];
 
     // Mock the service response
-    (ftrackService.getNoteLabels as vi.Mock).mockResolvedValue(mockLabels);
+    (ftrackService.getNoteLabels as any).mockResolvedValue(mockLabels);
 
     // Call the fetch function
     await useLabelStore.getState().fetchLabels();
@@ -58,7 +58,7 @@ describe("labelStore", () => {
     const mockError = new Error("Failed to fetch labels");
 
     // Mock the service to throw an error
-    (ftrackService.getNoteLabels as vi.Mock).mockRejectedValue(mockError);
+    (ftrackService.getNoteLabels as any).mockRejectedValue(mockError);
 
     // Spy on console.error
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

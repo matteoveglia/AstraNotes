@@ -38,4 +38,4 @@ export * from "@testing-library/react";
 export { customRender as render, setupUserEvent, renderWithUserEvent };
 
 // Re-export mock data factories for easy access in tests
-export * from './utils/factories';
+export * from "./utils/factories";

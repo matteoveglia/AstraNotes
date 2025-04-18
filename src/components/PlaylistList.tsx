@@ -8,7 +8,7 @@
 
 import React from "react";
 import { Button } from "./ui/button";
-import { Playlist } from "../types";
+import { Playlist } from "@/types";
 import { ftrackService } from "../services/ftrack";
 
 interface PlaylistListProps {

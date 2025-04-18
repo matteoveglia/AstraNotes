@@ -5,7 +5,7 @@
  * Includes file system integration for saving exports.
  */
 
-import { Playlist } from "../types";
+import { Playlist } from "@/types";
 import { playlistStore } from "../store/playlistStore";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { downloadDir, join } from "@tauri-apps/api/path";

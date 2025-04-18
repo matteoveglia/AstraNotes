@@ -9,7 +9,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Playlist } from "../types";
+import type { Playlist } from "@/types";
 
 interface PlaylistTabProps {
   playlist: Playlist;

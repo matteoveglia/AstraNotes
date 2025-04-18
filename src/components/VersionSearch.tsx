@@ -9,7 +9,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useDebounce } from "../hooks/useDebounce";
-import { AssetVersion } from "../types";
+import { AssetVersion } from "@/types";
 import { ftrackService } from "../services/ftrack";
 import { Checkbox } from "./ui/checkbox";
 import { motion } from "motion/react";

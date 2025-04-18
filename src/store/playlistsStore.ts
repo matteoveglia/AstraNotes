@@ -9,7 +9,7 @@
  */
 
 import { create } from "zustand";
-import { Playlist } from "../types";
+import { Playlist } from "@/types";
 import { ftrackService } from "../services/ftrack";
 
 const QUICK_NOTES_PLAYLIST: Playlist = {

@@ -10,7 +10,7 @@
  */
 
 import Dexie, { type Table } from "dexie";
-import type { Playlist, AssetVersion, NoteStatus } from "../types";
+import type { Playlist, AssetVersion, NoteStatus } from "@/types";
 
 export interface NoteAttachment {
   id: string;

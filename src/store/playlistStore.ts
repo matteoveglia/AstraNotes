@@ -10,7 +10,7 @@
  */
 
 import { db, NoteAttachment } from "./db";
-import { Playlist, AssetVersion, NoteStatus } from "../types";
+import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { FtrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
 
