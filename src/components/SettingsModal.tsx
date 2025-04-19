@@ -406,7 +406,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium">Clear Cache</h3>
-                  <p className="text-sm text-gray-500 max-w-56">
+                  <p className="text-sm text-zinc-500 max-w-56">
                     Clear all cached playlists, versions, statuses and notes
                   </p>
                 </div>

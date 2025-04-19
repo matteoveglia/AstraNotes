@@ -421,7 +421,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       case "published":
         return "bg-green-500 hover:bg-green-600"; // Green for published
       default:
-        return "bg-gray-200"; // Gray for empty
+        return "bg-zinc-200"; // Zinc for empty
     }
   };
 
@@ -470,7 +470,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       <div
         ref={componentRef}
         className={cn(
-          "flex gap-4 p-4 bg-white rounded-lg border relative",
+          "flex gap-4 p-4 bg-background rounded-lg border relative",
           manuallyAdded && "border-purple-500 border-2",
           isDraggingOver &&
             status !== "published" &&
@@ -491,7 +491,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
         <div
           className={cn(
-            "flex-shrink-0 w-32 min-h-[85px] bg-gray-100 rounded overflow-hidden",
+            "flex-shrink-0 w-32 min-h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
             thumbnailUrl ? "cursor-pointer" : "cursor-default",
           )}
           onClick={openThumbnailModal}
@@ -527,7 +527,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <h3 className="font-semibold truncate">{versionName}</h3>
-                <span className="font-medium text-base text-gray-500">
+                <span className="font-medium text-base text-zinc-500">
                   - v{versionNumber}
                 </span>
               </div>
@@ -565,7 +565,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={handleClear}
-                          className="text-gray-500 hover:text-gray-700"
+                          className="text-zinc-500 dark:text-zinc-300 hover:text-zinc-100"
                         >
                           Clear
                         </Button>

@@ -38,7 +38,7 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1 rounded-md text-sm"
+      className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 px-3 py-1 rounded-md text-sm"
     >
       <div className="flex items-center gap-1">
         <TooltipProvider>

@@ -78,7 +78,9 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       key={playlist.id}
       className={cn(
         "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
-        isActive ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100",
+        isActive
+          ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+          : "hover:bg-zinc-100 dark:hover:bg-zinc-800",
         playlist.status === "removed" && "text-red-500",
         playlist.status === "added" && "text-green-500",
       )}
@@ -262,7 +264,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       {/* Scrollable playlists section */}
       {loading ? (
-        <div className="flex items-center justify-center text-gray-500 h-[300px]">
+        <div className="flex items-center justify-center text-zinc-500 h-[300px]">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
           <span>Loading playlists...</span>
         </div>

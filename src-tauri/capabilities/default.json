@@ -24,6 +24,7 @@
     },
     "dialog:default",
     "process:default",
-    "shell:default"
+    "shell:default",
+    "theme:default"
   ]
 }

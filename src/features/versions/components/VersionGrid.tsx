@@ -69,7 +69,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
 }) => {
   if (!versions.length) {
     return (
-      <div className="text-center text-gray-500 py-8">
+      <div className="text-center text-zinc-500 py-8">
         No versions found in this playlist
       </div>
     );

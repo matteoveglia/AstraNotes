@@ -59,6 +59,7 @@
       "endpoints": [
         "https://github.com/matteoveglia/AstraNotes/releases/latest/download/latest.json"
       ]
-    }
+    },
+    "theme": {}
   }
 }

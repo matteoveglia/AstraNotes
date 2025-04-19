@@ -26,7 +26,7 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   currentVersions,
 }) => {
   return (
-    <div className="p-4 border-t bg-white shadow-md">
+    <div className="p-4 border-t bg-background shadow-md">
       <VersionSearch
         onVersionSelect={onVersionSelect}
         onVersionsSelect={onVersionsSelect}

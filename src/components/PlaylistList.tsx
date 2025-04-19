@@ -42,9 +42,9 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
   return (
     <div className="flex gap-2 overflow-x-auto pb-2">
       {loading ? (
-        <div className="text-sm text-gray-500">Loading playlists...</div>
+        <div className="text-sm text-zinc-500">Loading playlists...</div>
       ) : playlists.length === 0 ? (
-        <div className="text-sm text-gray-500">No playlists found</div>
+        <div className="text-sm text-zinc-500">No playlists found</div>
       ) : (
         playlists.map((playlist) => (
           <Button

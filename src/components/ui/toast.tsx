@@ -27,7 +27,7 @@ const Toast = ({
 }: ToastPrimitive.ToastProps & { toastType?: ToastType }) => {
   // Map toast types to Tailwind classes
   const typeClasses: Record<ToastType, string> = {
-    default: "border-l-4 border-gray-400 bg-white",
+    default: "border-l-4 border-zinc-400 bg-white",
     success: "border-l-4 border-green-500 bg-green-50",
     error: "border-l-4 border-red-500 bg-red-50",
     warning: "border-l-4 border-yellow-500 bg-yellow-50",
@@ -272,7 +272,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
               <div className="text-sm">{toast.message}</div>
             </div>
             <ToastPrimitive.Close
-              className="rounded-full p-1 text-gray-400 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 absolute top-4 right-4"
+              className="rounded-full p-1 text-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400 absolute top-4 right-4"
               aria-label="Close"
             >
               <svg

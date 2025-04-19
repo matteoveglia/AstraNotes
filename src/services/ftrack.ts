@@ -1164,7 +1164,7 @@ export class FtrackService {
         case "Task":
           workflowSchemaId = schema.task_workflow_schema_id;
           break;
-        default:
+        default: {
           log(
             `[fetchApplicableStatuses] Handling default case for entityType: ${entityType}, objectTypeId: ${objectTypeId}`,
           );
@@ -1204,6 +1204,7 @@ export class FtrackService {
             );
           }
           break;
+        }
       }
 
       if (!workflowSchemaId) {

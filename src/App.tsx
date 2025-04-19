@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
@@ -10,8 +11,24 @@ import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
+import { useThemeStore } from "./store/themeStore";
 
 const App: React.FC = () => {
+  const theme = useThemeStore((state) => state.theme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    // inform Tauri of theme change
+    invoke("plugin:theme|set_theme", { theme }).catch(() => {
+      // ignore if not running under Tauri
+    });
+  }, [theme]);
+
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
   const {
     playlists,
@@ -155,7 +172,7 @@ const App: React.FC = () => {
                         <h3 className="text-xl font-semibold text-red-600 mb-2">
                           Error loading content
                         </h3>
-                        <p className="text-gray-700 mb-4">
+                        <p className="text-zinc-700 mb-4">
                           Failed to load playlist content
                         </p>
                         <button
@@ -180,7 +197,7 @@ const App: React.FC = () => {
                           <p className="text-red-500 text-xl mb-2">
                             Error loading playlists
                           </p>
-                          <p className="text-gray-600 mb-4">{error}</p>
+                          <p className="text-zinc-600 mb-4">{error}</p>
                           <button
                             onClick={loadPlaylists}
                             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -189,9 +206,9 @@ const App: React.FC = () => {
                           </button>
                         </>
                       ) : isLoading ? (
-                        <p className="text-gray-500">Loading playlists...</p>
+                        <p className="text-zinc-500">Loading playlists...</p>
                       ) : (
-                        <p className="text-gray-500">
+                        <p className="text-zinc-500">
                           Select a playlist to view
                         </p>
                       )}

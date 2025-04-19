@@ -26,7 +26,7 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 }) => (
   <Button
     variant={isActive ? "default" : "ghost"}
-    className="justify-start group relative min-w-[120px] flex-none"
+    className="justify-start group relative min-w-[120px] flex-none dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
     onClick={onClick}
   >
     <span className="truncate mr-6">{playlist.title}</span>
@@ -60,11 +60,10 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
   onCloseAll,
 }) => {
   return (
-    <div className="h-[3.5rem] border-t bg-white relative">
-      {/* Fixed Close All button container with gradient fade */}
+    <div className="h-[3.5rem] border-t bg-background relative">
       {playlists.length > 1 && (
-        <div className="absolute right-0 top-0 bottom-0 flex items-center bg-white px-4 z-10">
-          <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-white" />
+        <div className="absolute right-0 top-0 bottom-0 flex items-center bg-background px-4 z-10">
+          <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-background" />
           <Button
             size="sm"
             variant="ghost"

@@ -77,7 +77,7 @@ export const NoteLabelSelect = forwardRef<
   if (labels.length === 0) {
     return (
       <div
-        className={cn(className, "h-8 w-40 bg-gray-100 animate-pulse rounded")}
+        className={cn(className, "h-8 w-40 bg-zinc-100 animate-pulse rounded")}
       />
     );
   }

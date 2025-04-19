@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/select";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "@/components/ui/toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
@@ -176,9 +177,6 @@ export function NoteStatusPanel({
     <DismissableLayer
       disableOutsidePointerEvents={false}
       onEscapeKeyDown={() => {
-        console.debug(
-          "[NoteStatusPanel] DismissableLayer: Escape key down, closing panel",
-        );
         if (onClose) onClose();
       }}
       onPointerDownOutside={(event) => {
@@ -187,15 +185,9 @@ export function NoteStatusPanel({
           target.closest("[data-select-trigger]") ||
           target.closest("[data-select-content]")
         ) {
-          console.debug(
-            "[NoteStatusPanel] DismissableLayer: PointerDownOutside on dropdown, keeping panel open",
-          );
           event.preventDefault();
           return;
         }
-        console.debug(
-          "[NoteStatusPanel] DismissableLayer: PointerDownOutside, closing panel",
-        );
         if (onClose) onClose();
       }}
       onFocusOutside={(event) => {
@@ -204,22 +196,16 @@ export function NoteStatusPanel({
           target.closest("[data-select-trigger]") ||
           target.closest("[data-select-content]")
         ) {
-          console.debug(
-            "[NoteStatusPanel] DismissableLayer: FocusOutside on dropdown, keeping panel open",
-          );
           event.preventDefault();
           return;
         }
-        console.debug(
-          "[NoteStatusPanel] DismissableLayer: FocusOutside, closing panel",
-        );
         if (onClose) onClose();
       }}
     >
       <motion.div
         ref={panelRef}
         className={cn(
-          "absolute -right-34 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 min-w-[250px]",
+          "absolute -right-34 top-full mt-2 z-50 bg-background rounded-lg shadow-lg border p-4 min-w-[250px]",
           className,
         )}
         style={{ transform: "translateX(50%)" }}
@@ -230,28 +216,17 @@ export function NoteStatusPanel({
       >
         <div className="flex justify-between items-center mb-2">
           <span className="font-semibold text-sm">Statuses</span>
-          <button
+          <Button
             type="button"
-            className="h-6 w-6 p-0 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Close"
+            variant="ghost"
+            size="sm"
             onClick={() => {
               if (onClose) onClose();
             }}
+            className="h-6 w-6 p-0"
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M4 4L12 12M12 4L4 12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         <div className="space-y-4">
           {isLoading && (

@@ -468,8 +468,10 @@ export const MarkdownEditor = forwardRef<
         {!disabled && (
           <div
             className={cn(
-              "flex items-center gap-1 p-1 border border-b-0 rounded-t-md transition-all duration-200",
-              showToolbar ? "bg-gray-50 opacity-100" : "bg-gray-50 opacity-30",
+              "flex items-center gap-1 p-1 border-b-0 rounded-t-md transition-all duration-200",
+              showToolbar
+                ? "bg-zinc-50 dark:bg-zinc-800 opacity-100"
+                : "bg-zinc-50 dark:bg-zinc-800 opacity-30",
             )}
           >
             <Button
@@ -505,7 +507,7 @@ export const MarkdownEditor = forwardRef<
             >
               <Heading className="h-4 w-4" />
             </Button>
-            <div className="h-4 w-px bg-gray-300 mx-1" />
+            <div className="h-4 w-px bg-zinc-300 mx-1" />
             <Button
               type="button"
               variant="ghost"
@@ -528,7 +530,7 @@ export const MarkdownEditor = forwardRef<
             >
               <ListOrdered className="h-4 w-4" />
             </Button>
-            <div className="h-4 w-px bg-gray-300 mx-1" />
+            <div className="h-4 w-px bg-zinc-300 mx-1" />
             <Button
               type="button"
               variant="ghost"
