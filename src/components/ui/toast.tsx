@@ -28,9 +28,9 @@ const Toast = ({
   // Map toast types to Tailwind classes
   const typeClasses: Record<ToastType, string> = {
     default: "border-l-4 border-zinc-400 bg-white",
-    success: "border-l-4 border-green-500 bg-green-50",
-    error: "border-l-4 border-red-500 bg-red-50",
-    warning: "border-l-4 border-yellow-500 bg-yellow-50",
+    success: "border-l-4 border-green-500 bg-green-50 dark:bg-green-900",
+    error: "border-l-4 border-red-500 bg-red-50 dark:bg-red-900",
+    warning: "border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900",
   };
 
   return (

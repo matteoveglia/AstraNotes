@@ -1016,6 +1016,29 @@ export function useNoteManagement(playlist: Playlist) {
     ).length;
   }, [noteStatuses]);
 
+  // Provide stable callback references to avoid recreating handlers on each render
+  const saveNoteDraftRef = useRef(saveNoteDraft);
+  useEffect(() => { saveNoteDraftRef.current = saveNoteDraft; }, [saveNoteDraft]);
+  const stableSaveNoteDraft = useCallback(
+    (versionId: string, content: string, labelId: string, attachments?: Attachment[]) =>
+      saveNoteDraftRef.current(versionId, content, labelId, attachments),
+    [],
+  );
+
+  const clearNoteDraftRef = useRef(clearNoteDraft);
+  useEffect(() => { clearNoteDraftRef.current = clearNoteDraft; }, [clearNoteDraft]);
+  const stableClearNoteDraft = useCallback(
+    (versionId: string) => clearNoteDraftRef.current(versionId),
+    [],
+  );
+
+  const toggleVersionSelectionRef = useRef(toggleVersionSelection);
+  useEffect(() => { toggleVersionSelectionRef.current = toggleVersionSelection; }, [toggleVersionSelection]);
+  const stableToggleVersionSelection = useCallback(
+    (versionId: string) => toggleVersionSelectionRef.current(versionId),
+    [],
+  );
+
   return {
     noteDrafts,
     noteStatuses,
@@ -1027,9 +1050,9 @@ export function useNoteManagement(playlist: Playlist) {
     progress,
     publishedVersionsCount,
     publishingErrors,
-    saveNoteDraft,
-    clearNoteDraft,
-    toggleVersionSelection,
+    saveNoteDraft: stableSaveNoteDraft,
+    clearNoteDraft: stableClearNoteDraft,
+    toggleVersionSelection: stableToggleVersionSelection,
     publishSelectedNotes,
     publishAllNotes,
     clearAllNotes,

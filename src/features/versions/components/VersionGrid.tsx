@@ -4,7 +4,7 @@
  * Handles animation and rendering of version items.
  */
 
-import React from "react";
+import React, { useCallback } from "react";
 import { motion } from "motion/react";
 import { AssetVersion, NoteStatus } from "@/types";
 import { NoteInput } from "@/components/NoteInput";
@@ -55,6 +55,68 @@ const itemVariants = {
   },
 };
 
+// Define memoized version item to avoid unnecessary re-renders
+interface VersionGridItemProps {
+  version: AssetVersion;
+  thumbnailUrl?: string;
+  noteStatus: NoteStatus;
+  selected: boolean;
+  draftContent: string;
+  labelId: string;
+  attachments?: Attachment[];
+  onSaveNote: (versionId: string, content: string, labelId: string, attachments?: Attachment[]) => void;
+  onClearNote: (versionId: string) => void;
+  onToggleSelection: (versionId: string) => void;
+}
+const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(({
+  version,
+  thumbnailUrl,
+  noteStatus,
+  selected,
+  draftContent,
+  labelId,
+  attachments = [],
+  onSaveNote,
+  onClearNote,
+  onToggleSelection,
+}) => {
+  const handleSave = useCallback(
+    (content: string, labelId: string, attachmentsArg?: Attachment[]) =>
+      onSaveNote(version.id, content, labelId, attachmentsArg),
+    [onSaveNote]
+  );
+  const handleClear = useCallback(() => onClearNote(version.id), [onClearNote]);
+  const handleToggle = useCallback(() => onToggleSelection(version.id), [onToggleSelection]);
+
+  return (
+    <motion.div
+      key={version.id}
+      className="space-y-2"
+      variants={itemVariants}
+      layout
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <NoteInput
+        versionName={version.name}
+        versionNumber={version.version.toString()}
+        thumbnailUrl={thumbnailUrl}
+        status={noteStatus}
+        selected={selected}
+        initialContent={draftContent}
+        initialLabelId={labelId}
+        initialAttachments={attachments}
+        onSave={handleSave}
+        onClear={handleClear}
+        onSelectToggle={handleToggle}
+        manuallyAdded={version.manuallyAdded}
+        assetVersionId={version.id}
+      />
+    </motion.div>
+  );
+});
+
 export const VersionGrid: React.FC<VersionGridProps> = ({
   versions,
   thumbnails,
@@ -67,6 +129,21 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
   onClearNote,
   onToggleSelection,
 }) => {
+  // Memoize handlers to keep stable references for VersionGridItem
+  const memoizedOnSaveNote = useCallback(
+    (versionId: string, content: string, labelId: string, attachments?: Attachment[]) =>
+      onSaveNote(versionId, content, labelId, attachments),
+    [onSaveNote]
+  );
+  const memoizedOnClearNote = useCallback(
+    (versionId: string) => onClearNote(versionId),
+    [onClearNote]
+  );
+  const memoizedOnToggleSelection = useCallback(
+    (versionId: string) => onToggleSelection(versionId),
+    [onToggleSelection]
+  );
+
   if (!versions.length) {
     return (
       <div className="text-center text-zinc-500 py-8">
@@ -83,41 +160,21 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
       variants={gridVariants}
       className="space-y-4 py-4"
     >
-      {versions.map((version) => {
-        const thumbnailUrl = thumbnails[version.id];
-
-        return (
-          <motion.div
-            key={version.id}
-            className="space-y-2"
-            variants={itemVariants}
-            layout
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            <NoteInput
-              versionName={version.name}
-              versionNumber={version.version.toString()}
-              thumbnailUrl={thumbnailUrl}
-              status={noteStatuses[version.id] || "empty"}
-              selected={selectedVersions.includes(version.id)}
-              initialContent={noteDrafts[version.id]}
-              initialLabelId={noteLabelIds[version.id]}
-              initialAttachments={noteAttachments[version.id] || []}
-              manuallyAdded={version.manuallyAdded}
-              onSave={(
-                content: string,
-                labelId: string,
-                attachments?: Attachment[],
-              ) => onSaveNote(version.id, content, labelId, attachments)}
-              onClear={() => onClearNote(version.id)}
-              onSelectToggle={() => onToggleSelection(version.id)}
-              assetVersionId={version.id}
-            />
-          </motion.div>
-        );
-      })}
+      {versions.map((version) => (
+        <VersionGridItem
+          key={version.id}
+          version={version}
+          thumbnailUrl={thumbnails[version.id]}
+          noteStatus={noteStatuses[version.id] || "empty"}
+          selected={selectedVersions.includes(version.id)}
+          draftContent={noteDrafts[version.id]}
+          labelId={noteLabelIds[version.id]}
+          attachments={noteAttachments[version.id]}
+          onSaveNote={memoizedOnSaveNote}
+          onClearNote={memoizedOnClearNote}
+          onToggleSelection={memoizedOnToggleSelection}
+        />
+      ))}
     </motion.div>
   );
 };

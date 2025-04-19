@@ -280,7 +280,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           initial="hidden"
           animate="visible"
         >
-          <h3 className="text-sm font-semibold py-2">Ftrack Playlists</h3>
+          <h3 className="text-sm font-semibold py-2">ftrack Playlists</h3>
           {otherPlaylists.map((playlist) => (
             <PlaylistItem
               key={playlist.id}

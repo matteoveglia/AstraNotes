@@ -6,7 +6,7 @@ import "./index.css";
 import * as Sentry from "@sentry/react";
 import { initLogCapture } from "./lib/logExporter";
 import { initializeUpdateChecker } from "./lib/updater";
-
+import { scan } from "react-scan";
 // Initialize log capturing
 initLogCapture();
 
