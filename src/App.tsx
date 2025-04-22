@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { setTheme as setAppTheme } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
@@ -17,44 +16,31 @@ import { useThemeStore } from "./store/themeStore";
 const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
 
-  // Sync initial OS theme and subscribe to OS theme changes
+  // sync initial OS theme and subscribe to theme changes via Window API
   useEffect(() => {
     const win = getCurrentWindow();
-    // set initial theme based on current window theme
+    // seed from current window theme
     win.theme()
       .then((osTheme) => {
         if (osTheme) useThemeStore.getState().setTheme(osTheme);
       })
       .catch(() => {});
-    // listen for OS theme changes
+    // subscribe to changes
     let unlisten: () => void;
-    win.onThemeChanged(({ payload: newTheme }) => {
-      useThemeStore.getState().setTheme(newTheme);
+    win.onThemeChanged(({ payload }) => {
+      useThemeStore.getState().setTheme(payload);
     }).then((fn) => {
       unlisten = fn;
     });
-    return () => {
-      if (unlisten) unlisten();
-    };
+    return () => unlisten?.();
   }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    // inform Tauri of theme change
-    setAppTheme(theme).catch(() => {
-      // ignore if not running under Tauri
-    });
-    // also update the native window appearance
-    getCurrentWindow()
-      .setTheme(theme)
-      .catch(() => {
-        // ignore if window theme API unavailable
-      });
+    // toggle Tailwind dark class
+    root.classList.toggle("dark", theme === "dark");
+    // update native window chrome
+    getCurrentWindow().setTheme(theme).catch(() => {});
   }, [theme]);
 
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
