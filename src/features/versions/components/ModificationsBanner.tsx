@@ -38,14 +38,14 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 px-3 py-1 rounded-md text-sm"
+      className="flex items-center gap-2 bg-purple-100 dark:bg-purple-950 text-purple-950 dark:text-purple-100 px-3 py-1 rounded-md text-sm"
     >
       <div className="flex items-center gap-1">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="cursor-help flex items-center">
-                <InfoIcon size={14} className="text-amber-700" />
+                <InfoIcon size={14} className="text-purple-700 dark:text-purple-300" />
               </span>
             </TooltipTrigger>
             <TooltipContent>
@@ -97,7 +97,7 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
       <Button
         size="sm"
         variant="outline"
-        className="h-6 px-2 bg-amber-50 hover:bg-amber-200 border-amber-300 text-amber-800"
+        className="h-6 px-2 bg-purple-50 hover:bg-purple-200 hover:text-purple-700 border-purple-300 text-purple-800 dark:bg-purple-800 dark:hover:bg-purple-600 dark:text-purple-100"
         onClick={onUpdate}
         disabled={isUpdating}
       >

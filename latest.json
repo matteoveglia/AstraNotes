@@ -1,15 +1,15 @@
 {
-  "version": "0.5.0",
-  "notes": "Added status changing feature, shot and version statuses.",
-  "pub_date": "2025-04-16T02:59:19.526Z",
+  "version": "0.6.0",
+  "notes": "Added Dark Mode. Added Open in ftrack button. Large UI performance boosts.",
+  "pub_date": "2025-04-22T00:45:49.553Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.5.0/AstraNotes_0.5.0_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LytlQVJjNDlpWEFxcHJLajJkY0xuL2lNVVVHditybGJ4Y3VYZFpOWmZFWWNtditOOFkxRGdQMHYybTRBVUFpTUl3MTlhMmJnRTJJSXZWT2pHTUIvY1E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ0NzcyMzU5CWZpbGU6QXN0cmFOb3Rlc18wLjUuMF94NjRfZW4tVVMubXNpCmF0SXh0Szc5QTlwamcrckVnci9LWjQ3OUo4YUFpbXFvZ2hwbmxGYWpScnNjSGxZZDVWZnVqNzVPdzJsRllBYnM5eUNrYi9QVXBJd1pxRUd3UGIrV0RRPT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.5.0/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3dSOEZJdm1nZDN2NFRoNEhvYjIwZ0x1MDdWWnlMOWhhdzl5ZjFKbGZFMmx1OGs3Y0taRWNIRFIvekV5Q2pJeDZhWFU1YTJHdXF3SW1GUi9XVGwzdUFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ0NzcwNzI4CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6ClhXWnArOUJSK3N1Y0lvcUdIazJuT0EyVmw0WG8rNnNFRmtrZEcwWTUyTVJNeE1Ncisxemd3YkF2KzhQMzE5MnFueFlTNXFDM0FCQkd1N1ltcDN0YkFRPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.6.0/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzVpbUJyMkt4WjJmVVdjNXRvNmo4ZjBqVVJITEZ4U3RZaEpORTRXelc5M1hvSTBWVHg5MkRTaGxKTERLekpKcU9CaGw3Rk1UVTJsWHozQkladkdTK0EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1MjgyNzQ5CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CmVoSzRuU2hFM3k5cjdDbG11QjBLSDdMbmRYSEYrRlllT3E0cG9Bc2RudGdOT3kwVytXWDIzeWE3NEFoUDlUSzVVa2RtalQ2bzl3WEh2R3ErZEp3NEFBPT0K"
     }
   }
 }

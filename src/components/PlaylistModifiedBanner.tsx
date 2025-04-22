@@ -66,12 +66,12 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
   );
 
   return (
-    <div className="flex items-center gap-2 bg-yellow-50/80 border border-yellow-200 text-yellow-800 px-2 py-1 rounded-md text-sm">
+    <div className="flex items-center gap-2 bg-purple-50/80 border border-purple-200 text-purple-800 dark:text-purple-400 px-2 py-1 rounded-md text-sm">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex items-center gap-1 cursor-help">
-              <AlertCircle className="w-4 h-4 text-yellow-500" />
+              <AlertCircle className="w-4 h-4 text-purple-500 dark:text-purple-400" />
               <span>
                 {addedCount > 0 &&
                   `${addedCount} version${addedCount === 1 ? "" : "s"} added`}
@@ -87,7 +87,7 @@ export const PlaylistModifiedBanner: React.FC<PlaylistModifiedBannerProps> = ({
       <Button
         size="sm"
         variant="ghost"
-        className="h-7 px-2 hover:bg-yellow-100/80 text-yellow-800 flex items-center gap-1"
+        className="h-7 px-2 hover:bg-purple-100/80 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-400 dark:hover:text-purple-800 flex items-center gap-1"
         onClick={onUpdate}
         disabled={isUpdating}
       >

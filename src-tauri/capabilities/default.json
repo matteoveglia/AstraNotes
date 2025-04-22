@@ -25,6 +25,8 @@
     "dialog:default",
     "process:default",
     "shell:default",
-    "theme:default"
+    "core:app:allow-set-app-theme",
+    "core:window:allow-theme",
+    "core:window:allow-set-theme"
   ]
 }

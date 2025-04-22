@@ -25,8 +25,11 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   onClose,
 }) => (
   <Button
-    variant={isActive ? "default" : "ghost"}
-    className="justify-start group relative min-w-[120px] flex-none dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+    className={`justify-start group relative min-w-[120px] flex-none
+      ${isActive
+        ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
+        : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
+      }`}
     onClick={onClick}
   >
     <span className="truncate mr-6">{playlist.title}</span>

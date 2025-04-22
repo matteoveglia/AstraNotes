@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AstraNotes",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "identifier": "com.AstraLumen.Notes",
   "build": {
     "frontendDist": "../dist",
@@ -10,6 +10,7 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "AstraNotes",
@@ -59,7 +60,6 @@
       "endpoints": [
         "https://github.com/matteoveglia/AstraNotes/releases/latest/download/latest.json"
       ]
-    },
-    "theme": {}
+    }
   }
 }
