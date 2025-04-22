@@ -1,15 +1,15 @@
 {
-  "version": "0.6.1",
+  "version": "0.6.2",
   "notes": "Added Dark Mode. Added Open in ftrack button. Large UI performance boosts.",
-  "pub_date": "2025-04-22T01:30:33.569Z",
+  "pub_date": "2025-04-22T04:08:45.549Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.5.0/AstraNotes_0.5.0_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LytlQVJjNDlpWEFxcHJLajJkY0xuL2lNVVVHditybGJ4Y3VYZFpOWmZFWWNtditOOFkxRGdQMHYybTRBVUFpTUl3MTlhMmJnRTJJSXZWT2pHTUIvY1E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ0NzcyMzU5CWZpbGU6QXN0cmFOb3Rlc18wLjUuMF94NjRfZW4tVVMubXNpCmF0SXh0Szc5QTlwamcrckVnci9LWjQ3OUo4YUFpbXFvZ2hwbmxGYWpScnNjSGxZZDVWZnVqNzVPdzJsRllBYnM5eUNrYi9QVXBJd1pxRUd3UGIrV0RRPT0K"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzdZVzJMSzFHSHBBVDJXSUlhM1VHYTh5T3BNQkVEVHF6d3ZNYTZmNGl0UGpJN2h0L1lvbFFkOGU3OXBCRjA0alVldk5Sdlh4UzFaQzc0MThMbVBzOWdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1Mjk2MDIzCWZpbGU6QXN0cmFOb3Rlc18wLjYuMl94NjRfZW4tVVMubXNpCjNISzVJUS9adlU3amdXbXRsc2VUS0tJdmFsUncxampHZVpsQVMrS1BFTFBMbC9lWEpyM0tGNXh6S0pPa0JHc0Z1UVVMbGhrcEhQU1Z6T29jeUZlbkJBPT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.6.1/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzRPZVZMYldnN1oySWhRS1QxYnNnVlpyMmFUdDVQc1h0OW5INHA0eXorR3BXUjlkVkRidklGeXlJbGZEWE9OS2craUR3TVlUTXF6U0QrelJINkk0aGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1Mjg1NDMzCWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CkhLSWMrYngrY1dENkNLK2dDRE9Gc2hhbDlPMGEvZ1lPMWlxWEQ0T25EdFRreXA4dkhXZ3dhcW11TXVEbkxKdnluL0FFT1dlSFljZDY2Sm1zazg3TUNRPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.6.2/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3pjN2t5L2s4d3dWU2VSMjdUV2ovS1orbk5WVHkzMXBhRXFNcldEQnNVaFJUWm1QUnZTR281ajl3ZlpCN2FjVlNkZEU3S0pJMjhZdjJETnlDTVV1aWdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1Mjk0OTI1CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnhJa1dkRjhUQkdvenB6dmpIQXI1ZUFwbW4vRzBqd2FTQSszTS9USk12aFAxVUsyZzNtVzlxVjAzenl2MVRmeHBIb2cvN2g5ZFNSVktYdkJZeTBBcURnPT0K"
     }
   }
 }
