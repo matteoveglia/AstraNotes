@@ -972,11 +972,29 @@ export function useNoteManagement(playlist: Playlist) {
     }
   };
 
-  // Set the same label for all selected notes
+  // Set the same label for selected notes if any are selected, otherwise for all draft notes
   const setAllLabels = async (labelId: string) => {
     try {
+      // First determine if we should use selected versions or all drafts
+      const selectedDraftVersionIds = selectedVersions.filter(
+        (versionId) => noteStatuses[versionId] === "draft"
+      );
+      
+      // If there are selected drafts, apply to those only
+      // Otherwise, apply to all drafts
+      const versionIdsToUpdate = selectedDraftVersionIds.length > 0
+        ? selectedDraftVersionIds
+        : Object.entries(noteStatuses)
+            .filter(([, status]) => status === "draft")
+            .map(([versionId]) => versionId);
+      
+      if (versionIdsToUpdate.length === 0) {
+        toast.showError("No draft notes to apply label to");
+        return;
+      }
+
       // Apply the label to all selected versions
-      const updatePromises = selectedVersions.map((versionId) => {
+      const updatePromises = versionIdsToUpdate.map((versionId) => {
         // Get existing draft content
         const content = noteDrafts[versionId] || "";
 
@@ -994,17 +1012,21 @@ export function useNoteManagement(playlist: Playlist) {
 
       // Update in memory
       const newLabelIds = { ...noteLabelIds };
-      selectedVersions.forEach((versionId) => {
+      versionIdsToUpdate.forEach((versionId) => {
         newLabelIds[versionId] = labelId;
       });
 
       setNoteLabelIds(newLabelIds);
 
+      const selectionMode = selectedDraftVersionIds.length > 0 
+        ? "selected" 
+        : "all draft";
+
       toast.showSuccess(
-        `Applied label to ${selectedVersions.length} note${selectedVersions.length > 1 ? "s" : ""}`,
+        `Applied label to ${versionIdsToUpdate.length} note${versionIdsToUpdate.length > 1 ? "s" : ""} (${selectionMode})`
       );
     } catch (error) {
-      console.error("Failed to set labels for all selected notes:", error);
+      console.error("Failed to set labels for notes:", error);
       toast.showError("Failed to apply labels");
     }
   };

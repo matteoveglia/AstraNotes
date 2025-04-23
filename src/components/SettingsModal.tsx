@@ -367,11 +367,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Button
                     variant="default"
                     size="default"
-                    onClick={() =>
-                      updateAvailable
-                        ? installUpdate()
-                        : silentCheckForUpdates(true)
-                    }
+                    onClick={() => {
+                      if (updateAvailable) {
+                        // Reset update state before installing the update
+                        useUpdateStore.getState().resetUpdateState();
+                        installUpdate();
+                      } else {
+                        silentCheckForUpdates(true);
+                      }
+                    }}
                     disabled={isLoading}
                     className="relative z-10"
                   >
