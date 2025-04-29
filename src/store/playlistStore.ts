@@ -88,6 +88,7 @@ export class PlaylistStore {
       ) => void)
     | null = null;
   private versionAddInProgress: boolean = false;
+  private recentlyManuallyRemovedIds: Map<string, Set<string>> = new Map();
 
   constructor(ftrackService: FtrackService) {
     this.ftrackService = ftrackService;
@@ -1030,6 +1031,9 @@ export class PlaylistStore {
         // Create a set of manual version IDs for quick lookup
         const manualVersionIds = new Set(manualVersions.map((v) => v.id));
 
+        // Get the set of recently manually removed IDs for this playlist
+        const recentlyRemovedIds = this.recentlyManuallyRemovedIds.get(playlistId) || new Set();
+
         // Find added versions (in fresh but not in cached)
         const addedVersions = freshVersions
           .filter((v) => {
@@ -1047,13 +1051,18 @@ export class PlaylistStore {
           .map((v) => v.id);
 
         // Find removed versions (in cached but not in fresh)
-        // Exclude manually added versions from being considered as removed
+        // Exclude manually added versions AND recently manually removed versions from being considered
         const removedVersions = cachedVersions
           .filter((v) => {
             const key = `${playlistId}:${v.id}`;
             const notInFresh = !freshMap.has(key);
-            // If it's manually added, it can't be removed
-            if (notInFresh && !manualVersionIds.has(v.id)) {
+            
+            // Skip if manually added OR recently manually removed
+            if (manualVersionIds.has(v.id) || recentlyRemovedIds.has(v.id)) {
+              return false;
+            }
+            
+            if (notInFresh) {
               console.log("➖ Potential removed version:", {
                 id: v.id,
                 name: v.name,
@@ -1072,6 +1081,7 @@ export class PlaylistStore {
           addedIds: addedVersions,
           removedIds: removedVersions,
           preservedManualIds: Array.from(manualVersionIds),
+          recentlyRemovedIds: Array.from(recentlyRemovedIds),
         });
 
         // Only notify if there are actual changes
@@ -1546,6 +1556,27 @@ export class PlaylistStore {
         return;
       }
 
+      // Extract IDs for tracking
+      const versionIds = manuallyAddedVersions.map((v) => v.id);
+
+      // Store these IDs in our tracking map so polling won't report them as removed
+      if (!this.recentlyManuallyRemovedIds.has(playlistId)) {
+        this.recentlyManuallyRemovedIds.set(playlistId, new Set());
+      }
+      // Add each ID to the tracking set
+      versionIds.forEach(id => {
+        this.recentlyManuallyRemovedIds.get(playlistId)?.add(id);
+      });
+
+      // Set a timeout to clean up these IDs after polling cycle completes
+      // This ensures we don't keep tracking IDs indefinitely
+      setTimeout(() => {
+        if (this.recentlyManuallyRemovedIds.has(playlistId)) {
+          this.recentlyManuallyRemovedIds.delete(playlistId);
+          log(`Cleared tracking for manually removed versions in playlist ${playlistId}`);
+        }
+      }, PlaylistStore.POLL_INTERVAL * 2); // Clear after 2 polling cycles
+
       // Delete the versions from the database
       await db.versions
         .where("playlistId")
@@ -1555,9 +1586,6 @@ export class PlaylistStore {
 
       // For Quick Notes, also delete any drafts associated with these versions
       if (playlistId === "quick-notes") {
-        // Get the IDs of all manually added versions
-        const versionIds = manuallyAddedVersions.map((v) => v.id);
-
         // Delete any drafts for these versions
         for (const versionId of versionIds) {
           try {
@@ -1587,9 +1615,12 @@ export class PlaylistStore {
         // Clear the addedVersions array
         cachedPlaylist.addedVersions = [];
         cachedPlaylist.hasModifications = true;
+        
+        // Store the IDs in removedVersions for reference
+        // But we'll exclude these from polling notifications
         cachedPlaylist.removedVersions = [
           ...cachedPlaylist.removedVersions,
-          ...manuallyAddedVersions.map((v) => v.id),
+          ...versionIds,
         ];
 
         // Save the updated playlist back to the database
