@@ -267,129 +267,94 @@ export class PlaylistStore {
   async getPlaylist(id: string): Promise<CachedPlaylist | null> {
     try {
       console.log(`[PlaylistStore] Getting playlist ${id}`);
-      // Get the playlist from cache
+      
+      // Get the playlist metadata from cache first
       const cached = await db.playlists.get(id);
+      if (!cached) {
+        console.log(`[PlaylistStore] No playlist found with id ${id}`);
+        return null;
+      }
 
-      // Get versions from IndexedDB (our source of truth)
+      // Get versions separately from versions table - our source of truth for versions
       const dbVersions = await db.versions
         .where("playlistId")
         .equals(id)
         .filter((v) => !v.isRemoved)
         .toArray();
 
-      // If no versions in cache but playlist has versions, try to initialize
+      console.log(`[PlaylistStore] Found ${dbVersions.length} versions for playlist ${id}`);
+
+      // If no versions in cache but playlist has versions, initialize from cached playlist
       if (
         dbVersions.length === 0 &&
         cached?.versions &&
         cached.versions.length > 0
       ) {
+        console.log(`[PlaylistStore] No DB versions, but ${cached.versions.length} cached versions. Initializing...`);
         await this.initializePlaylist(id, cached);
-        // Try getting versions again
+        // Try getting versions again after initialization
         return this.getPlaylist(id);
       }
 
-      if (!cached) {
-        return null;
-      }
-
-      // Create maps for quick lookup
-      const dbVersionsMap = new Map(dbVersions.map((v) => [v.id, v]));
-      const cachedVersionsMap = new Map(
-        cached.versions?.map((v) => [v.id, v]) || [],
-      );
-
-      // Handle all playlists including Quick Notes consistently
-      // 1. Start with versions from IndexedDB that are either:
-      //    - Present in the cached versions (from Ftrack)
-      //    - Manually added
-      // 2. Add any cached versions that aren't in IndexedDB
-      const mergedVersions = [
-        // First, include all DB versions that are either in cache or manually added
-        ...dbVersions
-          .filter((v) => cachedVersionsMap.has(v.id) || v.manuallyAdded)
-          .map((v) => {
-            const cachedVersion = cachedVersionsMap.get(v.id);
-            // If it exists in cache, merge with DB version
-            if (cachedVersion) {
-              return {
-                ...cachedVersion,
-                draftContent: v.draftContent || "",
-                labelId: v.labelId || "",
-                manuallyAdded: v.manuallyAdded || false,
-                noteStatus: v.noteStatus,
-              };
-            }
-            // Otherwise just use the DB version
-            return v;
-          }),
-
-        // Then add any cached versions that aren't in DB
-        ...(cached.versions
-          ?.filter((v) => !dbVersionsMap.has(v.id))
-          .map((v) => ({
-            ...v,
-            manuallyAdded: false,
-            draftContent: "",
-            labelId: "",
-            noteStatus: "empty",
-          })) || []),
-      ];
+      // Create a defensive copy of the playlist
+      const result: CachedPlaylist = {
+        ...cached,
+        versions: [] // We'll populate this from DB versions
+      };
 
       // Sort versions by name and version number
-      cached.versions = mergedVersions.sort((a, b) => {
+      const sortedVersions = [...dbVersions].sort((a, b) => {
         const nameCompare = a.name.localeCompare(b.name);
         if (nameCompare !== 0) return nameCompare;
         return (b.version || 0) - (a.version || 0);
       });
 
-      // Explicitly load attachments for versions
+      // Fetch attachments separately (safer than storing them on version objects)
       const attachments = await db.attachments
         .where("playlistId")
         .equals(id)
         .toArray();
 
-      console.log(
-        `[PlaylistStore] Loaded ${attachments.length} attachments for playlist ${id}`,
-      );
-
-      // Create a safe serializable copy of attachments to avoid blob serialization issues
-      const safeAttachments = attachments.map((att) => {
-        // Create a copy without the data property to avoid serialization issues
-        const { data, ...safePart } = att;
-        return safePart;
-      });
+      console.log(`[PlaylistStore] Loaded ${attachments.length} attachments for playlist ${id}`);
 
       // Create a map of version IDs to attachments for efficient lookup
       const attachmentMap = new Map();
-      safeAttachments.forEach((att) => {
+      attachments.forEach((att) => {
         if (!attachmentMap.has(att.versionId)) {
           attachmentMap.set(att.versionId, []);
         }
-        attachmentMap.get(att.versionId).push(att);
+        // Create a safe copy without binary data
+        const { data, ...safeAttachment } = att;
+        attachmentMap.get(att.versionId).push(safeAttachment);
       });
 
-      // Attach attachments to version objects
-      cached.versions = cached.versions.map((version) => {
+      // Add versions with their attachments to the result
+      result.versions = sortedVersions.map(version => {
         const versionAttachments = attachmentMap.get(version.id) || [];
-
-        if (versionAttachments.length > 0) {
-          console.log(
-            `[PlaylistStore] Version ${version.id} has ${versionAttachments.length} attachments`,
-          );
-
-          // Store the raw attachment reference data on the version
-          (version as any).attachments = versionAttachments;
-        } else {
-          // Ensure versions without attachments have an empty array
-          (version as any).attachments = [];
-        }
-
-        return version;
+        
+        // Create a clean copy without complex structures to avoid serialization issues
+        return {
+          id: version.id,
+          name: version.name,
+          version: version.version,
+          thumbnailUrl: version.thumbnailUrl,
+          thumbnailId: version.thumbnailId,
+          reviewSessionObjectId: version.reviewSessionObjectId,
+          createdAt: version.createdAt,
+          updatedAt: version.updatedAt,
+          manuallyAdded: version.manuallyAdded || false,
+          noteStatus: version.noteStatus || "empty",
+          // Extra fields needed for the app
+          draftContent: version.draftContent || "", 
+          labelId: version.labelId || "",
+          // Store attachments as a separate array for reference
+          attachments: versionAttachments
+        };
       });
 
-      return cached;
+      return result;
     } catch (error) {
-      console.error("Failed to get playlist:", error);
+      console.error("[PlaylistStore] Failed to get playlist:", error);
       return null;
     }
   }
@@ -718,123 +683,72 @@ export class PlaylistStore {
 
   async cachePlaylist(playlist: CachedPlaylist): Promise<void> {
     try {
+      console.log(`[PlaylistStore] Caching playlist ${playlist.id} with ${playlist.versions?.length || 0} versions`);
+      
       // Get current versions to preserve draft content
       const existingVersions = await db.versions
         .where("playlistId")
         .equals(playlist.id)
         .toArray();
 
-      const draftMap = new Map(
-        existingVersions.map((v) => [v.id, v.draftContent]),
-      );
-
-      const labelIdMap = new Map(
-        existingVersions.map((v) => [v.id, v.labelId]),
-      );
-
-      const noteStatusMap = new Map(
-        existingVersions.map((v) => [v.id, v.noteStatus]),
-      );
-
-      // Create a map of attachment arrays by version ID
-      // Make sure to create a safe copy without binary data to prevent serialization errors
-      const attachmentsMap = new Map();
-
-      existingVersions.forEach((v) => {
-        if (v.attachments && v.attachments.length > 0) {
-          // Create safe copies of attachments that exclude binary data
-          const safeAttachments = v.attachments.map((att) => {
-            // Exclude data property and any File/Blob references that can't be serialized
-            const { data, file, ...safePart } = att as any;
-            return safePart;
-          });
-          attachmentsMap.set(v.id, safeAttachments);
-        } else {
-          attachmentsMap.set(v.id, []);
-        }
-      });
-
-      // Create a lookup map of existing versions
-      const existingVersionMap = new Map(
-        existingVersions.map((v) => [v.id, v]),
-      );
-
-      // Cache the playlist
-      await db.playlists.put(playlist);
-
-      // Save versions with preserved draft content and statuses
-      if (playlist.versions) {
-        await Promise.all(
-          playlist.versions.map(async (version) => {
-            // Get existing version data if it exists
-            const existingVersion = existingVersionMap.get(version.id);
-
-            // Prioritize keeping published status
-            let noteStatus;
-            if (existingVersion?.noteStatus === "published") {
-              // Always preserve published status
-              noteStatus = "published";
-            } else {
-              // Otherwise use existing status or default
-              noteStatus =
-                noteStatusMap.get(version.id) ||
-                (version as any).noteStatus ||
-                "empty";
-            }
-
-            // Get safe attachments for this version
-            const safeAttachments = attachmentsMap.get(version.id) || [];
-
-            // If version has its own attachments, create safe copies
-            if (
-              (version as any).attachments &&
-              (version as any).attachments.length > 0
-            ) {
-              try {
-                // Create safe copies of attachments that exclude binary data
-                const versionSafeAttachments = (version as any).attachments.map(
-                  (att: any) => {
-                    // Exclude data property and any File/Blob references
-                    const { data, file, ...safePart } = att;
-                    return safePart;
-                  },
-                );
-
-                // Use the newly processed attachments
-                safeAttachments.push(...versionSafeAttachments);
-              } catch (attachError) {
-                console.warn(
-                  `Could not process attachments for version ${version.id}:`,
-                  attachError,
-                );
-                // Continue with existing safe attachments
-              }
-            }
-
-            const versionToSave = {
-              ...version,
+      // Create maps for quick lookup of existing data
+      const draftMap = new Map(existingVersions.map((v) => [v.id, v.draftContent || ""]));
+      const labelIdMap = new Map(existingVersions.map((v) => [v.id, v.labelId || ""]));
+      const noteStatusMap = new Map(existingVersions.map((v) => [v.id, v.noteStatus || "empty"]));
+      const manualAddedMap = new Map(existingVersions.map((v) => [v.id, v.manuallyAdded || false]));
+      
+      // First, store a clean copy of the playlist without versions to avoid serialization issues
+      const playlistWithoutVersions = {
+        ...playlist,
+        versions: [],  // temporarily remove versions to store the playlist separately
+      };
+      
+      // Cache the playlist metadata first
+      await db.playlists.put(playlistWithoutVersions);
+      
+      // Then save versions individually to avoid potential serialization issues
+      if (playlist.versions && playlist.versions.length > 0) {
+        console.log(`[PlaylistStore] Saving ${playlist.versions.length} versions for playlist ${playlist.id}`);
+        
+        // Process versions one by one to isolate any serialization issues
+        for (const version of playlist.versions) {
+          try {
+            const versionId = version.id;
+            
+            // Create a clean, primitive-only version of the version object
+            const cleanVersion = {
+              id: versionId,
               playlistId: playlist.id,
-              // Preserve existing draft content and labels
-              draftContent: draftMap.get(version.id) || "",
-              labelId: labelIdMap.get(version.id) || "",
+              name: version.name || "",
+              version: version.version || 0,
+              thumbnailUrl: version.thumbnailUrl || "",
+              thumbnailId: version.thumbnailId || "",
+              reviewSessionObjectId: version.reviewSessionObjectId || "",
+              createdAt: this.cleanDate(version.createdAt),
+              updatedAt: this.cleanDate(version.updatedAt),
               lastModified: Date.now(),
-              // Explicitly preserve the note status, especially published status
-              noteStatus: noteStatus,
-              // Preserve manually added flag
-              manuallyAdded:
-                existingVersion?.manuallyAdded ||
-                version.manuallyAdded ||
-                false,
-              // Store safe serializable attachments
-              attachments: safeAttachments,
+              
+              // Preserve existing values for state fields
+              draftContent: draftMap.get(versionId) || (version as any).draftContent || "",
+              labelId: labelIdMap.get(versionId) || (version as any).labelId || "",
+              noteStatus: 
+                noteStatusMap.get(versionId) === "published" 
+                  ? "published"  // Always preserve published status
+                  : noteStatusMap.get(versionId) || (version as any).noteStatus || "empty",
+              manuallyAdded: manualAddedMap.get(versionId) || version.manuallyAdded || false,
+              isRemoved: false,
             };
-
-            await db.versions.put(versionToSave, [playlist.id, version.id]);
-          }),
-        );
+            
+            // Save the clean version to IndexedDB
+            await db.versions.put(cleanVersion, [playlist.id, versionId]);
+          } catch (versionError) {
+            console.error(`[PlaylistStore] Error saving version ${version.id}:`, versionError);
+            // Continue with other versions even if one fails
+          }
+        }
       }
     } catch (err) {
-      console.error("Error in cachePlaylist:", err);
+      console.error("[PlaylistStore] Error in cachePlaylist:", err);
       throw err;
     }
   }
@@ -1382,78 +1296,110 @@ export class PlaylistStore {
     freshVersions: AssetVersion[],
   ): Promise<void> {
     try {
+      console.log(
+        `[PlaylistStore] Applying ${freshVersions.length} fresh versions to playlist ${playlistId}`
+      );
+      
       // First, get all existing versions from DB
       const existingVersions = await db.versions
         .where("playlistId")
         .equals(playlistId)
         .toArray();
+      
+      console.log(
+        `[PlaylistStore] Found ${existingVersions.length} existing versions in database`
+      );
 
-      // Create a lookup map for existing versions
+      // Create lookup maps for efficient access
       const existingVersionsMap = new Map(
         existingVersions.map((v) => [v.id, v]),
       );
 
-      // Get all published notes to ensure we preserve their status
-      const publishedNotes = existingVersions.filter(
-        (v) => v.noteStatus === "published",
+      // Track published notes to ensure we preserve their status
+      const publishedNoteIds = new Set(
+        existingVersions
+          .filter((v) => v.noteStatus === "published")
+          .map((v) => v.id)
       );
-      const publishedNoteIds = new Set(publishedNotes.map((v) => v.id));
 
       if (publishedNoteIds.size > 0) {
-        console.debug(
-          `[playlistStore] Preserving ${publishedNoteIds.size} published notes during version update`,
+        console.log(
+          `[PlaylistStore] Preserving ${publishedNoteIds.size} published notes during version update`
         );
       }
 
-      // Process and save fresh versions
-      await Promise.all(
-        freshVersions.map(async (freshVersion) => {
+      // Process each fresh version individually
+      for (const freshVersion of freshVersions) {
+        try {
           const existingVersion = existingVersionsMap.get(freshVersion.id);
+          const versionId = freshVersion.id;
 
-          // If version exists in DB
+          // If this version already exists
           if (existingVersion) {
-            // Prepare updated version, preserving draft content, labels, and published status
-            const updatedVersion: CachedVersion = {
-              ...(freshVersion as any), // Cast to any to avoid TypeScript errors
+            // Create updated version object, preserving important fields
+            const updatedVersion = {
+              id: versionId,
               playlistId,
+              name: freshVersion.name || "",
+              version: freshVersion.version || 0,
+              thumbnailUrl: freshVersion.thumbnailUrl || "",
+              thumbnailId: freshVersion.thumbnailId || "",
+              reviewSessionObjectId: freshVersion.reviewSessionObjectId || "",
+              createdAt: this.cleanDate(freshVersion.createdAt),
+              updatedAt: this.cleanDate(freshVersion.updatedAt),
+              lastModified: Date.now(),
+              
+              // Preserve existing state
               draftContent: existingVersion.draftContent || "",
               labelId: existingVersion.labelId || "",
-              lastModified: Date.now(),
+              
               // Always preserve published status
-              noteStatus: publishedNoteIds.has(freshVersion.id)
-                ? ("published" as NoteStatus) // Force published if it was published before
-                : existingVersion.noteStatus || ("empty" as NoteStatus),
+              noteStatus: publishedNoteIds.has(versionId)
+                ? "published" as NoteStatus  
+                : existingVersion.noteStatus || "empty" as NoteStatus,
+                
               manuallyAdded: existingVersion.manuallyAdded || false,
               isRemoved: false,
             };
-
-            // Save updated version to DB
-            await db.versions.put(updatedVersion, [
-              playlistId,
-              freshVersion.id,
-            ]);
+            
+            // Save to database
+            await db.versions.put(updatedVersion, [playlistId, versionId]);
           }
-          // If version is new
+          // If it's a new version
           else {
-            // Create new version with default values
-            const newVersion: CachedVersion = {
-              ...(freshVersion as any), // Cast to any to avoid TypeScript errors
+            const newVersion = {
+              id: versionId,
               playlistId,
+              name: freshVersion.name || "",
+              version: freshVersion.version || 0,
+              thumbnailUrl: freshVersion.thumbnailUrl || "",
+              thumbnailId: freshVersion.thumbnailId || "",
+              reviewSessionObjectId: freshVersion.reviewSessionObjectId || "",
+              createdAt: this.cleanDate(freshVersion.createdAt),
+              updatedAt: this.cleanDate(freshVersion.updatedAt),
+              lastModified: Date.now(),
               draftContent: "",
               labelId: "",
-              lastModified: Date.now(),
-              noteStatus: "empty" as NoteStatus, // Default to empty for new versions
+              noteStatus: "empty" as NoteStatus,
               manuallyAdded: false,
               isRemoved: false,
             };
-
-            // Save new version to DB
-            await db.versions.put(newVersion, [playlistId, freshVersion.id]);
+            
+            // Save to database
+            await db.versions.put(newVersion, [playlistId, versionId]);
           }
-        }),
-      );
+        } catch (versionError) {
+          console.error(
+            `[PlaylistStore] Error processing version ${freshVersion.id}:`, 
+            versionError
+          );
+          // Continue with other versions even if one fails
+        }
+      }
+      
+      console.log(`[PlaylistStore] Successfully applied fresh versions to playlist ${playlistId}`);
     } catch (error) {
-      console.error("[playlistStore] Error applying fresh versions:", error);
+      console.error("[PlaylistStore] Error applying fresh versions:", error);
       throw error;
     }
   }
