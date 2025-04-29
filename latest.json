@@ -1,15 +1,15 @@
 {
-  "version": "0.6.2",
-  "notes": "Added Dark Mode. Added Open in ftrack button. Large UI performance boosts.",
-  "pub_date": "2025-04-22T04:08:45.549Z",
+  "version": "0.6.3",
+  "notes": "Bug fixes for playlist re-open crash and clear added versions function. Fixed and enhanced set all labels functionality. Changed silent update checker",
+  "pub_date": "2025-04-29T23:36:20.577Z",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.5.0/AstraNotes_0.5.0_x64_en-US.msi",
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzdZVzJMSzFHSHBBVDJXSUlhM1VHYTh5T3BNQkVEVHF6d3ZNYTZmNGl0UGpJN2h0L1lvbFFkOGU3OXBCRjA0alVldk5Sdlh4UzFaQzc0MThMbVBzOWdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1Mjk2MDIzCWZpbGU6QXN0cmFOb3Rlc18wLjYuMl94NjRfZW4tVVMubXNpCjNISzVJUS9adlU3amdXbXRsc2VUS0tJdmFsUncxampHZVpsQVMrS1BFTFBMbC9lWEpyM0tGNXh6S0pPa0JHc0Z1UVVMbGhrcEhQU1Z6T29jeUZlbkJBPT0K"
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.6.2/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3pjN2t5L2s4d3dWU2VSMjdUV2ovS1orbk5WVHkzMXBhRXFNcldEQnNVaFJUWm1QUnZTR281ajl3ZlpCN2FjVlNkZEU3S0pJMjhZdjJETnlDTVV1aWdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1Mjk0OTI1CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnhJa1dkRjhUQkdvenB6dmpIQXI1ZUFwbW4vRzBqd2FTQSszTS9USk12aFAxVUsyZzNtVzlxVjAzenl2MVRmeHBIb2cvN2g5ZFNSVktYdkJZeTBBcURnPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.6.3/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1Lzl4UWtXSS8vTzhTblh5a0ozVVR4cUNJTit5U0lCeTMxWDFQUFQzZDRmNjNiTUk5MHpya1dtVTAyWW5WSG4ybE9Icmx5RVJXbkc3WEFzVEZWYlVnaHdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzQ1OTY5NzgwCWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnVuQTRTU09VY0NWWTN0Zjg1M1FRbCtrSjArR0krNi9YTXhSaGhSOGF3U0NsSWt0TGpFLzd0NzBwTmYxUEg4RWhGRFpDK2ZObGZ4TUxMRHVvbkJOVkJnPT0K"
     }
   }
 }
