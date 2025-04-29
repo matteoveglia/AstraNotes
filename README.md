@@ -63,15 +63,15 @@ AstraNotes logs can be exported from the Settings panel for troubleshooting. Cli
 
 AstraNotes has been scanned with VirusTotal to ensure it's free from malware and other security threats.
 
-You can view the scan results here, for release v0.5.0.
+You can view the scan results here, for release v0.6.3.
 
 #### Windows
-- **File Hash**: 22805666b48e7040d39e8f0d0f6cfb2af47848d375aa6f1b6b019a188a32984a
-- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/22805666b48e7040d39e8f0d0f6cfb2af47848d375aa6f1b6b019a188a32984a/detection)
+- **File Hash**: 057385d0d3c02b643e5996651f433c0a0003bd33221fe4e2f4cfcb48c0188c1d
+- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/057385d0d3c02b643e5996651f433c0a0003bd33221fe4e2f4cfcb48c0188c1d?nocache=1)
 
 #### macOS
-- **File Hash**: 82fa15154ba4d13ed974ed6c0c0b101ad027776a785a2f0412b695950db5c50f
-- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/82fa15154ba4d13ed974ed6c0c0b101ad027776a785a2f0412b695950db5c50f?nocache=1)
+- **File Hash**: 061f9457205e726c2f7af6f677e96a05805d182f25a6d0afc4cb0497cfc68eaf
+- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/061f9457205e726c2f7af6f677e96a05805d182f25a6d0afc4cb0497cfc68eaf/detection)
 
 We are committed to providing a secure application and regularly scan our releases to ensure your safety.
 
