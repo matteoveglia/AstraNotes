@@ -185,14 +185,28 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     const handlePaste = (e: ClipboardEvent) => {
       if (status === "published") return; // Don't allow paste if published
 
+      // Check if the paste is happening in the textarea
+      const target = e.target as HTMLElement;
+      const isTextareaTarget = target?.tagName?.toLowerCase() === 'textarea';
+
       if (e.clipboardData?.items) {
         const items = Array.from(e.clipboardData.items);
 
+        // Check for text content first
+        const textItems = items.filter(item => item.kind === 'string' && item.type === 'text/plain');
         const imageItems = items.filter(
           (item) => item.kind === "file" && item.type.startsWith("image/"),
         );
 
-        if (imageItems.length > 0) {
+        // If pasting into textarea and there's text content, let the textarea handle it
+        if (isTextareaTarget && textItems.length > 0) {
+          return; // Let the default textarea paste behavior handle text
+        }
+
+        // Only handle image attachments if there are images and either:
+        // 1. No text content available, OR
+        // 2. Not pasting into the textarea
+        if (imageItems.length > 0 && (textItems.length === 0 || !isTextareaTarget)) {
           e.preventDefault(); // Prevent default paste behavior for images
 
           const newAttachments: Attachment[] = [];
