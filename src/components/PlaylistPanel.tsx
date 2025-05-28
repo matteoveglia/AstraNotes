@@ -77,7 +77,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     <motion.div
       key={playlist.id}
       className={cn(
-        "p-2 rounded cursor-pointer mb-1 flex items-center justify-between",
+        "p-2 rounded cursor-pointer mb-1 flex items-start justify-between gap-2",
         isActive
           ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
           : "hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -88,13 +88,15 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       onContextMenu={handleContextMenu}
       variants={itemVariants}
     >
-      <span>{playlist.title}</span>
-      {playlist.status === "removed" && (
-        <MinusCircle className="h-4 w-4 text-red-500" />
-      )}
-      {playlist.status === "added" && (
-        <PlusCircle className="h-4 w-4 text-green-500" />
-      )}
+      <span className="break-words whitespace-normal flex-1 min-w-0">{playlist.title}</span>
+      <div className="flex-shrink-0 flex items-center">
+        {playlist.status === "removed" && (
+          <MinusCircle className="h-4 w-4 text-red-500" />
+        )}
+        {playlist.status === "added" && (
+          <PlusCircle className="h-4 w-4 text-green-500" />
+        )}
+      </div>
     </motion.div>
   );
 };
