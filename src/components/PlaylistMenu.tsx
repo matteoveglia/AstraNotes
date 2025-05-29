@@ -114,7 +114,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
             <Menu className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-48 mt-1">
           <DropdownMenuItem
             onClick={handleExportClick}
             className="flex items-center gap-2"

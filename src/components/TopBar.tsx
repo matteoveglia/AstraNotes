@@ -11,7 +11,6 @@ import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { CheckCircle2, XCircle, ArrowUpCircle } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
 import { useUpdateStore } from "../store/updateStore";
-import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { cn } from "@/lib/utils";
 import { Sun, Moon } from "lucide-react";
 import { useThemeStore } from "../store/themeStore";
@@ -31,7 +30,7 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
   return (
     <div className="h-12 border-b bg-background flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
-        <h1 className="text-lg font-extrabold text-zinc-900 dark:text-zinc-100">
+        <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100">
           AstraNotes
         </h1>
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-sm">
@@ -68,31 +67,31 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
             </span>
           </div>
         )}
-        <SwitchPrimitives.Root
-          id="theme-toggle"
-          checked={theme === "dark"}
-          onCheckedChange={toggleTheme}
+        <button
+          onClick={toggleTheme}
           className={cn(
-            "relative inline-flex items-center h-8 w-14 rounded-full p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring focus-visible:ring-offset-background",
-            "bg-zinc-100 dark:bg-zinc-900",
+            "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 ease-in-out",
+            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500",
+            "bg-white dark:bg-zinc-900"
           )}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
         >
-          <Sun className="absolute left-2 w-4 h-4 text-zinc-400" />
-          <Moon className="absolute right-2 w-4 h-4 text-zinc-400" />
-          <SwitchPrimitives.Thumb
-            className={cn(
-              "flex items-center justify-center h-6 w-6 rounded-full shadow-md transform transition-transform",
-              "bg-amber-500 data-[state=checked]:bg-indigo-800",
-              "data-[state=checked]:translate-x-6",
-            )}
-          >
-            {theme === "dark" ? (
-              <Moon className="w-4 h-4 text-white" />
-            ) : (
-              <Sun className="w-4 h-4 text-white" />
-            )}
-          </SwitchPrimitives.Thumb>
-        </SwitchPrimitives.Root>
+          <div className="relative w-5 h-5">
+            <Sun 
+              className={cn(
+                "absolute inset-0 w-5 h-5 text-amber-500 transition-all duration-300 ease-in-out transform",
+                theme === "dark" ? "opacity-0 rotate-90 scale-75" : "opacity-100 rotate-0 scale-100"
+              )}
+            />
+            <Moon 
+              className={cn(
+                "absolute inset-0 w-5 h-5 text-slate-700 dark:text-slate-300 transition-all duration-300 ease-in-out transform",
+                theme === "dark" ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75"
+              )}
+            />
+          </div>
+        </button>
         {children}
       </div>
     </div>
