@@ -527,6 +527,10 @@ export function useNoteManagement(playlist: Playlist) {
     );
   };
 
+  const clearAllSelections = () => {
+    setSelectedVersions([]);
+  };
+
   // Publish selected notes
   const publishSelectedNotes = async () => {
     if (selectedVersions.length === 0) {
@@ -977,17 +981,18 @@ export function useNoteManagement(playlist: Playlist) {
     try {
       // First determine if we should use selected versions or all drafts
       const selectedDraftVersionIds = selectedVersions.filter(
-        (versionId) => noteStatuses[versionId] === "draft"
+        (versionId) => noteStatuses[versionId] === "draft",
       );
-      
+
       // If there are selected drafts, apply to those only
       // Otherwise, apply to all drafts
-      const versionIdsToUpdate = selectedDraftVersionIds.length > 0
-        ? selectedDraftVersionIds
-        : Object.entries(noteStatuses)
-            .filter(([, status]) => status === "draft")
-            .map(([versionId]) => versionId);
-      
+      const versionIdsToUpdate =
+        selectedDraftVersionIds.length > 0
+          ? selectedDraftVersionIds
+          : Object.entries(noteStatuses)
+              .filter(([, status]) => status === "draft")
+              .map(([versionId]) => versionId);
+
       if (versionIdsToUpdate.length === 0) {
         toast.showError("No draft notes to apply label to");
         return;
@@ -1018,12 +1023,11 @@ export function useNoteManagement(playlist: Playlist) {
 
       setNoteLabelIds(newLabelIds);
 
-      const selectionMode = selectedDraftVersionIds.length > 0 
-        ? "selected" 
-        : "all draft";
+      const selectionMode =
+        selectedDraftVersionIds.length > 0 ? "selected" : "all draft";
 
       toast.showSuccess(
-        `Applied label to ${versionIdsToUpdate.length} note${versionIdsToUpdate.length > 1 ? "s" : ""} (${selectionMode})`
+        `Applied label to ${versionIdsToUpdate.length} note${versionIdsToUpdate.length > 1 ? "s" : ""} (${selectionMode})`,
       );
     } catch (error) {
       console.error("Failed to set labels for notes:", error);
@@ -1040,22 +1044,32 @@ export function useNoteManagement(playlist: Playlist) {
 
   // Provide stable callback references to avoid recreating handlers on each render
   const saveNoteDraftRef = useRef(saveNoteDraft);
-  useEffect(() => { saveNoteDraftRef.current = saveNoteDraft; }, [saveNoteDraft]);
+  useEffect(() => {
+    saveNoteDraftRef.current = saveNoteDraft;
+  }, [saveNoteDraft]);
   const stableSaveNoteDraft = useCallback(
-    (versionId: string, content: string, labelId: string, attachments?: Attachment[]) =>
-      saveNoteDraftRef.current(versionId, content, labelId, attachments),
+    (
+      versionId: string,
+      content: string,
+      labelId: string,
+      attachments?: Attachment[],
+    ) => saveNoteDraftRef.current(versionId, content, labelId, attachments),
     [],
   );
 
   const clearNoteDraftRef = useRef(clearNoteDraft);
-  useEffect(() => { clearNoteDraftRef.current = clearNoteDraft; }, [clearNoteDraft]);
+  useEffect(() => {
+    clearNoteDraftRef.current = clearNoteDraft;
+  }, [clearNoteDraft]);
   const stableClearNoteDraft = useCallback(
     (versionId: string) => clearNoteDraftRef.current(versionId),
     [],
   );
 
   const toggleVersionSelectionRef = useRef(toggleVersionSelection);
-  useEffect(() => { toggleVersionSelectionRef.current = toggleVersionSelection; }, [toggleVersionSelection]);
+  useEffect(() => {
+    toggleVersionSelectionRef.current = toggleVersionSelection;
+  }, [toggleVersionSelection]);
   const stableToggleVersionSelection = useCallback(
     (versionId: string) => toggleVersionSelectionRef.current(versionId),
     [],
@@ -1081,5 +1095,6 @@ export function useNoteManagement(playlist: Playlist) {
     setAllLabels,
     isUserInteracting,
     getDraftCount,
+    clearAllSelections,
   };
 }

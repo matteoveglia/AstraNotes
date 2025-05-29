@@ -20,18 +20,21 @@ const App: React.FC = () => {
   useEffect(() => {
     const win = getCurrentWindow();
     // seed from current window theme
-    win.theme()
+    win
+      .theme()
       .then((osTheme) => {
         if (osTheme) useThemeStore.getState().setTheme(osTheme);
       })
       .catch(() => {});
     // subscribe to changes
     let unlisten: () => void;
-    win.onThemeChanged(({ payload }) => {
-      useThemeStore.getState().setTheme(payload);
-    }).then((fn) => {
-      unlisten = fn;
-    });
+    win
+      .onThemeChanged(({ payload }) => {
+        useThemeStore.getState().setTheme(payload);
+      })
+      .then((fn) => {
+        unlisten = fn;
+      });
     return () => unlisten?.();
   }, []);
 
@@ -40,7 +43,9 @@ const App: React.FC = () => {
     // toggle Tailwind dark class
     root.classList.toggle("dark", theme === "dark");
     // update native window chrome
-    getCurrentWindow().setTheme(theme).catch(() => {});
+    getCurrentWindow()
+      .setTheme(theme)
+      .catch(() => {});
   }, [theme]);
 
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);

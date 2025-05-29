@@ -37,11 +37,13 @@ import { useToast } from "./ui/toast";
 interface PlaylistMenuProps {
   onClearAllNotes: () => void;
   onSetAllLabels: (labelId: string) => void;
+  onClearAllSelections: () => void;
 }
 
 export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   onClearAllNotes,
   onSetAllLabels,
+  onClearAllSelections,
 }) => {
   const [labels, setLabels] = useState<
     Array<{
@@ -125,6 +127,9 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleClearAllNotes}>
             Clear All Notes
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onClearAllSelections}>
+            Clear Note Selections
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuSub>

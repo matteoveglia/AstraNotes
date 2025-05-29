@@ -67,11 +67,14 @@ export function usePlaylistModifications(
     if (!pendingVersions) return;
 
     setIsRefreshing(true);
-    console.debug(`[usePlaylistModifications] Applying pending changes for playlist ${playlist.id}`, {
-      pendingVersionsCount: pendingVersions.length,
-      currentModifications: modifications
-    });
-    
+    console.debug(
+      `[usePlaylistModifications] Applying pending changes for playlist ${playlist.id}`,
+      {
+        pendingVersionsCount: pendingVersions.length,
+        currentModifications: modifications,
+      },
+    );
+
     try {
       // Get manually added versions from current playlist
       const manualVersions =
@@ -96,7 +99,7 @@ export function usePlaylistModifications(
         originalVersionsCount: playlist.versions?.length || 0,
         mergedVersionsCount: mergedVersions.length,
         manualVersionsCount: manualVersions.length,
-        pendingVersionsCount: pendingVersions.length
+        pendingVersionsCount: pendingVersions.length,
       });
 
       // Clear pending versions and modifications FIRST to prevent UI flickering
@@ -116,7 +119,7 @@ export function usePlaylistModifications(
       }
 
       // Give UI time to update before restarting polling
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Update playlist and restart polling
       console.debug(`[usePlaylistModifications] Restarting polling`);
@@ -124,12 +127,15 @@ export function usePlaylistModifications(
         playlist.id,
         (added, removed, addedVersions, removedVersions, freshVersions) => {
           if (added > 0 || removed > 0) {
-            console.debug(`[usePlaylistModifications] New modifications detected after restart`, {
-              added,
-              removed,
-              addedVersions,
-              removedVersions
-            });
+            console.debug(
+              `[usePlaylistModifications] New modifications detected after restart`,
+              {
+                added,
+                removed,
+                addedVersions,
+                removedVersions,
+              },
+            );
             setModifications({
               added,
               removed,
@@ -141,7 +147,9 @@ export function usePlaylistModifications(
         },
       );
 
-      console.debug(`[usePlaylistModifications] Successfully applied pending changes`);
+      console.debug(
+        `[usePlaylistModifications] Successfully applied pending changes`,
+      );
       return true;
     } catch (error) {
       console.error("Failed to apply changes:", error);

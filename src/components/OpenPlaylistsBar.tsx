@@ -26,9 +26,10 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
 }) => (
   <Button
     className={`justify-start group relative min-w-[120px] flex-none
-      ${isActive
-        ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
-        : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
+      ${
+        isActive
+          ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
+          : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
       }`}
     onClick={onClick}
   >

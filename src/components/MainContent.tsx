@@ -10,7 +10,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Playlist, AssetVersion } from "@/types";
+import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { playlistStore } from "../store/playlistStore";
 import { RefreshCw } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
@@ -19,12 +19,14 @@ import { useSettings } from "../store/settingsStore";
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
 import { useNoteManagement } from "@/features/notes/hooks/useNoteManagement";
 import { useThumbnailLoading } from "@/features/versions/hooks/useThumbnailLoading";
+import { useLabelStore } from "../store/labelStore";
 
 // Import components
 import { ModificationsBanner } from "@/features/versions/components/ModificationsBanner";
 import { PublishingControls } from "@/features/notes/components/PublishingControls";
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
+import { VersionFilter } from "@/features/versions/components/VersionFilter";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -37,6 +39,10 @@ export const MainContent: React.FC<MainContentProps> = ({
 }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
+
+  // Filter state
+  const [selectedStatuses, setSelectedStatuses] = useState<NoteStatus[]>([]);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
 
   // Ref for tracking if component is mounted
   const isMountedRef = useRef(true);
@@ -93,6 +99,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Use custom hooks
   const { settings } = useSettings();
+  const { fetchLabels } = useLabelStore();
   const {
     modifications,
     isRefreshing,
@@ -116,9 +123,15 @@ export const MainContent: React.FC<MainContentProps> = ({
     clearAllNotes,
     setAllLabels,
     getDraftCount,
+    clearAllSelections,
   } = useNoteManagement(activePlaylist);
 
   const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
+
+  // Fetch labels when component mounts
+  useEffect(() => {
+    fetchLabels();
+  }, [fetchLabels]);
 
   // Auto-refresh polling based on settings
   useEffect(() => {
@@ -159,10 +172,14 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Synchronize mergedPlaylist when playlist prop updates (e.g., after applying changes)
   useEffect(() => {
     if (playlist && isMountedRef.current) {
-      console.debug(`[MainContent] Synchronizing mergedPlaylist for playlist ${playlist.id}`, {
-        versionsCount: playlist.versions?.length || 0,
-        hasModifications: modifications.added > 0 || modifications.removed > 0
-      });
+      console.debug(
+        `[MainContent] Synchronizing mergedPlaylist for playlist ${playlist.id}`,
+        {
+          versionsCount: playlist.versions?.length || 0,
+          hasModifications:
+            modifications.added > 0 || modifications.removed > 0,
+        },
+      );
       setMergedPlaylist(playlist);
     }
   }, [playlist.versions, modifications.added, modifications.removed]);
@@ -365,7 +382,43 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Memoize sorted versions to prevent unnecessary re-renders
   const sortedVersions = useMemo(() => {
     if (isInitializing) return [];
-    return [...(activePlaylist.versions || [])].sort((a, b) => {
+
+    let filteredVersions = [...(activePlaylist.versions || [])];
+
+    // Apply status filter
+    if (selectedStatuses.length > 0) {
+      filteredVersions = filteredVersions.filter((version) => {
+        const status = noteStatuses[version.id] || "empty";
+
+        // Check if any selected status matches
+        for (const selectedStatus of selectedStatuses) {
+          if (selectedStatus === "reviewed") {
+            // Handle "reviewed" as "Selected" - check if version is in selectedVersions
+            if (selectedVersions.includes(version.id)) {
+              return true;
+            }
+          } else {
+            // Regular status check
+            if (status === selectedStatus) {
+              return true;
+            }
+          }
+        }
+
+        return false;
+      });
+    }
+
+    // Apply label filter
+    if (selectedLabels.length > 0) {
+      filteredVersions = filteredVersions.filter((version) => {
+        const labelId = noteLabelIds[version.id];
+        return labelId && selectedLabels.includes(labelId);
+      });
+    }
+
+    // Sort the filtered versions
+    return filteredVersions.sort((a, b) => {
       // First sort by name
       const nameCompare = a.name.localeCompare(b.name);
       if (nameCompare !== 0) return nameCompare;
@@ -373,7 +426,20 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Then by version number
       return a.version - b.version;
     });
-  }, [activePlaylist.versions, isInitializing]);
+  }, [
+    activePlaylist.versions,
+    isInitializing,
+    selectedStatuses,
+    selectedLabels,
+    noteStatuses,
+    noteLabelIds,
+    selectedVersions,
+  ]);
+
+  const handleClearFilters = () => {
+    setSelectedStatuses([]);
+    setSelectedLabels([]);
+  };
 
   return (
     <Card className="h-full flex flex-col rounded-none">
@@ -382,25 +448,12 @@ export const MainContent: React.FC<MainContentProps> = ({
           <div className="flex flex-col">
             <CardTitle className="text-xl">{activePlaylist.name}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {activePlaylist.versions?.length || 0} Version{(activePlaylist.versions?.length || 0) !== 1 ? 's' : ''}
+              {sortedVersions.length} Version
+              {sortedVersions.length !== 1 ? "s" : ""}
+              {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
+                ` (${activePlaylist.versions?.length || 0} total)`}
             </p>
           </div>
-          {!activePlaylist.isQuickNotes && (
-            <>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2"
-                onClick={refreshPlaylist}
-                disabled={isRefreshing}
-                title="Refresh Playlist"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-                />
-              </Button>
-            </>
-          )}
         </div>
         <div className="flex items-center gap-4">
           {modifications.added > 0 || modifications.removed > 0 ? (
@@ -430,6 +483,16 @@ export const MainContent: React.FC<MainContentProps> = ({
               onPublishAll={publishAllNotes}
               onClearAllNotes={clearAllNotes}
               onSetAllLabels={setAllLabels}
+              onClearAllSelections={clearAllSelections}
+              isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+              isRefreshing={isRefreshing}
+              onRefresh={refreshPlaylist}
+              selectedStatuses={selectedStatuses}
+              selectedLabels={selectedLabels}
+              selectedVersions={selectedVersions}
+              onStatusChange={setSelectedStatuses}
+              onLabelChange={setSelectedLabels}
+              onClearFilters={handleClearFilters}
             />
           </div>
         </div>

@@ -88,7 +88,9 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       onContextMenu={handleContextMenu}
       variants={itemVariants}
     >
-      <span className="break-words whitespace-normal flex-1 min-w-0">{playlist.title}</span>
+      <span className="break-words whitespace-normal flex-1 min-w-0">
+        {playlist.title}
+      </span>
       <div className="flex-shrink-0 flex items-center">
         {playlist.status === "removed" && (
           <MinusCircle className="h-4 w-4 text-red-500" />

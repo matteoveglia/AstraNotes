@@ -45,7 +45,10 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="cursor-help flex items-center">
-                <InfoIcon size={14} className="text-purple-700 dark:text-purple-300" />
+                <InfoIcon
+                  size={14}
+                  className="text-purple-700 dark:text-purple-300"
+                />
               </span>
             </TooltipTrigger>
             <TooltipContent>

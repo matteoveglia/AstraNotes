@@ -61,23 +61,25 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   const normalizeMultiVersionSearch = (term: string): string => {
     if (detectMultipleVersions(term)) {
       // Replace multiple spaces with single spaces, then convert to comma-separated
-      return term.replace(/\s+/g, ' ').replace(/\s/g, ', ');
+      return term.replace(/\s+/g, " ").replace(/\s/g, ", ");
     }
     return term;
   };
 
   const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = e.target.value;
-    
+
     // Check if this looks like a multi-version search
     const isMultiVersion = detectMultipleVersions(newSearchTerm);
     setIsMultiVersionSearch(isMultiVersion);
-    
+
     // If it's a multi-version search, normalize it
-    const normalizedTerm = isMultiVersion ? normalizeMultiVersionSearch(newSearchTerm) : newSearchTerm;
-    
+    const normalizedTerm = isMultiVersion
+      ? normalizeMultiVersionSearch(newSearchTerm)
+      : newSearchTerm;
+
     setSearchTerm(normalizedTerm);
-    
+
     if (normalizedTerm === "") {
       handleClearSelection(); // Clear any selected versions when search term is also cleared
     }
@@ -93,26 +95,27 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     setIsLoading(true);
     try {
       // Check if this is a comma-separated multi-version search
-      if (debouncedSearchTerm.includes(',')) {
+      if (debouncedSearchTerm.includes(",")) {
         setIsMultiVersionSearch(true);
         const versionTerms = debouncedSearchTerm
-          .split(',')
-          .map(term => term.trim())
-          .filter(term => term.length > 0);
-        
+          .split(",")
+          .map((term) => term.trim())
+          .filter((term) => term.length > 0);
+
         // Search for each version term individually
-        const searchPromises = versionTerms.map(term => 
-          ftrackService.searchVersions({ searchTerm: term })
+        const searchPromises = versionTerms.map((term) =>
+          ftrackService.searchVersions({ searchTerm: term }),
         );
-        
+
         const searchResults = await Promise.all(searchPromises);
-        
+
         // Combine and deduplicate results
         const combinedResults = searchResults.flat();
-        const uniqueResults = combinedResults.filter((version, index, self) => 
-          index === self.findIndex(v => v.id === version.id)
+        const uniqueResults = combinedResults.filter(
+          (version, index, self) =>
+            index === self.findIndex((v) => v.id === version.id),
         );
-        
+
         setResults(uniqueResults);
       } else {
         // Regular single search
@@ -243,8 +246,8 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         <div className="flex gap-2">
           <Input
             placeholder={
-              isMultiVersionSearch 
-                ? "Multi-version search active (comma-separated)" 
+              isMultiVersionSearch
+                ? "Multi-version search active (comma-separated)"
                 : "Search by asset name or version (e.g. 'shot_010' or 'v2')"
             }
             value={searchTerm}
@@ -345,7 +348,8 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
             className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400"
           >
             <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
-            Multi-version search: {debouncedSearchTerm.split(',').length} version(s) being searched
+            Multi-version search: {debouncedSearchTerm.split(",").length}{" "}
+            version(s) being searched
           </motion.div>
         )}
 
@@ -419,10 +423,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           </motion.div>
         ) : debouncedSearchTerm ? (
           <div className="text-center py-2 text-sm text-zinc-500">
-            {isMultiVersionSearch 
-              ? `No results found for ${debouncedSearchTerm.split(',').length} searched version(s)`
-              : "No results found"
-            }
+            {isMultiVersionSearch
+              ? `No results found for ${debouncedSearchTerm.split(",").length} searched version(s)`
+              : "No results found"}
           </div>
         ) : null}
       </div>

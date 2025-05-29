@@ -63,60 +63,73 @@ interface VersionGridItemProps {
   draftContent: string;
   labelId: string;
   attachments?: Attachment[];
-  onSaveNote: (versionId: string, content: string, labelId: string, attachments?: Attachment[]) => void;
+  onSaveNote: (
+    versionId: string,
+    content: string,
+    labelId: string,
+    attachments?: Attachment[],
+  ) => void;
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
 }
-const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(({
-  version,
-  position,
-  thumbnailUrl,
-  noteStatus,
-  selected,
-  draftContent,
-  labelId,
-  attachments = [],
-  onSaveNote,
-  onClearNote,
-  onToggleSelection,
-}) => {
-  const handleSave = useCallback(
-    (content: string, labelId: string, attachmentsArg?: Attachment[]) =>
-      onSaveNote(version.id, content, labelId, attachmentsArg),
-    [onSaveNote]
-  );
-  const handleClear = useCallback(() => onClearNote(version.id), [onClearNote]);
-  const handleToggle = useCallback(() => onToggleSelection(version.id), [onToggleSelection]);
+const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
+  ({
+    version,
+    position,
+    thumbnailUrl,
+    noteStatus,
+    selected,
+    draftContent,
+    labelId,
+    attachments = [],
+    onSaveNote,
+    onClearNote,
+    onToggleSelection,
+  }) => {
+    const handleSave = useCallback(
+      (content: string, labelId: string, attachmentsArg?: Attachment[]) =>
+        onSaveNote(version.id, content, labelId, attachmentsArg),
+      [onSaveNote],
+    );
+    const handleClear = useCallback(
+      () => onClearNote(version.id),
+      [onClearNote],
+    );
+    const handleToggle = useCallback(
+      () => onToggleSelection(version.id),
+      [onToggleSelection],
+    );
 
-  return (
-    <motion.div
-      key={version.id}
-      className="space-y-5"
-      variants={itemVariants}
-      layout
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-    >
-      <NoteInput
-        versionName={version.name}
-        versionNumber={version.version.toString()}
-        thumbnailUrl={thumbnailUrl}
-        status={noteStatus}
-        selected={selected}
-        initialContent={draftContent}
-        initialLabelId={labelId}
-        initialAttachments={attachments}
-        onSave={handleSave}
-        onClear={handleClear}
-        onSelectToggle={handleToggle}
-        manuallyAdded={version.manuallyAdded}
-        assetVersionId={version.id}
-        position={position}
-      />
-    </motion.div>
-  );
-});
+    return (
+      <motion.div
+        key={version.id}
+        className="space-y-5"
+        variants={itemVariants}
+        layout
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+      >
+        <NoteInput
+          versionName={version.name}
+          versionNumber={version.version.toString()}
+          thumbnailUrl={thumbnailUrl}
+          status={noteStatus}
+          selected={selected}
+          initialContent={draftContent}
+          initialLabelId={labelId}
+          initialAttachments={attachments}
+          onSave={handleSave}
+          onClear={handleClear}
+          onSelectToggle={handleToggle}
+          manuallyAdded={version.manuallyAdded}
+          assetVersionId={version.id}
+          position={position}
+        />
+      </motion.div>
+    );
+  },
+);
 
 export const VersionGrid: React.FC<VersionGridProps> = ({
   versions,
@@ -132,17 +145,21 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
 }) => {
   // Memoize handlers to keep stable references for VersionGridItem
   const memoizedOnSaveNote = useCallback(
-    (versionId: string, content: string, labelId: string, attachments?: Attachment[]) =>
-      onSaveNote(versionId, content, labelId, attachments),
-    [onSaveNote]
+    (
+      versionId: string,
+      content: string,
+      labelId: string,
+      attachments?: Attachment[],
+    ) => onSaveNote(versionId, content, labelId, attachments),
+    [onSaveNote],
   );
   const memoizedOnClearNote = useCallback(
     (versionId: string) => onClearNote(versionId),
-    [onClearNote]
+    [onClearNote],
   );
   const memoizedOnToggleSelection = useCallback(
     (versionId: string) => onToggleSelection(versionId),
-    [onToggleSelection]
+    [onToggleSelection],
   );
 
   if (!versions.length) {

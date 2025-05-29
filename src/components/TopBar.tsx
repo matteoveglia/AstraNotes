@@ -73,21 +73,25 @@ export const TopBar: React.FC<TopBarProps> = ({ children }) => {
             "relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 ease-in-out",
             "hover:bg-zinc-100 dark:hover:bg-zinc-800",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-500",
-            "bg-white dark:bg-zinc-900"
+            "bg-white dark:bg-zinc-900",
           )}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
         >
           <div className="relative w-5 h-5">
-            <Sun 
+            <Sun
               className={cn(
                 "absolute inset-0 w-5 h-5 text-amber-500 transition-all duration-300 ease-in-out transform",
-                theme === "dark" ? "opacity-0 rotate-90 scale-75" : "opacity-100 rotate-0 scale-100"
+                theme === "dark"
+                  ? "opacity-0 rotate-90 scale-75"
+                  : "opacity-100 rotate-0 scale-100",
               )}
             />
-            <Moon 
+            <Moon
               className={cn(
                 "absolute inset-0 w-5 h-5 text-slate-700 dark:text-slate-300 transition-all duration-300 ease-in-out transform",
-                theme === "dark" ? "opacity-100 rotate-0 scale-100" : "opacity-0 -rotate-90 scale-75"
+                theme === "dark"
+                  ? "opacity-100 rotate-0 scale-100"
+                  : "opacity-0 -rotate-90 scale-75",
               )}
             />
           </div>
