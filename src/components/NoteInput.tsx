@@ -33,6 +33,7 @@ export interface NoteInputProps {
   initialLabelId?: string;
   initialAttachments?: Attachment[];
   manuallyAdded?: boolean;
+  position?: number; // Position in the playlist (1-based)
   onSave: (
     content: string,
     labelId: string,
@@ -53,6 +54,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   initialLabelId,
   initialAttachments = [],
   manuallyAdded = false,
+  position,
   onSave,
   onClear,
   onSelectToggle,
@@ -481,6 +483,12 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   return (
     <div className="relative">
+      {/* Position indicator in top left corner */}
+      {position && (
+        <div className="absolute -top-3 -left-3 z-10 flex items-center justify-center w-6 h-6 bg-zinc-100 shadow dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm font-semibold rounded-full">
+          {position}
+        </div>
+      )}
       <div
         ref={componentRef}
         className={cn(

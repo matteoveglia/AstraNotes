@@ -435,7 +435,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto">
+      <CardContent className="flex-1 overflow-y-auto px-5">
         <VersionGrid
           versions={sortedVersions}
           thumbnails={thumbnails}

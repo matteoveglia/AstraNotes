@@ -49,8 +49,6 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
   exit: {
     opacity: 0,
-    scale: 0.9,
-    y: -10,
     transition: { duration: 0.15 },
   },
 };
@@ -58,6 +56,7 @@ const itemVariants = {
 // Define memoized version item to avoid unnecessary re-renders
 interface VersionGridItemProps {
   version: AssetVersion;
+  position: number; // Position in the playlist (1-based)
   thumbnailUrl?: string;
   noteStatus: NoteStatus;
   selected: boolean;
@@ -70,6 +69,7 @@ interface VersionGridItemProps {
 }
 const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(({
   version,
+  position,
   thumbnailUrl,
   noteStatus,
   selected,
@@ -91,7 +91,7 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(({
   return (
     <motion.div
       key={version.id}
-      className="space-y-2"
+      className="space-y-5"
       variants={itemVariants}
       layout
       initial="hidden"
@@ -112,6 +112,7 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(({
         onSelectToggle={handleToggle}
         manuallyAdded={version.manuallyAdded}
         assetVersionId={version.id}
+        position={position}
       />
     </motion.div>
   );
@@ -158,12 +159,13 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
       animate="visible"
       exit="exit"
       variants={gridVariants}
-      className="space-y-4 py-4"
+      className="space-y-5 py-5"
     >
-      {versions.map((version) => (
+      {versions.map((version, index) => (
         <VersionGridItem
           key={version.id}
           version={version}
+          position={index + 1}
           thumbnailUrl={thumbnails[version.id]}
           noteStatus={noteStatuses[version.id] || "empty"}
           selected={selectedVersions.includes(version.id)}
