@@ -7,7 +7,7 @@
  */
 
 import React from "react";
-import { Filter, X } from "lucide-react";
+import { Filter, X, CircleSlash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +17,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLabelStore } from "@/store/labelStore";
 import { cn } from "@/lib/utils";
 import { NoteStatus } from "@/types";
@@ -72,6 +78,22 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
     }
   };
 
+  const handleStatusInverse = () => {
+    const allStatuses = Object.keys(NOTE_STATUS_LABELS) as NoteStatus[];
+    const unselectedStatuses = allStatuses.filter(
+      (status) => !selectedStatuses.includes(status)
+    );
+    onStatusChange(unselectedStatuses);
+  };
+
+  const handleLabelInverse = () => {
+    const allLabelIds = labels.map((label) => label.id);
+    const unselectedLabels = allLabelIds.filter(
+      (labelId) => !selectedLabels.includes(labelId)
+    );
+    onLabelChange(unselectedLabels);
+  };
+
   // Helper function to determine text color based on background color
   const getContrastColor = (hexColor: string) => {
     const color = hexColor.replace("#", "");
@@ -91,77 +113,123 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className={cn(
-            "h-7 px-2 gap-1",
-            hasActiveFilters && "text-blue-600 dark:text-blue-400",
-          )}
-          title="Filter Versions"
-        >
-          <Filter className="w-4 h-4" />
-          {hasActiveFilters && (
-            <span className="text-xs">
-              ({selectedStatuses.length + selectedLabels.length})
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 mt-1">
-        <div className="flex items-center justify-between px-2 py-1.5">
-          <DropdownMenuLabel className="p-0">Filter Versions</DropdownMenuLabel>
-          {hasActiveFilters && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
-              onClick={onClearFilters}
-            >
-              <X className="w-3 h-3 mr-1" />
-              Clear
-            </Button>
-          )}
-        </div>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuLabel>Note Status</DropdownMenuLabel>
-        {(Object.keys(NOTE_STATUS_LABELS) as NoteStatus[]).map((status) => (
-          <DropdownMenuCheckboxItem
-            key={status}
-            checked={selectedStatuses.includes(status)}
-            onCheckedChange={() => handleStatusToggle(status)}
+    <TooltipProvider>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={cn(
+              "h-7 px-2 gap-1",
+              hasActiveFilters && "text-blue-600 dark:text-blue-400",
+            )}
+            title="Filter Versions"
           >
-            {NOTE_STATUS_LABELS[status]}
-          </DropdownMenuCheckboxItem>
-        ))}
-
-        {labels.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Note Labels</DropdownMenuLabel>
-            {labels.map((label) => (
-              <DropdownMenuCheckboxItem
-                key={label.id}
-                checked={selectedLabels.includes(label.id)}
-                onCheckedChange={() => handleLabelToggle(label.id)}
-                className="relative"
+            <Filter className="w-4 h-4" />
+            {hasActiveFilters && (
+              <span className="text-xs">
+                ({selectedStatuses.length + selectedLabels.length})
+              </span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 mt-1">
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <DropdownMenuLabel className="p-0">Filter Versions</DropdownMenuLabel>
+            {hasActiveFilters && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={onClearFilters}
               >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: label.color }}
-                  />
-                  <span className="truncate">{label.name}</span>
-                </div>
-              </DropdownMenuCheckboxItem>
-            ))}
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                <X className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          <DropdownMenuSeparator />
+
+          <div className="flex items-center justify-between px-2 py-1.5">
+            <DropdownMenuLabel className="p-0">Note Status</DropdownMenuLabel>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={cn(
+                    "h-auto p-1 text-xs",
+                    selectedStatuses.length > 0
+                      ? " text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={handleStatusInverse}
+                >
+                  <CircleSlash className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Inverse selection</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          {(Object.keys(NOTE_STATUS_LABELS) as NoteStatus[]).map((status) => (
+            <DropdownMenuCheckboxItem
+              key={status}
+              checked={selectedStatuses.includes(status)}
+              onCheckedChange={() => handleStatusToggle(status)}
+            >
+              {NOTE_STATUS_LABELS[status]}
+            </DropdownMenuCheckboxItem>
+          ))}
+
+          {labels.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="flex items-center justify-between px-2 py-1.5">
+                <DropdownMenuLabel className="p-0">Note Labels</DropdownMenuLabel>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={cn(
+                        "h-auto p-1 text-xs",
+                        selectedLabels.length > 0
+                          ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={handleLabelInverse}
+                    >
+                      <CircleSlash className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Inverse selection</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              {labels.map((label) => (
+                <DropdownMenuCheckboxItem
+                  key={label.id}
+                  checked={selectedLabels.includes(label.id)}
+                  onCheckedChange={() => handleLabelToggle(label.id)}
+                  className="relative"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-sm flex-shrink-0"
+                      style={{ backgroundColor: label.color }}
+                    />
+                    <span className="truncate">{label.name}</span>
+                  </div>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipProvider>
   );
 };
