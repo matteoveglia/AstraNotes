@@ -7,6 +7,11 @@ import readline from 'readline-sync';
 
 const target = process.argv[2];
 
+// Utility functions
+const logInfo = (message) => console.log(`[ASTRABUILD] ${message}`);
+const logError = (message) => console.error(`[ASTRABUILD] ERROR: ${message}`);
+const logSuccess = (message) => console.log(`[ASTRABUILD] ✓ ${message}`);
+
 const isWindows = process.platform === 'win32';
 const defaultKeyPath = isWindows
     ? join(homedir(), '.tauri', 'AstraNotes-key')
@@ -23,56 +28,133 @@ const targets = {
     'win': 'x86_64-pc-windows-msvc'
 };
 
-// Version management
+// Validation functions
 const validateVersion = (version) => {
     const semverRegex = /^\d+\.\d+\.\d+$/;
     if (!semverRegex.test(version)) {
-        console.error('[ASTRABUILD] Invalid version format. Please use semver (e.g., 1.2.3)');
+        logError('Invalid version format. Please use semver (e.g., 1.2.3)');
         process.exit(1);
     }
     return version;
 };
 
-// Get current version and prompt for new one
-const tauriConfig = JSON.parse(readFileSync('./src-tauri/tauri.conf.json', 'utf8'));
-const currentVersion = tauriConfig.version;
-console.log('[ASTRABUILD] Current version:', currentVersion);
-const newVersion = validateVersion(
-    readline.question('[ASTRABUILD] Enter new version: ')
-);
-
-// Update version in tauri.conf.json before build
-const updateTauriConfig = () => {
-    const tauriConfigPath = './src-tauri/tauri.conf.json';
-    const config = JSON.parse(readFileSync(tauriConfigPath, 'utf8'));
-    config.version = newVersion;
-    writeFileSync(tauriConfigPath, JSON.stringify(config, null, 2));
-    console.log('[ASTRABUILD] Updated tauri.conf.json with version', newVersion);
+const validateTarget = (target) => {
+    if (!target || !targets[target]) {
+        logError('Please specify a build target: mac, macuniversal, or win');
+        logInfo('Usage: node build.js <target>');
+        logInfo('Available targets: ' + Object.keys(targets).join(', '));
+        process.exit(1);
+    }
 };
 
-console.log('[ASTRABUILD] Building AstraNotes for', target); 
+// Safe file operations
+const safeReadFile = (filePath, defaultValue = null) => {
+    try {
+        return readFileSync(filePath, 'utf8');
+    } catch (err) {
+        if (defaultValue !== null) {
+            return defaultValue;
+        }
+        logError(`Failed to read file: ${filePath} - ${err.message}`);
+        throw err;
+    }
+};
 
-if (!targets[target]) {
-    console.error('[ASTRABUILD] Please specify a build target: mac, macuniversal, or win');
-    process.exit(1);
-}
+const safeWriteFile = (filePath, content) => {
+    try {
+        writeFileSync(filePath, content);
+        logSuccess(`Updated ${filePath}`);
+    } catch (err) {
+        logError(`Failed to write file: ${filePath} - ${err.message}`);
+        throw err;
+    }
+};
 
-const updateLatestJson = () => {
+const safeParseJSON = (content, filePath) => {
+    try {
+        return JSON.parse(content);
+    } catch (err) {
+        logError(`Invalid JSON in ${filePath}: ${err.message}`);
+        throw err;
+    }
+};
+
+// Interactive prompts
+const askYesNo = (question, defaultAnswer = 'n') => {
+    const response = readline.question(`${question} (y/n) [${defaultAnswer}]: `).toLowerCase() || defaultAnswer;
+    return response === 'y' || response === 'yes';
+};
+
+// Version management
+const getVersionChoice = () => {
+    try {
+        const tauriConfigContent = safeReadFile('./src-tauri/tauri.conf.json');
+        const tauriConfig = safeParseJSON(tauriConfigContent, './src-tauri/tauri.conf.json');
+        const currentVersion = tauriConfig.version;
+        
+        logInfo(`Current version: ${currentVersion}`);
+        
+        // Ask if user wants to keep current version
+        const keepCurrentVersion = askYesNo('Keep current version?', 'y');
+        
+        if (keepCurrentVersion) {
+            logInfo(`Using current version: ${currentVersion}`);
+            return currentVersion;
+        } else {
+            const newVersionInput = readline.question('Enter new version: ');
+            const newVersion = validateVersion(newVersionInput);
+            logInfo(`Using new version: ${newVersion}`);
+            return newVersion;
+        }
+    } catch (err) {
+        logError(`Failed to read current version: ${err.message}`);
+        process.exit(1);
+    }
+};
+
+// Initialize and validate
+validateTarget(target);
+logInfo(`Building AstraNotes for ${target}`);
+
+const selectedVersion = getVersionChoice();
+
+// Update version in tauri.conf.json if needed
+const updateTauriConfig = (version) => {
+    try {
+        const tauriConfigPath = './src-tauri/tauri.conf.json';
+        const configContent = safeReadFile(tauriConfigPath);
+        const config = safeParseJSON(configContent, tauriConfigPath);
+        
+        if (config.version !== version) {
+            config.version = version;
+            safeWriteFile(tauriConfigPath, JSON.stringify(config, null, 2));
+            logSuccess(`Updated tauri.conf.json with version ${version}`);
+        } else {
+            logInfo(`Version ${version} already set in tauri.conf.json`);
+        }
+    } catch (err) {
+        logError(`Failed to update tauri config: ${err.message}`);
+        process.exit(1);
+    }
+};
+
+const updateLatestJson = (version) => {
     const latestJsonPath = './latest.json';
     const currentDate = new Date().toISOString();
 
     // Default JSON structure
     let latestJson = {
-        version: newVersion,
+        version: version,
         notes: '',
         pub_date: currentDate,
         platforms: {}
     };
 
-    // Try to read existing file and check for existing notes
+    // Try to read existing file
     let existingNotes = '';
     try {
-        const existingJson = JSON.parse(readFileSync(latestJsonPath, 'utf8'));
+        const existingContent = safeReadFile(latestJsonPath, '{}');
+        const existingJson = safeParseJSON(existingContent, latestJsonPath);
         
         // Preserve existing platforms
         latestJson.platforms = existingJson.platforms || {};
@@ -80,231 +162,255 @@ const updateLatestJson = () => {
         // Check for existing notes
         if (existingJson.notes) {
             existingNotes = existingJson.notes;
-            console.log('[ASTRABUILD] Existing release notes:');
+            logInfo('Existing release notes:');
             console.log(existingNotes);
         }
     } catch (err) {
-        console.log('[ASTRABUILD] Creating new latest.json');
+        logInfo('Creating new latest.json');
     }
 
     // Interactive notes input
     let useExistingNotes = false;
     if (existingNotes) {
-        const keepNotesResponse = readline.question('[ASTRABUILD] Keep existing release notes? (y/n): ').toLowerCase();
-        useExistingNotes = keepNotesResponse === 'y' || keepNotesResponse === 'yes';
+        useExistingNotes = askYesNo('Keep existing release notes?', 'y');
     }
 
     // Get notes if not using existing
     if (!useExistingNotes) {
-        const notes = readline.question('[ASTRABUILD] Enter release notes: ');
-        latestJson.notes = notes.trim() || undefined;
+        const notes = readline.question('Enter release notes: ');
+        latestJson.notes = notes.trim() || '';
     } else {
         latestJson.notes = existingNotes;
     }
 
-    // Read signature files
+    // Read signature files with better error handling
     const readSignatureFile = (sigPath) => {
         try {
-            console.log(`[ASTRABUILD] Attempting to read signature file: ${sigPath}`);
+            logInfo(`Reading signature file: ${sigPath}`);
             
-            // Check if file exists
             if (!existsSync(sigPath)) {
-                console.error(`[ASTRABUILD] Signature file does not exist: ${sigPath}`);
+                logError(`Signature file does not exist: ${sigPath}`);
                 return '';
             }
 
-            // Get file stats
             const stats = statSync(sigPath);
-            console.log(`[ASTRABUILD] Signature file stats:`, {
-                size: stats.size,
-                isFile: stats.isFile(),
-                mode: stats.mode
-            });
+            if (!stats.isFile() || stats.size === 0) {
+                logError(`Invalid signature file: ${sigPath}`);
+                return '';
+            }
 
-            // Read file content
             const signature = readFileSync(sigPath, 'utf8').trim();
-            
-            console.log(`[ASTRABUILD] Signature file read successfully. Length: ${signature.length}`);
+            logSuccess(`Signature file read successfully (${signature.length} chars)`);
             return signature;
         } catch (err) {
-            console.error(`[ASTRABUILD] Error reading signature file: ${sigPath}`, err.message);
-            console.error(`[ASTRABUILD] Error stack:`, err.stack);
+            logError(`Error reading signature file ${sigPath}: ${err.message}`);
             return '';
         }
     };
 
+    // Platform-specific updates
     if (target === 'win') {
-        // Windows-specific update
-        const exeFile = `AstraNotes_${newVersion}_x64_en-US.msi`;
+        const exeFile = `AstraNotes_${version}_x64_en-US.msi`;
         const exePath = `./dist-tauri/${exeFile}`;
         const sigPath = `${exePath}.sig`;
 
-        console.log('[ASTRABUILD] Windows Artifact Paths:');
-        console.log(`- EXE File: ${exePath}`);
-        console.log(`- Signature Path: ${sigPath}`);
+        logInfo('Windows Artifact Paths:');
+        logInfo(`- MSI File: ${exePath}`);
+        logInfo(`- Signature: ${sigPath}`);
 
-        // Check if files exist in dist-tauri
+        // Ensure artifacts exist
         if (!existsSync(exePath)) {
-            console.error(`[ASTRABUILD] Windows EXE not found in dist-tauri: ${exePath}`);
+            logError(`Windows MSI not found: ${exePath}`);
             
             // Try alternative path
             const altExePath = `./src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/${exeFile}`;
             const altSigPath = `${altExePath}.sig`;
             
             if (existsSync(altExePath)) {
-                console.log(`[ASTRABUILD] Using alternative EXE path: ${altExePath}`);
+                logInfo(`Found MSI at alternative path, copying...`);
                 copyFileSync(altExePath, exePath);
                 if (existsSync(altSigPath)) {
                     copyFileSync(altSigPath, sigPath);
                 }
+            } else {
+                logError(`MSI not found at alternative path either: ${altExePath}`);
             }
         }
 
         latestJson.platforms['windows-x86_64'] = {
-            url: `https://github.com/matteoveglia/AstraNotes/releases/download/v${newVersion}/${exeFile}`,
+            url: `https://github.com/matteoveglia/AstraNotes/releases/download/v${version}/${exeFile}`,
             signature: readSignatureFile(sigPath)
         };
     } else {
-        // macOS-specific update
         const appArchive = `AstraNotes.app.tar.gz`;
         const appArchivePath = `./dist-tauri/${appArchive}`;
         const sigPath = `${appArchivePath}.sig`;
 
+        logInfo('macOS Artifact Paths:');
+        logInfo(`- App Archive: ${appArchivePath}`);
+        logInfo(`- Signature: ${sigPath}`);
+
         latestJson.platforms['darwin-aarch64'] = {
-            url: `https://github.com/matteoveglia/AstraNotes/releases/download/v${newVersion}/${appArchive}`,
+            url: `https://github.com/matteoveglia/AstraNotes/releases/download/v${version}/${appArchive}`,
             signature: readSignatureFile(sigPath)
         };
     }
 
-    // Always set version to new version
-    latestJson.version = newVersion;
-
     // Write updated JSON
-    writeFileSync(latestJsonPath, JSON.stringify(latestJson, null, 2));
-    console.log(`[ASTRABUILD] Updated ${latestJsonPath} for ${target}`);
+    safeWriteFile(latestJsonPath, JSON.stringify(latestJson, null, 2));
+    logSuccess(`Updated ${latestJsonPath} for ${target}`);
 };
 
-const moveArtifacts = () => {
+const moveArtifacts = (version) => {
     const distPath = './dist-tauri';
-    if (!existsSync(distPath)) {
-        mkdirSync(distPath);
-    }
-
-    const getTargetPath = () => {
-        switch (target) {
-            case 'win':
-                return 'x86_64-pc-windows-msvc';
-            case 'mac':
-                return 'aarch64-apple-darwin';
-            case 'macuniversal':
-                return 'universal-apple-darwin';
-            default:
-                throw new Error(`Unknown target: ${target}`);
-        }
-    };
-
-    const basePath = './src-tauri/target';
-    const targetPath = getTargetPath();
-    const bundlePath = `${basePath}/${targetPath}/release/bundle`;
     
     try {
+        if (!existsSync(distPath)) {
+            mkdirSync(distPath, { recursive: true });
+            logInfo(`Created directory: ${distPath}`);
+        }
+
+        const getTargetPath = () => {
+            switch (target) {
+                case 'win':
+                    return 'x86_64-pc-windows-msvc';
+                case 'mac':
+                    return 'aarch64-apple-darwin';
+                case 'macuniversal':
+                    return 'universal-apple-darwin';
+                default:
+                    throw new Error(`Unknown target: ${target}`);
+            }
+        };
+
+        const basePath = './src-tauri/target';
+        const targetPath = getTargetPath();
+        const bundlePath = `${basePath}/${targetPath}/release/bundle`;
+        
+        logInfo(`Moving artifacts from: ${bundlePath}`);
+
         if (target === 'win') {
             // Windows MSI installer and signature
-            const exeFile = `AstraNotes_${newVersion}_x64_en-US.msi`;
+            const exeFile = `AstraNotes_${version}_x64_en-US.msi`;
             const exePath = `${bundlePath}/msi/${exeFile}`;
             const sigPath = `${exePath}.sig`;
             
             if (existsSync(exePath)) {
                 copyFileSync(exePath, `${distPath}/${exeFile}`);
+                logSuccess(`Moved Windows MSI: ${exeFile}`);
+                
                 if (existsSync(sigPath)) {
                     copyFileSync(sigPath, `${distPath}/${exeFile}.sig`);
+                    logSuccess(`Moved signature file`);
+                } else {
+                    logError(`Signature file not found: ${sigPath}`);
                 }
-                console.log('[ASTRABUILD] Moved Windows artifacts');
             } else {
-                console.error(`[ASTRABUILD] Windows installer not found at ${exePath}`);
+                logError(`Windows installer not found: ${exePath}`);
+                throw new Error('Required Windows artifacts not found');
             }
         } else {
             // macOS artifacts
             const appArchive = `${bundlePath}/macos/AstraNotes.app.tar.gz`;
             const appSig = `${appArchive}.sig`;
-            const dmgFile = `AstraNotes_${newVersion}_aarch64.dmg`;
+            const dmgFile = `AstraNotes_${version}_aarch64.dmg`;
             const dmgPath = `${bundlePath}/dmg/${dmgFile}`;
             
-            let moved = false;
+            let artifactsMoved = false;
             
-            // Try to move app archive and signature
+            // Move app archive and signature
             if (existsSync(appArchive)) {
                 copyFileSync(appArchive, `${distPath}/AstraNotes.app.tar.gz`);
+                logSuccess(`Moved macOS app archive`);
+                
                 if (existsSync(appSig)) {
                     copyFileSync(appSig, `${distPath}/AstraNotes.app.tar.gz.sig`);
+                    logSuccess(`Moved app signature`);
+                } else {
+                    logError(`App signature not found: ${appSig}`);
                 }
-                moved = true;
-                console.log('[ASTRABUILD] Moved macOS app archive');
+                artifactsMoved = true;
             }
             
-            // Try to move DMG - check both new and old version patterns
-            const oldDmgFile = `AstraNotes_${currentVersion}_aarch64.dmg`;
-            const oldDmgPath = `${bundlePath}/dmg/${oldDmgFile}`;
-            
+            // Move DMG
             if (existsSync(dmgPath)) {
                 copyFileSync(dmgPath, `${distPath}/${dmgFile}`);
-                moved = true;
-                console.log('[ASTRABUILD] Moved macOS DMG');
-            } else if (existsSync(oldDmgPath)) {
-                copyFileSync(oldDmgPath, `${distPath}/${dmgFile}`);
-                moved = true;
-                console.log('[ASTRABUILD] Moved macOS DMG (renamed from old version)');
+                logSuccess(`Moved macOS DMG: ${dmgFile}`);
+                artifactsMoved = true;
             }
             
-            if (!moved) {
-                console.error('[ASTRABUILD] No macOS artifacts found to move');
-                console.log('[ASTRABUILD] Checked paths:');
-                console.log(`- App archive: ${appArchive}`);
-                console.log(`- DMG (new): ${dmgPath}`);
-                console.log(`- DMG (old): ${oldDmgPath}`);
+            if (!artifactsMoved) {
+                logError('No macOS artifacts found to move');
+                logInfo('Checked paths:');
+                logInfo(`- App archive: ${appArchive}`);
+                logInfo(`- DMG: ${dmgPath}`);
+                throw new Error('Required macOS artifacts not found');
             }
         }
     } catch (err) {
-        console.error('[ASTRABUILD] Error moving artifacts:', err.message);
-        console.error('[ASTRABUILD] Error details:', err);
+        logError(`Error moving artifacts: ${err.message}`);
+        throw err;
+    }
+};
+
+const verifySigningKeys = () => {
+    try {
+        // Check private key
+        const privateKeyContent = safeReadFile(process.env.TAURI_SIGNING_PRIVATE_KEY);
+        logSuccess(`Private key found: ${process.env.TAURI_SIGNING_PRIVATE_KEY}`);
+
+        // Check public key
+        const publicKeyPath = `${process.env.TAURI_SIGNING_PRIVATE_KEY}.pub`;
+        const publicKeyContent = safeReadFile(publicKeyPath);
+        logSuccess(`Public key found: ${publicKeyPath}`);
+        
+        return true;
+    } catch (err) {
+        logError(`Signing key verification failed: ${err.message}`);
+        return false;
+    }
+};
+
+// Main execution
+const main = async () => {
+    try {
+        logInfo('='.repeat(50));
+        logInfo('AstraNotes Build Script');
+        logInfo('='.repeat(50));
+        
+        // Verify signing keys
+        if (!verifySigningKeys()) {
+            logError('Signing keys not properly configured');
+            process.exit(1);
+        }
+
+        // Update version in config
+        updateTauriConfig(selectedVersion);
+        
+        // Run build
+        logInfo('Starting Tauri build...');
+        execSync(`pnpm tauri build --target ${targets[target]}`, { 
+            stdio: 'inherit',
+            env: { ...process.env }
+        });
+        logSuccess('Build completed successfully');
+
+        // Post-build operations
+        logInfo('Processing build artifacts...');
+        moveArtifacts(selectedVersion);
+        updateLatestJson(selectedVersion);
+        
+        logInfo('='.repeat(50));
+        logSuccess('Release automation completed successfully');
+        logInfo(`Target: ${target}`);
+        logInfo(`Version: ${selectedVersion}`);
+        logInfo('='.repeat(50));
+        
+    } catch (err) {
+        logError(`Build failed: ${err.message}`);
         process.exit(1);
     }
 };
 
-try {
-    // Check private key
-    try {
-        const privateKeyContent = readFileSync(process.env.TAURI_SIGNING_PRIVATE_KEY, 'utf8');
-        console.log('[ASTRABUILD] Private key exists at:', process.env.TAURI_SIGNING_PRIVATE_KEY);
-    } catch (err) {
-        console.error('[ASTRABUILD] Error reading private key file:', err.message);
-        process.exit(1);
-    }
-
-    // Check public key
-    try {
-        const publicKeyPath = `${process.env.TAURI_SIGNING_PRIVATE_KEY}.pub`;
-        const publicKeyContent = readFileSync(publicKeyPath, 'utf8');
-        console.log('[ASTRABUILD] Public key exists at:', publicKeyPath);
-    } catch (err) {
-        console.error('[ASTRABUILD] Error reading public key file:', err.message);
-        process.exit(1);
-    }
-
-    // Update version before build
-    updateTauriConfig();
-    
-    // Run build
-    console.log('[ASTRABUILD] Starting build...');
-    execSync(`pnpm tauri build --target ${targets[target]}`, { stdio: 'inherit' });
-    console.log('[ASTRABUILD] Build completed successfully');
-
-    // Post-build updates
-    moveArtifacts();
-    updateLatestJson();
-    
-    console.log('[ASTRABUILD] Release automation completed successfully');
-} catch (err) {
-    console.error('[ASTRABUILD] Build failed:', err.message);
-    process.exit(1);
-}
+// Execute main function
+main();
