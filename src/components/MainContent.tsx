@@ -368,7 +368,12 @@ export const MainContent: React.FC<MainContentProps> = ({
     <Card className="h-full flex flex-col rounded-none">
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-xl">{activePlaylist.name}</CardTitle>
+          <div className="flex flex-col">
+            <CardTitle className="text-xl">{activePlaylist.name}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {activePlaylist.versions?.length || 0} Version{(activePlaylist.versions?.length || 0) !== 1 ? 's' : ''}
+            </p>
+          </div>
           {!activePlaylist.isQuickNotes && (
             <>
               <Button
