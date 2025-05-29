@@ -156,6 +156,17 @@ export const MainContent: React.FC<MainContentProps> = ({
     settings.autoRefreshEnabled,
   ]);
 
+  // Synchronize mergedPlaylist when playlist prop updates (e.g., after applying changes)
+  useEffect(() => {
+    if (playlist && isMountedRef.current) {
+      console.debug(`[MainContent] Synchronizing mergedPlaylist for playlist ${playlist.id}`, {
+        versionsCount: playlist.versions?.length || 0,
+        hasModifications: modifications.added > 0 || modifications.removed > 0
+      });
+      setMergedPlaylist(playlist);
+    }
+  }, [playlist.versions, modifications.added, modifications.removed]);
+
   // Cleanup when component unmounts
   useEffect(() => {
     isMountedRef.current = true;

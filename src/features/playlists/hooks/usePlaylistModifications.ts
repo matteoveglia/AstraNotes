@@ -66,6 +66,12 @@ export function usePlaylistModifications(
   const applyPendingChanges = useCallback(async () => {
     if (!pendingVersions) return;
 
+    setIsRefreshing(true);
+    console.debug(`[usePlaylistModifications] Applying pending changes for playlist ${playlist.id}`, {
+      pendingVersionsCount: pendingVersions.length,
+      currentModifications: modifications
+    });
+    
     try {
       // Get manually added versions from current playlist
       const manualVersions =
@@ -86,25 +92,44 @@ export function usePlaylistModifications(
         versions: mergedVersions,
       };
 
-      // Update the cache first
+      console.debug(`[usePlaylistModifications] Merged playlist created`, {
+        originalVersionsCount: playlist.versions?.length || 0,
+        mergedVersionsCount: mergedVersions.length,
+        manualVersionsCount: manualVersions.length,
+        pendingVersionsCount: pendingVersions.length
+      });
+
+      // Clear pending versions and modifications FIRST to prevent UI flickering
+      setPendingVersions(null);
+      setModifications({ added: 0, removed: 0 });
+      console.debug(`[usePlaylistModifications] Cleared pending state`);
+
+      // Update the cache
       await playlistStore.cachePlaylist(
         playlistStore.cleanPlaylistForStorage(updatedPlaylist),
       );
 
-      // Then notify parent components of the update
+      // Notify parent components of the update
       if (onPlaylistUpdate) {
+        console.debug(`[usePlaylistModifications] Notifying parent of update`);
         onPlaylistUpdate(updatedPlaylist);
       }
 
-      // Clear pending versions and modifications
-      setPendingVersions(null);
-      setModifications({ added: 0, removed: 0 });
+      // Give UI time to update before restarting polling
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Update playlist and restart polling
+      console.debug(`[usePlaylistModifications] Restarting polling`);
       await playlistStore.updatePlaylistAndRestartPolling(
         playlist.id,
         (added, removed, addedVersions, removedVersions, freshVersions) => {
           if (added > 0 || removed > 0) {
+            console.debug(`[usePlaylistModifications] New modifications detected after restart`, {
+              added,
+              removed,
+              addedVersions,
+              removedVersions
+            });
             setModifications({
               added,
               removed,
@@ -116,12 +141,15 @@ export function usePlaylistModifications(
         },
       );
 
+      console.debug(`[usePlaylistModifications] Successfully applied pending changes`);
       return true;
     } catch (error) {
       console.error("Failed to apply changes:", error);
       return false;
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [pendingVersions, playlist, onPlaylistUpdate]);
+  }, [pendingVersions, playlist, onPlaylistUpdate, modifications]);
 
   // Manually refresh the playlist
   const refreshPlaylist = useCallback(async () => {
