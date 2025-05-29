@@ -42,16 +42,43 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [isMultiVersionSearch, setIsMultiVersionSearch] = useState(false);
 
   // Create a Set of current version IDs for efficient lookup
   const currentVersionIds = new Set(currentVersions.map((v) => v.id));
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  // Function to detect if the search term contains multiple version names
+  const detectMultipleVersions = (term: string): boolean => {
+    // Look for patterns like "something_v0001" or "something_v001" etc.
+    const versionPattern = /\w+_v\d+/g;
+    const matches = term.match(versionPattern);
+    return matches !== null && matches.length > 1;
+  };
+
+  // Function to normalize multi-version search terms
+  const normalizeMultiVersionSearch = (term: string): string => {
+    if (detectMultipleVersions(term)) {
+      // Replace multiple spaces with single spaces, then convert to comma-separated
+      return term.replace(/\s+/g, ' ').replace(/\s/g, ', ');
+    }
+    return term;
+  };
+
   const handleSearchTermChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = e.target.value;
-    setSearchTerm(newSearchTerm);
-    if (newSearchTerm === "") {
+    
+    // Check if this looks like a multi-version search
+    const isMultiVersion = detectMultipleVersions(newSearchTerm);
+    setIsMultiVersionSearch(isMultiVersion);
+    
+    // If it's a multi-version search, normalize it
+    const normalizedTerm = isMultiVersion ? normalizeMultiVersionSearch(newSearchTerm) : newSearchTerm;
+    
+    setSearchTerm(normalizedTerm);
+    
+    if (normalizedTerm === "") {
       handleClearSelection(); // Clear any selected versions when search term is also cleared
     }
   };
@@ -59,15 +86,42 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   const handleSearch = useCallback(async () => {
     if (!debouncedSearchTerm) {
       setResults([]);
+      setIsMultiVersionSearch(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      const versions = await ftrackService.searchVersions({
-        searchTerm: debouncedSearchTerm,
-      });
-      setResults(versions);
+      // Check if this is a comma-separated multi-version search
+      if (debouncedSearchTerm.includes(',')) {
+        setIsMultiVersionSearch(true);
+        const versionTerms = debouncedSearchTerm
+          .split(',')
+          .map(term => term.trim())
+          .filter(term => term.length > 0);
+        
+        // Search for each version term individually
+        const searchPromises = versionTerms.map(term => 
+          ftrackService.searchVersions({ searchTerm: term })
+        );
+        
+        const searchResults = await Promise.all(searchPromises);
+        
+        // Combine and deduplicate results
+        const combinedResults = searchResults.flat();
+        const uniqueResults = combinedResults.filter((version, index, self) => 
+          index === self.findIndex(v => v.id === version.id)
+        );
+        
+        setResults(uniqueResults);
+      } else {
+        // Regular single search
+        setIsMultiVersionSearch(false);
+        const versions = await ftrackService.searchVersions({
+          searchTerm: debouncedSearchTerm,
+        });
+        setResults(versions);
+      }
     } catch (error) {
       console.error("Search failed:", error);
     } finally {
@@ -188,7 +242,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
       <div className="space-y-4">
         <div className="flex gap-2">
           <Input
-            placeholder="Search by asset name or version (e.g. 'shot_010' or 'v2')"
+            placeholder={
+              isMultiVersionSearch 
+                ? "Multi-version search active (comma-separated)" 
+                : "Search by asset name or version (e.g. 'shot_010' or 'v2')"
+            }
             value={searchTerm}
             onChange={handleSearchTermChange}
             className="flex-1"
@@ -279,6 +337,18 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           </div>
         </div>
 
+        {isMultiVersionSearch && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400"
+          >
+            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+            Multi-version search: {debouncedSearchTerm.split(',').length} version(s) being searched
+          </motion.div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-zinc-500">
             Loading...
@@ -349,7 +419,10 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           </motion.div>
         ) : debouncedSearchTerm ? (
           <div className="text-center py-2 text-sm text-zinc-500">
-            No results found
+            {isMultiVersionSearch 
+              ? `No results found for ${debouncedSearchTerm.split(',').length} searched version(s)`
+              : "No results found"
+            }
           </div>
         ) : null}
       </div>
