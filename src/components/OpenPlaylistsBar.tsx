@@ -19,13 +19,14 @@ interface PlaylistTabProps {
   onClose?: () => void;
 }
 
-const PlaylistTab: React.FC<PlaylistTabProps> = ({
+const PlaylistTab = React.forwardRef<HTMLDivElement, PlaylistTabProps>(({
   playlist,
   isActive,
   onClick,
   onClose,
-}) => (
+}, ref) => (
   <motion.div
+    ref={ref}
     layout
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -56,7 +57,9 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
       )}
     </Button>
   </motion.div>
-);
+));
+
+PlaylistTab.displayName = 'PlaylistTab';
 
 interface OpenPlaylistsBarProps {
   playlists: Playlist[];
