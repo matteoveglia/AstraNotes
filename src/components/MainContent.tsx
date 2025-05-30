@@ -7,7 +7,7 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
@@ -37,73 +37,108 @@ export const MainContent: React.FC<MainContentProps> = ({
   playlist,
   onPlaylistUpdate,
 }) => {
+  // Simplified state management - remove complex merging logic
   const [isInitializing, setIsInitializing] = useState(true);
-  const [mergedPlaylist, setMergedPlaylist] = useState<Playlist | null>(null);
+  const [activePlaylist, setActivePlaylist] = useState<Playlist>(playlist);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
 
   // Filter state
   const [selectedStatuses, setSelectedStatuses] = useState<NoteStatus[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
 
-  // Ref for tracking if component is mounted
-  const isMountedRef = useRef(true);
+  // Ref for cleanup tracking
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const activePlaylist = mergedPlaylist || playlist;
+  // Memoize playlist initialization to prevent unnecessary re-initializations
+  const initializePlaylist = useCallback(async (playlistToInit: Playlist) => {
+    const playlistId = playlistToInit.id;
+    console.debug(`[MainContent] Starting initialization for playlist ${playlistId}`);
+    
+    // Clear any existing timeout
+    if (initializationTimeoutRef.current) {
+      clearTimeout(initializationTimeoutRef.current);
+      initializationTimeoutRef.current = null;
+    }
 
-  // Initialize playlist in store
-  useEffect(() => {
-    // Reset merged playlist immediately when playlist ID changes
-    // This ensures we don't show stale data while loading
-    setMergedPlaylist(null);
+    // Set a reasonable timeout for initialization
+    initializationTimeoutRef.current = setTimeout(() => {
+      console.warn(`[MainContent] Initialization timeout for playlist ${playlistId}`);
+      setInitializationError(`Initialization timeout for playlist: ${playlistToInit.name}`);
+      setIsInitializing(false);
+    }, 10000); // 10 second timeout
 
-    const initializePlaylist = async () => {
+    try {
       setIsInitializing(true);
-      console.debug(`[MainContent] Initializing playlist ${playlist.id}`);
+      setInitializationError(null);
+      
+      // Stop any existing polling immediately
+      playlistStore.stopPolling();
 
-      try {
-        // Stop any existing polling before initializing a new playlist
-        playlistStore.stopPolling();
+      // Initialize the playlist in store with error handling
+      await playlistStore.initializePlaylist(playlistId, playlistToInit);
 
-        // Initialize in the store
-        await playlistStore.initializePlaylist(playlist.id, playlist);
+      // Get the cached/merged version with proper data from IndexedDB
+      const cached = await playlistStore.getPlaylist(playlistId);
+      
+      // Update the active playlist with cached data if available
+      const finalPlaylist = cached ? {
+        ...playlistToInit,
+        versions: cached.versions || [],
+      } : playlistToInit;
 
-        // Then get the merged version with proper data from IndexedDB
-        const cached = await playlistStore.getPlaylist(playlist.id);
+      console.debug(`[MainContent] Setting active playlist for ${playlistId}:`, {
+        originalVersionsCount: playlistToInit.versions?.length || 0,
+        cachedVersionsCount: cached?.versions?.length || 0,
+        finalVersionsCount: finalPlaylist.versions?.length || 0
+      });
 
-        // Only update state if component is still mounted and we're still looking at the same playlist
-        // This prevents race conditions when rapidly switching playlists
-        if (isMountedRef.current) {
-          if (cached) {
-            console.log(`[MainContent] Setting mergedPlaylist from cache for ${playlist.id}:`, {
-              cachedVersionsCount: cached.versions?.length || 0,
-              originalVersionsCount: playlist.versions?.length || 0
-            });
-            setMergedPlaylist({
-              ...playlist,
-              versions: cached.versions,
-            });
-          } else {
-            console.log(`[MainContent] Setting mergedPlaylist from original for ${playlist.id}:`, {
-              versionsCount: playlist.versions?.length || 0
-            });
-            setMergedPlaylist(playlist);
-          }
-        }
-      } catch (error) {
-        console.error(`Failed to initialize playlist ${playlist.id}:`, error);
-      } finally {
-        console.log(`[MainContent] Finished initializing playlist ${playlist.id}, setting isInitializing to false`);
-        setIsInitializing(false);
+      setActivePlaylist(finalPlaylist);
+      
+      // Clear timeout on successful completion
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+        initializationTimeoutRef.current = null;
+      }
+
+    } catch (error) {
+      console.error(`[MainContent] Failed to initialize playlist ${playlistId}:`, error);
+      setInitializationError(`Failed to initialize playlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Still set the playlist even if initialization failed
+      setActivePlaylist(playlistToInit);
+    } finally {
+      setIsInitializing(false);
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+        initializationTimeoutRef.current = null;
+      }
+    }
+  }, []);
+
+  // Effect for playlist initialization when playlist ID changes
+  useEffect(() => {
+    console.debug(`[MainContent] Playlist prop changed, ID: ${playlist.id}`);
+    
+    // Reset state immediately when playlist changes
+    setActivePlaylist(playlist);
+    setInitializationError(null);
+    
+    // Initialize the new playlist
+    initializePlaylist(playlist);
+
+    // Store cleanup function
+    cleanupRef.current = () => {
+      console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
+      playlistStore.stopPolling();
+      if (initializationTimeoutRef.current) {
+        clearTimeout(initializationTimeoutRef.current);
+        initializationTimeoutRef.current = null;
       }
     };
 
-    initializePlaylist();
-
-    // Cleanup when unmounting
-    return () => {
-      console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
-      playlistStore.stopPolling();
-    };
-  }, [playlist.id]);
+    // Cleanup when playlist changes or component unmounts
+    return cleanupRef.current;
+  }, [playlist.id, initializePlaylist]);
 
   // Use custom hooks
   const { settings } = useSettings();
@@ -141,66 +176,65 @@ export const MainContent: React.FC<MainContentProps> = ({
     fetchLabels();
   }, [fetchLabels]);
 
-  // Auto-refresh polling based on settings
+  // Auto-refresh polling based on settings - simplified logic
   useEffect(() => {
-    // Don't poll for Quick Notes playlist
-    if (activePlaylist.isQuickNotes) return;
+    // Don't poll for Quick Notes playlist or during initialization
+    if (activePlaylist.isQuickNotes || isInitializing) return;
 
     if (!settings.autoRefreshEnabled) {
       playlistStore.stopPolling();
       return;
     }
 
-    // Start polling when component mounts
-    console.debug(
-      `[MainContent] Starting polling for playlist ${activePlaylist.id}`,
-    );
-    playlistStore.startPolling(
-      activePlaylist.id,
-      (added, removed, addedVersions, removedVersions, freshVersions) => {
-        if (added > 0 || removed > 0) {
-          // This is now handled by the usePlaylistModifications hook
-        }
-      },
-    );
+    // Only start polling after initialization is complete
+    const startPollingWithDelay = async () => {
+      // Small delay to ensure initialization is complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.debug(`[MainContent] Starting polling for playlist ${activePlaylist.id}`);
+      try {
+        await playlistStore.startPolling(
+          activePlaylist.id,
+          (added, removed, addedVersions, removedVersions, freshVersions) => {
+            console.debug(`[MainContent] Polling detected changes: +${added}, -${removed}`);
+            // Changes are handled by the usePlaylistModifications hook
+          },
+        );
+      } catch (error) {
+        console.error(`[MainContent] Failed to start polling:`, error);
+      }
+    };
 
-    // Stop polling when component unmounts or playlist changes
+    startPollingWithDelay();
+
+    // Stop polling when dependencies change
     return () => {
-      console.debug(
-        `[MainContent] Stopping polling for playlist ${activePlaylist.id}`,
-      );
+      console.debug(`[MainContent] Stopping polling for playlist ${activePlaylist.id}`);
       playlistStore.stopPolling();
     };
   }, [
     activePlaylist.id,
     activePlaylist.isQuickNotes,
     settings.autoRefreshEnabled,
+    isInitializing, // Add this dependency
   ]);
 
-  // Synchronize mergedPlaylist when playlist prop updates (e.g., after applying changes)
+  // Synchronize activePlaylist when playlist prop updates (e.g., after applying changes)
   useEffect(() => {
-    if (playlist && isMountedRef.current) {
-      console.debug(
-        `[MainContent] Synchronizing mergedPlaylist for playlist ${playlist.id}`,
-        {
-          versionsCount: playlist.versions?.length || 0,
-          hasModifications:
-            modifications.added > 0 || modifications.removed > 0,
-        },
-      );
-      setMergedPlaylist(playlist);
+    // Only update if the versions have actually changed and we're not initializing
+    if (!isInitializing && playlist.id === activePlaylist.id) {
+      const currentVersionCount = activePlaylist.versions?.length || 0;
+      const newVersionCount = playlist.versions?.length || 0;
+      
+      if (currentVersionCount !== newVersionCount) {
+        console.debug(
+          `[MainContent] Synchronizing playlist versions for ${playlist.id}:`,
+          { currentCount: currentVersionCount, newCount: newVersionCount }
+        );
+        setActivePlaylist(playlist);
+      }
     }
-  }, [playlist.versions, modifications.added, modifications.removed]);
-
-  // Cleanup when component unmounts
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      // Mark component as unmounted
-      isMountedRef.current = false;
-    };
-  }, []);
+  }, [playlist.versions, playlist.id, activePlaylist.id, activePlaylist.versions?.length, isInitializing]);
 
   const handleClearAdded = async () => {
     if (!activePlaylist.id) return;
@@ -225,7 +259,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       }
 
       // Update the local state as well to ensure immediate UI update
-      setMergedPlaylist(updatedPlaylist);
+      setActivePlaylist(updatedPlaylist);
 
       // Clear any note drafts for the removed versions
       const removedVersionIds =
@@ -304,7 +338,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       }
 
       // Update the local state as well
-      setMergedPlaylist(updatedPlaylist);
+      setActivePlaylist(updatedPlaylist);
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
     }
@@ -376,7 +410,7 @@ export const MainContent: React.FC<MainContentProps> = ({
         }
 
         // Update the local state as well
-        setMergedPlaylist(updatedPlaylist);
+        setActivePlaylist(updatedPlaylist);
 
         console.log(
           `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
@@ -463,22 +497,83 @@ export const MainContent: React.FC<MainContentProps> = ({
     setSelectedLabels([]);
   };
 
+  // Show initialization error if it exists
+  if (initializationError) {
+    return (
+      <Card className="h-full flex flex-col rounded-none">
+        <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col">
+              <CardTitle className="text-xl text-red-600">Error Loading Playlist</CardTitle>
+              <p className="text-sm text-muted-foreground">{activePlaylist.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setInitializationError(null);
+                initializePlaylist(playlist);
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="text-lg font-medium text-red-600">
+              Failed to Initialize Playlist
+            </div>
+            <div className="text-sm text-muted-foreground max-w-md">
+              {initializationError}
+            </div>
+            <Button
+              variant="default"
+              onClick={() => {
+                setInitializationError(null);
+                initializePlaylist(playlist);
+              }}
+            >
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="h-full flex flex-col rounded-none">
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
           <div className="flex flex-col">
-            <CardTitle className="text-xl">{activePlaylist.name}</CardTitle>
+            <CardTitle className="text-xl">
+              {activePlaylist.name}
+              {isInitializing && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  (Loading...)
+                </span>
+              )}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {sortedVersions.length} Version
-              {sortedVersions.length !== 1 ? "s" : ""}
-              {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
-                ` (${activePlaylist.versions?.length || 0} total)`}
+              {isInitializing ? (
+                "Initializing playlist..."
+              ) : (
+                <>
+                  {sortedVersions.length} Version
+                  {sortedVersions.length !== 1 ? "s" : ""}
+                  {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
+                    ` (${activePlaylist.versions?.length || 0} total)`}
+                </>
+              )}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {modifications.added > 0 || modifications.removed > 0 ? (
+          {!isInitializing && (modifications.added > 0 || modifications.removed > 0) ? (
             <ModificationsBanner
               addedCount={modifications.added}
               removedCount={modifications.removed}
@@ -521,30 +616,43 @@ export const MainContent: React.FC<MainContentProps> = ({
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto px-5">
-        <VersionGrid
-          versions={sortedVersions}
-          thumbnails={thumbnails}
-          noteStatuses={noteStatuses}
-          selectedVersions={selectedVersions}
-          noteDrafts={noteDrafts}
-          noteLabelIds={noteLabelIds}
-          noteAttachments={noteAttachments}
-          onSaveNote={saveNoteDraft}
-          onClearNote={clearNoteDraft}
-          onToggleSelection={toggleVersionSelection}
-        />
+        {isInitializing ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="text-sm text-muted-foreground">
+                Loading playlist data...
+              </div>
+            </div>
+          </div>
+        ) : (
+          <VersionGrid
+            versions={sortedVersions}
+            thumbnails={thumbnails}
+            noteStatuses={noteStatuses}
+            selectedVersions={selectedVersions}
+            noteDrafts={noteDrafts}
+            noteLabelIds={noteLabelIds}
+            noteAttachments={noteAttachments}
+            onSaveNote={saveNoteDraft}
+            onClearNote={clearNoteDraft}
+            onToggleSelection={toggleVersionSelection}
+          />
+        )}
       </CardContent>
 
-      <SearchPanel
-        onVersionSelect={handleVersionSelect}
-        onVersionsSelect={handleVersionsSelect}
-        onClearAdded={handleClearAdded}
-        hasManuallyAddedVersions={Boolean(
-          activePlaylist.versions?.some((v) => v.manuallyAdded),
-        )}
-        isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
-        currentVersions={activePlaylist.versions || []}
-      />
+      {!isInitializing && (
+        <SearchPanel
+          onVersionSelect={handleVersionSelect}
+          onVersionsSelect={handleVersionsSelect}
+          onClearAdded={handleClearAdded}
+          hasManuallyAddedVersions={Boolean(
+            activePlaylist.versions?.some((v) => v.manuallyAdded),
+          )}
+          isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+          currentVersions={activePlaylist.versions || []}
+        />
+      )}
     </Card>
   );
 };

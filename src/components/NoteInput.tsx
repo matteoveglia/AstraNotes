@@ -497,7 +497,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       <div
         ref={componentRef}
         className={cn(
-          "flex gap-4 p-4 bg-background rounded-lg border relative",
+          "flex gap-4 p-4 bg-background rounded-lg border dark:border-zinc-700 relative",
           manuallyAdded && "border-purple-500 border-2",
           isDraggingOver &&
             status !== "published" &&
