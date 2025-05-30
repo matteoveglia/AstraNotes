@@ -8,6 +8,10 @@
  * @property updatedAt ISO timestamp when the playlist was last updated.
  * @property isQuickNotes Flag indicating the built-in Quick Notes playlist.
  * @property versions Optional list of asset versions linked to this playlist.
+ * @property type Type of playlist - either review session or list
+ * @property categoryId Optional category ID for list-type playlists
+ * @property categoryName Optional category name for list-type playlists
+ * @property isOpen For list-type playlists, indicates if the list is open
  */
 export interface Playlist {
   id: string;
@@ -18,6 +22,20 @@ export interface Playlist {
   createdAt: string;
   updatedAt: string;
   isQuickNotes?: boolean;
+  type?: 'reviewsession' | 'list';
+  categoryId?: string;
+  categoryName?: string;
+  isOpen?: boolean;
+}
+
+/**
+ * Represents a category/group of playlists for carousel organization
+ */
+export interface PlaylistCategory {
+  id: string;
+  name: string;
+  type: 'reviewsessions' | 'lists';
+  playlists: Playlist[];
 }
 
 /**

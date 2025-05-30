@@ -56,8 +56,9 @@ const App: React.FC = () => {
     error,
     loadPlaylists,
     setActivePlaylist,
-    setPlaylists,
+    setPlaylists: setLocalPlaylists,
   } = usePlaylistsStore();
+  const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   const { fetchLabels } = useLabelStore();
   const [loadingVersions, setLoadingVersions] = useState(false);
 
@@ -68,7 +69,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Initialize with Quick Notes
-    setPlaylists([
+    setLocalPlaylists([
       {
         id: "quick-notes",
         name: "Quick Notes",
@@ -80,9 +81,52 @@ const App: React.FC = () => {
         isQuickNotes: true,
       },
     ]);
-    // Load playlists and labels
-    Promise.all([loadPlaylists(), fetchLabels()]);
-  }, [loadPlaylists, setPlaylists, fetchLabels]);
+    // Load playlists and labels - now including both review sessions and lists
+    Promise.all([
+      loadPlaylistsWithLists(), // This will load both review sessions and lists
+      fetchLabels()
+    ]).catch(error => {
+      console.error('Failed to initialize app:', error);
+    });
+  }, [setLocalPlaylists, fetchLabels]);
+
+  // New function to load both review sessions and lists
+  const loadPlaylistsWithLists = async () => {
+    try {
+      // Get both review sessions and lists in parallel
+      const [reviewSessions, lists] = await Promise.all([
+        ftrackService.getPlaylists(),
+        ftrackService.getLists()
+      ]);
+
+      // Combine them into one array
+      const allPlaylists = [
+        {
+          id: "quick-notes",
+          name: "Quick Notes",
+          title: "Quick Notes",
+          notes: [],
+          versions: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isQuickNotes: true,
+        },
+        ...reviewSessions,
+        ...lists
+      ];
+
+      console.log('Loaded all playlists:', {
+        reviewSessionsCount: reviewSessions.length,
+        listsCount: lists.length,
+        totalCount: allPlaylists.length
+      });
+
+      setLocalPlaylists(allPlaylists);
+      setStorePlaylists(allPlaylists.filter(p => !p.isQuickNotes)); // Store doesn't need Quick Notes
+    } catch (error) {
+      console.error('Failed to load playlists with lists:', error);
+    }
+  };
 
   // Load versions when active playlist changes
   useEffect(() => {
@@ -107,15 +151,26 @@ const App: React.FC = () => {
         );
         const versions =
           await ftrackService.getPlaylistVersions(activePlaylistId);
-        setPlaylists(
+        
+        console.log(`Received versions from service:`, {
+          count: versions.length,
+          versions: versions.slice(0, 3).map(v => ({ id: v.id, name: v.name, version: v.version })) // Log first 3 for brevity
+        });
+        
+        setLocalPlaylists(
           playlists.map((playlist) =>
             playlist.id === activePlaylistId
               ? { ...playlist, versions }
               : playlist,
           ),
         );
+        
+        console.log(`Updated playlists state. Active playlist now has ${versions.length} versions`);
+        
         // Mark that we've loaded versions for this playlist
         loadedVersionsRef.current[activePlaylistId] = true;
+        
+        console.log(`Marked playlist ${activePlaylistId} as loaded. LoadedVersionsRef:`, loadedVersionsRef.current);
       } catch (err) {
         console.error("Failed to load versions:", err);
       } finally {
@@ -124,14 +179,41 @@ const App: React.FC = () => {
     };
 
     loadVersionsForActivePlaylist();
-  }, [activePlaylistId, playlists, setPlaylists]);
+  }, [activePlaylistId, playlists, setLocalPlaylists]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     console.log(`Selecting playlist: ${playlistId}`);
+    console.log(`Current openPlaylists before:`, openPlaylists);
     setActivePlaylist(playlistId);
-    if (!openPlaylists.includes(playlistId)) {
-      setOpenPlaylists((prev) => [...prev, playlistId]);
+    
+    // Don't modify openPlaylists for Quick Notes since it's always first
+    if (playlistId === "quick-notes") {
+      return;
     }
+    
+    setOpenPlaylists((prev) => {
+      console.log(`Previous openPlaylists:`, prev);
+      // Remove the playlist if it's already in the list
+      const filtered = prev.filter(id => id !== playlistId);
+      console.log(`After filtering:`, filtered);
+      
+      // Find the index of quick-notes
+      const quickNotesIndex = filtered.findIndex(id => id === "quick-notes");
+      console.log(`Quick Notes index:`, quickNotesIndex);
+      
+      if (quickNotesIndex === -1) {
+        // Quick notes not found, add playlist at the beginning
+        const result = [playlistId, ...filtered];
+        console.log(`Quick Notes not found, result:`, result);
+        return result;
+      } else {
+        // Insert playlist right after quick-notes
+        const result = [...filtered];
+        result.splice(quickNotesIndex + 1, 0, playlistId);
+        console.log(`Inserted after Quick Notes, result:`, result);
+        return result;
+      }
+    });
   };
 
   const handlePlaylistClose = (playlistId: string) => {
@@ -148,7 +230,7 @@ const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    setPlaylists(
+    setLocalPlaylists(
       playlists.map((p) => (p.id === updatedPlaylist.id ? updatedPlaylist : p)),
     );
   };
@@ -163,6 +245,22 @@ const App: React.FC = () => {
       (activePlaylistId &&
         loadedVersionsRef.current[activePlaylistId] &&
         !loadingVersions));
+
+  console.log('App rendering decision:', {
+    activePlaylistId,
+    hasActivePlaylistData: !!activePlaylistData,
+    isQuickNotes: activePlaylistData?.isQuickNotes,
+    hasLoadedVersions: activePlaylistId ? loadedVersionsRef.current[activePlaylistId] : false,
+    loadingVersions,
+    isPlaylistReady,
+    versionsCount: activePlaylistData?.versions?.length || 0
+  });
+
+  console.log('OpenPlaylistsBar data:', {
+    openPlaylists,
+    filteredPlaylists: playlists.filter((p) => openPlaylists.includes(p.id)).map(p => ({ id: p.id, name: p.name })),
+    activePlaylistId
+  });
 
   return (
     <ToastProvider>
@@ -236,9 +334,10 @@ const App: React.FC = () => {
                 )}
               </div>
               <OpenPlaylistsBar
-                playlists={playlists.filter((p) =>
-                  openPlaylists.includes(p.id),
-                )}
+                playlists={openPlaylists
+                  .map(id => playlists.find(p => p.id === id))
+                  .filter((p): p is Playlist => p !== undefined)
+                }
                 activePlaylist={activePlaylistId}
                 onPlaylistSelect={handlePlaylistSelect}
                 onPlaylistClose={handlePlaylistClose}

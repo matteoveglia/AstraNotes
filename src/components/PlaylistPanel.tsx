@@ -22,6 +22,7 @@ import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { motion } from "motion/react";
 import { showContextMenu } from "@/utils/menu";
+import { PlaylistList } from "./PlaylistList";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -238,8 +239,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   );
 
   return (
-    <div className="w-72 border-r p-4 overflow-y-auto relative">
-      <div className="flex items-center justify-between mb-4">
+    <div className="w-72 border-r p-4 relative flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h2 className="text-lg font-bold">Playlists</h2>
         <Button
           variant="ghost"
@@ -256,47 +257,50 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       {/* Quick Notes section - fixed at the top */}
       {quickNotesPlaylist && (
-        <PlaylistItem
-          key={quickNotesPlaylist.id}
-          playlist={quickNotesPlaylist}
-          isActive={
-            activePlaylist !== null && quickNotesPlaylist.id === activePlaylist
-          }
-          onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
-        />
+        <div className="flex-shrink-0">
+          <Button
+            variant={activePlaylist === quickNotesPlaylist.id ? "default" : "outline"}
+            size="lg"
+            onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
+            className="w-full justify-start text-left mb-1"
+          >
+            <span className="truncate flex-1">{quickNotesPlaylist.title}</span>
+          </Button>
+          <hr className="my-4 border-zinc-200 dark:border-zinc-700" />
+        </div>
       )}
 
       {/* Scrollable playlists section */}
-      {loading ? (
-        <div className="flex items-center justify-center text-zinc-500 h-[300px]">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          <span>Loading playlists...</span>
-        </div>
-      ) : error ? (
-        <div className="flex items-center text-red-500 p-2 bg-red-50 rounded">
-          <AlertCircle className="w-5 h-5 mr-2" />
-          <span className="text-sm">{error}</span>
-        </div>
-      ) : (
-        <motion.div
-          className="overflow-y-auto max-h-[calc(100vh-11rem)] pr-2"
-          variants={gridVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <h3 className="text-sm font-semibold py-2">ftrack Playlists</h3>
-          {otherPlaylists.map((playlist) => (
-            <PlaylistItem
-              key={playlist.id}
-              playlist={playlist}
-              isActive={
-                activePlaylist !== null && playlist.id === activePlaylist
+      <div className="flex-1 flex flex-col min-h-0">
+        {loading ? (
+          <div className="flex items-center justify-center text-zinc-500 h-[300px]">
+            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <span>Loading playlists...</span>
+          </div>
+        ) : error ? (
+          <div className="flex items-center text-red-500 p-2 bg-red-50 rounded">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            <span className="text-sm">{error}</span>
+          </div>
+        ) : (
+          <motion.div
+            className="flex-1 flex flex-col min-h-0 pr-2"
+            variants={gridVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <PlaylistList
+              onSelect={(playlist) => onPlaylistSelect(playlist.id)}
+              activePlaylistId={
+                // If Quick Notes is active, don't show any carousel playlist as selected
+                (activePlaylist === QUICK_NOTES_ID || activePlaylist === "quick-notes") 
+                  ? null
+                  : activePlaylist
               }
-              onClick={() => onPlaylistSelect(playlist.id)}
             />
-          ))}
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </div>
 
       {hasRemovedPlaylists && (
         <Button

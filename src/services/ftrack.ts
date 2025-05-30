@@ -9,7 +9,7 @@
  * - Label management
  */
 
-import type { FtrackSettings, Playlist, Note, AssetVersion } from "@/types";
+import type { FtrackSettings, Playlist, Note, AssetVersion, PlaylistCategory } from "@/types";
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
 import { AttachmentService } from "./attachmentService";
@@ -259,24 +259,64 @@ export class FtrackService {
 
     try {
       log("Fetching notes for playlist:", playlistId);
-      const query = `select 
-        id,
-        content,
-        created_at,
-        updated_at,
-        created_by_id,
-        frame_number
-      from Note 
-      where review_session_object.review_session.id is "${playlistId}"
-      order by created_at desc`;
+      
+      // First, determine if this is a review session or a list
+      // Try to fetch as a review session first
+      const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
+      const reviewSessionResult = await this.session!.query(reviewSessionQuery);
+      
+      if (reviewSessionResult?.data?.length > 0) {
+        // This is a review session, use the existing logic
+        const query = `select 
+          id,
+          content,
+          created_at,
+          updated_at,
+          created_by_id,
+          frame_number
+        from Note 
+        where review_session_object.review_session.id is "${playlistId}"
+        order by created_at desc`;
 
-      log("Running notes query:", query);
-      const result = await this.session!.query(query);
+        log("Running review session notes query:", query);
+        const result = await this.session!.query(query);
 
-      log("Raw notes response:", result);
-      log("Number of notes found:", result?.data?.length || 0);
+        log("Raw notes response:", result);
+        log("Number of notes found:", result?.data?.length || 0);
 
-      return this.mapNotesToPlaylist(result?.data || []);
+        return this.mapNotesToPlaylist(result?.data || []);
+      } else {
+        // This might be a list, try to fetch list object notes
+        const listQuery = `select id from List where id is "${playlistId}"`;
+        const listResult = await this.session!.query(listQuery);
+        
+        if (listResult?.data?.length > 0) {
+          // This is a list, fetch notes from list objects
+          const query = `select 
+            id,
+            content,
+            created_at,
+            updated_at,
+            created_by_id,
+            frame_number
+          from Note 
+          where parent_id in (
+            select entity_id from ListObject where list_id is "${playlistId}"
+          )
+          order by created_at desc`;
+
+          log("Running list notes query:", query);
+          const result = await this.session!.query(query);
+
+          log("Raw list notes response:", result);
+          log("Number of list notes found:", result?.data?.length || 0);
+
+          return this.mapNotesToPlaylist(result?.data || []);
+        }
+      }
+
+      log("Playlist not found as review session or list:", playlistId);
+      return [];
     } catch (error) {
       log("Failed to fetch notes:", error);
       return [];
@@ -294,25 +334,95 @@ export class FtrackService {
 
     try {
       log("Fetching versions for playlist:", playlistId);
-      const query = `select 
-        asset_version.id,
-        asset_version.version,
-        asset_version.asset.name,
-        asset_version.thumbnail.id,
-        asset_version.thumbnail.name,
-        asset_version.thumbnail.component_locations,
-        id
-      from ReviewSessionObject 
-      where review_session.id is "${playlistId}"
-      order by sort_order`;
+      
+      // First, determine if this is a review session or a list
+      // Try to fetch as a review session first
+      const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
+      const reviewSessionResult = await this.session!.query(reviewSessionQuery);
+      
+      if (reviewSessionResult?.data?.length > 0) {
+        // This is a review session, use the existing logic
+        const query = `select 
+          asset_version.id,
+          asset_version.version,
+          asset_version.asset.name,
+          asset_version.thumbnail.id,
+          asset_version.thumbnail.name,
+          asset_version.thumbnail.component_locations,
+          id
+        from ReviewSessionObject 
+        where review_session.id is "${playlistId}"
+        order by sort_order`;
 
-      log("Running versions query:", query);
-      const result = await this.session!.query(query);
+        log("Running review session versions query:", query);
+        const result = await this.session!.query(query);
 
-      log("Raw versions response:", result);
-      log("Number of versions found:", result?.data?.length || 0);
+        log("Raw versions response:", result);
+        log("Number of versions found:", result?.data?.length || 0);
 
-      return this.mapVersionsToPlaylist(result?.data || []);
+        return this.mapVersionsToPlaylist(result?.data || []);
+      } else {
+        // This might be a list, try to fetch list object versions
+        const listQuery = `select id from List where id is "${playlistId}"`;
+        const listResult = await this.session!.query(listQuery);
+        
+        if (listResult?.data?.length > 0) {
+          // This is a list, fetch versions from list objects
+          // First get all entity IDs from the list, then query AssetVersion directly
+          const listObjectQuery = `select entity_id from ListObject where list_id is "${playlistId}"`;
+          log("Running list object query:", listObjectQuery);
+          const listObjectResult = await this.session!.query(listObjectQuery);
+          
+          if (listObjectResult?.data?.length > 0) {
+            const entityIds = listObjectResult.data.map(obj => obj.entity_id);
+            log("Found entity IDs in list:", entityIds);
+            
+            const query = `select 
+              id,
+              version,
+              asset.name,
+              thumbnail.id,
+              thumbnail.name,
+              thumbnail.component_locations
+            from AssetVersion
+            where id in (${entityIds.map(id => `"${id}"`).join(', ')})
+            order by date desc`;
+
+            log("Running list versions query:", query);
+            const result = await this.session!.query(query);
+
+            log("Raw list versions response:", result);
+            log("Number of list versions found:", result?.data?.length || 0);
+
+            // Log the first item to see the data structure
+            if (result?.data?.length > 0) {
+              log("First version data structure:", result.data[0]);
+            }
+
+            // Map the versions for list objects (slightly different structure)
+            const mappedVersions = (result?.data || []).map((version) => ({
+              id: version.id,
+              name: version.asset?.name || "Unknown Asset",
+              version: version.version || 1,
+              thumbnailId: version.thumbnail?.id,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              manuallyAdded: false,
+            }));
+
+            log("Mapped list versions:", mappedVersions);
+            log("Returning mapped versions count:", mappedVersions.length);
+            
+            return mappedVersions;
+          } else {
+            log("No entities found in list:", playlistId);
+            return [];
+          }
+        }
+      }
+
+      log("Playlist not found as review session or list:", playlistId);
+      return [];
     } catch (error) {
       log("Failed to fetch versions:", error);
       return [];
@@ -353,9 +463,120 @@ export class FtrackService {
         createdAt: session.created_at,
         updatedAt: session.end_date || session.created_at,
         isQuickNotes: false,
+        type: 'reviewsession' as const,
       }));
     } catch (error) {
       log("Failed to fetch playlists:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch ftrack Lists with their categories
+   * @returns Promise<Playlist[]> Array of lists formatted as playlists
+   */
+  async getLists(): Promise<Playlist[]> {
+    if (!this.session) {
+      const session = await this.initSession();
+      if (!session) {
+        log("No active session for getLists");
+        return [];
+      }
+    }
+
+    try {
+      log("Fetching lists...");
+      const query = `select 
+        id,
+        name,
+        date,
+        is_open,
+        project_id,
+        category_id,
+        category.name
+      from List 
+      where is_open is true
+      order by category.name, name`;
+
+      log("Running list query:", query);
+      const result = await this.session!.query(query);
+
+      log("Received lists:", result);
+
+      return (result?.data || []).map((list) => ({
+        id: list.id,
+        name: list.name,
+        title: list.name,
+        notes: [], // Notes will be loaded when list is selected
+        createdAt: list.date || new Date().toISOString(),
+        updatedAt: list.date || new Date().toISOString(),
+        isQuickNotes: false,
+        type: 'list' as const,
+        categoryId: list.category_id,
+        categoryName: list.category?.name || 'Uncategorized',
+        isOpen: list.is_open,
+      }));
+    } catch (error) {
+      log("Failed to fetch lists:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch all playlist categories (both review sessions and lists)
+   * @returns Promise<PlaylistCategory[]> Array of categorized playlists
+   */
+  async getPlaylistCategories(): Promise<PlaylistCategory[]> {
+    try {
+      log("Fetching all playlist categories...");
+      
+      // Fetch both review sessions and lists in parallel
+      const [reviewSessions, lists] = await Promise.all([
+        this.getPlaylists(),
+        this.getLists()
+      ]);
+
+      const categories: PlaylistCategory[] = [];
+
+      // Add review sessions as a category if any exist
+      if (reviewSessions.length > 0) {
+        categories.push({
+          id: 'review-sessions',
+          name: 'Review Sessions',
+          type: 'reviewsessions',
+          playlists: reviewSessions
+        });
+      }
+
+      // Group lists by category
+      const listsByCategory = new Map<string, Playlist[]>();
+      
+      lists.forEach(list => {
+        const categoryKey = list.categoryId || 'uncategorized';
+        const categoryName = list.categoryName || 'Uncategorized';
+        
+        if (!listsByCategory.has(categoryKey)) {
+          listsByCategory.set(categoryKey, []);
+        }
+        listsByCategory.get(categoryKey)!.push(list);
+      });
+
+      // Add list categories
+      for (const [categoryId, categoryLists] of listsByCategory) {
+        const categoryName = categoryLists[0]?.categoryName || 'Uncategorized';
+        categories.push({
+          id: categoryId,
+          name: `${categoryName} Lists`,
+          type: 'lists',
+          playlists: categoryLists
+        });
+      }
+
+      log("Organized playlist categories:", categories);
+      return categories;
+
+    } catch (error) {
+      log("Failed to fetch playlist categories:", error);
       return [];
     }
   }

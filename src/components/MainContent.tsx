@@ -73,17 +73,25 @@ export const MainContent: React.FC<MainContentProps> = ({
         // This prevents race conditions when rapidly switching playlists
         if (isMountedRef.current) {
           if (cached) {
+            console.log(`[MainContent] Setting mergedPlaylist from cache for ${playlist.id}:`, {
+              cachedVersionsCount: cached.versions?.length || 0,
+              originalVersionsCount: playlist.versions?.length || 0
+            });
             setMergedPlaylist({
               ...playlist,
               versions: cached.versions,
             });
           } else {
+            console.log(`[MainContent] Setting mergedPlaylist from original for ${playlist.id}:`, {
+              versionsCount: playlist.versions?.length || 0
+            });
             setMergedPlaylist(playlist);
           }
         }
       } catch (error) {
         console.error(`Failed to initialize playlist ${playlist.id}:`, error);
       } finally {
+        console.log(`[MainContent] Finished initializing playlist ${playlist.id}, setting isInitializing to false`);
         setIsInitializing(false);
       }
     };
@@ -381,9 +389,20 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Memoize sorted versions to prevent unnecessary re-renders
   const sortedVersions = useMemo(() => {
-    if (isInitializing) return [];
+    console.log('[MainContent] Computing sortedVersions:', {
+      isInitializing,
+      playlistId: activePlaylist.id,
+      versionsCount: activePlaylist.versions?.length || 0,
+      versions: activePlaylist.versions?.slice(0, 3).map(v => ({ id: v.id, name: v.name })) || []
+    });
+
+    if (isInitializing) {
+      console.log('[MainContent] Still initializing, returning empty array');
+      return [];
+    }
 
     let filteredVersions = [...(activePlaylist.versions || [])];
+    console.log('[MainContent] After copying versions:', filteredVersions.length);
 
     // Apply status filter
     if (selectedStatuses.length > 0) {
@@ -418,7 +437,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
 
     // Sort the filtered versions
-    return filteredVersions.sort((a, b) => {
+    const sorted = filteredVersions.sort((a, b) => {
       // First sort by name
       const nameCompare = a.name.localeCompare(b.name);
       if (nameCompare !== 0) return nameCompare;
@@ -426,6 +445,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Then by version number
       return a.version - b.version;
     });
+
+    console.log('[MainContent] Final sorted versions:', sorted.length);
+    return sorted;
   }, [
     activePlaylist.versions,
     isInitializing,

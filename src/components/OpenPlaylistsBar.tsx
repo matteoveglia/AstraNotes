@@ -9,6 +9,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "motion/react";
 import type { Playlist } from "@/types";
 
 interface PlaylistTabProps {
@@ -24,28 +25,37 @@ const PlaylistTab: React.FC<PlaylistTabProps> = ({
   onClick,
   onClose,
 }) => (
-  <Button
-    className={`justify-start group relative min-w-[120px] flex-none
-      ${
-        isActive
-          ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
-          : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
-      }`}
-    onClick={onClick}
+  <motion.div
+    layout
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.2 }}
+    className="flex-none"
   >
-    <span className="truncate mr-6">{playlist.title}</span>
-    {!playlist.isQuickNotes && onClose && (
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-      >
-        <X className="h-4 w-4" />
-      </div>
-    )}
-  </Button>
+    <Button
+      className={`justify-start group relative min-w-[120px]
+        ${
+          isActive
+            ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
+            : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
+        }`}
+      onClick={onClick}
+    >
+      <span className="truncate mr-6">{playlist.title}</span>
+      {!playlist.isQuickNotes && onClose && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        >
+          <X className="h-4 w-4" />
+        </div>
+      )}
+    </Button>
+  </motion.div>
 );
 
 interface OpenPlaylistsBarProps {
@@ -82,21 +92,23 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
       {/* Scrollable playlist container */}
       <div className="absolute left-0 right-[100px] top-0 bottom-0 overflow-x-auto">
         <div className="flex items-center gap-1 px-2 h-full">
-          {playlists.map((playlist) => (
-            <PlaylistTab
-              key={playlist.id}
-              playlist={playlist}
-              isActive={
-                activePlaylist !== null && playlist.id === activePlaylist
-              }
-              onClick={() => onPlaylistSelect(playlist.id)}
-              onClose={
-                playlist.isQuickNotes
-                  ? undefined
-                  : () => onPlaylistClose(playlist.id)
-              }
-            />
-          ))}
+          <AnimatePresence mode="popLayout">
+            {playlists.map((playlist) => (
+              <PlaylistTab
+                key={playlist.id}
+                playlist={playlist}
+                isActive={
+                  activePlaylist !== null && playlist.id === activePlaylist
+                }
+                onClick={() => onPlaylistSelect(playlist.id)}
+                onClose={
+                  playlist.isQuickNotes
+                    ? undefined
+                    : () => onPlaylistClose(playlist.id)
+                }
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>
