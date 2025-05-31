@@ -17,6 +17,14 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 - 🔄 **Auto-updates**
 - 🌙 **Dark Mode**
 
+## Roadmap
+- **Project Selection:** Allow users to quickly switch between ftrack projects.
+- **Playlist Creation & Sync:** Enable creation of new playlists, including syncing to ftrack and generating playlists from quick notes.
+- **User Mentions:** Support @-mentioning users within notes.
+- **Multiple Notes per Version:** Allow adding new notes to versions that already have published notes.
+- **Related Versions:** Feature to display related versions (from the same shot), including their shot and version status.
+- **Open Playlist in Ftrack:** Provide a direct link/button to open the current playlist in ftrack.
+
 ## Installation
 
 ### Requirements
