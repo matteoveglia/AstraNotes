@@ -12,56 +12,104 @@ import { Button } from "./ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Playlist, PlaylistCategory } from "@/types";
-import { ftrackService } from "../services/ftrack";
+
+interface PlaylistWithStatus extends Playlist {
+  status?: "added" | "removed";
+}
+
+interface PlaylistCategoryWithStatus extends Omit<PlaylistCategory, 'playlists'> {
+  playlists: PlaylistWithStatus[];
+}
 
 interface PlaylistListProps {
+  categories: PlaylistCategoryWithStatus[];
+  loading?: boolean;
+  error?: string | null;
   onSelect: (playlist: Playlist) => void;
   activePlaylistId: string | null;
 }
 
 export const PlaylistList: React.FC<PlaylistListProps> = ({
+  categories,
+  loading = false,
+  error = null,
   onSelect,
   activePlaylistId,
 }) => {
-  const [categories, setCategories] = React.useState<PlaylistCategory[]>([]);
-  const [loading, setLoading] = React.useState(false);
   const [currentCategoryIndex, setCurrentCategoryIndex] = React.useState(0);
-  const [error, setError] = React.useState<string | null>(null);
+  const [previousCategoriesRef] = React.useState<{ current: PlaylistCategoryWithStatus[] }>({ current: [] });
+  const [userHasNavigated, setUserHasNavigated] = React.useState(false);
 
+  // Smart category index management when categories change (but not when user navigates)
   React.useEffect(() => {
-    const loadPlaylistCategories = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const fetchedCategories = await ftrackService.getPlaylistCategories();
-        setCategories(fetchedCategories);
-        
-        // Reset to first category if current index is out of bounds
-        if (fetchedCategories.length > 0 && currentCategoryIndex >= fetchedCategories.length) {
-          setCurrentCategoryIndex(0);
-        }
-      } catch (error) {
-        console.error("Failed to load playlist categories:", error);
-        setError("Failed to load playlists");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (categories.length === 0) {
+      setCurrentCategoryIndex(0);
+      return;
+    }
 
-    loadPlaylistCategories();
-  }, []);
+    const previousCategories = previousCategoriesRef.current;
+    const hadCategories = previousCategories.length > 0;
+
+    // If this is the first time we have categories, stay at 0
+    if (!hadCategories) {
+      previousCategoriesRef.current = categories;
+      return;
+    }
+
+    // Only do automatic navigation if user hasn't manually navigated
+    if (!userHasNavigated) {
+      // Try to find the category that contains the active playlist
+      if (activePlaylistId) {
+        const categoryWithActivePlaylist = categories.findIndex(cat => 
+          cat.playlists.some(p => p.id === activePlaylistId)
+        );
+        
+        if (categoryWithActivePlaylist !== -1) {
+          setCurrentCategoryIndex(categoryWithActivePlaylist);
+          previousCategoriesRef.current = categories;
+          return;
+        }
+      }
+    }
+
+    // Try to maintain the same category by ID if it still exists
+    const currentCategory = previousCategories[currentCategoryIndex];
+    if (currentCategory) {
+      const sameCategoryIndex = categories.findIndex(cat => cat.id === currentCategory.id);
+      if (sameCategoryIndex !== -1) {
+        setCurrentCategoryIndex(sameCategoryIndex);
+        previousCategoriesRef.current = categories;
+        return;
+      }
+    }
+
+    // If current index is out of bounds, reset to 0
+    if (currentCategoryIndex >= categories.length) {
+      setCurrentCategoryIndex(0);
+      setUserHasNavigated(false); // Reset user navigation flag when forced to change
+    }
+
+    previousCategoriesRef.current = categories;
+  }, [categories, currentCategoryIndex, activePlaylistId, userHasNavigated]);
 
   const handlePreviousCategory = () => {
+    setUserHasNavigated(true); // Mark that user has manually navigated
     setCurrentCategoryIndex((prev) => 
       prev > 0 ? prev - 1 : categories.length - 1
     );
   };
 
   const handleNextCategory = () => {
+    setUserHasNavigated(true); // Mark that user has manually navigated
     setCurrentCategoryIndex((prev) => 
       prev < categories.length - 1 ? prev + 1 : 0
     );
   };
+
+  // Reset user navigation flag when active playlist changes to allow automatic navigation
+  React.useEffect(() => {
+    setUserHasNavigated(false);
+  }, [activePlaylistId]);
 
   const currentCategory = categories[currentCategoryIndex];
 
@@ -162,8 +210,10 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                 No playlists in this category
               </div>
             ) : (
-              currentCategory.playlists.map((playlist) => {
+              currentCategory.playlists.map((playlist: PlaylistWithStatus) => {
                 const isSelected = playlist.id === activePlaylistId && activePlaylistId !== '__no_selection__';
+                const status = playlist.status;
+                
                 return (
                   <Button
                     key={playlist.id}
@@ -172,7 +222,9 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                     onClick={() => onSelect(playlist)}
                     className={cn(
                       "w-full justify-start text-left",
-                      playlist.type === 'list' && "border-dashed"
+                      playlist.type === 'list' && "border-dashed",
+                      status === "removed" && "text-red-500 border-red-300",
+                      status === "added" && "text-green-600 border-green-300"
                     )}
                     title={
                       playlist.type === 'list' 
@@ -181,14 +233,22 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                     }
                   >
                     <span className="truncate flex-1">{playlist.name}</span>
-                    {playlist.type === 'list' && (
-                      <span className={cn(
-                        "ml-1 text-xs flex-shrink-0",
-                        playlist.isOpen ? "text-green-700" : "opacity-70"
-                      )}>
-                        {playlist.isOpen ? '●' : '○'}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {playlist.type === 'list' && (
+                        <span className={cn(
+                          "text-xs flex-shrink-0",
+                          playlist.isOpen ? "text-green-700" : "opacity-70"
+                        )}>
+                          {playlist.isOpen ? '●' : '○'}
+                        </span>
+                      )}
+                      {status === "removed" && (
+                        <span className="text-red-500 text-xs">-</span>
+                      )}
+                      {status === "added" && (
+                        <span className="text-green-600 text-xs">+</span>
+                      )}
+                    </div>
                   </Button>
                 );
               })
