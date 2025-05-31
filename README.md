@@ -4,13 +4,13 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 
 ## Features
 
-- 🎬 **Playlist Management**: Browse and view ftrack client review playlists
+- 🎬 **Playlist Support**: Browse and view ftrack client review and list playlists
 - ✍️ **Note Creation**: Create, edit, and publish notes on versions
 - 🏷️ **Label Support**: Categorise notes with customizable labels pulled from ftrack
 - ⚙️ **Status Management**: View and update shot and version statuses directly
 - 📊 **Quick Notes**: Create notes on any version, on the fly, without a playlist
-- 🔄 **Real-time Updates**: Get notified of playlist changes in real-time
-- 🔍 **Version Search**: Find and manually add specific versions to playlists (local only)
+- 🔄 **Real-time Updates**: Get notified of playlist changes and added/removed playlists in real-time
+- 🔍 **Version Search**: Find and manually add specific versions to playlists, on the fly, without affecting ftrack.
 - 💾 **Offline Mode**: Draft notes offline and publish when connected
 - 📤 **CSV Export**: Export notes to CSV
 - 🖼️ **Thumbnail Previews**
@@ -52,7 +52,6 @@ These settings can be updated anytime through the settings panel.
 
 - **Connection Error**: Verify your ftrack credentials in Settings
 - **Missing Thumbnails**: Check your connection to ftrack
-- **Update Failed**: Manually download the latest version and reinstall
 
 ### Logs
 
