@@ -12,6 +12,7 @@ import { useLabelStore } from "./store/labelStore";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeStore } from "./store/themeStore";
+import { videoService } from "./services/videoService";
 
 const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
@@ -47,6 +48,13 @@ const App: React.FC = () => {
       .setTheme(theme)
       .catch(() => {});
   }, [theme]);
+
+  // Cleanup video cache on app unmount
+  useEffect(() => {
+    return () => {
+      videoService.clearCache();
+    };
+  }, []);
 
   const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
   const {

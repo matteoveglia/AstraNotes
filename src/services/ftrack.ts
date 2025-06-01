@@ -962,7 +962,7 @@ export class FtrackService {
     }
   }
 
-  /**
+    /**
    * Get file URL for a component
    * @param componentId The component ID
    * @returns The URL to access the file
@@ -971,19 +971,9 @@ export class FtrackService {
     try {
       const session = await this.getSession();
 
-      // Get the server location
-      const serverLocationQuery = await session.query(
-        'select Location where name is "ftrack.server"',
-      );
-      const serverLocation = serverLocationQuery.data[0];
-
-      if (!serverLocation) {
-        throw new Error("Could not find ftrack server location");
-      }
-
-      // Get component
+      // Get the component with its location information
       const componentQuery = await session.query(
-        `select id, name from Component where id is "${componentId}"`,
+        `select id, name, component_locations.location_id from Component where id is "${componentId}"`,
       );
       const component = componentQuery.data[0];
 
@@ -991,8 +981,9 @@ export class FtrackService {
         throw new Error(`Component not found: ${componentId}`);
       }
 
-      // Get URL for the component
-      const url = session.getComponentUrl(component.id);
+      // Use the session's built-in method to get component URL
+      // This should handle the location resolution automatically
+      const url = await session.getComponentUrl(componentId);
 
       if (!url) {
         throw new Error(`Could not get URL for component: ${componentId}`);
@@ -1310,7 +1301,7 @@ export class FtrackService {
 
       // Using query to get all components linked to the version
       const query = await session.query(
-        `select Component from Component where version_id is ${versionId}`,
+        `select id, name, file_type from Component where version_id is "${versionId}"`,
       );
 
       return query.data;

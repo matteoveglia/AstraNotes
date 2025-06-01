@@ -13,6 +13,7 @@ import { db, NoteAttachment } from "./db";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { FtrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
+import { videoService } from "../services/videoService";
 
 const DEBUG = true;
 function log(...args: any[]): void {
@@ -840,6 +841,8 @@ export class PlaylistStore {
     if (playlistId === "quick-notes") return;
 
     try {
+      // Clean up video cache when playlist updates
+      videoService.clearExpiredCache();
       // 1. Get all versions from IndexedDB (our source of truth)
       const dbVersions = await db.versions
         .where("playlistId")
@@ -1065,6 +1068,9 @@ export class PlaylistStore {
       this.stopPolling();
     }
 
+    // Clean up video cache when starting new polling
+    videoService.clearCache();
+
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
@@ -1279,6 +1285,8 @@ export class PlaylistStore {
     this.stopPolling();
     this.recentlyProcessedChanges.clear();
     this.recentlyManuallyRemovedIds.clear();
+    // Clean up video cache
+    videoService.clearCache();
     console.log("🧹 PlaylistStore destroyed and cleaned up");
   }
 

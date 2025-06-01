@@ -662,6 +662,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             thumbnailUrl={thumbnailUrl}
             versionName={versionName}
             versionNumber={versionNumber}
+            versionId={assetVersionId}
           />
         )}
       </div>
