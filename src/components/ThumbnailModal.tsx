@@ -141,8 +141,17 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
                         disabled={isVideoAvailable === false || isLoadingVideo}
                         className="flex items-center gap-2"
                       >
-                        <Play className="w-4 h-4" />
-                        {isLoadingVideo ? "Loading..." : "Play Reviewable"}
+                        {isLoadingVideo ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4" />
+                            Play Reviewable
+                          </>
+                        )}
                       </Button>
                     </TooltipTrigger>
                     {isVideoAvailable === false && (

@@ -104,6 +104,13 @@ class VideoService {
         `[VideoService] Failed to check video availability for ${versionId}:`,
         error,
       );
+      
+      // Cache negative result for shorter time on errors
+      this.availability[versionId] = {
+        isAvailable: false,
+        lastChecked: Date.now()
+      };
+      
       return false;
     }
   }
@@ -204,7 +211,11 @@ class VideoService {
     // Revoke blob URLs to prevent memory leaks
     Object.values(this.cache).forEach(({ url }) => {
       if (url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
+        try {
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.warn('[VideoService] Failed to revoke blob URL:', url, error);
+        }
       }
     });
 

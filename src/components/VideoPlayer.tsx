@@ -165,6 +165,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      
+      // Try to detect actual frame rate from video metadata if available
+      // This is a best-effort approach as web video API doesn't provide direct access
+      const videoElement = videoRef.current as any;
+      if (videoElement.getVideoPlaybackQuality) {
+        try {
+          const quality = videoElement.getVideoPlaybackQuality();
+          // Most common frame rates - fallback to 24fps if not detectable
+          setFrameRate(24); // Keep default for now as detection is limited
+        } catch (error) {
+          console.debug('[VideoPlayer] Frame rate detection not available');
+        }
+      }
+      
       setIsLoading(false);
       onLoad?.();
     }
@@ -386,8 +400,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Keyboard hints */}
-      <div className="absolute top-4 left-4 text-white text-xs bg-black bg-opacity-50 rounded px-2 py-1 opacity-0 hover:opacity-100 transition-opacity">
-        ← → Frame by frame • Space = Play/Pause • Drag timeline to scrub
+      <div className="absolute top-4 left-4 text-white text-xs bg-black bg-opacity-50 rounded px-2 py-1 opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap">
+        <div className="font-semibold mb-1">Controls:</div>
+        <div>← → Frame navigation</div>
+        <div>Space = Play/Pause</div>
+        <div>Click/Drag timeline to scrub</div>
       </div>
     </div>
   );
