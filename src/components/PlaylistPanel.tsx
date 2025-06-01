@@ -34,7 +34,8 @@ interface PlaylistWithStatus extends Playlist {
   status?: "added" | "removed";
 }
 
-interface PlaylistCategoryWithStatus extends Omit<PlaylistCategory, 'playlists'> {
+interface PlaylistCategoryWithStatus
+  extends Omit<PlaylistCategory, "playlists"> {
   playlists: PlaylistWithStatus[];
 }
 
@@ -131,36 +132,40 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
 
   // Generate categories from playlists with status
-  const generateCategories = (playlistsWithStatus: PlaylistWithStatus[]): PlaylistCategoryWithStatus[] => {
+  const generateCategories = (
+    playlistsWithStatus: PlaylistWithStatus[],
+  ): PlaylistCategoryWithStatus[] => {
     // Filter out Quick Notes for categories
     const nonQuickNotesPlaylists = playlistsWithStatus.filter(
-      (p) => p.id !== QUICK_NOTES_ID && !p.isQuickNotes
+      (p) => p.id !== QUICK_NOTES_ID && !p.isQuickNotes,
     );
 
     const categories: PlaylistCategoryWithStatus[] = [];
 
     // Group by type
-    const reviewSessions = nonQuickNotesPlaylists.filter(p => p.type === 'reviewsession');
-    const lists = nonQuickNotesPlaylists.filter(p => p.type === 'list');
+    const reviewSessions = nonQuickNotesPlaylists.filter(
+      (p) => p.type === "reviewsession",
+    );
+    const lists = nonQuickNotesPlaylists.filter((p) => p.type === "list");
 
     // Add review sessions as a category if any exist (preserve original order)
     if (reviewSessions.length > 0) {
       categories.push({
-        id: 'review-sessions',
-        name: 'Review Sessions',
-        type: 'reviewsessions',
-        playlists: reviewSessions
+        id: "review-sessions",
+        name: "Review Sessions",
+        type: "reviewsessions",
+        playlists: reviewSessions,
       });
     }
 
     // Group lists by category while preserving order
     const listsByCategory = new Map<string, PlaylistWithStatus[]>();
-    
+
     // Process lists in their original order to maintain sorting
-    lists.forEach(list => {
-      const categoryKey = list.categoryId || 'uncategorized';
-      const categoryName = list.categoryName || 'Uncategorized';
-      
+    lists.forEach((list) => {
+      const categoryKey = list.categoryId || "uncategorized";
+      const categoryName = list.categoryName || "Uncategorized";
+
       if (!listsByCategory.has(categoryKey)) {
         listsByCategory.set(categoryKey, []);
       }
@@ -168,31 +173,33 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     });
 
     // Add list categories in a consistent order and sort each category's playlists
-    const sortedCategoryEntries = Array.from(listsByCategory.entries()).sort(([, listsA], [, listsB]) => {
-      // Sort categories by the category name of the first playlist in each category
-      const categoryNameA = listsA[0]?.categoryName || 'Uncategorized';
-      const categoryNameB = listsB[0]?.categoryName || 'Uncategorized';
-      return categoryNameA.localeCompare(categoryNameB);
-    });
+    const sortedCategoryEntries = Array.from(listsByCategory.entries()).sort(
+      ([, listsA], [, listsB]) => {
+        // Sort categories by the category name of the first playlist in each category
+        const categoryNameA = listsA[0]?.categoryName || "Uncategorized";
+        const categoryNameB = listsB[0]?.categoryName || "Uncategorized";
+        return categoryNameA.localeCompare(categoryNameB);
+      },
+    );
 
     for (const [categoryId, categoryLists] of sortedCategoryEntries) {
-      const categoryName = categoryLists[0]?.categoryName || 'Uncategorized';
-      
+      const categoryName = categoryLists[0]?.categoryName || "Uncategorized";
+
       // Sort playlists within each category by name, but put "removed" ones at the end
       const sortedPlaylists = categoryLists.sort((a, b) => {
         // If one is removed and the other isn't, put removed ones last
         if (a.status === "removed" && b.status !== "removed") return 1;
         if (b.status === "removed" && a.status !== "removed") return -1;
-        
+
         // Otherwise sort by name
         return a.name.localeCompare(b.name);
       });
-      
+
       categories.push({
         id: categoryId,
         name: `${categoryName} Lists`,
-        type: 'lists',
-        playlists: sortedPlaylists
+        type: "lists",
+        playlists: sortedPlaylists,
       });
     }
 
@@ -207,11 +214,11 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         // Fetch both review sessions and lists
         const [reviewSessions, lists] = await Promise.all([
           ftrackService.getPlaylists(),
-          ftrackService.getLists()
+          ftrackService.getLists(),
         ]);
-        
+
         const allPlaylists = [...reviewSessions, ...lists];
-        
+
         // Quick Notes is handled by the store's setPlaylists
         setStorePlaylists(allPlaylists);
         // Get playlists from store after Quick Notes is added
@@ -234,9 +241,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       // Fetch both review sessions and lists
       const [latestReviewSessions, latestLists] = await Promise.all([
         ftrackService.getPlaylists(),
-        ftrackService.getLists()
+        ftrackService.getLists(),
       ]);
-      
+
       const latestPlaylists = [...latestReviewSessions, ...latestLists];
 
       // Create a map of current playlists for easy lookup
@@ -261,12 +268,16 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
           const current = currentPlaylistMap.get(latest.id);
           const existing = storePlaylistMap.get(latest.id);
-          
+
           // If it exists in current list and was marked as added, clear the status
           if (current?.status === "added") {
             // Preserve existing data (like versions) if available
             const preservedData = existing || latest;
-            return { ...preservedData, ...latest, status: undefined } as PlaylistWithStatus;
+            return {
+              ...preservedData,
+              ...latest,
+              status: undefined,
+            } as PlaylistWithStatus;
           }
           // If it's new, mark it as added
           if (!current) {
@@ -302,7 +313,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         .map((p) => {
           const existing = storePlaylistMap.get(p.id);
           // Preserve existing data (like versions) if available, but keep the "removed" status
-          return existing ? { ...existing, ...p, status: "removed" as const } : p;
+          return existing
+            ? { ...existing, ...p, status: "removed" as const }
+            : p;
         });
 
       // Combine all playlists
@@ -315,15 +328,18 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       // Update local state with all playlists (including removed ones for status display)
       setPlaylists(updatedPlaylists);
-      
+
       // Update the store with all playlists (including removed ones) preserving existing data
       // Removed playlists should remain functional until "Clear Old" is clicked
-      const allPlaylistsForStore = [...processedPlaylists, ...removedPlaylists, ...existingRemovedPlaylists]
-        .map(p => {
-          const { status, ...cleanPlaylist } = p as any;
-          return cleanPlaylist;
-        });
-      
+      const allPlaylistsForStore = [
+        ...processedPlaylists,
+        ...removedPlaylists,
+        ...existingRemovedPlaylists,
+      ].map((p) => {
+        const { status, ...cleanPlaylist } = p as any;
+        return cleanPlaylist;
+      });
+
       setStorePlaylists(allPlaylistsForStore);
     } catch (error) {
       console.error("Failed to refresh playlists:", error);
@@ -335,24 +351,24 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
   const handleClearOld = () => {
     const updatedPlaylists = playlists.filter((p) => p.status !== "removed");
-    
+
     // Update local state
     setPlaylists(updatedPlaylists);
-    
+
     // Get current playlists from the main store to preserve loaded data (like versions)
     const { playlists: storePlaylists } = usePlaylistsStore.getState();
     const storePlaylistMap = new Map(storePlaylists.map((p) => [p.id, p]));
-    
+
     // Update the store with clean playlists (without status) while preserving existing data
     const cleanPlaylists = updatedPlaylists
-      .filter(p => !p.isQuickNotes && p.status !== "removed") // Only non-Quick Notes, non-removed playlists
-      .map(p => {
+      .filter((p) => !p.isQuickNotes && p.status !== "removed") // Only non-Quick Notes, non-removed playlists
+      .map((p) => {
         const { status, ...cleanPlaylist } = p as any;
         const existing = storePlaylistMap.get(p.id);
         // Preserve existing data (like versions) if available
         return existing ? { ...existing, ...cleanPlaylist } : cleanPlaylist;
       });
-    
+
     setStorePlaylists(cleanPlaylists);
   };
 
@@ -389,7 +405,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       {quickNotesPlaylist && (
         <div className="flex-shrink-0">
           <Button
-            variant={activePlaylist === quickNotesPlaylist.id ? "default" : "outline"}
+            variant={
+              activePlaylist === quickNotesPlaylist.id ? "default" : "outline"
+            }
             size="lg"
             onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
             className="w-full justify-start text-left mb-1"
@@ -415,7 +433,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             onSelect={(playlist) => onPlaylistSelect(playlist.id)}
             activePlaylistId={
               // If Quick Notes is active, don't show any carousel playlist as selected
-              (activePlaylist === QUICK_NOTES_ID || activePlaylist === "quick-notes") 
+              activePlaylist === QUICK_NOTES_ID ||
+              activePlaylist === "quick-notes"
                 ? null
                 : activePlaylist
             }

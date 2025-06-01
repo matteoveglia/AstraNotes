@@ -17,7 +17,8 @@ interface PlaylistWithStatus extends Playlist {
   status?: "added" | "removed";
 }
 
-interface PlaylistCategoryWithStatus extends Omit<PlaylistCategory, 'playlists'> {
+interface PlaylistCategoryWithStatus
+  extends Omit<PlaylistCategory, "playlists"> {
   playlists: PlaylistWithStatus[];
 }
 
@@ -37,7 +38,9 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
   activePlaylistId,
 }) => {
   const [currentCategoryIndex, setCurrentCategoryIndex] = React.useState(0);
-  const [previousCategoriesRef] = React.useState<{ current: PlaylistCategoryWithStatus[] }>({ current: [] });
+  const [previousCategoriesRef] = React.useState<{
+    current: PlaylistCategoryWithStatus[];
+  }>({ current: [] });
   const [userHasNavigated, setUserHasNavigated] = React.useState(false);
 
   // Smart category index management when categories change (but not when user navigates)
@@ -60,10 +63,10 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
     if (!userHasNavigated) {
       // Try to find the category that contains the active playlist
       if (activePlaylistId) {
-        const categoryWithActivePlaylist = categories.findIndex(cat => 
-          cat.playlists.some(p => p.id === activePlaylistId)
+        const categoryWithActivePlaylist = categories.findIndex((cat) =>
+          cat.playlists.some((p) => p.id === activePlaylistId),
         );
-        
+
         if (categoryWithActivePlaylist !== -1) {
           setCurrentCategoryIndex(categoryWithActivePlaylist);
           previousCategoriesRef.current = categories;
@@ -75,7 +78,9 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
     // Try to maintain the same category by ID if it still exists
     const currentCategory = previousCategories[currentCategoryIndex];
     if (currentCategory) {
-      const sameCategoryIndex = categories.findIndex(cat => cat.id === currentCategory.id);
+      const sameCategoryIndex = categories.findIndex(
+        (cat) => cat.id === currentCategory.id,
+      );
       if (sameCategoryIndex !== -1) {
         setCurrentCategoryIndex(sameCategoryIndex);
         previousCategoriesRef.current = categories;
@@ -94,15 +99,15 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
 
   const handlePreviousCategory = () => {
     setUserHasNavigated(true); // Mark that user has manually navigated
-    setCurrentCategoryIndex((prev) => 
-      prev > 0 ? prev - 1 : categories.length - 1
+    setCurrentCategoryIndex((prev) =>
+      prev > 0 ? prev - 1 : categories.length - 1,
     );
   };
 
   const handleNextCategory = () => {
     setUserHasNavigated(true); // Mark that user has manually navigated
-    setCurrentCategoryIndex((prev) => 
-      prev < categories.length - 1 ? prev + 1 : 0
+    setCurrentCategoryIndex((prev) =>
+      prev < categories.length - 1 ? prev + 1 : 0,
     );
   };
 
@@ -152,7 +157,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
+
             <div className="flex-1 text-center">
               <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 {currentCategory?.name}
@@ -160,17 +165,20 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
               <div className="flex justify-center gap-1 mt-1">
                 {categories.map((_, index) => {
                   // Check if this category contains the active playlist
-                  const containsActivePlaylist = activePlaylistId && 
-                    categories[index]?.playlists.some(p => p.id === activePlaylistId);
-                  
+                  const containsActivePlaylist =
+                    activePlaylistId &&
+                    categories[index]?.playlists.some(
+                      (p) => p.id === activePlaylistId,
+                    );
+
                   return (
                     <div
                       key={index}
                       className={cn(
                         "h-1.5 w-1.5 rounded-full transition-colors relative",
-                        index === currentCategoryIndex 
-                          ? "bg-blue-500" 
-                          : "bg-zinc-300 dark:bg-zinc-600"
+                        index === currentCategoryIndex
+                          ? "bg-blue-500"
+                          : "bg-zinc-300 dark:bg-zinc-600",
                       )}
                     >
                       {containsActivePlaylist && (
@@ -181,7 +189,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                 })}
               </div>
             </div>
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -211,9 +219,11 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
               </div>
             ) : (
               currentCategory.playlists.map((playlist: PlaylistWithStatus) => {
-                const isSelected = playlist.id === activePlaylistId && activePlaylistId !== '__no_selection__';
+                const isSelected =
+                  playlist.id === activePlaylistId &&
+                  activePlaylistId !== "__no_selection__";
                 const status = playlist.status;
-                
+
                 return (
                   <Button
                     key={playlist.id}
@@ -222,24 +232,26 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                     onClick={() => onSelect(playlist)}
                     className={cn(
                       "w-full justify-start text-left",
-                      playlist.type === 'list' && "border-dashed",
+                      playlist.type === "list" && "border-dashed",
                       status === "removed" && "text-red-500 border-red-300",
-                      status === "added" && "text-green-600 border-green-300"
+                      status === "added" && "text-green-600 border-green-300",
                     )}
                     title={
-                      playlist.type === 'list' 
-                        ? `ftrack List: ${playlist.name}${playlist.isOpen ? ' (Open)' : ' (Closed)'}`
+                      playlist.type === "list"
+                        ? `ftrack List: ${playlist.name}${playlist.isOpen ? " (Open)" : " (Closed)"}`
                         : `Review Session: ${playlist.name}`
                     }
                   >
                     <span className="truncate flex-1">{playlist.name}</span>
                     <div className="flex items-center gap-1">
-                      {playlist.type === 'list' && (
-                        <span className={cn(
-                          "text-xs flex-shrink-0",
-                          playlist.isOpen ? "text-green-700" : "opacity-70"
-                        )}>
-                          {playlist.isOpen ? '●' : '○'}
+                      {playlist.type === "list" && (
+                        <span
+                          className={cn(
+                            "text-xs flex-shrink-0",
+                            playlist.isOpen ? "text-green-700" : "opacity-70",
+                          )}
+                        >
+                          {playlist.isOpen ? "●" : "○"}
                         </span>
                       )}
                       {status === "removed" && (
@@ -261,10 +273,11 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
       {currentCategory && (
         <div className="border-t pt-2 mt-2 flex-shrink-0">
           <div className="text-xs text-zinc-400 text-center">
-            {currentCategory.type === 'reviewsessions' 
-              ? 'Review Sessions' 
-              : 'Lists'
-            } • {currentCategory.playlists.length} playlist{currentCategory.playlists.length !== 1 ? 's' : ''}
+            {currentCategory.type === "reviewsessions"
+              ? "Review Sessions"
+              : "Lists"}{" "}
+            • {currentCategory.playlists.length} playlist
+            {currentCategory.playlists.length !== 1 ? "s" : ""}
           </div>
         </div>
       )}

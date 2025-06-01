@@ -22,7 +22,7 @@ export interface Playlist {
   createdAt: string;
   updatedAt: string;
   isQuickNotes?: boolean;
-  type?: 'reviewsession' | 'list';
+  type?: "reviewsession" | "list";
   categoryId?: string;
   categoryName?: string;
   isOpen?: boolean;
@@ -34,7 +34,7 @@ export interface Playlist {
 export interface PlaylistCategory {
   id: string;
   name: string;
-  type: 'reviewsessions' | 'lists';
+  type: "reviewsessions" | "lists";
   playlists: Playlist[];
 }
 

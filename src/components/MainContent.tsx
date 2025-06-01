@@ -7,7 +7,13 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
@@ -40,7 +46,9 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Simplified state management - remove complex merging logic
   const [isInitializing, setIsInitializing] = useState(true);
   const [activePlaylist, setActivePlaylist] = useState<Playlist>(playlist);
-  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(
+    null,
+  );
 
   // Filter state
   const [selectedStatuses, setSelectedStatuses] = useState<NoteStatus[]>([]);
@@ -53,8 +61,10 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Memoize playlist initialization to prevent unnecessary re-initializations
   const initializePlaylist = useCallback(async (playlistToInit: Playlist) => {
     const playlistId = playlistToInit.id;
-    console.debug(`[MainContent] Starting initialization for playlist ${playlistId}`);
-    
+    console.debug(
+      `[MainContent] Starting initialization for playlist ${playlistId}`,
+    );
+
     // Clear any existing timeout
     if (initializationTimeoutRef.current) {
       clearTimeout(initializationTimeoutRef.current);
@@ -63,15 +73,19 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Set a reasonable timeout for initialization
     initializationTimeoutRef.current = setTimeout(() => {
-      console.warn(`[MainContent] Initialization timeout for playlist ${playlistId}`);
-      setInitializationError(`Initialization timeout for playlist: ${playlistToInit.name}`);
+      console.warn(
+        `[MainContent] Initialization timeout for playlist ${playlistId}`,
+      );
+      setInitializationError(
+        `Initialization timeout for playlist: ${playlistToInit.name}`,
+      );
       setIsInitializing(false);
     }, 10000); // 10 second timeout
 
     try {
       setIsInitializing(true);
       setInitializationError(null);
-      
+
       // Stop any existing polling immediately
       playlistStore.stopPolling();
 
@@ -80,30 +94,39 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Get the cached/merged version with proper data from IndexedDB
       const cached = await playlistStore.getPlaylist(playlistId);
-      
-      // Update the active playlist with cached data if available
-      const finalPlaylist = cached ? {
-        ...playlistToInit,
-        versions: cached.versions || [],
-      } : playlistToInit;
 
-      console.debug(`[MainContent] Setting active playlist for ${playlistId}:`, {
-        originalVersionsCount: playlistToInit.versions?.length || 0,
-        cachedVersionsCount: cached?.versions?.length || 0,
-        finalVersionsCount: finalPlaylist.versions?.length || 0
-      });
+      // Update the active playlist with cached data if available
+      const finalPlaylist = cached
+        ? {
+            ...playlistToInit,
+            versions: cached.versions || [],
+          }
+        : playlistToInit;
+
+      console.debug(
+        `[MainContent] Setting active playlist for ${playlistId}:`,
+        {
+          originalVersionsCount: playlistToInit.versions?.length || 0,
+          cachedVersionsCount: cached?.versions?.length || 0,
+          finalVersionsCount: finalPlaylist.versions?.length || 0,
+        },
+      );
 
       setActivePlaylist(finalPlaylist);
-      
+
       // Clear timeout on successful completion
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
         initializationTimeoutRef.current = null;
       }
-
     } catch (error) {
-      console.error(`[MainContent] Failed to initialize playlist ${playlistId}:`, error);
-      setInitializationError(`Failed to initialize playlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(
+        `[MainContent] Failed to initialize playlist ${playlistId}:`,
+        error,
+      );
+      setInitializationError(
+        `Failed to initialize playlist: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       // Still set the playlist even if initialization failed
       setActivePlaylist(playlistToInit);
     } finally {
@@ -118,11 +141,11 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Effect for playlist initialization when playlist ID changes
   useEffect(() => {
     console.debug(`[MainContent] Playlist prop changed, ID: ${playlist.id}`);
-    
+
     // Reset state immediately when playlist changes
     setActivePlaylist(playlist);
     setInitializationError(null);
-    
+
     // Initialize the new playlist
     initializePlaylist(playlist);
 
@@ -189,14 +212,18 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Only start polling after initialization is complete
     const startPollingWithDelay = async () => {
       // Small delay to ensure initialization is complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.debug(`[MainContent] Starting polling for playlist ${activePlaylist.id}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.debug(
+        `[MainContent] Starting polling for playlist ${activePlaylist.id}`,
+      );
       try {
         await playlistStore.startPolling(
           activePlaylist.id,
           (added, removed, addedVersions, removedVersions, freshVersions) => {
-            console.debug(`[MainContent] Polling detected changes: +${added}, -${removed}`);
+            console.debug(
+              `[MainContent] Polling detected changes: +${added}, -${removed}`,
+            );
             // Changes are handled by the usePlaylistModifications hook
           },
         );
@@ -209,7 +236,9 @@ export const MainContent: React.FC<MainContentProps> = ({
 
     // Stop polling when dependencies change
     return () => {
-      console.debug(`[MainContent] Stopping polling for playlist ${activePlaylist.id}`);
+      console.debug(
+        `[MainContent] Stopping polling for playlist ${activePlaylist.id}`,
+      );
       playlistStore.stopPolling();
     };
   }, [
@@ -225,16 +254,22 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (!isInitializing && playlist.id === activePlaylist.id) {
       const currentVersionCount = activePlaylist.versions?.length || 0;
       const newVersionCount = playlist.versions?.length || 0;
-      
+
       if (currentVersionCount !== newVersionCount) {
         console.debug(
           `[MainContent] Synchronizing playlist versions for ${playlist.id}:`,
-          { currentCount: currentVersionCount, newCount: newVersionCount }
+          { currentCount: currentVersionCount, newCount: newVersionCount },
         );
         setActivePlaylist(playlist);
       }
     }
-  }, [playlist.versions, playlist.id, activePlaylist.id, activePlaylist.versions?.length, isInitializing]);
+  }, [
+    playlist.versions,
+    playlist.id,
+    activePlaylist.id,
+    activePlaylist.versions?.length,
+    isInitializing,
+  ]);
 
   const handleClearAdded = async () => {
     if (!activePlaylist.id) return;
@@ -423,20 +458,26 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Memoize sorted versions to prevent unnecessary re-renders
   const sortedVersions = useMemo(() => {
-    console.log('[MainContent] Computing sortedVersions:', {
+    console.log("[MainContent] Computing sortedVersions:", {
       isInitializing,
       playlistId: activePlaylist.id,
       versionsCount: activePlaylist.versions?.length || 0,
-      versions: activePlaylist.versions?.slice(0, 3).map(v => ({ id: v.id, name: v.name })) || []
+      versions:
+        activePlaylist.versions
+          ?.slice(0, 3)
+          .map((v) => ({ id: v.id, name: v.name })) || [],
     });
 
     if (isInitializing) {
-      console.log('[MainContent] Still initializing, returning empty array');
+      console.log("[MainContent] Still initializing, returning empty array");
       return [];
     }
 
     let filteredVersions = [...(activePlaylist.versions || [])];
-    console.log('[MainContent] After copying versions:', filteredVersions.length);
+    console.log(
+      "[MainContent] After copying versions:",
+      filteredVersions.length,
+    );
 
     // Apply status filter
     if (selectedStatuses.length > 0) {
@@ -480,7 +521,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       return a.version - b.version;
     });
 
-    console.log('[MainContent] Final sorted versions:', sorted.length);
+    console.log("[MainContent] Final sorted versions:", sorted.length);
     return sorted;
   }, [
     activePlaylist.versions,
@@ -504,8 +545,12 @@ export const MainContent: React.FC<MainContentProps> = ({
         <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
           <div className="flex items-center gap-2">
             <div className="flex flex-col">
-              <CardTitle className="text-xl text-red-600">Error Loading Playlist</CardTitle>
-              <p className="text-sm text-muted-foreground">{activePlaylist.name}</p>
+              <CardTitle className="text-xl text-red-600">
+                Error Loading Playlist
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {activePlaylist.name}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -573,7 +618,8 @@ export const MainContent: React.FC<MainContentProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {!isInitializing && (modifications.added > 0 || modifications.removed > 0) ? (
+          {!isInitializing &&
+          (modifications.added > 0 || modifications.removed > 0) ? (
             <ModificationsBanner
               addedCount={modifications.added}
               removedCount={modifications.removed}

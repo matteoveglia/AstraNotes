@@ -19,47 +19,44 @@ interface PlaylistTabProps {
   onClose?: () => void;
 }
 
-const PlaylistTab = React.forwardRef<HTMLDivElement, PlaylistTabProps>(({
-  playlist,
-  isActive,
-  onClick,
-  onClose,
-}, ref) => (
-  <motion.div
-    ref={ref}
-    layout
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.2 }}
-    className="flex-none"
-  >
-    <Button
-      className={`justify-start group relative min-w-[120px]
+const PlaylistTab = React.forwardRef<HTMLDivElement, PlaylistTabProps>(
+  ({ playlist, isActive, onClick, onClose }, ref) => (
+    <motion.div
+      ref={ref}
+      layout
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="flex-none"
+    >
+      <Button
+        className={`justify-start group relative min-w-[120px]
         ${
           isActive
             ? "bg-primary text-primary-foreground shadow-md dark:bg-white dark:text-black"
             : "bg-transparent shadow-none hover:shadow-md text-black hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-white dark:hover:text-black"
         }`}
-      onClick={onClick}
-    >
-      <span className="truncate mr-6">{playlist.title}</span>
-      {!playlist.isQuickNotes && onClose && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-        >
-          <X className="h-4 w-4" />
-        </div>
-      )}
-    </Button>
-  </motion.div>
-));
+        onClick={onClick}
+      >
+        <span className="truncate mr-6">{playlist.title}</span>
+        {!playlist.isQuickNotes && onClose && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </div>
+        )}
+      </Button>
+    </motion.div>
+  ),
+);
 
-PlaylistTab.displayName = 'PlaylistTab';
+PlaylistTab.displayName = "PlaylistTab";
 
 interface OpenPlaylistsBarProps {
   playlists: Playlist[];
