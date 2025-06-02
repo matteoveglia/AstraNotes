@@ -81,7 +81,7 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
   const handleStatusInverse = () => {
     const allStatuses = Object.keys(NOTE_STATUS_LABELS) as NoteStatus[];
     const unselectedStatuses = allStatuses.filter(
-      (status) => !selectedStatuses.includes(status)
+      (status) => !selectedStatuses.includes(status),
     );
     onStatusChange(unselectedStatuses);
   };
@@ -89,7 +89,7 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
   const handleLabelInverse = () => {
     const allLabelIds = labels.map((label) => label.id);
     const unselectedLabels = allLabelIds.filter(
-      (labelId) => !selectedLabels.includes(labelId)
+      (labelId) => !selectedLabels.includes(labelId),
     );
     onLabelChange(unselectedLabels);
   };
@@ -135,7 +135,9 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 mt-1">
           <div className="flex items-center justify-between px-2 py-1.5">
-            <DropdownMenuLabel className="p-0">Filter Versions</DropdownMenuLabel>
+            <DropdownMenuLabel className="p-0">
+              Filter Versions
+            </DropdownMenuLabel>
             {hasActiveFilters && (
               <Button
                 size="sm"
@@ -162,7 +164,7 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
                     "h-auto p-1 text-xs",
                     selectedStatuses.length > 0
                       ? " text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={handleStatusInverse}
                 >
@@ -188,7 +190,9 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
             <>
               <DropdownMenuSeparator />
               <div className="flex items-center justify-between px-2 py-1.5">
-                <DropdownMenuLabel className="p-0">Note Labels</DropdownMenuLabel>
+                <DropdownMenuLabel className="p-0">
+                  Note Labels
+                </DropdownMenuLabel>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -198,7 +202,7 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
                         "h-auto p-1 text-xs",
                         selectedLabels.length > 0
                           ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                          : "text-muted-foreground hover:text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
                       )}
                       onClick={handleLabelInverse}
                     >

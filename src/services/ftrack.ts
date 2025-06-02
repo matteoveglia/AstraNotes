@@ -9,7 +9,13 @@
  * - Label management
  */
 
-import type { FtrackSettings, Playlist, Note, AssetVersion, PlaylistCategory } from "@/types";
+import type {
+  FtrackSettings,
+  Playlist,
+  Note,
+  AssetVersion,
+  PlaylistCategory,
+} from "@/types";
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
 import { AttachmentService } from "./attachmentService";
@@ -259,12 +265,12 @@ export class FtrackService {
 
     try {
       log("Fetching notes for playlist:", playlistId);
-      
+
       // First, determine if this is a review session or a list
       // Try to fetch as a review session first
       const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
       const reviewSessionResult = await this.session!.query(reviewSessionQuery);
-      
+
       if (reviewSessionResult?.data?.length > 0) {
         // This is a review session, use the existing logic
         const query = `select 
@@ -289,7 +295,7 @@ export class FtrackService {
         // This might be a list, try to fetch list object notes
         const listQuery = `select id from List where id is "${playlistId}"`;
         const listResult = await this.session!.query(listQuery);
-        
+
         if (listResult?.data?.length > 0) {
           // This is a list, fetch notes from list objects
           const query = `select 
@@ -334,12 +340,12 @@ export class FtrackService {
 
     try {
       log("Fetching versions for playlist:", playlistId);
-      
+
       // First, determine if this is a review session or a list
       // Try to fetch as a review session first
       const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
       const reviewSessionResult = await this.session!.query(reviewSessionQuery);
-      
+
       if (reviewSessionResult?.data?.length > 0) {
         // This is a review session, use the existing logic
         const query = `select 
@@ -365,18 +371,18 @@ export class FtrackService {
         // This might be a list, try to fetch list object versions
         const listQuery = `select id from List where id is "${playlistId}"`;
         const listResult = await this.session!.query(listQuery);
-        
+
         if (listResult?.data?.length > 0) {
           // This is a list, fetch versions from list objects
           // First get all entity IDs from the list, then query AssetVersion directly
           const listObjectQuery = `select entity_id from ListObject where list_id is "${playlistId}"`;
           log("Running list object query:", listObjectQuery);
           const listObjectResult = await this.session!.query(listObjectQuery);
-          
+
           if (listObjectResult?.data?.length > 0) {
-            const entityIds = listObjectResult.data.map(obj => obj.entity_id);
+            const entityIds = listObjectResult.data.map((obj) => obj.entity_id);
             log("Found entity IDs in list:", entityIds);
-            
+
             const query = `select 
               id,
               version,
@@ -385,7 +391,7 @@ export class FtrackService {
               thumbnail.name,
               thumbnail.component_locations
             from AssetVersion
-            where id in (${entityIds.map(id => `"${id}"`).join(', ')})
+            where id in (${entityIds.map((id) => `"${id}"`).join(", ")})
             order by date desc`;
 
             log("Running list versions query:", query);
@@ -412,7 +418,7 @@ export class FtrackService {
 
             log("Mapped list versions:", mappedVersions);
             log("Returning mapped versions count:", mappedVersions.length);
-            
+
             return mappedVersions;
           } else {
             log("No entities found in list:", playlistId);
@@ -463,7 +469,7 @@ export class FtrackService {
         createdAt: session.created_at,
         updatedAt: session.end_date || session.created_at,
         isQuickNotes: false,
-        type: 'reviewsession' as const,
+        type: "reviewsession" as const,
       }));
     } catch (error) {
       log("Failed to fetch playlists:", error);
@@ -511,9 +517,9 @@ export class FtrackService {
         createdAt: list.date || new Date().toISOString(),
         updatedAt: list.date || new Date().toISOString(),
         isQuickNotes: false,
-        type: 'list' as const,
+        type: "list" as const,
         categoryId: list.category_id,
-        categoryName: list.category?.name || 'Uncategorized',
+        categoryName: list.category?.name || "Uncategorized",
         isOpen: list.is_open,
       }));
     } catch (error) {
@@ -529,11 +535,11 @@ export class FtrackService {
   async getPlaylistCategories(): Promise<PlaylistCategory[]> {
     try {
       log("Fetching all playlist categories...");
-      
+
       // Fetch both review sessions and lists in parallel
       const [reviewSessions, lists] = await Promise.all([
         this.getPlaylists(),
-        this.getLists()
+        this.getLists(),
       ]);
 
       const categories: PlaylistCategory[] = [];
@@ -541,20 +547,20 @@ export class FtrackService {
       // Add review sessions as a category if any exist
       if (reviewSessions.length > 0) {
         categories.push({
-          id: 'review-sessions',
-          name: 'Review Sessions',
-          type: 'reviewsessions',
-          playlists: reviewSessions
+          id: "review-sessions",
+          name: "Review Sessions",
+          type: "reviewsessions",
+          playlists: reviewSessions,
         });
       }
 
       // Group lists by category
       const listsByCategory = new Map<string, Playlist[]>();
-      
-      lists.forEach(list => {
-        const categoryKey = list.categoryId || 'uncategorized';
-        const categoryName = list.categoryName || 'Uncategorized';
-        
+
+      lists.forEach((list) => {
+        const categoryKey = list.categoryId || "uncategorized";
+        const categoryName = list.categoryName || "Uncategorized";
+
         if (!listsByCategory.has(categoryKey)) {
           listsByCategory.set(categoryKey, []);
         }
@@ -563,18 +569,17 @@ export class FtrackService {
 
       // Add list categories
       for (const [categoryId, categoryLists] of listsByCategory) {
-        const categoryName = categoryLists[0]?.categoryName || 'Uncategorized';
+        const categoryName = categoryLists[0]?.categoryName || "Uncategorized";
         categories.push({
           id: categoryId,
           name: `${categoryName} Lists`,
-          type: 'lists',
-          playlists: categoryLists
+          type: "lists",
+          playlists: categoryLists,
         });
       }
 
       log("Organized playlist categories:", categories);
       return categories;
-
     } catch (error) {
       log("Failed to fetch playlist categories:", error);
       return [];
@@ -971,19 +976,9 @@ export class FtrackService {
     try {
       const session = await this.getSession();
 
-      // Get the server location
-      const serverLocationQuery = await session.query(
-        'select Location where name is "ftrack.server"',
-      );
-      const serverLocation = serverLocationQuery.data[0];
-
-      if (!serverLocation) {
-        throw new Error("Could not find ftrack server location");
-      }
-
-      // Get component
+      // Get the component with its location information
       const componentQuery = await session.query(
-        `select id, name from Component where id is "${componentId}"`,
+        `select id, name, component_locations.location_id from Component where id is "${componentId}"`,
       );
       const component = componentQuery.data[0];
 
@@ -991,8 +986,9 @@ export class FtrackService {
         throw new Error(`Component not found: ${componentId}`);
       }
 
-      // Get URL for the component
-      const url = session.getComponentUrl(component.id);
+      // Use the session's built-in method to get component URL
+      // This should handle the location resolution automatically
+      const url = await session.getComponentUrl(componentId);
 
       if (!url) {
         throw new Error(`Could not get URL for component: ${componentId}`);
@@ -1310,7 +1306,7 @@ export class FtrackService {
 
       // Using query to get all components linked to the version
       const query = await session.query(
-        `select Component from Component where version_id is ${versionId}`,
+        `select id, name, file_type from Component where version_id is "${versionId}"`,
       );
 
       return query.data;
