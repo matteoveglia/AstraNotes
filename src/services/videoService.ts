@@ -104,13 +104,13 @@ class VideoService {
         `[VideoService] Failed to check video availability for ${versionId}:`,
         error,
       );
-      
+
       // Cache negative result for shorter time on errors
       this.availability[versionId] = {
         isAvailable: false,
-        lastChecked: Date.now()
+        lastChecked: Date.now(),
       };
-      
+
       return false;
     }
   }
@@ -214,7 +214,7 @@ class VideoService {
         try {
           URL.revokeObjectURL(url);
         } catch (error) {
-          console.warn('[VideoService] Failed to revoke blob URL:', url, error);
+          console.warn("[VideoService] Failed to revoke blob URL:", url, error);
         }
       }
     });
