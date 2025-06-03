@@ -2,7 +2,7 @@
  * @fileoverview useVideoControls.ts
  * Hook for managing video player controls visibility.
  */
-import { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 
 interface UseVideoControlsProps {
   initialShowState?: boolean;

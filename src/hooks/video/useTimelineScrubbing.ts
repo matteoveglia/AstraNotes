@@ -2,7 +2,7 @@
  * @fileoverview useTimelineScrubbing.ts
  * Hook for managing video timeline scrubbing interactions.
  */
-import { useState, useCallback, useEffect, RefObject } from "react";
+import React, { useState, useCallback, useEffect, RefObject } from "react";
 
 interface UseTimelineScrubbingProps {
   videoRef: RefObject<HTMLVideoElement>;

@@ -286,12 +286,42 @@ export class PlaylistStore {
         return null;
       }
 
-      // Get versions separately from versions table - our source of truth for versions
-      const dbVersions = await db.versions
+      // For Quick Notes, versions might be stored in the playlist metadata
+      // For other playlists, get versions from the versions table
+      let dbVersions = await db.versions
         .where("playlistId")
         .equals(id)
         .filter((v) => !v.isRemoved)
         .toArray();
+
+      // For Quick Notes, if no DB versions but playlist has versions, use those
+      if (id === "quick-notes" && dbVersions.length === 0 && cached?.versions?.length > 0) {
+        console.log(
+          `[PlaylistStore] Quick Notes: Found ${cached.versions.length} versions in playlist metadata`,
+        );
+        // Convert playlist versions to DB format for consistency
+        dbVersions = cached.versions.map(version => ({
+          id: version.id,
+          playlistId: id,
+          name: version.name || "",
+          version: version.version || 0,
+          thumbnailUrl: version.thumbnailUrl || "",
+          thumbnailId: version.thumbnailId || "",
+          reviewSessionObjectId: version.reviewSessionObjectId || "",
+          createdAt: this.cleanDate(version.createdAt),
+          updatedAt: this.cleanDate(version.updatedAt),
+          lastModified: Date.now(),
+          draftContent: "",
+          labelId: "",
+          manuallyAdded: version.manuallyAdded || true,
+          noteStatus: "empty" as const,
+        }));
+        
+        // Save these versions to the versions table for consistency
+        for (const version of dbVersions) {
+          await db.versions.put(version, [id, version.id]);
+        }
+      }
 
       console.log(
         `[PlaylistStore] Found ${dbVersions.length} versions for playlist ${id}`,
@@ -301,7 +331,8 @@ export class PlaylistStore {
       if (
         dbVersions.length === 0 &&
         cached?.versions &&
-        cached.versions.length > 0
+        cached.versions.length > 0 &&
+        id !== "quick-notes" // Don't do this for Quick Notes as we handled it above
       ) {
         console.log(
           `[PlaylistStore] No DB versions, but ${cached.versions.length} cached versions. Initializing...`,
@@ -724,10 +755,11 @@ export class PlaylistStore {
         existingVersions.map((v) => [v.id, v.manuallyAdded || false]),
       );
 
-      // First, store a clean copy of the playlist without versions to avoid serialization issues
+      // For Quick Notes, preserve the versions array in the playlist metadata to maintain the connection
+      // For other playlists, store without versions as they're stored separately in the versions table
       const playlistWithoutVersions = {
         ...playlist,
-        versions: [], // temporarily remove versions to store the playlist separately
+        versions: playlist.id === "quick-notes" ? playlist.versions : [], // preserve versions for Quick Notes
       };
 
       // Cache the playlist metadata first
@@ -1673,6 +1705,22 @@ export class PlaylistStore {
         playlist.addedVersions = [...playlist.addedVersions, version.id];
         playlist.hasModifications = true;
 
+        // For Quick Notes, also update the versions array in the playlist to maintain the connection
+        if (playlistId === "quick-notes") {
+          playlist.versions = playlist.versions || [];
+          playlist.versions.push({
+            id: minimalVersion.id,
+            name: minimalVersion.name,
+            version: minimalVersion.version,
+            thumbnailUrl: minimalVersion.thumbnailId || "",
+            thumbnailId: minimalVersion.thumbnailId || "",
+            reviewSessionObjectId: minimalVersion.reviewSessionObjectId || "",
+            createdAt: minimalVersion.createdAt,
+            updatedAt: minimalVersion.updatedAt,
+            manuallyAdded: true,
+          });
+        }
+
         // Save the updated playlist
         await this.cachePlaylist(playlist);
       }
@@ -1760,9 +1808,16 @@ export class PlaylistStore {
       if (cachedPlaylist) {
         // Filter out manually added versions from the playlist
         if (cachedPlaylist.versions) {
-          cachedPlaylist.versions = cachedPlaylist.versions.filter(
-            (v) => !v.manuallyAdded,
+          const remainingVersions = cachedPlaylist.versions.filter(
+            (v) => !v.manuallyAdded
           );
+          
+          // For Quick Notes, ensure we remove the versions from both the versions array and the DB
+          if (playlistId === "quick-notes") {
+            cachedPlaylist.versions = remainingVersions;
+          } else {
+            cachedPlaylist.versions = remainingVersions;
+          }
         }
 
         // Clear the addedVersions array

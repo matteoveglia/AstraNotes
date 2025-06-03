@@ -45,10 +45,19 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   setPlaylists: (playlists) => {
     // Always ensure Quick Notes is in the list
     const hasQuickNotes = playlists.some((p) => p.id === "quick-notes");
-    const finalPlaylists = hasQuickNotes
-      ? playlists
-      : [QUICK_NOTES_PLAYLIST, ...playlists];
-    set({ playlists: finalPlaylists });
+    if (hasQuickNotes) {
+      // Quick Notes is already in the list, use as-is
+      set({ playlists });
+    } else {
+      // Quick Notes is missing, need to add it
+      const { playlists: currentPlaylists } = get();
+      const existingQuickNotes = currentPlaylists.find((p) => p.id === "quick-notes");
+      
+      // Use existing Quick Notes if available, otherwise use default
+      const quickNotesToAdd = existingQuickNotes || QUICK_NOTES_PLAYLIST;
+      const finalPlaylists = [quickNotesToAdd, ...playlists];
+      set({ playlists: finalPlaylists });
+    }
   },
 
   setActivePlaylist: (playlistId) => set({ activePlaylistId: playlistId }),

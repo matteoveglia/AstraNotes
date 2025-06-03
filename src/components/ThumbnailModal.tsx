@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { VideoPlayer } from "./VideoPlayer";
 import { videoService } from "../services/videoService";
-import { Play, Image, AlertCircle, X } from "lucide-react";
+import { Play, Image, AlertCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,

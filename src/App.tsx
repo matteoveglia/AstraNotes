@@ -9,6 +9,7 @@ import type { Playlist, AssetVersion } from "@/types";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
+import { playlistStore } from "./store/playlistStore";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeStore } from "./store/themeStore";
@@ -76,22 +77,9 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    // Initialize with Quick Notes
-    setLocalPlaylists([
-      {
-        id: "quick-notes",
-        name: "Quick Notes",
-        title: "Quick Notes",
-        notes: [],
-        versions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isQuickNotes: true,
-      },
-    ]);
     // Load playlists and labels - now including both review sessions and lists
     Promise.all([
-      loadPlaylistsWithLists(), // This will load both review sessions and lists
+      loadPlaylistsWithLists(), // This will load both review sessions and lists including Quick Notes from DB
       fetchLabels(),
     ]).catch((error) => {
       console.error("Failed to initialize app:", error);
@@ -101,29 +89,42 @@ const App: React.FC = () => {
   // New function to load both review sessions and lists
   const loadPlaylistsWithLists = async () => {
     try {
-      // Get both review sessions and lists in parallel
-      const [reviewSessions, lists] = await Promise.all([
+      // Initialize Quick Notes if it doesn't exist
+      await playlistStore.initializeQuickNotes();
+      
+      // Get Quick Notes from database, review sessions and lists in parallel
+      const [quickNotesData, reviewSessions, lists] = await Promise.all([
+        playlistStore.getPlaylist("quick-notes"),
         ftrackService.getPlaylists(),
         ftrackService.getLists(),
       ]);
 
+      // Use the loaded Quick Notes data or create default if not found
+      const quickNotes = quickNotesData || {
+        id: "quick-notes",
+        name: "Quick Notes",
+        title: "Quick Notes",
+        notes: [],
+        versions: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isQuickNotes: true,
+        lastAccessed: Date.now(),
+        lastChecked: Date.now(),
+        hasModifications: false,
+        addedVersions: [],
+        removedVersions: [],
+      };
+
       // Combine them into one array
       const allPlaylists = [
-        {
-          id: "quick-notes",
-          name: "Quick Notes",
-          title: "Quick Notes",
-          notes: [],
-          versions: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isQuickNotes: true,
-        },
+        quickNotes,
         ...reviewSessions,
         ...lists,
       ];
 
       console.log("Loaded all playlists:", {
+        quickNotesVersionsCount: quickNotes.versions?.length || 0,
         reviewSessionsCount: reviewSessions.length,
         listsCount: lists.length,
         totalCount: allPlaylists.length,

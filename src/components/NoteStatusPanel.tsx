@@ -11,7 +11,6 @@ import { useToast } from "@/components/ui/toast";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Label } from "./ui/label";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { motion } from "motion/react";
 

@@ -1,4 +1,4 @@
-import {
+import React, {
   useState,
   useCallback,
   useEffect,
@@ -153,7 +153,7 @@ function useToastProvider(): ToastProviderState {
 
   // Flush all batched toasts
   const flushBatchedToasts = useCallback(() => {
-    Object.entries(batchedToasts).forEach(([key, { toastType, messages }]) => {
+    Object.entries(batchedToasts).forEach(([_key, { toastType, messages }]) => {
       if (messages.length === 1) {
         showToast(messages[0], toastType);
       } else if (messages.length > 1) {

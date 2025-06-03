@@ -124,8 +124,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   loading: initialLoading,
   error: initialError,
 }) => {
-  const [playlists, setPlaylists] =
-    useState<PlaylistWithStatus[]>(initialPlaylists);
+  const [playlists, setPlaylists] = useState<PlaylistWithStatus[]>([]);
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState(initialError);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -206,34 +205,24 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     return categories;
   };
 
-  // Initial load of playlists
+  // Initialize with playlists from props
   useEffect(() => {
-    const loadPlaylists = async () => {
-      setLoading(true);
-      try {
-        // Fetch both review sessions and lists
-        const [reviewSessions, lists] = await Promise.all([
-          ftrackService.getPlaylists(),
-          ftrackService.getLists(),
-        ]);
+    if (initialPlaylists.length > 0) {
+      // Use playlists from props (already loaded by parent with Quick Notes from DB)
+      setPlaylists(initialPlaylists.map(p => ({ ...p, status: undefined })));
+      setLoading(false);
+      setError(null); // Clear any previous errors
+    }
+  }, [initialPlaylists]);
 
-        const allPlaylists = [...reviewSessions, ...lists];
+  // Update loading and error states when props change
+  useEffect(() => {
+    setLoading(initialLoading);
+  }, [initialLoading]);
 
-        // Quick Notes is handled by the store's setPlaylists
-        setStorePlaylists(allPlaylists);
-        // Get playlists from store after Quick Notes is added
-        const { playlists: updatedPlaylists } = usePlaylistsStore.getState();
-        setPlaylists(updatedPlaylists);
-      } catch (error) {
-        console.error("Failed to load playlists:", error);
-        setError("Failed to load playlists");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPlaylists();
-  }, []); // Only run on mount
+  useEffect(() => {
+    setError(initialError);
+  }, [initialError]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

@@ -1,3 +1,4 @@
+import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
