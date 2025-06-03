@@ -18,8 +18,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { playlistStore } from "../store/playlistStore";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ExternalLink } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
+import { motion, AnimatePresence } from "motion/react";
+import { open } from "@tauri-apps/plugin-shell";
 
 // Import custom hooks
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
@@ -57,6 +59,9 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Ref for cleanup tracking
   const cleanupRef = useRef<(() => void) | null>(null);
   const initializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Hover state for playlist title
+  const [isPlaylistTitleHovered, setIsPlaylistTitleHovered] = useState(false);
 
   // Memoize playlist initialization to prevent unnecessary re-initializations
   const initializePlaylist = useCallback(async (playlistToInit: Playlist) => {
@@ -538,6 +543,18 @@ export const MainContent: React.FC<MainContentProps> = ({
     setSelectedLabels([]);
   };
 
+  // Handler to open playlist in ftrack
+  const handleOpenPlaylistInFtrack = () => {
+    const baseUrl = settings.serverUrl.replace(/\/$/, "");
+    if (!baseUrl || !activePlaylist.id) return;
+
+    // Determine entity type based on playlist type
+    const entityType = activePlaylist.type === "reviewsession" ? "reviewsession" : "list";
+    
+    const url = `${baseUrl}/#entityId=${activePlaylist.id}&entityType=${entityType}&itemId=projects&view=versions_v1`;
+    open(url);
+  };
+
   // Show initialization error if it exists
   if (initializationError) {
     return (
@@ -548,9 +565,29 @@ export const MainContent: React.FC<MainContentProps> = ({
               <CardTitle className="text-xl text-red-600">
                 Error Loading Playlist
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {activePlaylist.name}
-              </p>
+              <div 
+                className="flex items-center gap-2 group"
+                onMouseEnter={() => setIsPlaylistTitleHovered(true)}
+                onMouseLeave={() => setIsPlaylistTitleHovered(false)}
+              >
+                <p className="text-sm text-muted-foreground">
+                  {activePlaylist.name}
+                </p>
+                <AnimatePresence>
+                  {isPlaylistTitleHovered && !activePlaylist.isQuickNotes && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10, scale: 1 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -10, scale: 1 }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      onClick={handleOpenPlaylistInFtrack}
+                      className="cursor-pointer"
+                    >
+                      <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -595,14 +632,34 @@ export const MainContent: React.FC<MainContentProps> = ({
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
           <div className="flex flex-col">
-            <CardTitle className="text-xl">
-              {activePlaylist.name}
-              {isInitializing && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (Loading...)
-                </span>
-              )}
-            </CardTitle>
+            <div 
+              className="flex items-center gap-2 group"
+              onMouseEnter={() => setIsPlaylistTitleHovered(true)}
+              onMouseLeave={() => setIsPlaylistTitleHovered(false)}
+            >
+              <CardTitle className="text-xl">
+                {activePlaylist.name}
+                {isInitializing && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    (Loading...)
+                  </span>
+                )}
+              </CardTitle>
+              <AnimatePresence>
+                {isPlaylistTitleHovered && !isInitializing && !activePlaylist.isQuickNotes && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10, scale: 1 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -10, scale: 1 }}
+                    transition={{ duration: 0.1, ease: "easeOut" }}
+                    onClick={handleOpenPlaylistInFtrack}
+                    className="cursor-pointer"
+                  >
+                    <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <p className="text-sm text-muted-foreground">
               {isInitializing ? (
                 "Initializing playlist..."
