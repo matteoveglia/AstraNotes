@@ -27,6 +27,7 @@ import { useLabelStore } from "../store/labelStore";
 import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
 import { clearThumbnailCache } from "../services/thumbnailService";
 import { usePlaylistsStore } from "../store/playlistsStore";
+import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import {
   Select,
   SelectContent,
@@ -54,9 +55,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const { labels, fetchLabels } = useLabelStore();
   const { size, setSize } = useThumbnailSettingsStore();
   const { setActivePlaylist } = usePlaylistsStore();
-  const [isConnected, setIsConnected] = useState(false);
+  const { isConnected, testConnection } = useConnectionStatus();
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const { updateAvailable, updateVersion } = useUpdateStore();
@@ -81,6 +83,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Update service settings
       ftrackService.updateSettings(settings);
 
+      // Test connection with new settings and reload labels if successful
+      const connectionSuccess = await ftrackService.testConnection();
+      if (connectionSuccess) {
+        // Reload labels with new credentials, preserving current selection
+        await fetchLabels();
+      }
+
       // Close modal
       setIsOpen(false);
 
@@ -102,15 +111,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       // Update service settings before testing
       ftrackService.updateSettings(settings);
-      const success = await ftrackService.testConnection();
-      setIsConnected(success);
-      if (!success) {
+      await testConnection();
+      if (!isConnected) {
         setError("Failed to connect. Please check your credentials.");
       }
     } catch (err) {
       console.error("Connection error:", err);
       setError("An error occurred while testing the connection");
-      setIsConnected(false);
     } finally {
       setIsTesting(false);
     }
@@ -120,8 +127,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     (field: keyof typeof settings) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSettings({ ...settings, [field]: e.target.value });
-      // Reset connection status when settings change
-      setIsConnected(false);
+      // Reset error when settings change
       setError(null);
     };
 
@@ -367,19 +373,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Button
                     variant="default"
                     size="default"
-                    onClick={() => {
+                    onClick={async () => {
                       if (updateAvailable) {
+                        setIsUpdating(true);
                         // Reset update state before installing the update
                         useUpdateStore.getState().resetUpdateState();
-                        installUpdate();
+                        try {
+                          await installUpdate();
+                        } catch (err) {
+                          console.error("Failed to install update:", err);
+                        } finally {
+                          setIsUpdating(false);
+                        }
                       } else {
                         silentCheckForUpdates(true);
                       }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || isUpdating}
                     className="relative z-10"
                   >
-                    {updateAvailable ? "Update Now" : "Check for Updates"}
+                    {isUpdating
+                      ? "Installing..."
+                      : updateAvailable
+                        ? "Update Now"
+                        : "Check for Updates"}
                   </Button>
                 </div>
               </div>

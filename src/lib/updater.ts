@@ -10,6 +10,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
 import { useUpdateStore } from "../store/updateStore";
+import { useWhatsNewStore } from "../store/whatsNewStore";
 
 // Time constants
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
@@ -86,6 +87,9 @@ export async function installUpdate(): Promise<boolean> {
     // Reset update state before relaunch
     useUpdateStore.getState().resetUpdateState();
 
+    // Set flag to show What's New modal on next start
+    useWhatsNewStore.getState().setShouldShowOnNextStart(true);
+
     // Relaunch the application
     await relaunch();
     return true;
@@ -132,6 +136,10 @@ export async function checkForUpdates() {
         });
 
         console.log("Download complete, preparing to relaunch");
+        
+        // Set flag to show What's New modal on next start
+        useWhatsNewStore.getState().setShouldShowOnNextStart(true);
+        
         await relaunch();
       } else {
         console.log("User declined update");

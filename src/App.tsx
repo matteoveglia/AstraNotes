@@ -4,8 +4,8 @@ import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
-import { SettingsModal } from "./components/SettingsModal";
 import type { Playlist, AssetVersion } from "@/types";
+import { useWhatsNew } from "./hooks/useWhatsNew";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
@@ -17,6 +17,7 @@ import { videoService } from "./services/videoService";
 
 const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
+  const { shouldShowModal, hideModal } = useWhatsNew();
 
   // sync initial OS theme and subscribe to theme changes via Window API
   useEffect(() => {
@@ -286,12 +287,12 @@ const App: React.FC = () => {
     <ToastProvider>
       <ErrorBoundary>
         <div className="h-screen flex flex-col">
-          <TopBar>
-            <SettingsModal
-              onLoadPlaylists={loadPlaylists}
-              onCloseAllPlaylists={handleCloseAll}
-            />
-          </TopBar>
+          <TopBar
+            onLoadPlaylists={loadPlaylists}
+            onCloseAllPlaylists={handleCloseAll}
+            shouldShowWhatsNew={shouldShowModal}
+            onWhatsNewClose={hideModal}
+          />
           <div className="flex-1 flex overflow-hidden">
             <PlaylistPanel
               playlists={playlists}
