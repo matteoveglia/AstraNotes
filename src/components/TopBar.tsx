@@ -8,7 +8,7 @@
 
 import React from "react";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
-import { CheckCircle2, XCircle, ArrowUpCircle } from "lucide-react";
+import { ArrowUpCircle } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
 import { useUpdateStore } from "../store/updateStore";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ import { Sun, Moon } from "lucide-react";
 import { useThemeStore } from "../store/themeStore";
 import { WhatsNewModal } from "./WhatsNewModal";
 import { SettingsModal } from "./SettingsModal";
+import { motion } from "motion/react";
 import {
   Tooltip,
   TooltipContent,
@@ -46,27 +47,35 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <TooltipProvider>
       <div className="h-12 border-b bg-background flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 select-none">
             AstraNotes
           </h1>
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-sm select-none">
-            {isConnected ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-green-500 dark:text-green-400" />
-                <span className="text-green-700 dark:text-green-400">
-                  Connected
-                </span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
-                <span className="text-red-700 dark:text-red-400">
-                  Disconnected
-                </span>
-              </>
-            )}
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center">
+                {isConnected ? (
+                  <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+                ) : (
+                  <motion.div
+                    className="w-2.5 h-2.5 bg-red-500 rounded-full"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [1, 0.7, 1],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isConnected ? "Connected" : "Disconnected"}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <div className="flex items-center gap-1">
           {!settings.autoRefreshEnabled && (
