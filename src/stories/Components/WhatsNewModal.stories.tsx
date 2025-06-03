@@ -69,7 +69,7 @@ const meta: Meta<typeof WhatsNewModal> = {
       control: "boolean",
       description: "Whether to show the modal automatically",
     },
-    onClose: {
+    onModalShouldClose: {
       action: "closed",
       description: "Callback when modal is closed",
     },

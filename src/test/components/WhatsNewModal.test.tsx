@@ -47,15 +47,15 @@ describe("WhatsNewModal", () => {
     expect(screen.getByText("What's New in AstraNotes")).toBeInTheDocument();
   });
 
-  it("calls onClose when modal is closed", async () => {
+  it("calls onModalShouldClose when modal is closed", async () => {
     const user = userEvent.setup();
-    const onClose = vi.fn();
+    const onModalShouldClose = vi.fn();
     
-    render(<WhatsNewModal autoShow={true} onClose={onClose} />);
+    render(<WhatsNewModal autoShow={true} onModalShouldClose={onModalShouldClose} />);
     
     const closeButton = screen.getByRole("button", { name: /close/i });
     await user.click(closeButton);
     
-    expect(onClose).toHaveBeenCalled();
+    expect(onModalShouldClose).toHaveBeenCalled();
   });
 }); 

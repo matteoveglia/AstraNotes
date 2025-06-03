@@ -105,7 +105,8 @@ resetMocks();
 
 export const Connected: Story = {
   args: {
-    children: <SettingsButton />,
+    onLoadPlaylists: async () => console.log("Loading playlists..."),
+    onCloseAllPlaylists: () => console.log("Closing all playlists..."),
   },
   render: (args) => {
     // Reset and ensure connected state
@@ -120,7 +121,8 @@ export const Connected: Story = {
 
 export const Disconnected: Story = {
   args: {
-    children: <SettingsButton />,
+    onLoadPlaylists: async () => console.log("Loading playlists..."),
+    onCloseAllPlaylists: () => console.log("Closing all playlists..."),
   },
   render: (args) => {
     // Reset and set disconnected state
@@ -133,7 +135,8 @@ export const Disconnected: Story = {
 
 export const AutoUpdatesOff: Story = {
   args: {
-    children: <SettingsButton />,
+    onLoadPlaylists: async () => console.log("Loading playlists..."),
+    onCloseAllPlaylists: () => console.log("Closing all playlists..."),
   },
   render: (args) => {
     // Reset and set auto updates off
@@ -147,7 +150,8 @@ export const AutoUpdatesOff: Story = {
 
 export const UpdateAvailable: Story = {
   args: {
-    children: <SettingsButton />,
+    onLoadPlaylists: async () => console.log("Loading playlists..."),
+    onCloseAllPlaylists: () => console.log("Closing all playlists..."),
   },
   render: (args) => {
     // Reset and set update available
@@ -166,7 +170,8 @@ export const UpdateAvailable: Story = {
 
 export const UpdateHighlighted: Story = {
   args: {
-    children: <SettingsButton />,
+    onLoadPlaylists: async () => console.log("Loading playlists..."),
+    onCloseAllPlaylists: () => console.log("Closing all playlists..."),
   },
   render: (args) => {
     // Reset and set highlighted update (more than 5 days old)

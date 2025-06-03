@@ -26,23 +26,49 @@ vi.mock("@/hooks/useConnectionStatus", () => ({
   }),
 }));
 
+// Mock update store
+vi.mock("@/store/updateStore", () => ({
+  useUpdateStore: () => ({
+    shouldShowNotification: () => false,
+    shouldHighlightNotification: () => false,
+    updateVersion: "1.0.0",
+  }),
+}));
+
+// Mock theme store
+vi.mock("@/store/themeStore", () => ({
+  useThemeStore: (selector: any) => {
+    const state = {
+      theme: "light",
+      toggleTheme: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+}));
+
 describe("TopBar", () => {
   it("renders correctly", () => {
-    renderWithUserEvent(<TopBar>Test Children</TopBar>);
+    renderWithUserEvent(
+      <TopBar 
+        onLoadPlaylists={async () => {}}
+        onCloseAllPlaylists={() => {}}
+      />
+    );
 
     // Updated assertion to look for the heading instead of banner role
     expect(screen.getByText("AstraNotes")).toBeInTheDocument();
   });
 
   it("handles settings button click", async () => {
-    // Create a mock button with a specific data-testid to find it easily
-    const mockSettingsButton = (
-      <button data-testid="settings-button">Settings</button>
+    const { user } = renderWithUserEvent(
+      <TopBar 
+        onLoadPlaylists={async () => {}}
+        onCloseAllPlaylists={() => {}}
+      />
     );
-    const { user } = renderWithUserEvent(<TopBar>{mockSettingsButton}</TopBar>);
 
-    // Find settings button using the data-testid
-    const settingsButton = screen.getByTestId("settings-button");
+    // Find settings button in the rendered component
+    const settingsButton = screen.getByRole("button", { name: /settings/i });
     expect(settingsButton).toBeInTheDocument();
 
     // Click the settings button

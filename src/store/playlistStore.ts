@@ -295,7 +295,7 @@ export class PlaylistStore {
         .toArray();
 
       // For Quick Notes, if no DB versions but playlist has versions, use those
-      if (id === "quick-notes" && dbVersions.length === 0 && cached?.versions?.length > 0) {
+      if (id === "quick-notes" && dbVersions.length === 0 && cached?.versions && cached.versions.length > 0) {
         console.log(
           `[PlaylistStore] Quick Notes: Found ${cached.versions.length} versions in playlist metadata`,
         );

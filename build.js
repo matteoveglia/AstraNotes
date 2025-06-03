@@ -86,7 +86,7 @@ const askYesNo = (question, defaultAnswer = 'n') => {
 };
 
 // Version management
-const getVersionChoice = () => {
+const getVersionAndReleaseNotes = () => {
     try {
         const tauriConfigContent = safeReadFile('./src-tauri/tauri.conf.json');
         const tauriConfig = safeParseJSON(tauriConfigContent, './src-tauri/tauri.conf.json');
@@ -97,17 +97,52 @@ const getVersionChoice = () => {
         // Ask if user wants to keep current version
         const keepCurrentVersion = askYesNo('Keep current version?', 'y');
         
+        let selectedVersion;
         if (keepCurrentVersion) {
             logInfo(`Using current version: ${currentVersion}`);
-            return currentVersion;
+            selectedVersion = currentVersion;
         } else {
             const newVersionInput = readline.question('Enter new version: ');
-            const newVersion = validateVersion(newVersionInput);
-            logInfo(`Using new version: ${newVersion}`);
-            return newVersion;
+            selectedVersion = validateVersion(newVersionInput);
+            logInfo(`Using new version: ${selectedVersion}`);
         }
+
+        // Now ask for release notes
+        logInfo('\n--- Release Notes ---');
+        
+        // Check for existing notes in latest.json
+        let existingNotes = '';
+        try {
+            const latestJsonContent = safeReadFile('./latest.json', '{}');
+            const latestJson = safeParseJSON(latestJsonContent, './latest.json');
+            if (latestJson.notes) {
+                existingNotes = latestJson.notes;
+                logInfo('Existing release notes:');
+                console.log(existingNotes);
+            }
+        } catch (err) {
+            logInfo('No existing release notes found');
+        }
+
+        // Interactive notes input
+        let releaseNotes = '';
+        let useExistingNotes = false;
+        if (existingNotes) {
+            useExistingNotes = askYesNo('Keep existing release notes?', 'y');
+        }
+
+        if (!useExistingNotes) {
+            const notes = readline.question('Enter release notes: ');
+            releaseNotes = notes.trim() || '';
+        } else {
+            releaseNotes = existingNotes;
+        }
+
+        logInfo(`Release notes prepared (${releaseNotes.length} chars)`);
+        
+        return { version: selectedVersion, releaseNotes };
     } catch (err) {
-        logError(`Failed to read current version: ${err.message}`);
+        logError(`Failed to get version and release notes: ${err.message}`);
         process.exit(1);
     }
 };
@@ -116,7 +151,7 @@ const getVersionChoice = () => {
 validateTarget(target);
 logInfo(`Building AstraNotes for ${target}`);
 
-const selectedVersion = getVersionChoice();
+const { version: selectedVersion, releaseNotes } = getVersionAndReleaseNotes();
 
 // Update version in tauri.conf.json if needed
 const updateTauriConfig = (version) => {
@@ -138,49 +173,27 @@ const updateTauriConfig = (version) => {
     }
 };
 
-const updateLatestJson = (version) => {
+const updateLatestJson = (version, releaseNotes) => {
     const latestJsonPath = './latest.json';
     const currentDate = new Date().toISOString();
 
     // Default JSON structure
     let latestJson = {
         version: version,
-        notes: '',
+        notes: releaseNotes,
         pub_date: currentDate,
         platforms: {}
     };
 
-    // Try to read existing file
-    let existingNotes = '';
+    // Try to read existing file to preserve existing platforms
     try {
         const existingContent = safeReadFile(latestJsonPath, '{}');
         const existingJson = safeParseJSON(existingContent, latestJsonPath);
         
         // Preserve existing platforms
         latestJson.platforms = existingJson.platforms || {};
-        
-        // Check for existing notes
-        if (existingJson.notes) {
-            existingNotes = existingJson.notes;
-            logInfo('Existing release notes:');
-            console.log(existingNotes);
-        }
     } catch (err) {
         logInfo('Creating new latest.json');
-    }
-
-    // Interactive notes input
-    let useExistingNotes = false;
-    if (existingNotes) {
-        useExistingNotes = askYesNo('Keep existing release notes?', 'y');
-    }
-
-    // Get notes if not using existing
-    if (!useExistingNotes) {
-        const notes = readline.question('Enter release notes: ');
-        latestJson.notes = notes.trim() || '';
-    } else {
-        latestJson.notes = existingNotes;
     }
 
     // Read signature files with better error handling
@@ -387,6 +400,8 @@ const main = async () => {
         // Update version in config
         updateTauriConfig(selectedVersion);
         
+        logInfo(`Version and release notes collected - latest.json update deferred until build success`);
+        
         // Run build
         logInfo('Starting Tauri build...');
         execSync(`pnpm tauri build --target ${targets[target]}`, { 
@@ -395,10 +410,11 @@ const main = async () => {
         });
         logSuccess('Build completed successfully');
 
-        // Post-build operations
+        // Post-build operations (only run if build succeeded)
         logInfo('Processing build artifacts...');
         moveArtifacts(selectedVersion);
-        updateLatestJson(selectedVersion);
+        logInfo('Updating latest.json with collected release notes...');
+        updateLatestJson(selectedVersion, releaseNotes);
         
         logInfo('='.repeat(50));
         logSuccess('Release automation completed successfully');
