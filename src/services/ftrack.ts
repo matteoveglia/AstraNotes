@@ -19,6 +19,7 @@ import type {
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
 import { AttachmentService } from "./attachmentService";
+import { safeConsoleError } from "@/utils/errorHandling";
 
 interface Status {
   id: string;
@@ -1289,10 +1290,11 @@ export class FtrackService {
       }
 
       // Rest of the method...
-    } catch (error) {
-      console.error("Error getting API key:", error);
-      throw error;
-    }
+          } catch (error) {
+        // Use safe console error to avoid exposing credentials in logs
+        safeConsoleError("Error getting API key:", error);
+        throw error;
+      }
   }
 
   /**

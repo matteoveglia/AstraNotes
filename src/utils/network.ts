@@ -4,6 +4,7 @@
 
 import { useToast } from "@/components/ui/toast";
 import { useCallback } from "react";
+import { safeConsoleError } from "./errorHandling";
 
 /**
  * A hook that provides API functions with built-in notification handling.
@@ -58,8 +59,8 @@ export function useApiWithNotifications() {
 
         return result;
       } catch (error) {
-        // Handle unexpected errors
-        console.error("API operation failed:", error);
+        // Handle unexpected errors with safe logging
+        safeConsoleError("API operation failed:", error);
         toast.showError(
           `Operation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
         );

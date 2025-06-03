@@ -229,11 +229,6 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
                 />
               </div>
 
-              <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t mt-auto">
-                <Button onClick={() => handleOpenChange(false)} className="min-w-20">
-                  Got it!
-                </Button>
-              </div>
             </div>
           )}
           

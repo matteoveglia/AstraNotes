@@ -56,7 +56,7 @@ export function useErrorHandler() {
    * Handle an error and show appropriate toast notification
    */
   const handleError = (error: unknown, context: string = "") => {
-    console.error(`Error ${context ? `in ${context}` : ""}:`, error);
+    safeConsoleError(`Error ${context ? `in ${context}` : ""}:`, error);
 
     const { isNetworkError, isAuthError, message, name } =
       categorizeError(error);
@@ -85,4 +85,47 @@ export function useErrorHandler() {
   };
 
   return { handleError };
+}
+
+/**
+ * Sanitizes error messages by removing sensitive credential information
+ */
+export function sanitizeError(error: unknown): unknown {
+  if (error instanceof Error) {
+    let message = error.message;
+    
+    // Remove API keys, tokens, and credential information
+    message = message.replace(/api[_-]?key[:\s]*[a-zA-Z0-9\-_.]+/gi, 'api_key: [REDACTED]');
+    message = message.replace(/token[:\s]*[a-zA-Z0-9\-_.]+/gi, 'token: [REDACTED]');
+    message = message.replace(/password[:\s]*[^\s]+/gi, 'password: [REDACTED]');
+    message = message.replace(/auth[:\s]*[a-zA-Z0-9\-_.]+/gi, 'auth: [REDACTED]');
+    message = message.replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, 'Basic [REDACTED]');
+    message = message.replace(/Bearer\s+[a-zA-Z0-9\-_.]+/gi, 'Bearer [REDACTED]');
+    
+    // Create a new error with sanitized message
+    const sanitizedError = new Error(message);
+    sanitizedError.name = error.name;
+    sanitizedError.stack = error.stack?.replace(error.message, message);
+    
+    return sanitizedError;
+  }
+  
+  if (typeof error === 'string') {
+    return error.replace(/api[_-]?key[:\s]*[a-zA-Z0-9\-_.]+/gi, 'api_key: [REDACTED]')
+                .replace(/token[:\s]*[a-zA-Z0-9\-_.]+/gi, 'token: [REDACTED]')
+                .replace(/password[:\s]*[^\s]+/gi, 'password: [REDACTED]')
+                .replace(/auth[:\s]*[a-zA-Z0-9\-_.]+/gi, 'auth: [REDACTED]')
+                .replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, 'Basic [REDACTED]')
+                .replace(/Bearer\s+[a-zA-Z0-9\-_.]+/gi, 'Bearer [REDACTED]');
+  }
+  
+  return error;
+}
+
+/**
+ * Safe console.error that sanitizes sensitive information
+ */
+export function safeConsoleError(message: string, error?: unknown) {
+  const sanitizedError = error ? sanitizeError(error) : undefined;
+  console.error(message, sanitizedError);
 }
