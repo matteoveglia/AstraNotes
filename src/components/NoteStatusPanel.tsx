@@ -223,6 +223,7 @@ export function NoteStatusPanel({
               if (onClose) onClose();
             }}
             className="h-6 w-6 p-0"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </Button>

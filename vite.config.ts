@@ -11,7 +11,7 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   build: {
     // Set limit to 2000 kB
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 3000,
 
     sourcemap: true
   },

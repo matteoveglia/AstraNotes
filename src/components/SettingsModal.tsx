@@ -193,7 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" aria-label="Settings">
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>

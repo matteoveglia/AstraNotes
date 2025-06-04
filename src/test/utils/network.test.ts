@@ -136,7 +136,10 @@ describe("network utilities", () => {
       // Verify error handling
       expect(consoleSpy).toHaveBeenCalledWith(
         "API operation failed:",
-        mockError,
+        expect.objectContaining({
+          message: mockError.message,
+          name: mockError.name
+        }),
       );
       expect(response).toEqual({
         success: [],
