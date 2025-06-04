@@ -9,8 +9,6 @@
 import React, { useState, useEffect } from "react";
 import type { Playlist, PlaylistCategory } from "@/types";
 import {
-  Loader2,
-  AlertCircle,
   RefreshCw,
   MinusCircle,
   PlusCircle,
@@ -20,9 +18,11 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "@/store/playlistsStore";
+import { useProjectStore } from "@/store/projectStore";
 import { motion } from "motion/react";
 import { showContextMenu } from "@/utils/menu";
 import { PlaylistList } from "./PlaylistList";
+import { PlaylistPanelEmptyState } from "./EmptyStates";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -129,6 +129,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const [error, setError] = useState(initialError);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
+  const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
 
   // Generate categories from playlists with status
   const generateCategories = (
@@ -373,6 +374,9 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   // Generate categories for PlaylistList
   const categories = generateCategories(playlists);
 
+  // Check if we should show empty state
+  const shouldShowEmptyState = !selectedProjectId || !hasValidatedSelectedProject;
+
   return (
     <div className="w-72 border-r p-4 relative flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -381,7 +385,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           variant="ghost"
           size="sm"
           onClick={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || shouldShowEmptyState}
           className={cn("gap-2", isRefreshing)}
         >
           <RefreshCw
@@ -390,46 +394,52 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         </Button>
       </div>
 
-      {/* Quick Notes section - fixed at the top */}
-      {quickNotesPlaylist && (
-        <div className="flex-shrink-0">
-          <Button
-            variant={
-              activePlaylist === quickNotesPlaylist.id ? "default" : "outline"
-            }
-            size="lg"
-            onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
-            className="w-full justify-start text-left mb-1"
-          >
-            <span className="truncate flex-1">{quickNotesPlaylist.title}</span>
-          </Button>
-          <hr className="my-4 border-zinc-200 dark:border-zinc-700" />
-        </div>
-      )}
+      {shouldShowEmptyState ? (
+        <PlaylistPanelEmptyState />
+      ) : (
+        <>
+          {/* Quick Notes section - fixed at the top */}
+          {quickNotesPlaylist && (
+            <div className="flex-shrink-0">
+              <Button
+                variant={
+                  activePlaylist === quickNotesPlaylist.id ? "default" : "outline"
+                }
+                size="lg"
+                onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
+                className="w-full justify-start text-left mb-1"
+              >
+                <span className="truncate flex-1">{quickNotesPlaylist.title}</span>
+              </Button>
+              <hr className="my-4 border-zinc-200 dark:border-zinc-700" />
+            </div>
+          )}
 
-      {/* Scrollable playlists section */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <motion.div
-          className="flex-1 flex flex-col min-h-0 pr-2"
-          variants={gridVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <PlaylistList
-            categories={categories}
-            loading={loading}
-            error={error}
-            onSelect={(playlist) => onPlaylistSelect(playlist.id)}
-            activePlaylistId={
-              // If Quick Notes is active, don't show any carousel playlist as selected
-              activePlaylist === QUICK_NOTES_ID ||
-              activePlaylist === "quick-notes"
-                ? null
-                : activePlaylist
-            }
-          />
-        </motion.div>
-      </div>
+          {/* Scrollable playlists section */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <motion.div
+              className="flex-1 flex flex-col min-h-0 pr-2"
+              variants={gridVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <PlaylistList
+                categories={categories}
+                loading={loading}
+                error={error}
+                onSelect={(playlist) => onPlaylistSelect(playlist.id)}
+                activePlaylistId={
+                  // If Quick Notes is active, don't show any carousel playlist as selected
+                  activePlaylist === QUICK_NOTES_ID ||
+                  activePlaylist === "quick-notes"
+                    ? null
+                    : activePlaylist
+                }
+              />
+            </motion.div>
+          </div>
+        </>
+      )}
 
       {hasRemovedPlaylists && (
         <Button

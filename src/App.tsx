@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
-import type { Playlist, AssetVersion } from "@/types";
+import type { Playlist } from "@/types";
 import { useWhatsNew } from "./hooks/useWhatsNew";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
+import { useProjectStore } from "./store/projectStore";
 import { playlistStore } from "./store/playlistStore";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeStore } from "./store/themeStore";
 import { videoService } from "./services/videoService";
+import { NoProjectSelectedState } from "./components/EmptyStates";
 
 const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
@@ -58,7 +60,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
+  const [openPlaylists, setOpenPlaylists] = useState<string[]>([]);
   const {
     playlists,
     activePlaylistId,
@@ -70,6 +72,7 @@ const App: React.FC = () => {
   } = usePlaylistsStore();
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   const { fetchLabels } = useLabelStore();
+  const { selectedProjectId, hasValidatedSelectedProject, loadProjects } = useProjectStore();
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   // Store loaded versions to prevent reloading
@@ -78,26 +81,39 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    // Load playlists and labels - now including both review sessions and lists
+    // Load projects and labels - playlists will be loaded when a project is selected
     Promise.all([
-      loadPlaylistsWithLists(), // This will load both review sessions and lists including Quick Notes from DB
+      loadProjects(), // Load projects first
       fetchLabels(),
     ]).catch((error) => {
       console.error("Failed to initialize app:", error);
     });
-  }, [setLocalPlaylists, fetchLabels]);
+  }, [loadProjects, fetchLabels]);
 
   // New function to load both review sessions and lists
-  const loadPlaylistsWithLists = async () => {
+  const loadPlaylistsWithLists = useCallback(async () => {
+    console.log("loadPlaylistsWithLists called:", { selectedProjectId, hasValidatedSelectedProject });
+    
     try {
       // Initialize Quick Notes if it doesn't exist
       await playlistStore.initializeQuickNotes();
       
+      // Only load playlists if we have a validated project selection
+      if (!selectedProjectId || !hasValidatedSelectedProject) {
+        console.log("No validated project - clearing playlists in loadPlaylistsWithLists");
+        setLocalPlaylists([]);
+        setStorePlaylists([]);
+        return;
+      }
+      
+      // When a project is selected, always show Quick Notes plus project-specific playlists
+      const projectFilter = selectedProjectId; // specific project ID
+      
       // Get Quick Notes from database, review sessions and lists in parallel
       const [quickNotesData, reviewSessions, lists] = await Promise.all([
         playlistStore.getPlaylist("quick-notes"),
-        ftrackService.getPlaylists(),
-        ftrackService.getLists(),
+        ftrackService.getPlaylists(projectFilter),
+        ftrackService.getLists(projectFilter),
       ]);
 
       // Use the loaded Quick Notes data or create default if not found
@@ -125,6 +141,7 @@ const App: React.FC = () => {
       ];
 
       console.log("Loaded all playlists:", {
+        projectFilter,
         quickNotesVersionsCount: quickNotes.versions?.length || 0,
         reviewSessionsCount: reviewSessions.length,
         listsCount: lists.length,
@@ -136,7 +153,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to load playlists with lists:", error);
     }
-  };
+  }, [selectedProjectId, hasValidatedSelectedProject, setLocalPlaylists, setStorePlaylists]);
 
   // Load versions when active playlist changes
   useEffect(() => {
@@ -198,6 +215,71 @@ const App: React.FC = () => {
     loadVersionsForActivePlaylist();
   }, [activePlaylistId, playlists, setLocalPlaylists]);
 
+  // Handle project changes
+  const handleProjectChange = useCallback((projectId: string | null) => {
+    console.log("Project changed:", projectId);
+    
+    if (projectId) {
+      // Only load playlists if a project is actually selected
+      loadPlaylistsWithLists();
+    } else {
+      // Project cleared - don't load anything
+      console.log("Project cleared - not loading playlists");
+    }
+  }, [loadPlaylistsWithLists]);
+
+  // Reload when project changes or validation completes
+  useEffect(() => {
+    console.log("Project state changed:", { selectedProjectId, hasValidatedSelectedProject });
+    
+    if (selectedProjectId && hasValidatedSelectedProject) {
+      // Only load when we have a validated project selection
+      console.log("Loading playlists for project:", selectedProjectId);
+      loadPlaylistsWithLists();
+    } else {
+      // No project selected or not validated - clear playlists immediately
+      console.log("No validated project - clearing playlists in useEffect");
+      setLocalPlaylists([]);
+      setStorePlaylists([]);
+      setActivePlaylist(null);
+      setOpenPlaylists([]);
+      // Clear the loaded versions cache when clearing project
+      loadedVersionsRef.current = {};
+      console.log("Cleared loadedVersionsRef cache");
+    }
+  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylistsWithLists, setLocalPlaylists, setStorePlaylists, setActivePlaylist]);
+
+  // Handle playlist state when project selection changes
+  useEffect(() => {
+    // Only manage Quick Notes when we have a validated project
+    if (!selectedProjectId || !hasValidatedSelectedProject) {
+      // No project selected - ensure Quick Notes is not active
+      if (activePlaylistId === "quick-notes") {
+        setActivePlaylist(null);
+      }
+      if (openPlaylists.includes("quick-notes")) {
+        setOpenPlaylists([]);
+      }
+      return;
+    }
+
+    const quickNotesExists = playlists.some(p => p.isQuickNotes);
+    
+    if (quickNotesExists && !openPlaylists.includes("quick-notes")) {
+      // Project selected and Quick Notes exists but not in open playlists - add it
+      setOpenPlaylists(["quick-notes"]);
+      if (!activePlaylistId) {
+        setActivePlaylist("quick-notes");
+      }
+    } else if (!quickNotesExists && openPlaylists.includes("quick-notes")) {
+      // Quick Notes should exist but doesn't - remove it from open playlists
+      setOpenPlaylists([]);
+      if (activePlaylistId === "quick-notes") {
+        setActivePlaylist(null);
+      }
+    }
+  }, [selectedProjectId, hasValidatedSelectedProject, playlists, openPlaylists, activePlaylistId, setActivePlaylist]);
+
   const handlePlaylistSelect = async (playlistId: string) => {
     console.log(`Selecting playlist: ${playlistId}`);
     console.log(`Current openPlaylists before:`, openPlaylists);
@@ -237,13 +319,26 @@ const App: React.FC = () => {
     if (playlistId === "quick-notes") return;
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
     if (activePlaylistId === playlistId) {
-      setActivePlaylist("quick-notes");
+      // Only switch to Quick Notes if it exists
+      const quickNotesExists = playlists.some(p => p.isQuickNotes);
+      if (quickNotesExists) {
+        setActivePlaylist("quick-notes");
+      } else {
+        setActivePlaylist(null);
+      }
     }
   };
 
   const handleCloseAll = () => {
-    setOpenPlaylists(["quick-notes"]);
-    setActivePlaylist("quick-notes");
+    // Only keep Quick Notes if it exists (i.e., a project is selected)
+    const quickNotesExists = playlists.some(p => p.isQuickNotes);
+    if (quickNotesExists) {
+      setOpenPlaylists(["quick-notes"]);
+      setActivePlaylist("quick-notes");
+    } else {
+      setOpenPlaylists([]);
+      setActivePlaylist(null);
+    }
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
@@ -263,25 +358,22 @@ const App: React.FC = () => {
         loadedVersionsRef.current[activePlaylistId] &&
         !loadingVersions));
 
-  console.log("App rendering decision:", {
-    activePlaylistId,
-    hasActivePlaylistData: !!activePlaylistData,
-    isQuickNotes: activePlaylistData?.isQuickNotes,
-    hasLoadedVersions: activePlaylistId
-      ? loadedVersionsRef.current[activePlaylistId]
-      : false,
-    loadingVersions,
-    isPlaylistReady,
-    versionsCount: activePlaylistData?.versions?.length || 0,
-  });
+  const shouldShowContent = hasValidatedSelectedProject || selectedProjectId === null;
 
-  console.log("OpenPlaylistsBar data:", {
-    openPlaylists,
-    filteredPlaylists: playlists
-      .filter((p) => openPlaylists.includes(p.id))
-      .map((p) => ({ id: p.id, name: p.name })),
-    activePlaylistId,
-  });
+  // Debug logging for development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log("App rendering decision:", {
+      activePlaylistId,
+      hasActivePlaylistData: !!activePlaylistData,
+      isQuickNotes: activePlaylistData?.isQuickNotes,
+      hasLoadedVersions: activePlaylistId
+        ? loadedVersionsRef.current[activePlaylistId]
+        : false,
+      loadingVersions,
+      isPlaylistReady,
+      versionsCount: activePlaylistData?.versions?.length || 0,
+    });
+  }
 
   return (
     <ToastProvider>
@@ -290,6 +382,7 @@ const App: React.FC = () => {
           <TopBar
             onLoadPlaylists={loadPlaylists}
             onCloseAllPlaylists={handleCloseAll}
+            onProjectChange={handleProjectChange}
             shouldShowWhatsNew={shouldShowModal}
             onWhatsNewClose={hideModal}
           />
@@ -303,55 +396,65 @@ const App: React.FC = () => {
             />
             <div className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-hidden">
-                {isPlaylistReady ? (
-                  <ErrorBoundary
-                    fallback={
-                      <div className="h-full flex flex-col items-center justify-center p-6">
-                        <h3 className="text-xl font-semibold text-red-600 mb-2">
-                          Error loading content
-                        </h3>
-                        <p className="text-zinc-700 mb-4">
-                          Failed to load playlist content
-                        </p>
-                        <button
-                          onClick={() => window.location.reload()}
-                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
-                        >
-                          Try again
-                        </button>
-                      </div>
-                    }
-                  >
-                    <MainContent
-                      playlist={activePlaylistData}
-                      onPlaylistUpdate={handlePlaylistUpdate}
-                    />
-                  </ErrorBoundary>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="text-center">
-                      {error ? (
-                        <>
-                          <p className="text-red-500 text-xl mb-2">
-                            Error loading playlists
+                {shouldShowContent ? (
+                  isPlaylistReady ? (
+                    <ErrorBoundary
+                      fallback={
+                        <div className="h-full flex flex-col items-center justify-center p-6">
+                          <h3 className="text-xl font-semibold text-red-600 mb-2">
+                            Error loading content
+                          </h3>
+                          <p className="text-zinc-700 mb-4">
+                            Failed to load playlist content
                           </p>
-                          <p className="text-zinc-600 mb-4">{error}</p>
                           <button
-                            onClick={loadPlaylists}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
                           >
                             Try again
                           </button>
-                        </>
-                      ) : isLoading ? (
-                        <p className="text-zinc-500">Loading playlists...</p>
-                      ) : (
-                        <p className="text-zinc-500">
-                          Select a playlist to view
-                        </p>
-                      )}
+                        </div>
+                      }
+                    >
+                      <MainContent
+                        playlist={activePlaylistData}
+                        onPlaylistUpdate={handlePlaylistUpdate}
+                      />
+                    </ErrorBoundary>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        {error ? (
+                          <>
+                            <p className="text-red-500 text-xl mb-2">
+                              Error loading playlists
+                            </p>
+                            <p className="text-zinc-600 mb-4">{error}</p>
+                            <button
+                              onClick={loadPlaylists}
+                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                              Try again
+                            </button>
+                          </>
+                        ) : isLoading ? (
+                          <p className="text-zinc-500">Loading playlists...</p>
+                        ) : (
+                          <div className="text-center">
+                            {!selectedProjectId || !hasValidatedSelectedProject ? (
+                              <NoProjectSelectedState />
+                            ) : (
+                              <p className="text-zinc-500 select-none">
+                                Select a playlist to view
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )
+                ) : (
+                  <NoProjectSelectedState />
                 )}
               </div>
               <OpenPlaylistsBar
