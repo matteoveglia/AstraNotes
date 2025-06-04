@@ -15,6 +15,7 @@ import type {
   Note,
   AssetVersion,
   PlaylistCategory,
+  Project,
 } from "@/types";
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
@@ -436,7 +437,37 @@ export class FtrackService {
     }
   }
 
-  async getPlaylists(): Promise<Playlist[]> {
+  /**
+   * Fetch all active projects user has access to
+   */
+  async getProjects(): Promise<Project[]> {
+    const session = await this.ensureSession();
+    
+    // Try basic query without status - let's see what fields are actually available
+    const query = `
+      select id, name, full_name
+      from Project 
+      order by name asc
+    `;
+    
+    try {
+      log("Running projects query:", query);
+      const response = await session.query(query);
+      log("Received projects response:", response);
+      
+      return response.data.map((project: any) => ({
+        id: project.id,
+        name: project.name,
+        fullName: project.full_name || project.name,
+        status: 'Active' // Default to Active for now
+      }));
+    } catch (error) {
+      log("Failed to fetch projects:", error);
+      throw new Error("Failed to load projects from ftrack");
+    }
+  }
+
+  async getPlaylists(projectId?: string | null): Promise<Playlist[]> {
     if (!this.session) {
       const session = await this.initSession();
       if (!session) {
@@ -447,15 +478,20 @@ export class FtrackService {
 
     try {
       log("Fetching review sessions...");
-      const query = `select 
+      let query = `select 
         id,
         name,
         created_at,
         end_date,
         created_by_id,
         project_id
-      from ReviewSession 
-      order by created_at desc`;
+      from ReviewSession`;
+      
+      if (projectId) {
+        query += ` where project_id is "${projectId}"`;
+      }
+      
+      query += ` order by created_at desc`;
 
       log("Running query:", query);
       const result = await this.session!.query(query);
@@ -482,7 +518,7 @@ export class FtrackService {
    * Fetch ftrack Lists with their categories
    * @returns Promise<Playlist[]> Array of lists formatted as playlists
    */
-  async getLists(): Promise<Playlist[]> {
+  async getLists(projectId?: string | null): Promise<Playlist[]> {
     if (!this.session) {
       const session = await this.initSession();
       if (!session) {
@@ -493,7 +529,7 @@ export class FtrackService {
 
     try {
       log("Fetching lists...");
-      const query = `select 
+      let query = `select 
         id,
         name,
         date,
@@ -502,8 +538,13 @@ export class FtrackService {
         category_id,
         category.name
       from List 
-      where is_open is true
-      order by category.name, name`;
+      where is_open is true`;
+      
+      if (projectId) {
+        query += ` and project_id is "${projectId}"`;
+      }
+      
+      query += ` order by category.name, name`;
 
       log("Running list query:", query);
       const result = await this.session!.query(query);

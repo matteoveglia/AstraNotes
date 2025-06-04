@@ -16,6 +16,7 @@ import { Sun, Moon } from "lucide-react";
 import { useThemeStore } from "../store/themeStore";
 import { WhatsNewModal } from "./WhatsNewModal";
 import { SettingsModal } from "./SettingsModal";
+import { ProjectSelector } from "./ProjectSelector";
 import { motion } from "motion/react";
 import {
   Tooltip,
@@ -47,35 +48,44 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <TooltipProvider>
       <div className="h-12 border-b bg-background flex items-center justify-between px-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 select-none">
-            AstraNotes
-          </h1>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center">
-                {isConnected ? (
-                  <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
-                ) : (
-                  <motion.div
-                    className="w-2.5 h-2.5 bg-red-500 rounded-full"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [1, 0.7, 1],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isConnected ? "Connected" : "Disconnected"}</p>
-            </TooltipContent>
-          </Tooltip>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 select-none">
+              AstraNotes
+            </h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center">
+                  {isConnected ? (
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+                  ) : (
+                    <motion.div
+                      className="w-2.5 h-2.5 bg-red-500 rounded-full"
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [1, 0.7, 1],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isConnected ? "Connected" : "Disconnected"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          
+          <ProjectSelector onProjectChange={(projectId) => {
+            // This will trigger a playlist reload in App.tsx
+            window.dispatchEvent(new CustomEvent('project-changed', { 
+              detail: { projectId } 
+            }));
+          }} />
         </div>
         <div className="flex items-center gap-1">
           {!settings.autoRefreshEnabled && (

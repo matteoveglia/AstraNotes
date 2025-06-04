@@ -132,3 +132,17 @@ export interface Settings {
  * Supported UI theme modes.
  */
 export type Theme = "light" | "dark" | "system";
+
+/**
+ * Represents a project in ftrack with basic information.
+ * @property id Unique identifier of the project.
+ * @property name Short name of the project.
+ * @property fullName Full display name of the project.
+ * @property status Current status of the project (e.g., "Active").
+ */
+export interface Project {
+  id: string;
+  name: string;
+  fullName: string;
+  status: string;
+}
