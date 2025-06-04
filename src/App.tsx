@@ -215,23 +215,17 @@ const App: React.FC = () => {
     loadVersionsForActivePlaylist();
   }, [activePlaylistId, playlists, setLocalPlaylists]);
 
-  // Listen for project changes
-  useEffect(() => {
-    const handleProjectChange = (event: CustomEvent) => {
-      const { projectId } = event.detail;
-      console.log("Received project-changed event:", projectId);
-      
-      if (projectId) {
-        // Only load playlists if a project is actually selected
-        loadPlaylistsWithLists();
-      } else {
-        // Project cleared - don't load anything
-        console.log("Project cleared via event - not loading playlists");
-      }
-    };
+  // Handle project changes
+  const handleProjectChange = useCallback((projectId: string | null) => {
+    console.log("Project changed:", projectId);
     
-    window.addEventListener('project-changed', handleProjectChange as EventListener);
-    return () => window.removeEventListener('project-changed', handleProjectChange as EventListener);
+    if (projectId) {
+      // Only load playlists if a project is actually selected
+      loadPlaylistsWithLists();
+    } else {
+      // Project cleared - don't load anything
+      console.log("Project cleared - not loading playlists");
+    }
   }, [loadPlaylistsWithLists]);
 
   // Reload when project changes or validation completes
@@ -366,25 +360,20 @@ const App: React.FC = () => {
 
   const shouldShowContent = hasValidatedSelectedProject || selectedProjectId === null;
 
-  console.log("App rendering decision:", {
-    activePlaylistId,
-    hasActivePlaylistData: !!activePlaylistData,
-    isQuickNotes: activePlaylistData?.isQuickNotes,
-    hasLoadedVersions: activePlaylistId
-      ? loadedVersionsRef.current[activePlaylistId]
-      : false,
-    loadingVersions,
-    isPlaylistReady,
-    versionsCount: activePlaylistData?.versions?.length || 0,
-  });
-
-  console.log("OpenPlaylistsBar data:", {
-    openPlaylists,
-    filteredPlaylists: playlists
-      .filter((p) => openPlaylists.includes(p.id))
-      .map((p) => ({ id: p.id, name: p.name })),
-    activePlaylistId,
-  });
+  // Debug logging for development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log("App rendering decision:", {
+      activePlaylistId,
+      hasActivePlaylistData: !!activePlaylistData,
+      isQuickNotes: activePlaylistData?.isQuickNotes,
+      hasLoadedVersions: activePlaylistId
+        ? loadedVersionsRef.current[activePlaylistId]
+        : false,
+      loadingVersions,
+      isPlaylistReady,
+      versionsCount: activePlaylistData?.versions?.length || 0,
+    });
+  }
 
   return (
     <ToastProvider>
@@ -393,6 +382,7 @@ const App: React.FC = () => {
           <TopBar
             onLoadPlaylists={loadPlaylists}
             onCloseAllPlaylists={handleCloseAll}
+            onProjectChange={handleProjectChange}
             shouldShowWhatsNew={shouldShowModal}
             onWhatsNewClose={hideModal}
           />

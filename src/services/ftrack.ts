@@ -459,7 +459,7 @@ export class FtrackService {
         id: project.id,
         name: project.name,
         fullName: project.full_name || project.name,
-        status: 'Active' // Default to Active for now
+        status: 'Active' as const // Default to Active for now - TODO: fetch real status
       }));
     } catch (error) {
       log("Failed to fetch projects:", error);

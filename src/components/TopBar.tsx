@@ -28,13 +28,15 @@ import {
 interface TopBarProps {
   onLoadPlaylists: () => Promise<void>;
   onCloseAllPlaylists: () => void;
+  onProjectChange?: (projectId: string | null) => void;
   shouldShowWhatsNew?: boolean;
   onWhatsNewClose?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ 
   onLoadPlaylists, 
-  onCloseAllPlaylists, 
+  onCloseAllPlaylists,
+  onProjectChange,
   shouldShowWhatsNew = false, 
   onWhatsNewClose 
 }) => {
@@ -80,12 +82,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             </Tooltip>
           </div>
           
-          <ProjectSelector onProjectChange={(projectId) => {
-            // This will trigger a playlist reload in App.tsx
-            window.dispatchEvent(new CustomEvent('project-changed', { 
-              detail: { projectId } 
-            }));
-          }} />
+          <ProjectSelector onProjectChange={onProjectChange} />
         </div>
         <div className="flex items-center gap-1">
           {!settings.autoRefreshEnabled && (

@@ -41,17 +41,10 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     validateSelectedProject
   } = useProjectStore();
 
-  // Load projects on mount
+  // Load projects on mount (validation happens automatically in loadProjects)
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
-
-  // Validate selected project when projects load
-  useEffect(() => {
-    if (projects.length > 0 && selectedProjectId && !hasValidatedSelectedProject) {
-      validateSelectedProject();
-    }
-  }, [projects, selectedProjectId, hasValidatedSelectedProject, validateSelectedProject]);
 
   const handleValueChange = (value: string) => {
     const projectId = value === "none" ? null : value;
@@ -60,7 +53,6 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   };
 
   const handleClear = () => {
-    console.log("ProjectSelector: handleClear called");
     setSelectedProject(null);
     onProjectChange?.(null);
   };

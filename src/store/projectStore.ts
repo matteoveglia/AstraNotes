@@ -50,21 +50,26 @@ export const useProjectStore = create<ProjectState>()(
         
         try {
           const projects = await ftrackService.getProjects();
-          set({ projects, isLoading: false });
           
-          // Validate selected project still exists after loading
+          // Validate selected project exists after loading projects
           const { selectedProjectId } = get();
+          let hasValidSelectedProject = false;
+          
           if (selectedProjectId) {
             const exists = projects.find(p => p.id === selectedProjectId);
-            if (!exists) {
-              set({ 
-                selectedProjectId: null, 
-                hasValidatedSelectedProject: false 
-              });
+            if (exists) {
+              hasValidSelectedProject = true;
             } else {
-              set({ hasValidatedSelectedProject: true });
+              // Project no longer exists, clear selection
+              set({ selectedProjectId: null });
             }
           }
+          
+          set({ 
+            projects, 
+            isLoading: false,
+            hasValidatedSelectedProject: hasValidSelectedProject
+          });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to load projects',
