@@ -60,7 +60,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const [openPlaylists, setOpenPlaylists] = useState<string[]>(["quick-notes"]);
+  const [openPlaylists, setOpenPlaylists] = useState<string[]>([]);
   const {
     playlists,
     activePlaylistId,
@@ -81,47 +81,33 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    // Load projects, playlists and labels - now including both review sessions and lists
+    // Load projects and labels - playlists will be loaded when a project is selected
     Promise.all([
       loadProjects(), // Load projects first
-      loadPlaylistsWithLists(), // This will load both review sessions and lists including Quick Notes from DB
       fetchLabels(),
     ]).catch((error) => {
       console.error("Failed to initialize app:", error);
     });
-  }, [loadProjects, setLocalPlaylists, fetchLabels]);
+  }, [loadProjects, fetchLabels]);
 
   // New function to load both review sessions and lists
   const loadPlaylistsWithLists = useCallback(async () => {
+    console.log("loadPlaylistsWithLists called:", { selectedProjectId, hasValidatedSelectedProject });
+    
     try {
       // Initialize Quick Notes if it doesn't exist
       await playlistStore.initializeQuickNotes();
       
-      // Don't load playlists if no project is selected
-      if (!selectedProjectId && !hasValidatedSelectedProject) {
-        const quickNotesData = await playlistStore.getPlaylist("quick-notes");
-        const quickNotes = quickNotesData || {
-          id: "quick-notes",
-          name: "Quick Notes",
-          title: "Quick Notes",
-          notes: [],
-          versions: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isQuickNotes: true,
-          lastAccessed: Date.now(),
-          lastChecked: Date.now(),
-          hasModifications: false,
-          addedVersions: [],
-          removedVersions: [],
-        };
-        
-        setLocalPlaylists([quickNotes]);
+      // Only load playlists if we have a validated project selection
+      if (!selectedProjectId || !hasValidatedSelectedProject) {
+        console.log("No validated project - clearing playlists in loadPlaylistsWithLists");
+        setLocalPlaylists([]);
         setStorePlaylists([]);
         return;
       }
       
-      const projectFilter = selectedProjectId; // null = all projects
+      // When a project is selected, always show Quick Notes plus project-specific playlists
+      const projectFilter = selectedProjectId; // specific project ID
       
       // Get Quick Notes from database, review sessions and lists in parallel
       const [quickNotesData, reviewSessions, lists] = await Promise.all([
@@ -231,20 +217,74 @@ const App: React.FC = () => {
 
   // Listen for project changes
   useEffect(() => {
-    const handleProjectChange = () => {
-      loadPlaylistsWithLists();
+    const handleProjectChange = (event: CustomEvent) => {
+      const { projectId } = event.detail;
+      console.log("Received project-changed event:", projectId);
+      
+      if (projectId) {
+        // Only load playlists if a project is actually selected
+        loadPlaylistsWithLists();
+      } else {
+        // Project cleared - don't load anything
+        console.log("Project cleared via event - not loading playlists");
+      }
     };
     
-    window.addEventListener('project-changed', handleProjectChange);
-    return () => window.removeEventListener('project-changed', handleProjectChange);
+    window.addEventListener('project-changed', handleProjectChange as EventListener);
+    return () => window.removeEventListener('project-changed', handleProjectChange as EventListener);
   }, [loadPlaylistsWithLists]);
 
   // Reload when project changes or validation completes
   useEffect(() => {
-    if (hasValidatedSelectedProject || selectedProjectId === null) {
+    console.log("Project state changed:", { selectedProjectId, hasValidatedSelectedProject });
+    
+    if (selectedProjectId && hasValidatedSelectedProject) {
+      // Only load when we have a validated project selection
+      console.log("Loading playlists for project:", selectedProjectId);
       loadPlaylistsWithLists();
+    } else {
+      // No project selected or not validated - clear playlists immediately
+      console.log("No validated project - clearing playlists in useEffect");
+      setLocalPlaylists([]);
+      setStorePlaylists([]);
+      setActivePlaylist(null);
+      setOpenPlaylists([]);
+      // Clear the loaded versions cache when clearing project
+      loadedVersionsRef.current = {};
+      console.log("Cleared loadedVersionsRef cache");
     }
-  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylistsWithLists]);
+  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylistsWithLists, setLocalPlaylists, setStorePlaylists, setActivePlaylist]);
+
+  // Handle playlist state when project selection changes
+  useEffect(() => {
+    // Only manage Quick Notes when we have a validated project
+    if (!selectedProjectId || !hasValidatedSelectedProject) {
+      // No project selected - ensure Quick Notes is not active
+      if (activePlaylistId === "quick-notes") {
+        setActivePlaylist(null);
+      }
+      if (openPlaylists.includes("quick-notes")) {
+        setOpenPlaylists([]);
+      }
+      return;
+    }
+
+    const quickNotesExists = playlists.some(p => p.isQuickNotes);
+    
+    if (quickNotesExists && !openPlaylists.includes("quick-notes")) {
+      // Project selected and Quick Notes exists but not in open playlists - add it
+      setOpenPlaylists(["quick-notes"]);
+      if (!activePlaylistId) {
+        setActivePlaylist("quick-notes");
+      }
+    } else if (!quickNotesExists && openPlaylists.includes("quick-notes")) {
+      // Quick Notes should exist but doesn't - remove it from open playlists
+      setOpenPlaylists([]);
+      if (activePlaylistId === "quick-notes") {
+        setActivePlaylist(null);
+      }
+    }
+  }, [selectedProjectId, hasValidatedSelectedProject, playlists, openPlaylists, activePlaylistId, setActivePlaylist]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     console.log(`Selecting playlist: ${playlistId}`);
@@ -285,13 +325,26 @@ const App: React.FC = () => {
     if (playlistId === "quick-notes") return;
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
     if (activePlaylistId === playlistId) {
-      setActivePlaylist("quick-notes");
+      // Only switch to Quick Notes if it exists
+      const quickNotesExists = playlists.some(p => p.isQuickNotes);
+      if (quickNotesExists) {
+        setActivePlaylist("quick-notes");
+      } else {
+        setActivePlaylist(null);
+      }
     }
   };
 
   const handleCloseAll = () => {
-    setOpenPlaylists(["quick-notes"]);
-    setActivePlaylist("quick-notes");
+    // Only keep Quick Notes if it exists (i.e., a project is selected)
+    const quickNotesExists = playlists.some(p => p.isQuickNotes);
+    if (quickNotesExists) {
+      setOpenPlaylists(["quick-notes"]);
+      setActivePlaylist("quick-notes");
+    } else {
+      setOpenPlaylists([]);
+      setActivePlaylist(null);
+    }
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
@@ -397,9 +450,15 @@ const App: React.FC = () => {
                         ) : isLoading ? (
                           <p className="text-zinc-500">Loading playlists...</p>
                         ) : (
-                          <p className="text-zinc-500">
-                            Select a playlist to view
-                          </p>
+                          <div className="text-center">
+                            {!selectedProjectId || !hasValidatedSelectedProject ? (
+                              <NoProjectSelectedState />
+                            ) : (
+                              <p className="text-zinc-500 select-none">
+                                Select a playlist to view
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

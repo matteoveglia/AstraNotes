@@ -39,7 +39,7 @@ export const useProjectStore = create<ProjectState>()(
       
       setSelectedProject: (projectId) => set({ 
         selectedProjectId: projectId,
-        hasValidatedSelectedProject: true
+        hasValidatedSelectedProject: projectId !== null
       }),
       
       setLoading: (loading) => set({ isLoading: loading }),

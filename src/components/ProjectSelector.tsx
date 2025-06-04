@@ -9,8 +9,9 @@ import React, { useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useProjectStore } from "../store/projectStore";
 import { GlowEffect } from "./ui/glow-effect";
-import { Folder, AlertCircle } from "lucide-react";
+import { Folder, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -53,18 +54,22 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   }, [projects, selectedProjectId, hasValidatedSelectedProject, validateSelectedProject]);
 
   const handleValueChange = (value: string) => {
-    const projectId = value === "all" ? null : value;
+    const projectId = value === "none" ? null : value;
     setSelectedProject(projectId);
     onProjectChange?.(projectId);
+  };
+
+  const handleClear = () => {
+    console.log("ProjectSelector: handleClear called");
+    setSelectedProject(null);
+    onProjectChange?.(null);
   };
 
   const shouldShowGlow = !selectedProjectId && !isLoading && projects.length > 0;
 
   return (
     <TooltipProvider>
-      <div className={cn("flex items-center gap-2 min-w-[200px] relative", className)}>
-        <Folder className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-        
+      <div className={cn("flex items-center gap-2 min-w-[200px] relative", className)}>    
         <div className="relative flex-1">
           {shouldShowGlow && (
             <GlowEffect
@@ -82,20 +87,18 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
             disabled={isLoading}
           >
             <SelectTrigger className={cn(
-              "w-full relative z-10",
+              "w-full relative z-10 h-7 bg-white dark:bg-zinc-900",
+              selectedProjectId && "pr-8", // Add padding when X button is shown
               shouldShowGlow && "ring-2 ring-blue-200 dark:ring-blue-800"
             )}>
               <SelectValue 
                 placeholder={isLoading ? "Loading projects..." : "Select project..."} 
               />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white dark:bg-zinc-900">
               <SelectItem value="none" disabled>
                 {isLoading ? "Loading projects..." : "Select a project"}
               </SelectItem>
-              {projects.length > 0 && (
-                <SelectItem value="all">All Projects</SelectItem>
-              )}
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id}>
                   {project.name}
@@ -103,6 +106,25 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
               ))}
             </SelectContent>
           </Select>
+          
+          {selectedProjectId && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClear();
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 rounded-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center z-20"
+              title="Clear selection"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
         {error && (
