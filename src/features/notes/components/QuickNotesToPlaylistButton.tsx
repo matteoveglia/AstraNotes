@@ -18,19 +18,19 @@ import {
 import { CreatePlaylistDialog } from '@/features/playlists/components/CreatePlaylistDialog';
 import { AssetVersion, Playlist } from '@/types';
 import { ListPlus } from 'lucide-react';
+import { useProjectStore } from '@/store/projectStore';
 
 interface QuickNotesToPlaylistButtonProps {
   versions: AssetVersion[];
   onSuccess: (playlist: Playlist) => void;
-  projectId?: string;
 }
 
 export function QuickNotesToPlaylistButton({
   versions,
   onSuccess,
-  projectId = '', // TODO: Get from app context
 }: QuickNotesToPlaylistButtonProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const { selectedProjectId } = useProjectStore();
 
   const handleCreateClick = () => {
     setShowCreateDialog(true);
@@ -75,7 +75,7 @@ export function QuickNotesToPlaylistButton({
         onClose={handleCreateClose}
         onSuccess={handleCreateSuccess}
         preSelectedVersions={versions}
-        projectId={projectId}
+        projectId={selectedProjectId || undefined}
       />
     </>
   );

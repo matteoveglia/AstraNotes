@@ -31,16 +31,6 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   return (
     <div className="p-4 border-t bg-background shadow-md">
       <div className="space-y-4">
-        {/* Quick Notes to Playlist Button */}
-        {isQuickNotes && currentVersions.length > 0 && onPlaylistCreated && (
-          <div className="flex justify-center">
-            <QuickNotesToPlaylistButton
-              versions={currentVersions}
-              onSuccess={onPlaylistCreated}
-            />
-          </div>
-        )}
-        
         <VersionSearch
           onVersionSelect={onVersionSelect}
           onVersionsSelect={onVersionsSelect}
@@ -48,6 +38,7 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
           hasManuallyAddedVersions={hasManuallyAddedVersions}
           isQuickNotes={isQuickNotes}
           currentVersions={currentVersions}
+          onPlaylistCreated={onPlaylistCreated}
         />
       </div>
     </div>

@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { playlistStore } from "../store/playlistStore";
+import { usePlaylistsStore } from "../store/playlistsStore";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
 import { motion, AnimatePresence } from "motion/react";
@@ -583,8 +584,19 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handlePlaylistCreated = (playlist: Playlist) => {
-    // The playlist creation will be handled by the store and UI updates
-    // This could trigger a notification or other side effects
+    // Add the new playlist to the store
+    const { playlists: storePlaylists, setPlaylists: setStorePlaylists } = usePlaylistsStore.getState();
+    const updatedStorePlaylists = [
+      ...storePlaylists.filter(p => p.id !== playlist.id), // Remove if exists
+      playlist
+    ];
+    setStorePlaylists(updatedStorePlaylists);
+
+    // Notify parent component (App) about the new playlist to trigger playlist panel refresh
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(playlist);
+    }
+
     console.log('Playlist created from Quick Notes:', playlist.name);
   };
 
@@ -732,7 +744,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             {activePlaylist.isLocalOnly && activePlaylist.ftrackSyncState === 'pending' && (
               <SyncPlaylistButton
                 playlist={activePlaylist}
-                versionsToSync={activePlaylist.localVersions || activePlaylist.versions || []}
+                versionsToSync={activePlaylist.versions || []}
                 onSyncSuccess={handleSyncSuccess}
                 onSyncError={handleSyncError}
               />
