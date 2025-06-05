@@ -6,7 +6,8 @@
 
 import React from "react";
 import { VersionSearch } from "@/components/VersionSearch";
-import { AssetVersion } from "@/types";
+import { QuickNotesToPlaylistButton } from "@/features/notes/components/QuickNotesToPlaylistButton";
+import { AssetVersion, Playlist } from "@/types";
 
 interface SearchPanelProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -15,6 +16,7 @@ interface SearchPanelProps {
   hasManuallyAddedVersions: boolean;
   isQuickNotes: boolean;
   currentVersions: AssetVersion[]; // Current versions in the playlist
+  onPlaylistCreated?: (playlist: Playlist) => void;
 }
 
 export const SearchPanel: React.FC<SearchPanelProps> = ({
@@ -24,17 +26,30 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   hasManuallyAddedVersions,
   isQuickNotes,
   currentVersions,
+  onPlaylistCreated,
 }) => {
   return (
     <div className="p-4 border-t bg-background shadow-md">
-      <VersionSearch
-        onVersionSelect={onVersionSelect}
-        onVersionsSelect={onVersionsSelect}
-        onClearAdded={onClearAdded}
-        hasManuallyAddedVersions={hasManuallyAddedVersions}
-        isQuickNotes={isQuickNotes}
-        currentVersions={currentVersions}
-      />
+      <div className="space-y-4">
+        {/* Quick Notes to Playlist Button */}
+        {isQuickNotes && currentVersions.length > 0 && onPlaylistCreated && (
+          <div className="flex justify-center">
+            <QuickNotesToPlaylistButton
+              versions={currentVersions}
+              onSuccess={onPlaylistCreated}
+            />
+          </div>
+        )}
+        
+        <VersionSearch
+          onVersionSelect={onVersionSelect}
+          onVersionsSelect={onVersionsSelect}
+          onClearAdded={onClearAdded}
+          hasManuallyAddedVersions={hasManuallyAddedVersions}
+          isQuickNotes={isQuickNotes}
+          currentVersions={currentVersions}
+        />
+      </div>
     </div>
   );
 };

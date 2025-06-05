@@ -13,6 +13,7 @@ import {
   MinusCircle,
   PlusCircle,
   XCircle,
+  Plus,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import { motion } from "motion/react";
 import { showContextMenu } from "@/utils/menu";
 import { PlaylistList } from "./PlaylistList";
 import { PlaylistPanelEmptyState } from "./EmptyStates";
+import { CreatePlaylistDialog } from "@/features/playlists/components/CreatePlaylistDialog";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -128,6 +130,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState(initialError);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
 
@@ -362,6 +365,40 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setStorePlaylists(cleanPlaylists);
   };
 
+  const handleCreatePlaylist = () => {
+    setShowCreateDialog(true);
+  };
+
+  const handleCreateSuccess = (playlist: Playlist) => {
+    // Add the new playlist to local state with "added" status
+    const newPlaylistWithStatus: PlaylistWithStatus = {
+      ...playlist,
+      status: "added" as const,
+    };
+
+    setPlaylists(prev => [
+      ...prev.filter(p => p.id !== playlist.id), // Remove if exists
+      newPlaylistWithStatus
+    ]);
+
+    // Add to store as well
+    const { playlists: storePlaylists } = usePlaylistsStore.getState();
+    const updatedStorePlaylists = [
+      ...storePlaylists.filter(p => p.id !== playlist.id), // Remove if exists
+      playlist
+    ];
+    setStorePlaylists(updatedStorePlaylists);
+
+    // Auto-select the new playlist
+    onPlaylistSelect(playlist.id);
+    
+    setShowCreateDialog(false);
+  };
+
+  const handleCreateClose = () => {
+    setShowCreateDialog(false);
+  };
+
   const hasRemovedPlaylists = playlists?.some(
     (p) => !p.isQuickNotes && p.status === "removed",
   );
@@ -381,17 +418,30 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     <div className="w-72 border-r p-4 relative flex flex-col h-full">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h2 className="text-lg font-bold">Playlists</h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing || shouldShowEmptyState}
-          className={cn("gap-2", isRefreshing)}
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCreatePlaylist}
+            disabled={shouldShowEmptyState}
+            className="h-8 w-8 p-0"
+            title="Create new playlist"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing || shouldShowEmptyState}
+            className={cn("h-8 w-8 p-0", isRefreshing)}
+            title="Refresh playlists"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+          </Button>
+        </div>
       </div>
 
       {shouldShowEmptyState ? (
@@ -452,6 +502,13 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           Clear Old
         </Button>
       )}
+
+      <CreatePlaylistDialog
+        isOpen={showCreateDialog}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
+        projectId={selectedProjectId || undefined}
+      />
     </div>
   );
 };

@@ -9,8 +9,8 @@
  * - Attachment management
  */
 
-import { db, NoteAttachment } from "./db";
-import { Playlist, AssetVersion, NoteStatus } from "@/types";
+import { db, NoteAttachment, LocalPlaylist, LocalPlaylistVersion } from "./db";
+import { Playlist, AssetVersion, NoteStatus, CreatePlaylistRequest } from "@/types";
 import { FtrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
@@ -1850,22 +1850,155 @@ export class PlaylistStore {
 
   private cleanupExpiredProcessedChanges(): void {
     const now = Date.now();
-    const expiredPlaylists: string[] = [];
+    const expiredThreshold = 5 * 60 * 1000; // 5 minutes
 
-    for (const [playlistId, data] of this.recentlyProcessedChanges) {
-      // Clear entries older than 30 seconds (now that we fixed the root cause)
-      if (now - data.timestamp > 30000) {
-        expiredPlaylists.push(playlistId);
+    for (const [playlistId, data] of this.recentlyProcessedChanges.entries()) {
+      if (now - data.timestamp > expiredThreshold) {
+        this.recentlyProcessedChanges.delete(playlistId);
       }
     }
+  }
 
-    if (expiredPlaylists.length > 0) {
-      expiredPlaylists.forEach((playlistId) => {
-        this.recentlyProcessedChanges.delete(playlistId);
+  /**
+   * Creates a local-only playlist that hasn't been synced to ftrack yet
+   */
+  async createLocalPlaylist(request: CreatePlaylistRequest): Promise<Playlist> {
+    const playlistId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    const localPlaylist: LocalPlaylist = {
+      id: playlistId,
+      name: request.name,
+      type: request.type,
+      categoryId: request.categoryId,
+      categoryName: request.categoryName,
+      description: request.description,
+      projectId: request.projectId,
+      isLocalOnly: true,
+      syncState: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.localPlaylists.add(localPlaylist);
+
+    const playlist: Playlist = {
+      id: playlistId,
+      name: request.name,
+      title: request.name,
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+      type: request.type,
+      categoryId: request.categoryId,
+      categoryName: request.categoryName,
+      isLocalOnly: true,
+      localVersions: [],
+      ftrackSyncState: 'pending',
+      versions: [],
+    };
+
+    return playlist;
+  }
+
+  /**
+   * Updates playlist sync state
+   */
+  async updatePlaylistSyncState(playlistId: string, state: Playlist['ftrackSyncState']): Promise<void> {
+    try {
+      await db.localPlaylists.update(playlistId, {
+        syncState: state as any,
+        updatedAt: new Date().toISOString(),
       });
-      console.log(
-        `🧹 Cleaned up ${expiredPlaylists.length} expired processed change entries`,
-      );
+      log(`Updated playlist ${playlistId} sync state to ${state}`);
+    } catch (error) {
+      console.error(`Failed to update playlist sync state:`, error);
+    }
+  }
+
+  /**
+   * Removes manuallyAdded flags from versions after successful sync
+   */
+  async clearManuallyAddedFlags(playlistId: string, versionIds: string[]): Promise<void> {
+    try {
+      for (const versionId of versionIds) {
+        await db.versions.where('[playlistId+id]').equals([playlistId, versionId]).modify({
+          manuallyAdded: false
+        });
+      }
+      log(`Cleared manuallyAdded flags for ${versionIds.length} versions in playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to clear manuallyAdded flags:`, error);
+    }
+  }
+
+  /**
+   * Gets local playlist data
+   */
+  async getLocalPlaylist(playlistId: string): Promise<LocalPlaylist | null> {
+    try {
+      return await db.localPlaylists.get(playlistId) || null;
+    } catch (error) {
+      console.error(`Failed to get local playlist ${playlistId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Gets all local playlists
+   */
+  async getLocalPlaylists(): Promise<LocalPlaylist[]> {
+    try {
+      return await db.localPlaylists.toArray();
+    } catch (error) {
+      console.error(`Failed to get local playlists:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Adds versions to a local playlist
+   */
+  async addVersionsToLocalPlaylist(playlistId: string, versions: AssetVersion[]): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const localVersions: LocalPlaylistVersion[] = versions.map(v => ({
+        playlistId,
+        versionId: v.id,
+        addedAt: now,
+      }));
+
+      await db.localPlaylistVersions.bulkAdd(localVersions);
+      log(`Added ${versions.length} versions to local playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to add versions to local playlist:`, error);
+    }
+  }
+
+  /**
+   * Gets versions for a local playlist
+   */
+  async getLocalPlaylistVersions(playlistId: string): Promise<LocalPlaylistVersion[]> {
+    try {
+      return await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
+    } catch (error) {
+      console.error(`Failed to get local playlist versions:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Deletes a local playlist and its associated data
+   */
+  async deleteLocalPlaylist(playlistId: string): Promise<void> {
+    try {
+      await db.transaction('rw', [db.localPlaylists, db.localPlaylistVersions], async () => {
+        await db.localPlaylists.delete(playlistId);
+        await db.localPlaylistVersions.where('playlistId').equals(playlistId).delete();
+      });
+      log(`Deleted local playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to delete local playlist:`, error);
     }
   }
 }

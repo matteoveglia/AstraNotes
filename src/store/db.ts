@@ -46,21 +46,53 @@ export interface CachedPlaylist extends Playlist {
   removedVersions: string[];
 }
 
+/**
+ * Local playlist stored before ftrack synchronization
+ */
+export interface LocalPlaylist {
+  id: string;
+  name: string;
+  type: 'reviewsession' | 'list';
+  categoryId?: string;
+  categoryName?: string;
+  description?: string;
+  projectId: string;
+  isLocalOnly: boolean;
+  syncState: 'pending' | 'syncing' | 'synced' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+  ftrackId?: string; // Set after successful sync
+}
+
+/**
+ * Track local versions before sync
+ */
+export interface LocalPlaylistVersion {
+  playlistId: string;
+  versionId: string;
+  addedAt: string;
+  syncedAt?: string;
+}
+
 export class AstraNotesDB extends Dexie {
   playlists!: Table<CachedPlaylist>;
   versions!: Table<CachedVersion>;
   attachments!: Table<NoteAttachment>;
+  localPlaylists!: Table<LocalPlaylist>;
+  localPlaylistVersions!: Table<LocalPlaylistVersion>;
 
   constructor() {
     super("AstraNotesDB");
     console.log("Initializing AstraNotesDB schema...");
 
-    this.version(3).stores({
+    this.version(4).stores({
       playlists: "id, lastAccessed, lastChecked",
       versions:
         "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus",
       attachments:
         "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
+      localPlaylists: "id, syncState, projectId, type, createdAt, updatedAt",
+      localPlaylistVersions: "[playlistId+versionId], playlistId, versionId, addedAt",
     });
 
     this.versions.hook("creating", function (primKey, obj) {

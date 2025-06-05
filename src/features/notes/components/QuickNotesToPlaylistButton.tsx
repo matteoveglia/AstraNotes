@@ -1,0 +1,82 @@
+/**
+ * @fileoverview QuickNotesToPlaylistButton.tsx
+ * Button component for converting Quick Notes to playlists.
+ * Features:
+ * - Button appears when versions exist in Quick Notes
+ * - Opens CreatePlaylistDialog with versions pre-populated
+ * - Handles the conversion workflow
+ */
+
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { CreatePlaylistDialog } from '@/features/playlists/components/CreatePlaylistDialog';
+import { AssetVersion, Playlist } from '@/types';
+import { ListPlus } from 'lucide-react';
+
+interface QuickNotesToPlaylistButtonProps {
+  versions: AssetVersion[];
+  onSuccess: (playlist: Playlist) => void;
+  projectId?: string;
+}
+
+export function QuickNotesToPlaylistButton({
+  versions,
+  onSuccess,
+  projectId = '', // TODO: Get from app context
+}: QuickNotesToPlaylistButtonProps) {
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  const handleCreateClick = () => {
+    setShowCreateDialog(true);
+  };
+
+  const handleCreateSuccess = (playlist: Playlist) => {
+    setShowCreateDialog(false);
+    onSuccess(playlist);
+  };
+
+  const handleCreateClose = () => {
+    setShowCreateDialog(false);
+  };
+
+  if (versions.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCreateClick}
+              className="h-8 gap-2"
+            >
+              <ListPlus className="h-4 w-4" />
+              Create Playlist
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Create a new playlist from these {versions.length} version{versions.length === 1 ? '' : 's'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <CreatePlaylistDialog
+        isOpen={showCreateDialog}
+        onClose={handleCreateClose}
+        onSuccess={handleCreateSuccess}
+        preSelectedVersions={versions}
+        projectId={projectId}
+      />
+    </>
+  );
+} 

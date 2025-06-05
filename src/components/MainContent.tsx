@@ -35,6 +35,7 @@ import { PublishingControls } from "@/features/notes/components/PublishingContro
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { VersionFilter } from "@/features/versions/components/VersionFilter";
+import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -555,6 +556,38 @@ export const MainContent: React.FC<MainContentProps> = ({
     open(url);
   };
 
+  const handleSyncSuccess = (playlistId: string) => {
+    // Remove local-only flags and refresh the playlist
+    setActivePlaylist(prev => ({
+      ...prev,
+      isLocalOnly: false,
+      ftrackSyncState: 'synced',
+    }));
+    
+    // Trigger a refresh to get the latest data
+    refreshPlaylist();
+    
+    // Notify parent if provided
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate({
+        ...activePlaylist,
+        isLocalOnly: false,
+        ftrackSyncState: 'synced',
+      });
+    }
+  };
+
+  const handleSyncError = (error: string) => {
+    console.error('Sync error:', error);
+    // Could show a toast notification here
+  };
+
+  const handlePlaylistCreated = (playlist: Playlist) => {
+    // The playlist creation will be handled by the store and UI updates
+    // This could trigger a notification or other side effects
+    console.log('Playlist created from Quick Notes:', playlist.name);
+  };
+
   // Show initialization error if it exists
   if (initializationError) {
     return (
@@ -695,6 +728,15 @@ export const MainContent: React.FC<MainContentProps> = ({
             />
           ) : null}
           <div className="flex items-center gap-2">
+            {/* Show sync button for local playlists */}
+            {activePlaylist.isLocalOnly && activePlaylist.ftrackSyncState === 'pending' && (
+              <SyncPlaylistButton
+                playlist={activePlaylist}
+                versionsToSync={activePlaylist.localVersions || activePlaylist.versions || []}
+                onSyncSuccess={handleSyncSuccess}
+                onSyncError={handleSyncError}
+              />
+            )}
             <PublishingControls
               selectedCount={selectedVersions.length}
               draftCount={getDraftCount()}
@@ -754,6 +796,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           )}
           isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
           currentVersions={activePlaylist.versions || []}
+          onPlaylistCreated={handlePlaylistCreated}
         />
       )}
     </Card>

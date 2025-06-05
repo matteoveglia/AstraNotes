@@ -16,6 +16,9 @@ import type {
   AssetVersion,
   PlaylistCategory,
   Project,
+  CreatePlaylistRequest,
+  CreatePlaylistResponse,
+  SyncVersionsResponse,
 } from "@/types";
 import { Session } from "@ftrack/api";
 import { Attachment } from "@/components/NoteAttachments";
@@ -1786,70 +1789,225 @@ export class FtrackService {
     entityId: string,
   ): Promise<Status[]> {
     if (!this.schemaStatusMappingReady) {
-      log("[SchemaStatusMapping] Mapping not ready, returning empty");
-      return [];
+      await this.fetchAllSchemaStatusData();
     }
-    try {
-      const session = await this.getSession();
-      // 1. Get the entity's project and project_schema_id
-      const entityQuery = await session.query(
-        `select project.id, project.project_schema_id from ${entityType} where id is "${entityId}"`,
-      );
-      const entityData = entityQuery.data[0];
-      if (!entityData) {
-        log(
-          `[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`,
+
+          try {
+        const session = await this.ensureSession();
+
+        // Query for the entity to get its object type and project schema
+        const entityResult = await session.query(
+          `select object_type_id, project.project_schema_id from ${entityType} where id is "${entityId}"`
         );
-        return [];
-      }
-      const projectSchemaId = entityData.project?.project_schema_id;
-      if (!projectSchemaId) {
-        log(
-          `[SchemaStatusMapping] No project_schema_id for entity: ${entityType} ${entityId}`,
-        );
-        return [];
-      }
-      // Special handling for AssetVersion (uses workflow schema, not Schema/SchemaStatus)
-      if (entityType === "AssetVersion") {
-        // Get the ProjectSchema to find asset_version_workflow_schema_id
-        const schemaResult = await session.query(
-          `select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`,
-        );
-        const schema = schemaResult.data[0];
-        const workflowSchemaId = schema?.asset_version_workflow_schema_id;
-        if (!workflowSchemaId) {
-          log(
-            `[SchemaStatusMapping] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`,
-          );
+
+        if (!entityResult?.data?.length) {
+          console.warn(`Entity ${entityType}:${entityId} not found`);
           return [];
         }
-        // Find the workflow schema and its statuses
-        const workflowSchema = this.allWorkflowSchemas.find(
-          (ws: any) => ws.id === workflowSchemaId,
+
+        const entity = entityResult.data[0];
+
+        // Get object type name
+        const objectType = this.allObjectTypes.find(
+          (ot) => ot.id === entity.object_type_id,
         );
-        const statuses =
-          workflowSchema?.statuses?.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            color: s.color,
-          })) || [];
-        log(
-          `[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`,
-          statuses,
-        );
-        return statuses;
+        const objectTypeName = objectType?.name || entityType;
+
+        // Get project schema
+        const projectSchemaId = entity.project?.project_schema_id;
+      if (!projectSchemaId) {
+        console.warn(`No project schema found for entity ${entityType}:${entityId}`);
+        return [];
       }
-      // 2. Use mapping for all other types
-      const statuses =
-        this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
-      log(
-        `[SchemaStatusMapping] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`,
-        statuses,
-      );
+
+      // Get statuses from mapping
+      const schemaMapping = this.schemaStatusMapping[projectSchemaId];
+      if (!schemaMapping) {
+        console.warn(`No schema mapping found for project schema ${projectSchemaId}`);
+        return [];
+      }
+
+      const statuses = schemaMapping[objectTypeName] || [];
+      log(`Found ${statuses.length} statuses for ${objectTypeName} in schema ${projectSchemaId}`);
+
       return statuses;
     } catch (error) {
-      log("[SchemaStatusMapping] Failed to get statuses for entity:", error);
+      console.error("Error fetching statuses for entity:", error);
       return [];
+    }
+  }
+
+  /**
+   * Creates a new Review Session in ftrack
+   */
+  async createReviewSession(request: CreatePlaylistRequest): Promise<CreatePlaylistResponse> {
+    try {
+      const session = await this.ensureSession();
+      
+      if (!this.currentUserId) {
+        throw new Error("User ID not available");
+      }
+
+      const now = new Date();
+      const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
+      const response = await session.create('ReviewSession', {
+        name: request.name,
+        project_id: request.projectId,
+        description: request.description || '',
+        created_by_id: this.currentUserId,
+        start_date: now.toISOString(),
+        end_date: endDate.toISOString(),
+        availability: 'internal'
+      }) as any;
+
+      return {
+        id: response.id,
+        name: response.name,
+        type: 'reviewsession',
+        success: true
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create review session';
+      return {
+        id: '',
+        name: request.name,
+        type: 'reviewsession',
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Creates a new List in ftrack
+   */
+  async createList(request: CreatePlaylistRequest): Promise<CreatePlaylistResponse> {
+    try {
+      const session = await this.ensureSession();
+      
+      if (!this.currentUserId) {
+        throw new Error("User ID not available");
+      }
+
+      if (!request.categoryId) {
+        throw new Error("Category ID is required for list creation");
+      }
+
+      const response = await session.create('AssetVersionList', {
+        name: request.name,
+        project_id: request.projectId,
+        category_id: request.categoryId,
+        user_id: this.currentUserId,
+        is_open: true
+      }) as any;
+
+      return {
+        id: response.id,
+        name: response.name,
+        type: 'list',
+        success: true
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create list';
+      return {
+        id: '',
+        name: request.name,
+        type: 'list',
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Gets available list categories for a project
+   */
+  async getListCategories(projectId: string): Promise<PlaylistCategory[]> {
+    try {
+      const session = await this.ensureSession();
+
+      const result = await session.query(
+        `select id, name from ListCategory`
+      );
+
+      if (!result?.data) {
+        return [];
+      }
+
+      return result.data.map((category: any) => ({
+        id: category.id,
+        name: category.name,
+        type: 'lists' as const,
+        playlists: []
+      }));
+
+    } catch (error) {
+      console.error("Failed to fetch list categories:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Adds asset versions to an existing ftrack playlist
+   */
+  async addVersionsToPlaylist(
+    playlistId: string, 
+    versionIds: string[], 
+    playlistType: 'reviewsession' | 'list'
+  ): Promise<SyncVersionsResponse> {
+    try {
+      const session = await this.ensureSession();
+      const syncedVersionIds: string[] = [];
+      const failedVersionIds: string[] = [];
+
+      for (let i = 0; i < versionIds.length; i++) {
+        const versionId = versionIds[i];
+        
+        try {
+          if (playlistType === 'reviewsession') {
+            // Create ReviewSessionObject
+            await session.create('ReviewSessionObject', {
+              review_session_id: playlistId,
+              version_id: versionId,
+              name: `Version ${i + 1}`,
+              description: '',
+              sort_order: i
+            });
+          } else {
+            // Create ListObject
+            await session.create('ListObject', {
+              list_id: playlistId,
+              entity_id: versionId
+            });
+          }
+          
+          syncedVersionIds.push(versionId);
+        } catch (error) {
+          console.error(`Failed to add version ${versionId} to playlist:`, error);
+          failedVersionIds.push(versionId);
+        }
+      }
+
+      return {
+        playlistId,
+        syncedVersionIds,
+        failedVersionIds,
+        success: failedVersionIds.length === 0,
+        error: failedVersionIds.length > 0 ? `Failed to sync ${failedVersionIds.length} versions` : undefined
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sync versions';
+      return {
+        playlistId,
+        syncedVersionIds: [],
+        failedVersionIds: versionIds,
+        success: false,
+        error: errorMessage
+      };
     }
   }
 }
