@@ -343,7 +343,16 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handleClearAll = () => {
-    if (!activePlaylist.isQuickNotes) return;
+    console.log('handleClearAll called:', {
+      isQuickNotes: activePlaylist.isQuickNotes,
+      versionsCount: activePlaylist.versions?.length || 0,
+      playlistId: activePlaylist.id
+    });
+    
+    if (!activePlaylist.isQuickNotes) {
+      console.log('Not Quick Notes, skipping clear');
+      return;
+    }
 
     // Clear all versions from the playlist
     const updatedPlaylist = {
@@ -351,9 +360,18 @@ export const MainContent: React.FC<MainContentProps> = ({
       versions: [],
     };
 
+    console.log('Clearing Quick Notes versions, calling onPlaylistUpdate:', {
+      hasCallback: !!onPlaylistUpdate,
+      playlistName: updatedPlaylist.name,
+      newVersionsCount: updatedPlaylist.versions.length
+    });
+
     // Update the playlist in the store
     if (onPlaylistUpdate) {
       onPlaylistUpdate(updatedPlaylist);
+      console.log('Quick Notes onPlaylistUpdate called successfully');
+    } else {
+      console.warn('No onPlaylistUpdate callback available to clear Quick Notes');
     }
   };
 
@@ -624,7 +642,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
 
     // Add the new playlist to the store
-    const { playlists: storePlaylists, setPlaylists: setStorePlaylists, setActivePlaylist } = usePlaylistsStore.getState();
+    const { playlists: storePlaylists, setPlaylists: setStorePlaylists } = usePlaylistsStore.getState();
     const updatedStorePlaylists = [
       ...storePlaylists.filter(p => p.id !== playlist.id), // Remove if exists
       playlist
@@ -636,8 +654,27 @@ export const MainContent: React.FC<MainContentProps> = ({
       onPlaylistUpdate(playlist);
     }
 
-    // Auto-navigate to the new playlist (same as regular create playlist)
-    setActivePlaylist(playlist.id);
+    // Auto-navigate to the new playlist using App's navigation system
+    console.log('Starting auto-navigation to new playlist:', {
+      newPlaylistId: playlist.id,
+      newPlaylistName: playlist.name,
+      usingAppNavigation: true
+    });
+    
+    try {
+      // Use a small delay to ensure the playlist is fully added to the state first
+      setTimeout(() => {
+        // Trigger playlist selection through the App's handlePlaylistSelect
+        // This ensures both the activePlaylistId and openPlaylists are updated properly
+        const playlistSelectEvent = new CustomEvent('playlist-select', { 
+          detail: { playlistId: playlist.id } 
+        });
+        window.dispatchEvent(playlistSelectEvent);
+        console.log('Auto-navigation event dispatched successfully');
+      }, 100);
+    } catch (error) {
+      console.error('Auto-navigation failed:', error);
+    }
 
     console.log('Playlist created from Quick Notes:', playlist.name);
   };

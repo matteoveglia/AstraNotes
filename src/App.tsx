@@ -170,7 +170,9 @@ const App: React.FC = () => {
       const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
       if (currentPlaylist?.isLocalOnly) {
         console.log(`Skipping version loading for local playlist: ${activePlaylistId}`);
-        loadedVersionsRef.current[activePlaylistId] = true;
+        if (activePlaylistId) {
+          loadedVersionsRef.current[activePlaylistId] = true;
+        }
         return;
       }
 
@@ -207,7 +209,9 @@ const App: React.FC = () => {
         );
 
         // Mark that we've loaded versions for this playlist
-        loadedVersionsRef.current[activePlaylistId] = true;
+        if (activePlaylistId) {
+          loadedVersionsRef.current[activePlaylistId] = true;
+        }
 
         console.log(
           `Marked playlist ${activePlaylistId} as loaded. LoadedVersionsRef:`,
@@ -323,6 +327,20 @@ const App: React.FC = () => {
     });
   };
 
+  // Handle custom playlist selection events from child components  
+  useEffect(() => {
+    const handlePlaylistSelectEvent = (event: CustomEvent) => {
+      const { playlistId } = event.detail;
+      console.log('Received playlist-select event:', playlistId);
+      handlePlaylistSelect(playlistId);
+    };
+
+    window.addEventListener('playlist-select', handlePlaylistSelectEvent as EventListener);
+    return () => {
+      window.removeEventListener('playlist-select', handlePlaylistSelectEvent as EventListener);
+    };
+  }, [handlePlaylistSelect]);
+
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
@@ -350,15 +368,24 @@ const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
+    console.log('handlePlaylistUpdate called:', {
+      playlistId: updatedPlaylist.id,
+      playlistName: updatedPlaylist.name,
+      versionsCount: updatedPlaylist.versions?.length || 0,
+      isQuickNotes: updatedPlaylist.isQuickNotes
+    });
+    
     const existingIndex = playlists.findIndex((p: Playlist) => p.id === updatedPlaylist.id);
     if (existingIndex >= 0) {
       // Update existing playlist
       const updated = [...playlists];
       updated[existingIndex] = updatedPlaylist;
       setLocalPlaylists(updated);
+      console.log('Updated existing playlist in App state');
     } else {
       // Add new playlist
       setLocalPlaylists([...playlists, updatedPlaylist]);
+      console.log('Added new playlist to App state');
     }
   };
 
@@ -382,7 +409,7 @@ const App: React.FC = () => {
       hasActivePlaylistData: !!activePlaylistData,
       isQuickNotes: activePlaylistData?.isQuickNotes,
       hasLoadedVersions: activePlaylistId
-        ? loadedVersionsRef.current[activePlaylistId]
+        ? !!loadedVersionsRef.current[activePlaylistId]
         : false,
       loadingVersions,
       isPlaylistReady,

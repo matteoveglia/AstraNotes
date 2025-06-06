@@ -1948,9 +1948,21 @@ export class FtrackService {
         log("List creation response (using 'AssetVersionList'):", response);
       }
 
+      log("List response.data:", response.data);
+      log("List response structure:", {
+        hasId: 'id' in response,
+        hasData: 'data' in response,
+        dataHasId: response.data && 'id' in response.data,
+        responseId: response.id,
+        dataId: response.data?.id
+      });
+
+      const listId = response.data?.id || response.id;
+      log("Extracted List ID:", listId);
+
       return {
-        id: response.id,
-        name: response.name,
+        id: listId,
+        name: response.data?.name || response.name,
         type: 'list',
         success: true
       };

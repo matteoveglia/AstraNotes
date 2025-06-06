@@ -82,7 +82,15 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
           versionId: v.id,
           addedAt: now,
         }));
+        console.log('createPlaylist: Storing version associations:', {
+          playlistId,
+          versionsCount: versions.length,
+          localVersions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
+        });
         await db.localPlaylistVersions.bulkAdd(localVersions);
+        console.log('createPlaylist: Version associations stored successfully');
+      } else {
+        console.log('createPlaylist: No versions provided to store');
       }
 
       // Create playlist object to return
@@ -126,7 +134,20 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       }
 
       // Get associated versions
+      console.log('syncPlaylist: Querying localPlaylistVersions for playlistId:', playlistId);
       const localVersions = await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
+      console.log('syncPlaylist: Query completed. Found local versions for sync:', {
+        playlistId,
+        versionsCount: localVersions.length,
+        versions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
+      });
+      
+      // Debug: Also check all entries in the table for this debugging session
+      const allLocalVersions = await db.localPlaylistVersions.toArray();
+      console.log('syncPlaylist: DEBUG - All localPlaylistVersions in database:', {
+        totalCount: allLocalVersions.length,
+        entries: allLocalVersions.map(lv => ({ playlistId: lv.playlistId, versionId: lv.versionId, addedAt: lv.addedAt }))
+      });
       
       set({ syncProgress: { current: 1, total: 3 } });
 
@@ -160,6 +181,12 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
 
       // Add versions to ftrack playlist if any
       if (localVersions.length > 0) {
+        console.log('Starting version sync for', {
+          ftrackId,
+          versionsCount: localVersions.length,
+          playlistType: localPlaylist.type
+        });
+        
         const versionIds = localVersions.map(lv => lv.versionId);
         const syncResponse = await ftrackService.addVersionsToPlaylist(
           ftrackId,
@@ -167,9 +194,13 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
           localPlaylist.type
         );
 
+        console.log('Version sync response:', syncResponse);
+
         if (!syncResponse.success) {
           throw new Error(syncResponse.error || 'Failed to sync versions');
         }
+      } else {
+        console.log('No local versions found to sync for playlist:', playlistId);
       }
 
       // Update local playlist as synced
