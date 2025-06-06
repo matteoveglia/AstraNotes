@@ -33,10 +33,20 @@ export function QuickNotesToPlaylistButton({
   const { selectedProjectId } = useProjectStore();
 
   const handleCreateClick = () => {
+    console.log('QuickNotesToPlaylistButton: Create clicked with versions:', {
+      versionsCount: versions.length,
+      versions: versions.map(v => ({ id: v.id, name: v.name })),
+      selectedProjectId
+    });
     setShowCreateDialog(true);
   };
 
   const handleCreateSuccess = (playlist: Playlist) => {
+    console.log('QuickNotesToPlaylistButton: Creation success:', {
+      playlistId: playlist.id,
+      playlistName: playlist.name,
+      versionsInPlaylist: playlist.versions?.length || 0
+    });
     setShowCreateDialog(false);
     onSuccess(playlist);
   };

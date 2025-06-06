@@ -96,8 +96,21 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Stop any existing polling immediately
       playlistStore.stopPolling();
 
-      // Initialize the playlist in store with error handling
-      await playlistStore.initializePlaylist(playlistId, playlistToInit);
+      // For local playlists, skip ftrack initialization and use versions directly
+      if (playlistToInit.isLocalOnly) {
+        console.debug(`[MainContent] Local playlist detected, skipping ftrack initialization`, {
+          playlistId,
+          versionsCount: playlistToInit.versions?.length || 0,
+          versions: playlistToInit.versions?.map(v => ({ id: v.id, name: v.name }))
+        });
+        // Just cache the playlist with its existing versions, using cleanPlaylistForStorage to convert
+        const cachedPlaylist = playlistStore.cleanPlaylistForStorage(playlistToInit);
+        console.debug(`[MainContent] Cached playlist versions:`, cachedPlaylist.versions?.length || 0);
+        await playlistStore.cachePlaylist(cachedPlaylist);
+      } else {
+        // Initialize the playlist in store with error handling
+        await playlistStore.initializePlaylist(playlistId, playlistToInit);
+      }
 
       // Get the cached/merged version with proper data from IndexedDB
       const cached = await playlistStore.getPlaylist(playlistId);
@@ -116,16 +129,24 @@ export const MainContent: React.FC<MainContentProps> = ({
           originalVersionsCount: playlistToInit.versions?.length || 0,
           cachedVersionsCount: cached?.versions?.length || 0,
           finalVersionsCount: finalPlaylist.versions?.length || 0,
+          isLocalOnly: playlistToInit.isLocalOnly,
+          originalVersions: playlistToInit.versions?.map(v => ({ id: v.id, name: v.name })),
+          cachedVersions: cached?.versions?.map(v => ({ id: v.id, name: v.name })),
+          finalVersions: finalPlaylist.versions?.map(v => ({ id: v.id, name: v.name }))
         },
       );
-
+      
+      console.debug(`[MainContent] About to call setActivePlaylist for ${playlistId}`);
       setActivePlaylist(finalPlaylist);
-
+      console.debug(`[MainContent] Called setActivePlaylist for ${playlistId}`);
+      
       // Clear timeout on successful completion
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
         initializationTimeoutRef.current = null;
       }
+      
+      console.debug(`[MainContent] Initialization completed successfully for ${playlistId}`);
     } catch (error) {
       console.error(
         `[MainContent] Failed to initialize playlist ${playlistId}:`,
@@ -583,9 +604,27 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Could show a toast notification here
   };
 
-  const handlePlaylistCreated = (playlist: Playlist) => {
+  const handlePlaylistCreated = async (playlist: Playlist) => {
+    console.log('handlePlaylistCreated called with playlist:', {
+      id: playlist.id,
+      name: playlist.name,
+      versionsCount: playlist.versions?.length || 0,
+      isLocalOnly: playlist.isLocalOnly,
+      versions: playlist.versions?.map(v => ({ id: v.id, name: v.name }))
+    });
+
+    // Clear Quick Notes since we're moving the versions to a new playlist
+    if (activePlaylist.isQuickNotes) {
+      console.log('Clearing Quick Notes versions after playlist creation');
+      try {
+        await handleClearAll();
+      } catch (error) {
+        console.error('Failed to clear Quick Notes:', error);
+      }
+    }
+
     // Add the new playlist to the store
-    const { playlists: storePlaylists, setPlaylists: setStorePlaylists } = usePlaylistsStore.getState();
+    const { playlists: storePlaylists, setPlaylists: setStorePlaylists, setActivePlaylist } = usePlaylistsStore.getState();
     const updatedStorePlaylists = [
       ...storePlaylists.filter(p => p.id !== playlist.id), // Remove if exists
       playlist
@@ -596,6 +635,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (onPlaylistUpdate) {
       onPlaylistUpdate(playlist);
     }
+
+    // Auto-navigate to the new playlist (same as regular create playlist)
+    setActivePlaylist(playlist.id);
 
     console.log('Playlist created from Quick Notes:', playlist.name);
   };
@@ -741,7 +783,17 @@ export const MainContent: React.FC<MainContentProps> = ({
           ) : null}
           <div className="flex items-center gap-2">
             {/* Show sync button for local playlists */}
-            {activePlaylist.isLocalOnly && activePlaylist.ftrackSyncState === 'pending' && (
+            {(() => {
+              const shouldShowSync = activePlaylist.isLocalOnly && activePlaylist.ftrackSyncState === 'pending';
+              console.log('Sync button condition check:', {
+                playlistId: activePlaylist.id,
+                isLocalOnly: activePlaylist.isLocalOnly,
+                ftrackSyncState: activePlaylist.ftrackSyncState,
+                shouldShowSync,
+                versionsCount: activePlaylist.versions?.length || 0
+              });
+              return shouldShowSync;
+            })() && (
               <SyncPlaylistButton
                 playlist={activePlaylist}
                 versionsToSync={activePlaylist.versions || []}

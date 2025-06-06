@@ -32,6 +32,7 @@ interface PlaylistCreationState {
   syncPlaylist: (playlistId: string) => Promise<void>;
   fetchCategories: (projectId: string) => Promise<void>;
   clearErrors: () => void;
+  resetSyncState: () => void;
   resetStore: () => void;
 }
 
@@ -112,11 +113,14 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
   },
 
   syncPlaylist: async (playlistId: string): Promise<void> => {
+    console.log('syncPlaylist called with ID:', playlistId);
     set({ isSyncing: true, syncError: null, syncProgress: { current: 0, total: 1 } });
 
     try {
       // Get local playlist data
+      console.log('Looking up local playlist in database:', playlistId);
       const localPlaylist = await db.localPlaylists.get(playlistId);
+      console.log('Local playlist found:', localPlaylist);
       if (!localPlaylist) {
         throw new Error('Local playlist not found');
       }
@@ -214,6 +218,10 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
 
   clearErrors: () => {
     set({ createError: null, syncError: null });
+  },
+
+  resetSyncState: () => {
+    set({ isSyncing: false, syncError: null, syncProgress: null });
   },
 
   resetStore: () => {

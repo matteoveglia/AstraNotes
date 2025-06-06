@@ -60,6 +60,12 @@ export function CreatePlaylistDialog({
   preSelectedVersions = [],
   projectId = '', // TODO: Get from app context
 }: CreatePlaylistDialogProps) {
+  console.log('CreatePlaylistDialog render:', {
+    isOpen,
+    preSelectedVersionsCount: preSelectedVersions.length,
+    projectId,
+    versions: preSelectedVersions.map(v => ({ id: v.id, name: v.name }))
+  });
   const {
     isCreating,
     createError,
@@ -136,7 +142,17 @@ export function CreatePlaylistDialog({
           : undefined,
       };
 
+      console.log('CreatePlaylistDialog: Creating playlist with versions:', {
+        request,
+        versionsCount: preSelectedVersions.length,
+        versions: preSelectedVersions.map(v => ({ id: v.id, name: v.name }))
+      });
       const playlist = await createPlaylist(request, preSelectedVersions);
+      console.log('CreatePlaylistDialog: Playlist created:', {
+        playlistId: playlist.id,
+        versionsCount: playlist.versions?.length || 0,
+        versions: playlist.versions?.map(v => ({ id: v.id, name: v.name }))
+      });
       
       // Reset form
       setFormData({

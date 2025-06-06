@@ -1851,24 +1851,46 @@ export class FtrackService {
       const now = new Date();
       const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
+      log("Creating ReviewSession with data:", {
+        name: request.name,
+        project_id: request.projectId,
+        description: request.description || '',
+        created_by_id: this.currentUserId,
+        start_date: now.toISOString(),
+        end_date: endDate.toISOString()
+      });
+
       const response = await session.create('ReviewSession', {
         name: request.name,
         project_id: request.projectId,
         description: request.description || '',
         created_by_id: this.currentUserId,
         start_date: now.toISOString(),
-        end_date: endDate.toISOString(),
-        availability: 'internal'
+        end_date: endDate.toISOString()
       }) as any;
 
+      log("ReviewSession creation response:", response);
+      log("ReviewSession response.data:", response.data);
+      log("ReviewSession response structure:", {
+        hasId: 'id' in response,
+        hasData: 'data' in response,
+        dataHasId: response.data && 'id' in response.data,
+        responseId: response.id,
+        dataId: response.data?.id
+      });
+
+      const reviewSessionId = response.data?.id || response.id;
+      log("Extracted ReviewSession ID:", reviewSessionId);
+
       return {
-        id: response.id,
-        name: response.name,
+        id: reviewSessionId,
+        name: response.data?.name || response.name,
         type: 'reviewsession',
         success: true
       };
 
     } catch (error) {
+      log("Failed to create ReviewSession:", error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create review session';
       return {
         id: '',
@@ -1895,13 +1917,36 @@ export class FtrackService {
         throw new Error("Category ID is required for list creation");
       }
 
-      const response = await session.create('AssetVersionList', {
+      log("Creating List with data:", {
         name: request.name,
         project_id: request.projectId,
         category_id: request.categoryId,
         user_id: this.currentUserId,
         is_open: true
-      }) as any;
+      });
+
+      // Try both entity names as ftrack might use either
+      let response: any;
+      try {
+        response = await session.create('List', {
+          name: request.name,
+          project_id: request.projectId,
+          category_id: request.categoryId,
+          user_id: this.currentUserId,
+          is_open: true
+        });
+        log("List creation response (using 'List'):", response);
+      } catch (listError) {
+        log("Failed with 'List', trying 'AssetVersionList':", listError);
+        response = await session.create('AssetVersionList', {
+          name: request.name,
+          project_id: request.projectId,
+          category_id: request.categoryId,
+          user_id: this.currentUserId,
+          is_open: true
+        });
+        log("List creation response (using 'AssetVersionList'):", response);
+      }
 
       return {
         id: response.id,
@@ -1911,6 +1956,7 @@ export class FtrackService {
       };
 
     } catch (error) {
+      log("Failed to create List:", error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create list';
       return {
         id: '',
@@ -1963,33 +2009,43 @@ export class FtrackService {
       const syncedVersionIds: string[] = [];
       const failedVersionIds: string[] = [];
 
+      log(`Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`);
+
       for (let i = 0; i < versionIds.length; i++) {
         const versionId = versionIds[i];
         
         try {
           if (playlistType === 'reviewsession') {
             // Create ReviewSessionObject
-            await session.create('ReviewSessionObject', {
+            const createData = {
               review_session_id: playlistId,
               version_id: versionId,
               name: `Version ${i + 1}`,
               description: '',
               sort_order: i
-            });
+            };
+            log(`Creating ReviewSessionObject with data:`, createData);
+            const response = await session.create('ReviewSessionObject', createData);
+            log(`ReviewSessionObject creation response:`, response);
           } else {
             // Create ListObject
-            await session.create('ListObject', {
+            const createData = {
               list_id: playlistId,
               entity_id: versionId
-            });
+            };
+            log(`Creating ListObject with data:`, createData);
+            const response = await session.create('ListObject', createData);
+            log(`ListObject creation response:`, response);
           }
           
           syncedVersionIds.push(versionId);
         } catch (error) {
-          console.error(`Failed to add version ${versionId} to playlist:`, error);
+          log(`Failed to add version ${versionId} to playlist:`, error);
           failedVersionIds.push(versionId);
         }
       }
+
+      log(`Sync results:`, { syncedVersionIds, failedVersionIds });
 
       return {
         playlistId,
@@ -2000,6 +2056,7 @@ export class FtrackService {
       };
 
     } catch (error) {
+      log("Failed to sync versions:", error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync versions';
       return {
         playlistId,

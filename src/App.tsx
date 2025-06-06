@@ -166,6 +166,14 @@ const App: React.FC = () => {
         return;
       }
 
+      // Skip local playlists - they already have their versions
+      const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
+      if (currentPlaylist?.isLocalOnly) {
+        console.log(`Skipping version loading for local playlist: ${activePlaylistId}`);
+        loadedVersionsRef.current[activePlaylistId] = true;
+        return;
+      }
+
       setLoadingVersions(true);
       try {
         if (!activePlaylistId) {
@@ -342,9 +350,16 @@ const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    setLocalPlaylists(
-      playlists.map((p) => (p.id === updatedPlaylist.id ? updatedPlaylist : p)),
-    );
+    const existingIndex = playlists.findIndex((p: Playlist) => p.id === updatedPlaylist.id);
+    if (existingIndex >= 0) {
+      // Update existing playlist
+      const updated = [...playlists];
+      updated[existingIndex] = updatedPlaylist;
+      setLocalPlaylists(updated);
+    } else {
+      // Add new playlist
+      setLocalPlaylists([...playlists, updatedPlaylist]);
+    }
   };
 
   // Get the active playlist data

@@ -46,21 +46,40 @@ export function SyncPlaylistButton({
     syncProgress,
     syncPlaylist,
     clearErrors,
+    resetSyncState,
   } = usePlaylistCreationStore();
 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [localSyncState, setLocalSyncState] = useState<{
+    isResetting: boolean;
+    hasReset: boolean;
+  }>({ isResetting: false, hasReset: false });
 
-  const handleSyncClick = () => {
+  const handleSyncClick = async () => {
+    console.log('Sync button clicked for playlist:', playlist.id);
+    console.log('Current sync state before reset:', { isSyncing, syncError, syncProgress });
+    
+    setLocalSyncState({ isResetting: true, hasReset: false });
     clearErrors();
+    resetSyncState(); // Reset sync progress to show fresh dialog
+    
+    // Give it a moment to reset
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    setLocalSyncState({ isResetting: false, hasReset: true });
+    console.log('After resetSyncState called and local state updated');
     setShowConfirmDialog(true);
   };
 
   const handleConfirmSync = async () => {
+    console.log('Starting sync for playlist:', playlist.id);
     try {
       await syncPlaylist(playlist.id);
+      console.log('Sync completed successfully for playlist:', playlist.id);
       setShowConfirmDialog(false);
       onSyncSuccess(playlist.id);
     } catch (error) {
+      console.error('Sync failed for playlist:', playlist.id, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';
       onSyncError(errorMessage);
     }
@@ -69,6 +88,7 @@ export function SyncPlaylistButton({
   const handleCloseDialog = () => {
     if (!isSyncing) {
       setShowConfirmDialog(false);
+      setLocalSyncState({ isResetting: false, hasReset: false });
       clearErrors();
     }
   };
@@ -120,6 +140,10 @@ export function SyncPlaylistButton({
               Sync Playlist to ftrack
             </DialogTitle>
           </DialogHeader>
+          {(() => {
+            console.log('Dialog is rendering, showConfirmDialog:', showConfirmDialog, 'versionsToSync:', versionsToSync.length);
+            return null;
+          })()}
 
           <div className="space-y-4">
             <div>
@@ -162,7 +186,7 @@ export function SyncPlaylistButton({
             )}
 
             {/* Success Message */}
-            {syncProgress?.current === syncProgress?.total && !isSyncing && (
+            {syncProgress?.current === syncProgress?.total && !isSyncing && !localSyncState.hasReset && (
               <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <CheckCircle className="h-4 w-4" />
                 <span className="text-sm">Playlist synced successfully!</span>
@@ -189,9 +213,24 @@ export function SyncPlaylistButton({
             >
               {isSyncing ? 'Syncing...' : 'Cancel'}
             </Button>
-            {!isSyncing && !(syncProgress?.current === syncProgress?.total) && (
+            {(() => {
+              // Show sync button if not syncing AND (no progress OR reset locally)
+              const hasProgress = syncProgress && syncProgress.current === syncProgress.total;
+              const shouldShowSyncButton = !isSyncing && (!hasProgress || localSyncState.hasReset);
+              console.log('Sync button visibility check:', {
+                isSyncing,
+                syncProgress,
+                hasProgress,
+                localSyncState,
+                shouldShowSyncButton
+              });
+              return shouldShowSyncButton;
+            })() && (
               <Button
-                onClick={handleConfirmSync}
+                onClick={() => {
+                  console.log('Sync to ftrack button clicked');
+                  handleConfirmSync();
+                }}
                 disabled={isSyncing}
               >
                 Sync to ftrack
