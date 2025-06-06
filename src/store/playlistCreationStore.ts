@@ -87,8 +87,18 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
           versionsCount: versions.length,
           localVersions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
         });
-        await db.localPlaylistVersions.bulkAdd(localVersions);
-        console.log('createPlaylist: Version associations stored successfully');
+        
+        try {
+          await db.localPlaylistVersions.bulkAdd(localVersions);
+          console.log('createPlaylist: Version associations stored successfully');
+          
+          // Verify the data was stored correctly
+          const verifyStored = await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
+          console.log('createPlaylist: Verification - stored versions count:', verifyStored.length);
+        } catch (error) {
+          console.error('createPlaylist: Failed to store version associations:', error);
+          throw error;
+        }
       } else {
         console.log('createPlaylist: No versions provided to store');
       }
@@ -142,12 +152,7 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
         versions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
       });
       
-      // Debug: Also check all entries in the table for this debugging session
-      const allLocalVersions = await db.localPlaylistVersions.toArray();
-      console.log('syncPlaylist: DEBUG - All localPlaylistVersions in database:', {
-        totalCount: allLocalVersions.length,
-        entries: allLocalVersions.map(lv => ({ playlistId: lv.playlistId, versionId: lv.versionId, addedAt: lv.addedAt }))
-      });
+
       
       set({ syncProgress: { current: 1, total: 3 } });
 

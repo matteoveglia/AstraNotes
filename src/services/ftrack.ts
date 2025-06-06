@@ -1875,16 +1875,21 @@ export class FtrackService {
         hasId: 'id' in response,
         hasData: 'data' in response,
         dataHasId: response.data && 'id' in response.data,
-        responseId: response.id,
-        dataId: response.data?.id
+        responseType: typeof response,
+        responseKeys: Object.keys(response)
       });
 
-      const reviewSessionId = response.data?.id || response.id;
+      const reviewSessionId = response.data?.id;
+      const reviewSessionName = response.data?.name;
       log("Extracted ReviewSession ID:", reviewSessionId);
+
+      if (!reviewSessionId) {
+        throw new Error("Failed to get ID from ReviewSession creation response");
+      }
 
       return {
         id: reviewSessionId,
-        name: response.data?.name || response.name,
+        name: reviewSessionName || request.name,
         type: 'reviewsession',
         success: true
       };
@@ -1917,59 +1922,49 @@ export class FtrackService {
         throw new Error("Category ID is required for list creation");
       }
 
-      log("Creating List with data:", {
+      log("Creating AssetVersionList with data:", {
         name: request.name,
         project_id: request.projectId,
         category_id: request.categoryId,
-        user_id: this.currentUserId,
-        is_open: true
+        owner_id: this.currentUserId,
       });
 
-      // Try both entity names as ftrack might use either
-      let response: any;
-      try {
-        response = await session.create('List', {
-          name: request.name,
-          project_id: request.projectId,
-          category_id: request.categoryId,
-          user_id: this.currentUserId,
-          is_open: true
-        });
-        log("List creation response (using 'List'):", response);
-      } catch (listError) {
-        log("Failed with 'List', trying 'AssetVersionList':", listError);
-        response = await session.create('AssetVersionList', {
-          name: request.name,
-          project_id: request.projectId,
-          category_id: request.categoryId,
-          user_id: this.currentUserId,
-          is_open: true
-        });
-        log("List creation response (using 'AssetVersionList'):", response);
-      }
-
-      log("List response.data:", response.data);
+      // Create AssetVersionList - this is the correct entity type for asset version lists
+      const response = await session.create('AssetVersionList', {
+        name: request.name,
+        project_id: request.projectId,
+        category_id: request.categoryId,
+        owner_id: this.currentUserId,
+      });
+      
+      log("AssetVersionList creation response:", response);
+      log("AssetVersionList response.data:", response.data);
       log("List response structure:", {
         hasId: 'id' in response,
         hasData: 'data' in response,
         dataHasId: response.data && 'id' in response.data,
-        responseId: response.id,
-        dataId: response.data?.id
+        responseType: typeof response,
+        responseKeys: Object.keys(response)
       });
 
-      const listId = response.data?.id || response.id;
-      log("Extracted List ID:", listId);
+      const listId = response.data?.id;
+      const listName = response.data?.name;
+      log("Extracted AssetVersionList ID:", listId);
+
+      if (!listId) {
+        throw new Error("Failed to get ID from AssetVersionList creation response");
+      }
 
       return {
         id: listId,
-        name: response.data?.name || response.name,
+        name: listName || request.name,
         type: 'list',
         success: true
       };
 
     } catch (error) {
-      log("Failed to create List:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create list';
+      log("Failed to create AssetVersionList:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create asset version list';
       return {
         id: '',
         name: request.name,
@@ -2040,14 +2035,54 @@ export class FtrackService {
             const response = await session.create('ReviewSessionObject', createData);
             log(`ReviewSessionObject creation response:`, response);
           } else {
-            // Create ListObject
-            const createData = {
-              list_id: playlistId,
-              entity_id: versionId
-            };
-            log(`Creating ListObject with data:`, createData);
-            const response = await session.create('ListObject', createData);
-            log(`ListObject creation response:`, response);
+            // For AssetVersionList, we need to add the version to the 'items' relationship
+            // First get the AssetVersionList entity
+            log(`Getting AssetVersionList entity for ID: ${playlistId}`);
+            const listResult = await session.query(
+              `select id, name, items from AssetVersionList where id is "${playlistId}"`
+            );
+            
+            if (!listResult?.data || listResult.data.length === 0) {
+              throw new Error(`AssetVersionList with ID ${playlistId} not found`);
+            }
+            
+            const assetVersionList = listResult.data[0];
+            log(`AssetVersionList found:`, { 
+              id: assetVersionList.id, 
+              name: assetVersionList.name,
+              itemsCount: assetVersionList.items?.length || 0
+            });
+
+            // Get the AssetVersion entity
+            log(`Getting AssetVersion entity for ID: ${versionId}`);
+            const versionResult = await session.query(
+              `select id, asset.name, version from AssetVersion where id is "${versionId}"`
+            );
+            
+            if (!versionResult?.data || versionResult.data.length === 0) {
+              throw new Error(`AssetVersion with ID ${versionId} not found`);
+            }
+            
+            const assetVersion = versionResult.data[0];
+            log(`AssetVersion found:`, { 
+              id: assetVersion.id, 
+              name: assetVersion.asset.name,
+              version: assetVersion.version
+            });
+
+            // Add the version to the list's items - try using push() instead of append()
+            log(`Adding AssetVersion ${versionId} to AssetVersionList ${playlistId}`);
+            if (!assetVersionList.items) {
+              assetVersionList.items = [];
+            }
+            assetVersionList.items.push(assetVersion);
+            
+            // Update the AssetVersionList with the new items using session.update()
+            await session.update('AssetVersionList', playlistId, {
+              items: assetVersionList.items
+            });
+            
+            log(`Successfully added AssetVersion ${versionId} to AssetVersionList ${playlistId}`);
           }
           
           syncedVersionIds.push(versionId);

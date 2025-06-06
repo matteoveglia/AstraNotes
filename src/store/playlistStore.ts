@@ -1700,6 +1700,22 @@ export class PlaylistStore {
       // Add to database
       await db.versions.put(minimalVersion);
 
+      // For local playlists, also add to localPlaylistVersions for sync
+      if (playlistId.startsWith('local_')) {
+        try {
+          const localVersion: LocalPlaylistVersion = {
+            playlistId: playlistId,
+            versionId: version.id,
+            addedAt: new Date().toISOString(),
+          };
+          await db.localPlaylistVersions.put(localVersion);
+          log(`Added version ${version.id} to localPlaylistVersions for local playlist ${playlistId}`);
+        } catch (error) {
+          // Don't fail the main operation if this fails, just log it
+          console.warn(`Failed to add version to localPlaylistVersions:`, error);
+        }
+      }
+
       // Update the playlist's addedVersions array
       if (!playlist.addedVersions.includes(version.id)) {
         playlist.addedVersions = [...playlist.addedVersions, version.id];
@@ -1784,6 +1800,21 @@ export class PlaylistStore {
         .equals(playlistId)
         .and((version) => version.manuallyAdded === true)
         .delete();
+
+      // For local playlists, also remove from localPlaylistVersions
+      if (playlistId.startsWith('local_')) {
+        try {
+          for (const versionId of versionIds) {
+            await db.localPlaylistVersions
+              .where('[playlistId+versionId]')
+              .equals([playlistId, versionId])
+              .delete();
+          }
+          log(`Removed ${versionIds.length} versions from localPlaylistVersions for local playlist ${playlistId}`);
+        } catch (error) {
+          console.warn(`Failed to remove versions from localPlaylistVersions:`, error);
+        }
+      }
 
       // For Quick Notes, also delete any drafts associated with these versions
       if (playlistId === "quick-notes") {
