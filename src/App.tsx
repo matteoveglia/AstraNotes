@@ -106,54 +106,29 @@ const App: React.FC = () => {
         return;
       }
       
-      // When a project is selected, always show Quick Notes plus project-specific playlists
-      const projectFilter = selectedProjectId; // specific project ID
+      // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
+      console.log("Using store's loadPlaylists (includes cleanup)...");
+      await loadPlaylists();
       
-      // Get Quick Notes from database, review sessions and lists in parallel
-      const [quickNotesData, reviewSessions, lists] = await Promise.all([
-        playlistStore.getPlaylist("quick-notes"),
-        ftrackService.getPlaylists(projectFilter),
-        ftrackService.getLists(projectFilter),
-      ]);
-
-      // Use the loaded Quick Notes data or create default if not found
-      const quickNotes = quickNotesData || {
-        id: "quick-notes",
-        name: "Quick Notes",
-        title: "Quick Notes",
-        notes: [],
-        versions: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isQuickNotes: true,
-        lastAccessed: Date.now(),
-        lastChecked: Date.now(),
-        hasModifications: false,
-        addedVersions: [],
-        removedVersions: [],
-      };
-
-      // Combine them into one array
-      const allPlaylists = [
-        quickNotes,
-        ...reviewSessions,
-        ...lists,
-      ];
-
-      console.log("Loaded all playlists:", {
-        projectFilter,
-        quickNotesVersionsCount: quickNotes.versions?.length || 0,
-        reviewSessionsCount: reviewSessions.length,
-        listsCount: lists.length,
-        totalCount: allPlaylists.length,
-      });
-
-      setLocalPlaylists(allPlaylists);
-      setStorePlaylists(allPlaylists.filter((p) => !p.isQuickNotes)); // Store doesn't need Quick Notes
+      // After store loads, we need to also get Lists since store only gets Review Sessions
+      const projectFilter = selectedProjectId;
+      console.log("Loading additional Lists for project:", projectFilter);
+      
+      const lists = await ftrackService.getLists(projectFilter);
+      console.log("Loaded", lists.length, "lists");
+      
+      // Combine store playlists with lists
+      if (lists.length > 0) {
+        const currentPlaylists = usePlaylistsStore.getState().playlists;
+        const combinedPlaylists = [...currentPlaylists, ...lists];
+        setLocalPlaylists(combinedPlaylists);
+        setStorePlaylists(combinedPlaylists.filter((p) => !p.isQuickNotes));
+      }
+      
     } catch (error) {
       console.error("Failed to load playlists with lists:", error);
     }
-  }, [selectedProjectId, hasValidatedSelectedProject, setLocalPlaylists, setStorePlaylists]);
+  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylists, setLocalPlaylists, setStorePlaylists]);
 
   // Load versions when active playlist changes
   useEffect(() => {
@@ -340,6 +315,19 @@ const App: React.FC = () => {
       window.removeEventListener('playlist-select', handlePlaylistSelectEvent as EventListener);
     };
   }, [handlePlaylistSelect]);
+
+  // Handle playlist reload requests from sync operations
+  useEffect(() => {
+    const handlePlaylistReloadRequest = () => {
+      console.log('Received playlist-reload-request, triggering loadPlaylistsWithLists...');
+      loadPlaylistsWithLists();
+    };
+
+    window.addEventListener('playlist-reload-request', handlePlaylistReloadRequest);
+    return () => {
+      window.removeEventListener('playlist-reload-request', handlePlaylistReloadRequest);
+    };
+  }, [loadPlaylistsWithLists]);
 
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;

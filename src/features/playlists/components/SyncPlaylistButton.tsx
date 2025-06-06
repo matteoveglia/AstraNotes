@@ -74,10 +74,11 @@ export function SyncPlaylistButton({
   const handleConfirmSync = async () => {
     console.log('Starting sync for playlist:', playlist.id);
     try {
-      await syncPlaylist(playlist.id);
-      console.log('Sync completed successfully for playlist:', playlist.id);
+      const ftrackId = await syncPlaylist(playlist.id);
+      console.log('Sync completed successfully for playlist:', playlist.id, '-> ftrack ID:', ftrackId);
       setShowConfirmDialog(false);
-      onSyncSuccess(playlist.id);
+      // Pass the new ftrack ID to the success handler
+      onSyncSuccess(ftrackId);
     } catch (error) {
       console.error('Sync failed for playlist:', playlist.id, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';

@@ -282,19 +282,22 @@ export function CreatePlaylistDialog({
             </div>
           )}
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Optional description"
-              rows={3}
-            />
-          </div>
+          {/* Description (Review Session only) */}
+          {formData.type === 'reviewsession' && (
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Optional description"
+                rows={3}
+                spellCheck={false}
+              />
+            </div>
+          )}
 
           {/* Version Preview */}
           {preSelectedVersions.length > 0 && (

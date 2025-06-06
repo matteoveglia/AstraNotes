@@ -37,6 +37,7 @@ import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { VersionFilter } from "@/features/versions/components/VersionFilter";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -602,25 +603,44 @@ export const MainContent: React.FC<MainContentProps> = ({
     open(url);
   };
 
-  const handleSyncSuccess = (playlistId: string) => {
-    // Remove local-only flags and refresh the playlist
-    setActivePlaylist(prev => ({
-      ...prev,
+  const handleSyncSuccess = (ftrackId: string) => {
+    console.log('handleSyncSuccess called for new ftrack ID:', ftrackId);
+    
+    // Simply update the current playlist to reflect it's now synced
+    const updatedPlaylist = {
+      ...activePlaylist,
+      id: ftrackId, // Update to use the ftrack ID
       isLocalOnly: false,
-      ftrackSyncState: 'synced',
-    }));
+      ftrackSyncState: 'synced' as const,
+      // Clear manually added flags from versions to remove purple borders
+      versions: activePlaylist.versions?.map(v => ({
+        ...v,
+        manuallyAdded: false,
+      })) || [],
+    };
     
-    // Trigger a refresh to get the latest data
-    refreshPlaylist();
+    setActivePlaylist(updatedPlaylist);
     
-    // Notify parent if provided
-    if (onPlaylistUpdate) {
-      onPlaylistUpdate({
-        ...activePlaylist,
-        isLocalOnly: false,
-        ftrackSyncState: 'synced',
+    // Trigger a playlist reload through the App's system (preserves categorization)
+    console.log('Triggering App-level playlist reload to preserve categorization...');
+    window.dispatchEvent(new CustomEvent('playlist-reload-request'));
+    
+    // Navigate to the new ftrack playlist after a short delay
+    setTimeout(() => {
+      console.log('Playlists reloaded after sync, triggering navigation to ftrack playlist');
+      const playlistSelectEvent = new CustomEvent('playlist-select', { 
+        detail: { playlistId: ftrackId } 
       });
+      window.dispatchEvent(playlistSelectEvent);
+      console.log('Navigation event dispatched for ftrack playlist:', ftrackId);
+    }, 500); // Increased delay to ensure reload completes
+    
+    // Notify parent to update the active playlist
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(updatedPlaylist);
     }
+    
+    console.log('Sync success handling completed - playlist converted to ftrack ID:', ftrackId);
   };
 
   const handleSyncError = (error: string) => {
@@ -641,7 +661,18 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (activePlaylist.isQuickNotes) {
       console.log('Clearing Quick Notes versions after playlist creation');
       try {
-        await handleClearAll();
+        // Clear both local state and notify parent
+        const clearedQuickNotes = {
+          ...activePlaylist,
+          versions: [],
+        };
+        setActivePlaylist(clearedQuickNotes);
+        
+        if (onPlaylistUpdate) {
+          onPlaylistUpdate(clearedQuickNotes);
+        }
+        
+        console.log('Quick Notes cleared successfully');
       } catch (error) {
         console.error('Failed to clear Quick Notes:', error);
       }
@@ -702,35 +733,32 @@ export const MainContent: React.FC<MainContentProps> = ({
               >
                 <p className="text-sm text-muted-foreground">
                   {activePlaylist.name}
+                  {activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-2 cursor-help">
+                            • Local only
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>This playlist is local only and not synced to ftrack. Use the sync button to push it to ftrack.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </p>
                 <AnimatePresence>
-                  {isPlaylistTitleHovered && !activePlaylist.isQuickNotes && (
+                  {isPlaylistTitleHovered && !activePlaylist.isQuickNotes && !activePlaylist.isLocalOnly && (
                     <motion.div
                       initial={{ opacity: 0, x: -10, scale: 1 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -10, scale: 1 }}
                       transition={{ duration: 0.1, ease: "easeOut" }}
-                      className="flex items-center gap-2"
+                      onClick={handleOpenPlaylistInFtrack}
+                      className="cursor-pointer"
                     >
-                      {/* NEW: Show different actions based on playlist type */}
-                      {(activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) ? (
-                        <div className="flex items-center gap-2">
-                          <SyncPlaylistButton
-                            playlist={activePlaylist}
-                            versionsToSync={activePlaylist.versions || []}
-                            onSyncSuccess={handleSyncSuccess}
-                            onSyncError={handleSyncError}
-                          />
-                          <span className="text-xs text-muted-foreground">Sync to view in ftrack</span>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={handleOpenPlaylistInFtrack}
-                          className="cursor-pointer"
-                        >
-                          <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
-                        </div>
-                      )}
+                      <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -793,33 +821,16 @@ export const MainContent: React.FC<MainContentProps> = ({
                 )}
               </CardTitle>
               <AnimatePresence>
-                {isPlaylistTitleHovered && !isInitializing && !activePlaylist.isQuickNotes && (
+                {isPlaylistTitleHovered && !isInitializing && !activePlaylist.isQuickNotes && !activePlaylist.isLocalOnly && (
                   <motion.div
                     initial={{ opacity: 0, x: -10, scale: 1 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -10, scale: 1 }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
-                    className="flex items-center gap-2"
+                    onClick={handleOpenPlaylistInFtrack}
+                    className="cursor-pointer"
                   >
-                    {/* NEW: Show different actions based on playlist type */}
-                    {(activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) ? (
-                      <div className="flex items-center gap-2">
-                        <SyncPlaylistButton
-                          playlist={activePlaylist}
-                          versionsToSync={activePlaylist.versions || []}
-                          onSyncSuccess={handleSyncSuccess}
-                          onSyncError={handleSyncError}
-                        />
-                        <span className="text-xs text-muted-foreground">Sync to view in ftrack</span>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={handleOpenPlaylistInFtrack}
-                        className="cursor-pointer"
-                      >
-                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                      </div>
-                    )}
+                    <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -833,6 +844,20 @@ export const MainContent: React.FC<MainContentProps> = ({
                   {sortedVersions.length !== 1 ? "s" : ""}
                   {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
                     ` (${activePlaylist.versions?.length || 0} total)`}
+                  {activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-2 cursor-help">
+                            • Local only
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>This playlist is local only and not synced to ftrack. Use the sync button to push it to ftrack.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </>
               )}
             </p>
@@ -859,13 +884,20 @@ export const MainContent: React.FC<MainContentProps> = ({
             />
           ) : null}
           <div className="flex items-center gap-2">
-            {/* Show sync button for local playlists */}
+            {/* Show sync button for local playlists with content */}
             {(() => {
-              const shouldShowSync = activePlaylist.isLocalOnly && activePlaylist.ftrackSyncState === 'pending';
+              const hasVersionsToSync = (activePlaylist.versions?.length || 0) > 0;
+              const hasManuallyAdded = activePlaylist.versions?.some(v => v.manuallyAdded) || false;
+              const shouldShowSync = activePlaylist.isLocalOnly && 
+                activePlaylist.ftrackSyncState === 'pending' && 
+                (hasVersionsToSync || hasManuallyAdded);
+              
               console.log('Sync button condition check:', {
                 playlistId: activePlaylist.id,
                 isLocalOnly: activePlaylist.isLocalOnly,
                 ftrackSyncState: activePlaylist.ftrackSyncState,
+                hasVersionsToSync,
+                hasManuallyAdded,
                 shouldShowSync,
                 versionsCount: activePlaylist.versions?.length || 0
               });

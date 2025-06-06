@@ -29,7 +29,7 @@ interface PlaylistCreationState {
   
   // Actions
   createPlaylist: (request: CreatePlaylistRequest, versions?: AssetVersion[]) => Promise<Playlist>;
-  syncPlaylist: (playlistId: string) => Promise<void>;
+  syncPlaylist: (playlistId: string) => Promise<string>;
   fetchCategories: (projectId: string) => Promise<void>;
   clearErrors: () => void;
   resetSyncState: () => void;
@@ -136,7 +136,7 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
     }
   },
 
-  syncPlaylist: async (playlistId: string): Promise<void> => {
+  syncPlaylist: async (playlistId: string): Promise<string> => {
     console.log('syncPlaylist called with ID:', playlistId);
     set({ isSyncing: true, syncError: null, syncProgress: { current: 0, total: 1 } });
 
@@ -147,6 +147,13 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       console.log('Local playlist found:', localPlaylist);
       if (!localPlaylist) {
         throw new Error('Local playlist not found');
+      }
+
+      // Check if already synced
+      if (localPlaylist.syncState === 'synced' && localPlaylist.ftrackId) {
+        console.log('Playlist already synced, skipping sync:', localPlaylist.ftrackId);
+        set({ isSyncing: false, syncProgress: null });
+        return localPlaylist.ftrackId;
       }
 
       // Get associated versions
@@ -214,7 +221,7 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
         console.log('No local versions found to sync for playlist:', playlistId);
       }
 
-      // CRITICAL FIX: Update version references to point to ftrack playlist ID
+      // Update version references to point to ftrack playlist ID
       if (localVersions.length > 0) {
         await db.versions.where('playlistId').equals(playlistId).modify({
           playlistId: ftrackId,        // Point to ftrack ID
@@ -224,24 +231,23 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
         });
       }
 
-      // Update local playlist as synced
-      await db.localPlaylists.update(playlistId, {
-        syncState: 'synced',
-        ftrackId,
-        updatedAt: new Date().toISOString(),
-      });
+      // Delete the local playlist entirely to prevent confusion
+      await db.localPlaylists.delete(playlistId);
+      console.log('Deleted local playlist:', playlistId);
 
-      // Mark local versions as synced
-      for (const localVersion of localVersions) {
-        await db.localPlaylistVersions.update(
-          [playlistId, localVersion.versionId],
-          { syncedAt: new Date().toISOString() }
-        );
-      }
+      // Delete local playlist versions entries as they're no longer needed
+      await db.localPlaylistVersions.where('playlistId').equals(playlistId).delete();
+      console.log('Deleted local playlist versions for:', playlistId);
 
       // CRITICAL: Clear cache for both old and new IDs
       await get().invalidatePlaylistCache(playlistId);
       await get().invalidatePlaylistCache(ftrackId);
+
+      console.log('Playlist sync completed successfully:', {
+        originalLocalId: playlistId,
+        newFtrackId: ftrackId,
+        versionsCount: localVersions.length
+      });
 
       set({ 
         isSyncing: false, 
@@ -252,6 +258,18 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       setTimeout(() => {
         set({ syncProgress: null });
       }, 1000);
+
+      // Emit a custom event to notify components about the successful sync
+      window.dispatchEvent(new CustomEvent('playlist-synced', {
+        detail: { 
+          originalId: playlistId, 
+          newId: ftrackId,
+          playlistName: localPlaylist.name
+        }
+      }));
+
+      // Return the new ftrack ID
+      return ftrackId;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';
