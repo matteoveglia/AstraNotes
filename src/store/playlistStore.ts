@@ -94,6 +94,9 @@ export class PlaylistStore {
     string,
     { addedIds: Set<string>; removedIds: Set<string>; timestamp: number }
   > = new Map();
+  
+  // NEW: Feature flag for consolidated queries
+  private useConsolidatedQueries = true;
 
   constructor(ftrackService: FtrackService) {
     this.ftrackService = ftrackService;
@@ -1741,6 +1744,21 @@ export class PlaylistStore {
         await this.cachePlaylist(playlist);
       }
 
+      // NEW: Auto-sync detection
+      if (playlistId.startsWith('local_')) {
+        const localPlaylist = await db.localPlaylists.get(playlistId);
+        if (localPlaylist?.syncState === 'pending') {
+          // Emit event for UI components to handle
+          window.dispatchEvent(new CustomEvent('local-playlist-needs-sync', {
+            detail: { 
+              playlistId, 
+              playlistName: localPlaylist.name,
+              versionCount: await this.getLocalPlaylistVersions(playlistId).then(v => v.length)
+            }
+          }));
+        }
+      }
+
       log(`Successfully added version ${versionId} to playlist ${playlistId}`);
     } catch (error) {
       console.error(
@@ -1952,15 +1970,39 @@ export class PlaylistStore {
    */
   async clearManuallyAddedFlags(playlistId: string, versionIds: string[]): Promise<void> {
     try {
-      for (const versionId of versionIds) {
-        await db.versions.where('[playlistId+id]').equals([playlistId, versionId]).modify({
-          manuallyAdded: false
+      // ENHANCED: Clear both manual flags and update visual state
+      await db.versions
+        .where('playlistId').equals(playlistId)
+        .and(v => versionIds.includes(v.id))
+        .modify({
+          manuallyAdded: false,
+          syncedAt: new Date().toISOString(),
         });
-      }
+      
       log(`Cleared manuallyAdded flags for ${versionIds.length} versions in playlist ${playlistId}`);
+      
+      // CRITICAL: Trigger UI update
+      const playlist = await this.getPlaylist(playlistId);
+      if (playlist) {
+        // Force re-render with updated state
+        this.notifyPlaylistUpdated(playlist);
+      }
     } catch (error) {
       console.error(`Failed to clear manuallyAdded flags:`, error);
     }
+  }
+
+  /**
+   * Notify components that playlist has been updated
+   */
+  private notifyPlaylistUpdated(playlist: CachedPlaylist): void {
+    // Emit event for UI components to handle
+    window.dispatchEvent(new CustomEvent('playlist-updated', {
+      detail: { 
+        playlistId: playlist.id, 
+        playlist 
+      }
+    }));
   }
 
   /**
@@ -2007,9 +2049,50 @@ export class PlaylistStore {
   }
 
   /**
+   * INTERNAL: Load versions from database with consolidated logic
+   */
+  private async loadVersionsFromDB(playlistId: string): Promise<CachedVersion[]> {
+    if (playlistId.startsWith('local_')) {
+      return db.versions
+        .where('playlistId').equals(playlistId)
+        .and(v => v.isLocalPlaylist === true)
+        .toArray();
+    }
+    
+    return db.versions
+      .where('playlistId').equals(playlistId)
+      .filter(v => !v.isRemoved)
+      .toArray();
+  }
+
+  /**
+   * INTERNAL: Update versions in database with optimized logic
+   */
+  private async updateVersionsInDB(playlistId: string, modifications: Partial<CachedVersion>): Promise<void> {
+    await db.versions
+      .where('playlistId').equals(playlistId)
+      .modify(modifications);
+  }
+
+  /**
    * Gets versions for a local playlist
    */
   async getLocalPlaylistVersions(playlistId: string): Promise<LocalPlaylistVersion[]> {
+    if (this.useConsolidatedQueries) {
+      // NEW: Query versions table instead
+      const versions = await db.versions
+        .where('playlistId').equals(playlistId)
+        .and(v => v.isLocalPlaylist === true)
+        .toArray();
+      
+      return versions.map(v => ({
+        playlistId: v.playlistId,
+        versionId: v.id,
+        addedAt: v.localPlaylistAddedAt || v.createdAt,
+        syncedAt: v.syncedAt,
+      }));
+    }
+    
     try {
       return await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
     } catch (error) {

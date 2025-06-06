@@ -586,6 +586,12 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Handler to open playlist in ftrack
   const handleOpenPlaylistInFtrack = () => {
+    // NEW: Handle local playlists properly
+    if (activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) {
+      console.log('Cannot open local playlist in ftrack - not yet synced');
+      return;
+    }
+
     const baseUrl = settings.serverUrl.replace(/\/$/, "");
     if (!baseUrl || !activePlaylist.id) return;
 
@@ -704,10 +710,27 @@ export const MainContent: React.FC<MainContentProps> = ({
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       exit={{ opacity: 0, x: -10, scale: 1 }}
                       transition={{ duration: 0.1, ease: "easeOut" }}
-                      onClick={handleOpenPlaylistInFtrack}
-                      className="cursor-pointer"
+                      className="flex items-center gap-2"
                     >
-                      <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                      {/* NEW: Show different actions based on playlist type */}
+                      {(activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) ? (
+                        <div className="flex items-center gap-2">
+                          <SyncPlaylistButton
+                            playlist={activePlaylist}
+                            versionsToSync={activePlaylist.versions || []}
+                            onSyncSuccess={handleSyncSuccess}
+                            onSyncError={handleSyncError}
+                          />
+                          <span className="text-xs text-muted-foreground">Sync to view in ftrack</span>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={handleOpenPlaylistInFtrack}
+                          className="cursor-pointer"
+                        >
+                          <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -776,10 +799,27 @@ export const MainContent: React.FC<MainContentProps> = ({
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -10, scale: 1 }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
-                    onClick={handleOpenPlaylistInFtrack}
-                    className="cursor-pointer"
+                    className="flex items-center gap-2"
                   >
-                    <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                    {/* NEW: Show different actions based on playlist type */}
+                    {(activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) ? (
+                      <div className="flex items-center gap-2">
+                        <SyncPlaylistButton
+                          playlist={activePlaylist}
+                          versionsToSync={activePlaylist.versions || []}
+                          onSyncSuccess={handleSyncSuccess}
+                          onSyncError={handleSyncError}
+                        />
+                        <span className="text-xs text-muted-foreground">Sync to view in ftrack</span>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={handleOpenPlaylistInFtrack}
+                        className="cursor-pointer"
+                      >
+                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

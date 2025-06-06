@@ -34,6 +34,7 @@ interface PlaylistCreationState {
   clearErrors: () => void;
   resetSyncState: () => void;
   resetStore: () => void;
+  invalidatePlaylistCache: (playlistId: string) => Promise<void>;
 }
 
 const ftrackService = new FtrackService();
@@ -53,75 +54,80 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
     set({ isCreating: true, createError: null });
 
     try {
-      // Generate unique ID for local playlist
-      const playlistId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const now = new Date().toISOString();
+      // OPTIMIZE: Single transaction for all operations
+      return await db.transaction('rw', [db.localPlaylists, db.localPlaylistVersions, db.versions], async () => {
+        // Generate unique ID for local playlist
+        const playlistId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const now = new Date().toISOString();
 
-      // Create local playlist record
-      const localPlaylist: LocalPlaylist = {
-        id: playlistId,
-        name: request.name,
-        type: request.type,
-        categoryId: request.categoryId,
-        categoryName: request.categoryName,
-        description: request.description,
-        projectId: request.projectId,
-        isLocalOnly: true,
-        syncState: 'pending',
-        createdAt: now,
-        updatedAt: now,
-      };
+        // Create local playlist record
+        const localPlaylist: LocalPlaylist = {
+          id: playlistId,
+          name: request.name,
+          type: request.type,
+          categoryId: request.categoryId,
+          categoryName: request.categoryName,
+          description: request.description,
+          projectId: request.projectId,
+          isLocalOnly: true,
+          syncState: 'pending',
+          createdAt: now,
+          updatedAt: now,
+        };
 
-      // Store in local database
-      await db.localPlaylists.add(localPlaylist);
+        // OPTIMIZE: Parallel operations
+        const operations = [db.localPlaylists.add(localPlaylist)];
 
-      // If versions provided, store the associations
-      if (versions && versions.length > 0) {
-        const localVersions: LocalPlaylistVersion[] = versions.map(v => ({
-          playlistId,
-          versionId: v.id,
-          addedAt: now,
-        }));
-        console.log('createPlaylist: Storing version associations:', {
-          playlistId,
-          versionsCount: versions.length,
-          localVersions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
-        });
-        
-        try {
-          await db.localPlaylistVersions.bulkAdd(localVersions);
-          console.log('createPlaylist: Version associations stored successfully');
+        // If versions provided, store the associations
+        if (versions && versions.length > 0) {
+          const localVersions: LocalPlaylistVersion[] = versions.map(v => ({
+            playlistId,
+            versionId: v.id,
+            addedAt: now,
+          }));
+
+          // NEW: Also write to versions table with enhanced fields
+          const versionEntries = versions.map(v => ({
+            ...db.cleanVersionForStorage(v, playlistId, true, now),
+            manuallyAdded: false,
+          }));
+
+          console.log('createPlaylist: Storing version associations:', {
+            playlistId,
+            versionsCount: versions.length,
+            localVersions: localVersions.map(lv => ({ versionId: lv.versionId, addedAt: lv.addedAt }))
+          });
           
-          // Verify the data was stored correctly
-          const verifyStored = await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
-          console.log('createPlaylist: Verification - stored versions count:', verifyStored.length);
-        } catch (error) {
-          console.error('createPlaylist: Failed to store version associations:', error);
-          throw error;
+          operations.push(
+            db.localPlaylistVersions.bulkAdd(localVersions), // Keep for safety during transition
+            db.versions.bulkAdd(versionEntries)              // New primary path
+          );
+        } else {
+          console.log('createPlaylist: No versions provided to store');
         }
-      } else {
-        console.log('createPlaylist: No versions provided to store');
-      }
 
-      // Create playlist object to return
-      const playlist: Playlist = {
-        id: playlistId,
-        name: request.name,
-        title: request.name,
-        notes: [],
-        createdAt: now,
-        updatedAt: now,
-        type: request.type,
-        categoryId: request.categoryId,
-        categoryName: request.categoryName,
-        isLocalOnly: true,
-        localVersions: versions || [],
-        ftrackSyncState: 'pending',
-        versions: versions || [],
-      };
+        await Promise.all(operations);
 
-      set({ isCreating: false });
-      return playlist;
+        // Create playlist object to return
+        const playlist: Playlist = {
+          id: playlistId,
+          name: request.name,
+          title: request.name,
+          notes: [],
+          createdAt: now,
+          updatedAt: now,
+          type: request.type,
+          categoryId: request.categoryId,
+          categoryName: request.categoryName,
+          isLocalOnly: true,
+          localVersions: versions || [],
+          ftrackSyncState: 'pending',
+          versions: versions || [],
+        };
+
+        set({ isCreating: false });
+        return playlist;
+      });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create playlist';
@@ -208,6 +214,16 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
         console.log('No local versions found to sync for playlist:', playlistId);
       }
 
+      // CRITICAL FIX: Update version references to point to ftrack playlist ID
+      if (localVersions.length > 0) {
+        await db.versions.where('playlistId').equals(playlistId).modify({
+          playlistId: ftrackId,        // Point to ftrack ID
+          isLocalPlaylist: false,      // No longer local
+          syncedAt: new Date().toISOString(),
+          manuallyAdded: false,        // Clear manual flags
+        });
+      }
+
       // Update local playlist as synced
       await db.localPlaylists.update(playlistId, {
         syncState: 'synced',
@@ -222,6 +238,10 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
           { syncedAt: new Date().toISOString() }
         );
       }
+
+      // CRITICAL: Clear cache for both old and new IDs
+      await get().invalidatePlaylistCache(playlistId);
+      await get().invalidatePlaylistCache(ftrackId);
 
       set({ 
         isSyncing: false, 
@@ -270,5 +290,18 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       categories: [],
       categoriesLoading: false,
     });
+  },
+
+  /**
+   * Helper method to invalidate playlist cache
+   */
+  invalidatePlaylistCache: async (playlistId: string): Promise<void> => {
+    try {
+      // Remove from playlists cache
+      await db.playlists.where('id').equals(playlistId).delete();
+      console.log(`Invalidated cache for playlist: ${playlistId}`);
+    } catch (error) {
+      console.warn(`Failed to invalidate cache for playlist ${playlistId}:`, error);
+    }
   },
 })); 

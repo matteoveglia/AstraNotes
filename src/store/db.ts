@@ -36,6 +36,10 @@ export interface CachedVersion extends AssetVersion {
   labelId: string;
   isRemoved?: boolean;
   attachments?: NoteAttachment[];
+  // NEW: Fields for playlist consolidation
+  isLocalPlaylist?: boolean;      // marks versions in local playlists
+  syncedAt?: string;              // when synced to ftrack
+  localPlaylistAddedAt?: string;  // replaces localPlaylistVersions.addedAt
 }
 
 export interface CachedPlaylist extends Playlist {
@@ -85,10 +89,10 @@ export class AstraNotesDB extends Dexie {
     super("AstraNotesDB");
     console.log("Initializing AstraNotesDB schema...");
 
-    this.version(4).stores({
+    this.version(5).stores({
       playlists: "id, lastAccessed, lastChecked",
       versions:
-        "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus",
+        "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus, isLocalPlaylist, syncedAt, localPlaylistAddedAt",
       attachments:
         "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
       localPlaylists: "id, syncState, projectId, type, createdAt, updatedAt",
@@ -162,6 +166,32 @@ export class AstraNotesDB extends Dexie {
       console.error("Failed to clear cache:", error);
       throw error;
     }
+  }
+
+  /**
+   * Helper method to clean version data for consistent storage
+   */
+  cleanVersionForStorage(version: any, playlistId: string, isLocalPlaylist = false, addedAt?: string): CachedVersion {
+    return {
+      id: version.id,
+      playlistId,
+      name: version.name || "",
+      version: version.version || 1,
+      thumbnailUrl: version.thumbnailUrl || version.thumbnail_url || "",
+      thumbnailId: version.thumbnailId || "",
+      reviewSessionObjectId: version.reviewSessionObjectId || "",
+      createdAt: typeof version.createdAt === "string" ? version.createdAt : new Date().toISOString(),
+      updatedAt: typeof version.updatedAt === "string" ? version.updatedAt : new Date().toISOString(),
+      lastModified: Date.now(),
+      labelId: "",
+      manuallyAdded: version.manuallyAdded || false,
+      noteStatus: version.noteStatus,
+      attachments: version.attachments || [],
+      // NEW: Enhanced fields for consolidation
+      isLocalPlaylist,
+      localPlaylistAddedAt: isLocalPlaylist ? (addedAt || new Date().toISOString()) : undefined,
+      syncedAt: version.syncedAt,
+    };
   }
 }
 
