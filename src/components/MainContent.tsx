@@ -621,24 +621,26 @@ export const MainContent: React.FC<MainContentProps> = ({
     
     setActivePlaylist(updatedPlaylist);
     
-    // Trigger a playlist reload through the App's system (preserves categorization)
-    console.log('Triggering App-level playlist reload to preserve categorization...');
-    window.dispatchEvent(new CustomEvent('playlist-reload-request'));
+    // Remove the local playlist from app state immediately (it's been deleted from DB)
+    if (onPlaylistUpdate) {
+      // Signal that the local playlist should be removed
+      window.dispatchEvent(new CustomEvent('playlist-synced', { 
+        detail: { 
+          localPlaylistId: activePlaylist.id,
+          ftrackPlaylistId: ftrackId 
+        } 
+      }));
+    }
     
-    // Navigate to the new ftrack playlist after a short delay
+    // Navigate to the new ftrack playlist after a brief delay to allow state updates
     setTimeout(() => {
-      console.log('Playlists reloaded after sync, triggering navigation to ftrack playlist');
+      console.log('Navigating to synced ftrack playlist:', ftrackId);
       const playlistSelectEvent = new CustomEvent('playlist-select', { 
         detail: { playlistId: ftrackId } 
       });
       window.dispatchEvent(playlistSelectEvent);
       console.log('Navigation event dispatched for ftrack playlist:', ftrackId);
-    }, 500); // Increased delay to ensure reload completes
-    
-    // Notify parent to update the active playlist
-    if (onPlaylistUpdate) {
-      onPlaylistUpdate(updatedPlaylist);
-    }
+    }, 300);
     
     console.log('Sync success handling completed - playlist converted to ftrack ID:', ftrackId);
   };

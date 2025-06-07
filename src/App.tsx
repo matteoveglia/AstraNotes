@@ -316,18 +316,31 @@ const App: React.FC = () => {
     };
   }, [handlePlaylistSelect]);
 
-  // Handle playlist reload requests from sync operations
+  // Handle playlist sync completion - remove local, reload to get ftrack version
   useEffect(() => {
-    const handlePlaylistReloadRequest = () => {
-      console.log('Received playlist-reload-request, triggering loadPlaylistsWithLists...');
-      loadPlaylistsWithLists();
+    const handlePlaylistSynced = (event: CustomEvent) => {
+      const { localPlaylistId, ftrackPlaylistId } = event.detail;
+      console.log('Playlist synced - removing local and reloading:', { localPlaylistId, ftrackPlaylistId });
+      
+      // Remove the local playlist from app state immediately
+      const currentPlaylists = usePlaylistsStore.getState().playlists;
+      const filtered = currentPlaylists.filter((p: Playlist) => p.id !== localPlaylistId);
+      console.log('Removed local playlist from app state, remaining:', filtered.length);
+      setLocalPlaylists(filtered);
+      
+      // Trigger a proper playlist reload to get the new ftrack playlist with categorization
+      // Use a small delay to ensure the local playlist removal is processed first
+      setTimeout(() => {
+        console.log('Triggering playlist reload after sync to get ftrack version...');
+        loadPlaylistsWithLists();
+      }, 100);
     };
 
-    window.addEventListener('playlist-reload-request', handlePlaylistReloadRequest);
+    window.addEventListener('playlist-synced', handlePlaylistSynced as EventListener);
     return () => {
-      window.removeEventListener('playlist-reload-request', handlePlaylistReloadRequest);
+      window.removeEventListener('playlist-synced', handlePlaylistSynced as EventListener);
     };
-  }, [loadPlaylistsWithLists]);
+  }, [loadPlaylistsWithLists, setLocalPlaylists]);
 
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;
