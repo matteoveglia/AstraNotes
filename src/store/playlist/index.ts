@@ -38,33 +38,39 @@ export class PlaylistStore extends EventEmitter {
    * Creates a new playlist with a stable UUID that never changes
    */
   async createPlaylist(request: CreatePlaylistRequest): Promise<Playlist> {
-    const id = crypto.randomUUID(); // Stable UUID - never changes
-    const now = new Date().toISOString();
-    
-    console.log(`[PlaylistStore] Creating playlist with stable UUID: ${id}`);
-    
-    const entity: PlaylistEntity = {
-      id,
-      name: request.name,
-      type: request.type,
-      localStatus: 'draft',
-      ftrackSyncStatus: 'not_synced',
-      projectId: request.projectId,
-      categoryId: request.categoryId,
-      categoryName: request.categoryName,
-      description: request.description,
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    await this.repository.createPlaylist(entity);
-    const playlist = this.entityToPlaylist(entity);
-    this.cache.setPlaylist(id, playlist);
-    
-    console.log(`[PlaylistStore] Created playlist: ${id} - "${request.name}"`);
-    this.emit('playlist-created', { playlistId: id, playlist });
-    
-    return playlist;
+    try {
+      const id = crypto.randomUUID(); // Stable UUID - never changes
+      const now = new Date().toISOString();
+      
+      console.log(`[PlaylistStore] Creating playlist with stable UUID: ${id}`);
+      
+      const entity: PlaylistEntity = {
+        id,
+        name: request.name,
+        type: request.type,
+        localStatus: 'draft',
+        ftrackSyncStatus: 'not_synced',
+        projectId: request.projectId,
+        categoryId: request.categoryId,
+        categoryName: request.categoryName,
+        description: request.description,
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      await this.repository.createPlaylist(entity);
+      const playlist = this.entityToPlaylist(entity);
+      this.cache.setPlaylist(id, playlist);
+      
+      console.log(`[PlaylistStore] Created playlist: ${id} - "${request.name}"`);
+      this.emit('playlist-created', { playlistId: id, playlist });
+      
+      return playlist;
+    } catch (error) {
+      console.error('[PlaylistStore] Failed to create playlist:', error);
+      this.emit('playlist-error', { operation: 'create', error: error instanceof Error ? error.message : 'Unknown error' });
+      throw error;
+    }
   }
   
   /**
@@ -139,6 +145,17 @@ export class PlaylistStore extends EventEmitter {
    */
   async getPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {
     return await this.repository.getPlaylistVersions(playlistId);
+  }
+  
+  /**
+   * Removes a version from a playlist
+   */
+  async removeVersionFromPlaylist(playlistId: string, versionId: string): Promise<void> {
+    await this.repository.removeVersionFromPlaylist(playlistId, versionId);
+    this.cache.invalidate(playlistId);
+    
+    console.log(`[PlaylistStore] Removed version ${versionId} from playlist: ${playlistId}`);
+    this.emit('version-removed', { playlistId, versionId });
   }
   
   // =================== SYNC OPERATIONS ===================
@@ -229,6 +246,17 @@ export class PlaylistStore extends EventEmitter {
     return this.repository.getPlaylistCount();
   }
   
+  /**
+   * Gets all playlists for a project
+   */
+  async getPlaylistsByProject(projectId: string): Promise<Playlist[]> {
+    const entities = await this.repository.getPlaylistsByProject(projectId);
+    return Promise.all(entities.map(async (entity) => {
+      const versions = await this.repository.getPlaylistVersions(entity.id);
+      return this.entityToPlaylist(entity, versions);
+    }));
+  }
+  
   // =================== CONVERSION METHODS ===================
   
   private entityToPlaylist(entity: PlaylistEntity, versions?: VersionEntity[]): Playlist {
@@ -249,7 +277,6 @@ export class PlaylistStore extends EventEmitter {
       // Additional metadata
       categoryId: entity.categoryId,
       categoryName: entity.categoryName,
-      ftrackId: entity.ftrackId,
     };
   }
   

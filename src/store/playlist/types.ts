@@ -2,6 +2,12 @@
  * @fileoverview types.ts  
  * Shared types for the modular playlist store architecture.
  * These types support the stable UUID architecture with separate external references.
+ * 
+ * Key Design Principles:
+ * - Stable UUIDs that never change throughout playlist lifecycle
+ * - Clear separation between local state and ftrack state
+ * - Event-driven architecture for UI updates
+ * - Backward compatibility with existing interfaces
  */
 
 import { AssetVersion, Note, Playlist, CreatePlaylistRequest } from '@/types';
@@ -28,7 +34,7 @@ export interface PlaylistEntity {
   createdAt: string;
   updatedAt: string;
   syncedAt?: string;
-  lastChecked?: string;
+  lastChecked?: string | number;  // Backward compatibility with existing DB
 }
 
 // Version entity tied to stable playlist ID
@@ -45,8 +51,8 @@ export interface VersionEntity {
   
   // Draft data
   draftContent?: string;
-  labelId?: string;
-  noteStatus: 'empty' | 'draft' | 'published';
+  labelId?: string;  // Optional to match DB flexibility
+  noteStatus: 'empty' | 'draft' | 'published' | 'reviewed';  // Include 'reviewed' for backward compatibility
   
   // Metadata
   addedAt: string;
@@ -54,9 +60,9 @@ export interface VersionEntity {
   manuallyAdded: boolean;
   isRemoved?: boolean;
   
-  // Legacy compatibility
-  createdAt?: string;
-  updatedAt?: string;
+  // Legacy compatibility - required fields in existing DB
+  createdAt: string;
+  updatedAt: string;
   syncedAt?: string;
   attachments?: any[];
 }

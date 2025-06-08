@@ -215,15 +215,15 @@ export class PlaylistRepository implements PlaylistOperations {
       thumbnailId: entity.thumbnailId,
       reviewSessionObjectId: entity.reviewSessionObjectId,
       draftContent: entity.draftContent,
-      labelId: entity.labelId,
+      labelId: entity.labelId || '',  // Convert undefined to empty string for DB compatibility
       noteStatus: entity.noteStatus,
       addedAt: entity.addedAt,
       lastModified: entity.lastModified,
       manuallyAdded: entity.manuallyAdded,
       isRemoved: entity.isRemoved,
       // Legacy compatibility
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      createdAt: entity.createdAt || new Date().toISOString(),  // Provide default if undefined
+      updatedAt: entity.updatedAt || new Date().toISOString(),  // Provide default if undefined
       syncedAt: entity.syncedAt,
       attachments: entity.attachments,
       // Legacy fields for backward compatibility
