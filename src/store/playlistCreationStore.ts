@@ -221,31 +221,34 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
         console.log('No local versions found to sync for playlist:', playlistId);
       }
 
-      // Update version references to point to ftrack playlist ID
+      // Update version references to keep pointing to original playlist ID
       if (localVersions.length > 0) {
         await db.versions.where('playlistId').equals(playlistId).modify({
-          playlistId: ftrackId,        // Point to ftrack ID
+          // Keep original playlistId to preserve all relationships
           isLocalPlaylist: false,      // No longer local
           syncedAt: new Date().toISOString(),
           manuallyAdded: false,        // Clear manual flags
         });
       }
 
-      // Delete the local playlist entirely to prevent confusion
-      await db.localPlaylists.delete(playlistId);
-      console.log('Deleted local playlist:', playlistId);
+      // Update the local playlist to mark it as synced - DO NOT DELETE IT
+      await db.localPlaylists.update(playlistId, {
+        syncState: 'synced',
+        isLocalOnly: false,
+        ftrackId: ftrackId,          // Store the ftrack ID for reference
+        updatedAt: new Date().toISOString(),
+      });
+      console.log('Updated local playlist to synced state:', playlistId, 'with ftrackId:', ftrackId);
 
-      // Delete local playlist versions entries as they're no longer needed
-      await db.localPlaylistVersions.where('playlistId').equals(playlistId).delete();
-      console.log('Deleted local playlist versions for:', playlistId);
+      // Keep local playlist versions entries as they maintain version relationships
+      // DO NOT delete them - they preserve the connection between playlist and versions
 
-      // CRITICAL: Clear cache for both old and new IDs
+      // Clear cache for the playlist to force reload with updated sync state
       await get().invalidatePlaylistCache(playlistId);
-      await get().invalidatePlaylistCache(ftrackId);
 
       console.log('Playlist sync completed successfully:', {
-        originalLocalId: playlistId,
-        newFtrackId: ftrackId,
+        playlistId: playlistId,       // Keep same playlist ID
+        ftrackId: ftrackId,          // But now linked to ftrack
         versionsCount: localVersions.length
       });
 
@@ -262,14 +265,14 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       // Emit a custom event to notify components about the successful sync
       window.dispatchEvent(new CustomEvent('playlist-synced', {
         detail: { 
-          originalId: playlistId, 
-          newId: ftrackId,
+          playlistId: playlistId,     // Same playlist ID preserved
+          ftrackId: ftrackId,         // New ftrack ID for reference
           playlistName: localPlaylist.name
         }
       }));
 
-      // Return the new ftrack ID
-      return ftrackId;
+      // Return the same playlist ID since we converted it in place
+      return playlistId;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';

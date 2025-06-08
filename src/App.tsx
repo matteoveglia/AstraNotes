@@ -160,10 +160,10 @@ const App: React.FC = () => {
         return;
       }
 
-      // Skip local playlists - they already have their versions
+      // Skip local playlists - they already have their versions loaded from database
       const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
-      if (currentPlaylist?.isLocalOnly) {
-        console.log(`Skipping version loading for local playlist: ${activePlaylistId}`);
+      if (currentPlaylist?.isLocalOnly || activePlaylistId?.startsWith('local_')) {
+        console.log(`Skipping version loading for local playlist: ${activePlaylistId} (isLocalOnly: ${currentPlaylist?.isLocalOnly})`);
         if (activePlaylistId) {
           loadedVersionsRef.current[activePlaylistId] = true;
         }
@@ -335,22 +335,16 @@ const App: React.FC = () => {
     };
   }, [handlePlaylistSelect]);
 
-  // Handle playlist sync completion - remove local, reload to get ftrack version
+  // Handle playlist sync completion - playlist was converted in place, just reload to get updated state
   useEffect(() => {
     const handlePlaylistSynced = (event: CustomEvent) => {
-      const { localPlaylistId, ftrackPlaylistId } = event.detail;
-      console.log('Playlist synced - removing local and reloading:', { localPlaylistId, ftrackPlaylistId });
+      const { playlistId, ftrackId, playlistName } = event.detail;
+      console.log('Playlist synced - converted in place:', { playlistId, ftrackId, playlistName });
       
-      // Remove the local playlist from app state immediately
-      const currentPlaylists = usePlaylistsStore.getState().playlists;
-      const filtered = currentPlaylists.filter((p: Playlist) => p.id !== localPlaylistId);
-      console.log('Removed local playlist from app state, remaining:', filtered.length);
-      setLocalPlaylists(filtered);
-      
-      // Trigger a proper playlist reload to get the new ftrack playlist with categorization
-      // Use a small delay to ensure the local playlist removal is processed first
+      // The playlist was converted in place, so we just need to reload to get the updated state
+      // No need to remove anything since the same playlist ID is preserved
       setTimeout(() => {
-        console.log('Triggering playlist reload after sync to get ftrack version...');
+        console.log('Triggering playlist reload after sync to get updated sync state...');
         loadPlaylistsWithLists();
       }, 100);
     };
@@ -359,7 +353,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('playlist-synced', handlePlaylistSynced as EventListener);
     };
-  }, [loadPlaylistsWithLists, setLocalPlaylists]);
+  }, [loadPlaylistsWithLists]);
 
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;

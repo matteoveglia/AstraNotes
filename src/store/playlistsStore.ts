@@ -134,15 +134,17 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       const remainingLocalPlaylists = await db.localPlaylists.toArray();
       console.log('Remaining local playlists after cleanup:', remainingLocalPlaylists.length);
 
-      // Fetch both ftrack playlists and ONLY truly pending local playlists
+      // Fetch both ftrack playlists and local playlists (both pending and synced)
       const [fetchedPlaylists, localPlaylists] = await Promise.all([
         ftrackService.getPlaylists(),
-        // Only get playlists that are definitely pending and local
-        db.localPlaylists.filter(lp => 
-          lp.syncState === 'pending' && 
-          (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
-          !lp.ftrackId
-        ).toArray()
+        // Get all local playlists - both pending (not yet synced) and synced (converted in place)
+        db.localPlaylists.filter(lp => {
+          const isPending = lp.syncState === 'pending' && 
+                           (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
+                           !lp.ftrackId;
+          const isSynced = lp.syncState === 'synced' && !!lp.ftrackId;
+          return isPending || isSynced;
+        }).toArray()
       ]);
 
       console.log('Loaded playlists:', {
@@ -151,21 +153,45 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
         localPlaylists: localPlaylists.map(lp => ({ id: lp.id, name: lp.name, syncState: lp.syncState, isLocalOnly: lp.isLocalOnly }))
       });
 
-      // Convert local playlists to Playlist format
-      const localPlaylistsFormatted: Playlist[] = localPlaylists.map(local => ({
-        id: local.id,
-        name: local.name,
-        title: local.name,
-        notes: [],
-        versions: [],
-        createdAt: local.createdAt,
-        updatedAt: local.updatedAt,
-        isLocalOnly: true,
-        ftrackSyncState: local.syncState as any,
-        type: local.type,
-        categoryId: local.categoryId,
-        categoryName: local.categoryName,
-      }));
+      // Convert local playlists to Playlist format and load their versions
+      const localPlaylistsFormatted: Playlist[] = await Promise.all(
+        localPlaylists.map(async (local) => {
+          // Load versions for this local playlist from the database
+          const versions = await db.versions
+            .where('playlistId').equals(local.id)
+            .toArray(); // All versions for this playlist ID (both local and synced)
+
+          // Convert database versions to AssetVersion format
+          const playlistVersions = versions.map(v => ({
+            id: v.id,
+            name: v.name,
+            version: v.version,
+            thumbnailUrl: v.thumbnailUrl || '',
+            thumbnailId: v.thumbnailId || '',
+            reviewSessionObjectId: v.reviewSessionObjectId || '',
+            createdAt: v.createdAt,
+            updatedAt: v.updatedAt,
+            manuallyAdded: v.manuallyAdded || false,
+          }));
+
+          console.log(`Loaded ${playlistVersions.length} versions for local playlist ${local.id}`);
+
+          return {
+            id: local.id,
+            name: local.name,
+            title: local.name,
+            notes: [],
+            versions: playlistVersions, // Load actual versions from database
+            createdAt: local.createdAt,
+            updatedAt: local.updatedAt,
+            isLocalOnly: local.syncState === 'pending', // Only pending playlists are local-only
+            ftrackSyncState: local.syncState as any,
+            type: local.type,
+            categoryId: local.categoryId,
+            categoryName: local.categoryName,
+          };
+        })
+      );
 
       // Combine ftrack playlists with pending local playlists
       const allPlaylists = [...fetchedPlaylists, ...localPlaylistsFormatted];
@@ -230,16 +256,15 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       
       // NUCLEAR OPTION: Delete ALL local playlists that are not actively pending
       const playlistsToDelete = allLocalPlaylists.filter(lp => {
-        // Keep only playlists that are:
-        // 1. Explicitly pending
-        // 2. Local only
-        // 3. No ftrack ID
-        // 4. Created recently (within last hour as safety)
+        // Keep playlists that are:
+        // 1. Explicitly pending and recently created (within last hour as safety)
+        // 2. Successfully synced (to preserve history)
         const isRecentlyCreated = new Date(lp.createdAt) > new Date(Date.now() - 60 * 60 * 1000);
-        const shouldKeep = lp.syncState === 'pending' && 
-                          (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
-                          !lp.ftrackId && 
-                          isRecentlyCreated;
+        const shouldKeep = (lp.syncState === 'pending' && 
+                           (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
+                           !lp.ftrackId && 
+                           isRecentlyCreated) ||
+                          (lp.syncState === 'synced' && lp.ftrackId); // Always keep synced playlists
         
         return !shouldKeep; // Delete everything that shouldn't be kept
       });

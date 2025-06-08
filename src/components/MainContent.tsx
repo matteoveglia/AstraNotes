@@ -97,10 +97,11 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Stop any existing polling immediately
       playlistStore.stopPolling();
 
-      // For local playlists, skip ftrack initialization and use versions directly
-      if (playlistToInit.isLocalOnly) {
+      // For local playlists (both pending and synced), skip ftrack initialization and use versions directly
+      if (playlistToInit.isLocalOnly || playlistId.startsWith('local_')) {
         console.debug(`[MainContent] Local playlist detected, skipping ftrack initialization`, {
           playlistId,
+          isLocalOnly: playlistToInit.isLocalOnly,
           versionsCount: playlistToInit.versions?.length || 0,
           versions: playlistToInit.versions?.map(v => ({ id: v.id, name: v.name }))
         });
@@ -603,13 +604,13 @@ export const MainContent: React.FC<MainContentProps> = ({
     open(url);
   };
 
-  const handleSyncSuccess = (ftrackId: string) => {
-    console.log('handleSyncSuccess called for new ftrack ID:', ftrackId);
+  const handleSyncSuccess = (playlistId: string) => {
+    console.log('handleSyncSuccess called for synced playlist ID:', playlistId);
     
-    // Simply update the current playlist to reflect it's now synced
+    // The playlist was converted in place, so we just update the local state to reflect sync
     const updatedPlaylist = {
       ...activePlaylist,
-      id: ftrackId, // Update to use the ftrack ID
+      // Keep the same ID since playlist was converted in place
       isLocalOnly: false,
       ftrackSyncState: 'synced' as const,
       // Clear manually added flags from versions to remove purple borders
@@ -621,28 +622,21 @@ export const MainContent: React.FC<MainContentProps> = ({
     
     setActivePlaylist(updatedPlaylist);
     
-    // Remove the local playlist from app state immediately (it's been deleted from DB)
+    // Update parent component state
     if (onPlaylistUpdate) {
-      // Signal that the local playlist should be removed
-      window.dispatchEvent(new CustomEvent('playlist-synced', { 
-        detail: { 
-          localPlaylistId: activePlaylist.id,
-          ftrackPlaylistId: ftrackId 
-        } 
-      }));
+      onPlaylistUpdate(updatedPlaylist);
     }
     
-    // Navigate to the new ftrack playlist after a brief delay to allow state updates
-    setTimeout(() => {
-      console.log('Navigating to synced ftrack playlist:', ftrackId);
-      const playlistSelectEvent = new CustomEvent('playlist-select', { 
-        detail: { playlistId: ftrackId } 
-      });
-      window.dispatchEvent(playlistSelectEvent);
-      console.log('Navigation event dispatched for ftrack playlist:', ftrackId);
-    }, 300);
+    // Notify App component that sync is complete (no navigation needed since same ID)
+    window.dispatchEvent(new CustomEvent('playlist-synced', { 
+      detail: { 
+        playlistId: activePlaylist.id,
+        ftrackId: playlistId, // This is actually the same as playlistId now
+        playlistName: activePlaylist.name
+      } 
+    }));
     
-    console.log('Sync success handling completed - playlist converted to ftrack ID:', ftrackId);
+    console.log('Sync success handling completed - playlist converted in place:', playlistId);
   };
 
   const handleSyncError = (error: string) => {
