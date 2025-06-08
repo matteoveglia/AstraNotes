@@ -117,12 +117,31 @@ const App: React.FC = () => {
       const lists = await ftrackService.getLists(projectFilter);
       console.log("Loaded", lists.length, "lists");
       
-      // Combine store playlists with lists
+      // Combine store playlists with lists (deduplicate by ID)
       if (lists.length > 0) {
         const currentPlaylists = usePlaylistsStore.getState().playlists;
-        const combinedPlaylists = [...currentPlaylists, ...lists];
-        setLocalPlaylists(combinedPlaylists);
-        setStorePlaylists(combinedPlaylists.filter((p) => !p.isQuickNotes));
+        
+        // Create a map of existing playlist IDs to avoid duplicates
+        const existingIds = new Set(currentPlaylists.map(p => p.id));
+        
+        // Only add Lists that aren't already in store playlists
+        const newLists = lists.filter(list => !existingIds.has(list.id));
+        
+        console.log('Deduplication check:', {
+          currentPlaylistsCount: currentPlaylists.length,
+          listsFromAPI: lists.length,
+          newListsToAdd: newLists.length,
+          existingIds: Array.from(existingIds)
+        });
+        
+        if (newLists.length > 0) {
+          const combinedPlaylists = [...currentPlaylists, ...newLists];
+          setLocalPlaylists(combinedPlaylists);
+          setStorePlaylists(combinedPlaylists.filter((p) => !p.isQuickNotes));
+          console.log('Added', newLists.length, 'new Lists to playlists');
+        } else {
+          console.log('No new Lists to add - all already exist in store');
+        }
       }
       
     } catch (error) {
