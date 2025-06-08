@@ -1,8 +1,8 @@
 /**
- * @fileovview db.ts
+ * @fileoverview db.ts
  * IndexedDB database management using Dexie.
  * Handles:
- * - Playlist and version caching
+ * - Playlist and version caching with stable UUIDs
  * - Draft note storage
  * - Data cleanup and migration
  * - Cache invalidation
@@ -10,7 +10,7 @@
  */
 
 import Dexie, { type Table } from "dexie";
-import type { Playlist, AssetVersion, NoteStatus } from "@/types";
+import type { AssetVersion, NoteStatus } from "@/types";
 
 export interface NoteAttachment {
   id: string;
@@ -28,6 +28,71 @@ export interface NoteAttachment {
   errorMessage?: string; // Store any error message that occurred during processing
 }
 
+/**
+ * New unified playlist record with stable UUID identity
+ * Uses stable UUIDs that never change, with separate external references
+ */
+export interface PlaylistRecord {
+  id: string;              // STABLE UUID - never changes
+  name: string;
+  type?: 'reviewsession' | 'list'; // Optional for backward compatibility
+  
+  // Status management - clear separation of local vs ftrack state
+  localStatus?: 'draft' | 'ready_to_sync' | 'synced'; // Optional for backward compatibility
+  ftrackSyncStatus?: 'not_synced' | 'syncing' | 'synced' | 'failed'; // Optional for backward compatibility
+  ftrackStatus?: 'open' | 'closed'; // Only for synced playlists
+  
+  // External references - separate from identity
+  ftrackId?: string;       // Reference to ftrack entity (NULL until synced)
+  projectId?: string;      // Optional for backward compatibility
+  categoryId?: string;
+  categoryName?: string;
+  description?: string;
+  
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+  syncedAt?: string;       // When sync was completed
+  lastChecked?: string | number;    // Last time we checked ftrack status (backward compatibility)
+}
+
+/**
+ * Enhanced version record with stable playlist reference
+ */
+export interface VersionRecord {
+  id: string;              // Version ID from ftrack
+  playlistId: string;      // STABLE playlist UUID reference
+  
+  // Version data
+  name: string;
+  version: number;
+  thumbnailUrl?: string;   // Optional for backward compatibility
+  thumbnailId?: string;
+  reviewSessionObjectId?: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Draft/note data - persists through sync
+  draftContent?: string;
+  labelId: string;         // Required for compatibility
+  noteStatus?: 'empty' | 'draft' | 'published' | 'reviewed'; // Optional for backward compatibility
+  
+  // Metadata
+  addedAt?: string;        // When added to playlist (optional for backward compatibility)
+  lastModified: number;    // Draft modification timestamp
+  manuallyAdded?: boolean; // User-added vs auto-populated (optional for backward compatibility)
+  isRemoved?: boolean;     // Soft delete flag
+  
+  // Backward compatibility for attachments
+  attachments?: NoteAttachment[];
+  
+  // Legacy fields for backward compatibility
+  isLocalPlaylist?: boolean;      // Deprecated: use playlist-level status instead
+  localPlaylistAddedAt?: string;  // Deprecated: use addedAt instead  
+  syncedAt?: string;              // Deprecated: use playlist-level syncedAt instead
+}
+
+// Legacy interfaces for backward compatibility during migration
 export interface CachedVersion extends AssetVersion {
   playlistId: string;
   draftContent?: string;
@@ -42,16 +107,39 @@ export interface CachedVersion extends AssetVersion {
   localPlaylistAddedAt?: string;  // replaces localPlaylistVersions.addedAt
 }
 
-export interface CachedPlaylist extends Playlist {
+// Legacy playlist interface for backward compatibility
+export interface CachedPlaylist {
+  id: string;
+  name: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
   lastAccessed: number;
   lastChecked: number;
   hasModifications: boolean;
   addedVersions: string[];
   removedVersions: string[];
+  isQuickNotes?: boolean;
+  versions?: AssetVersion[];
+  notes?: any[];
+  
+  // Additional fields for compatibility with new schema
+  type?: 'reviewsession' | 'list';
+  projectId?: string;
+  categoryId?: string;
+  categoryName?: string;
+  ftrackId?: string;
+  isLocalOnly?: boolean;
+  ftrackSyncState?: 'not_synced' | 'syncing' | 'synced' | 'failed' | 'pending';
+  
+  // New status fields mapped from PlaylistRecord
+  localStatus?: 'draft' | 'ready_to_sync' | 'synced';
+  ftrackSyncStatus?: 'not_synced' | 'syncing' | 'synced' | 'failed';
 }
 
 /**
- * Local playlist stored before ftrack synchronization
+ * Local playlist stored before ftrack synchronization (DEPRECATED)
+ * Kept for migration purposes only
  */
 export interface LocalPlaylist {
   id: string;
@@ -69,7 +157,8 @@ export interface LocalPlaylist {
 }
 
 /**
- * Track local versions before sync
+ * Track local versions before sync (DEPRECATED)
+ * Kept for migration purposes only
  */
 export interface LocalPlaylistVersion {
   playlistId: string;
@@ -79,16 +168,34 @@ export interface LocalPlaylistVersion {
 }
 
 export class AstraNotesDB extends Dexie {
-  playlists!: Table<CachedPlaylist>;
-  versions!: Table<CachedVersion>;
+  // New unified tables with stable UUIDs
+  playlists!: Table<PlaylistRecord>;
+  versions!: Table<VersionRecord>;
   attachments!: Table<NoteAttachment>;
+  
+  // Legacy tables - kept for migration/cleanup
+  legacyPlaylists!: Table<CachedPlaylist>;
   localPlaylists!: Table<LocalPlaylist>;
   localPlaylistVersions!: Table<LocalPlaylistVersion>;
 
   constructor() {
     super("AstraNotesDB");
-    console.log("Initializing AstraNotesDB schema...");
+    console.log("Initializing AstraNotesDB schema with stable UUIDs...");
 
+    // Version 6: New stable UUID architecture
+    this.version(6).stores({
+      // New unified tables with stable UUIDs
+      playlists: "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
+      versions: "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
+      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
+      
+      // Legacy tables renamed for migration
+      legacyPlaylists: "id, lastAccessed, lastChecked",
+      localPlaylists: "id, syncState, projectId, type, createdAt, updatedAt",
+      localPlaylistVersions: "[playlistId+versionId], playlistId, versionId, addedAt",
+    });
+
+    // Legacy version 5 schema for migration reference
     this.version(5).stores({
       playlists: "id, lastAccessed, lastChecked",
       versions:
@@ -100,16 +207,15 @@ export class AstraNotesDB extends Dexie {
     });
 
     this.versions.hook("creating", function (primKey, obj) {
-      //console.log('Creating version:', { primKey, obj });
+      console.log('Creating version with stable playlist reference:', { primKey, playlistId: obj.playlistId });
       return obj;
     });
 
     this.versions.hook("reading", function (obj) {
-      //console.log('Reading version:', obj);
       return obj;
     });
 
-    console.log("Schema initialized:", {
+    console.log("Schema initialized with stable UUID architecture:", {
       playlists: this.playlists.schema.indexes.map((i) => i.keyPath),
       versions: this.versions.schema.indexes.map((i) => i.keyPath),
       attachments: this.attachments.schema.indexes.map((i) => i.keyPath),
@@ -118,9 +224,11 @@ export class AstraNotesDB extends Dexie {
 
   async cleanOldData() {
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    await this.playlists.where("lastAccessed").below(sixtyDaysAgo).delete();
+    
+    // Clean legacy playlists
+    await this.legacyPlaylists.where("lastAccessed").below(sixtyDaysAgo).delete();
 
-    // Get all active playlist IDs
+    // Get all active playlist IDs from new unified table
     const activePlaylists = await this.playlists.toArray();
     const activePlaylistIds = new Set(activePlaylists.map((p) => p.id));
 
@@ -137,12 +245,19 @@ export class AstraNotesDB extends Dexie {
       .delete();
   }
 
+  /**
+   * Clear database - nukes the entire IndexedDB database
+   * Does NOT touch localStorage settings (preserves API keys, theme, etc.)
+   * Only resets minimal playlist state and reloads the app
+   */
   async clearCache() {
     try {
+      console.log("Clearing entire database...");
+      
       // Close current connection
       this.close();
 
-      // Delete the database
+      // Delete the entire IndexedDB database
       const deleteRequest = indexedDB.deleteDatabase("AstraNotesDB");
 
       await new Promise((resolve, reject) => {
@@ -155,42 +270,97 @@ export class AstraNotesDB extends Dexie {
         };
       });
 
-      // Clear localStorage items
-      localStorage.clear();
+      // Only reset minimal playlist state - do NOT touch other localStorage settings
       localStorage.setItem("active-playlist", "quick-notes");
       localStorage.setItem("playlist-tabs", JSON.stringify(["quick-notes"]));
 
-      // Force a full page reload to clear everything
-      window.location.href = "/";
+      console.log("Database cleared successfully - reloading app");
+
+      // Force a full page reload to restart with fresh database
+      window.location.reload();
     } catch (error) {
-      console.error("Failed to clear cache:", error);
+      console.error("Failed to clear database:", error);
       throw error;
     }
   }
 
   /**
-   * Helper method to clean version data for consistent storage
+   * Helper method to clean version data for storage in new unified schema
    */
-  cleanVersionForStorage(version: any, playlistId: string, isLocalPlaylist = false, addedAt?: string): CachedVersion {
+  cleanVersionForStorage(
+    version: any, 
+    playlistId: string, 
+    isManuallyAdded = false, 
+    addedAt?: string
+  ): VersionRecord {
     return {
       id: version.id,
-      playlistId,
+      playlistId, // Stable UUID reference
+      
+      // Version data
       name: version.name || "",
       version: version.version || 1,
-      thumbnailUrl: version.thumbnailUrl || version.thumbnail_url || "",
+      thumbnailUrl: version.thumbnailUrl || version.thumbnail_url,
       thumbnailId: version.thumbnailId || "",
       reviewSessionObjectId: version.reviewSessionObjectId || "",
       createdAt: typeof version.createdAt === "string" ? version.createdAt : new Date().toISOString(),
       updatedAt: typeof version.updatedAt === "string" ? version.updatedAt : new Date().toISOString(),
+      
+      // Draft/note data
+      draftContent: version.draftContent,
+      labelId: version.labelId || "",
+      noteStatus: version.noteStatus || 'empty',
+      
+      // Metadata
+      addedAt: addedAt || version.addedAt || version.localPlaylistAddedAt || new Date().toISOString(),
       lastModified: Date.now(),
-      labelId: "",
-      manuallyAdded: version.manuallyAdded || false,
-      noteStatus: version.noteStatus,
+      manuallyAdded: isManuallyAdded || version.manuallyAdded || false,
+      isRemoved: version.isRemoved || false,
+      
+      // Backward compatibility
       attachments: version.attachments || [],
-      // NEW: Enhanced fields for consolidation
-      isLocalPlaylist,
-      localPlaylistAddedAt: isLocalPlaylist ? (addedAt || new Date().toISOString()) : undefined,
+      
+      // Legacy fields (for backward compatibility during transition)
+      isLocalPlaylist: version.isLocalPlaylist,
+      localPlaylistAddedAt: version.localPlaylistAddedAt,
       syncedAt: version.syncedAt,
+    };
+  }
+
+  /**
+   * Helper to create new playlist record with stable UUID
+   */
+  createPlaylistRecord(data: {
+    name: string;
+    type: 'reviewsession' | 'list';
+    projectId: string;
+    categoryId?: string;
+    categoryName?: string;
+    description?: string;
+    ftrackId?: string;
+  }): PlaylistRecord {
+    const now = new Date().toISOString();
+    
+    return {
+      id: crypto.randomUUID(), // Stable UUID that never changes
+      name: data.name,
+      type: data.type,
+      
+      // Initial status - local until synced
+      localStatus: data.ftrackId ? 'synced' : 'draft',
+      ftrackSyncStatus: data.ftrackId ? 'synced' : 'not_synced',
+      
+      // External references
+      ftrackId: data.ftrackId,
+      projectId: data.projectId,
+      categoryId: data.categoryId,
+      categoryName: data.categoryName,
+      description: data.description,
+      
+      // Timestamps
+      createdAt: now,
+      updatedAt: now,
+      syncedAt: data.ftrackId ? now : undefined,
     };
   }
 }

@@ -297,32 +297,27 @@ export class PlaylistStore {
         .filter((v) => !v.isRemoved)
         .toArray();
 
-      // For Quick Notes, if no DB versions but playlist has versions, use those
-      if (id === "quick-notes" && dbVersions.length === 0 && cached?.versions && cached.versions.length > 0) {
-        console.log(
-          `[PlaylistStore] Quick Notes: Found ${cached.versions.length} versions in playlist metadata`,
-        );
-        // Convert playlist versions to DB format for consistency
-        dbVersions = cached.versions.map(version => ({
-          id: version.id,
-          playlistId: id,
-          name: version.name || "",
-          version: version.version || 0,
-          thumbnailUrl: version.thumbnailUrl || "",
-          thumbnailId: version.thumbnailId || "",
-          reviewSessionObjectId: version.reviewSessionObjectId || "",
-          createdAt: this.cleanDate(version.createdAt),
-          updatedAt: this.cleanDate(version.updatedAt),
-          lastModified: Date.now(),
-          draftContent: "",
-          labelId: "",
-          manuallyAdded: version.manuallyAdded || true,
-          noteStatus: "empty" as const,
-        }));
-        
-        // Save these versions to the versions table for consistency
-        for (const version of dbVersions) {
-          await db.versions.put(version, [id, version.id]);
+      // Legacy support: Check if we need to initialize from legacy playlists
+      if (dbVersions.length === 0) {
+        // Try to get from legacy playlist table if it exists
+        try {
+          const legacyPlaylist = await db.legacyPlaylists?.get(id);
+          if (legacyPlaylist?.versions && legacyPlaylist.versions.length > 0) {
+            console.log(
+              `[PlaylistStore] Converting ${legacyPlaylist.versions.length} legacy versions for ${id}`,
+            );
+            // Convert legacy versions to new format
+            dbVersions = legacyPlaylist.versions.map((version: any) => 
+              db.cleanVersionForStorage(version, id, version.manuallyAdded || false, version.addedAt)
+            );
+            
+            // Save these versions to the new versions table
+            for (const version of dbVersions) {
+              await db.versions.put(version, [id, version.id]);
+            }
+          }
+        } catch (error) {
+          console.log('[PlaylistStore] No legacy playlist table available');
         }
       }
 
@@ -330,25 +325,24 @@ export class PlaylistStore {
         `[PlaylistStore] Found ${dbVersions.length} versions for playlist ${id}`,
       );
 
-      // If no versions in cache but playlist has versions, initialize from cached playlist
-      if (
-        dbVersions.length === 0 &&
-        cached?.versions &&
-        cached.versions.length > 0 &&
-        id !== "quick-notes" // Don't do this for Quick Notes as we handled it above
-      ) {
-        console.log(
-          `[PlaylistStore] No DB versions, but ${cached.versions.length} cached versions. Initializing...`,
-        );
-        await this.initializePlaylist(id, cached);
-        // Try getting versions again after initialization
-        return this.getPlaylist(id);
-      }
-
-      // Create a defensive copy of the playlist
+      // Create a defensive copy of the playlist with proper CachedPlaylist structure
       const result: CachedPlaylist = {
-        ...cached,
+        id: cached.id,
+        name: cached.name,
+        title: cached.name, // Use name as title for new records
+        createdAt: cached.createdAt,
+        updatedAt: cached.updatedAt,
+        isQuickNotes: id === "quick-notes",
+        lastAccessed: Date.now(),
+        lastChecked: Date.now(),
+        hasModifications: false,
+        addedVersions: [],
+        removedVersions: [],
+        notes: [], // Empty for now - notes are separate from versions
         versions: [], // We'll populate this from DB versions
+        // Map new fields to legacy format
+        isLocalOnly: cached.localStatus !== 'synced',
+        ftrackSyncState: cached.ftrackSyncStatus as any,
       };
 
       // Sort versions by name and version number

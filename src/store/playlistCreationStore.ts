@@ -225,7 +225,6 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
       if (localVersions.length > 0) {
         await db.versions.where('playlistId').equals(playlistId).modify({
           // Keep original playlistId to preserve all relationships
-          isLocalPlaylist: false,      // No longer local
           syncedAt: new Date().toISOString(),
           manuallyAdded: false,        // Clear manual flags
         });

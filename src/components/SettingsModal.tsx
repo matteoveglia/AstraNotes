@@ -138,11 +138,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Close the modal first
       setIsOpen(false);
 
-      // Clear all tables
-      await db.playlists.clear();
-      await db.versions.clear();
-      await db.attachments.clear();
-
       // Reset any polling that might be happening
       playlistStore.stopPolling();
 
@@ -152,14 +147,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Reset UI state
       onCloseAllPlaylists();
 
-      // Set active playlist to Quick Notes
-      setActivePlaylist("quick-notes");
+      // Use the enhanced clearCache method that wipes ALL database tables
+      // This includes the new unified tables and any legacy tables
+      await db.clearCache();
 
-      // Reload playlists from FTrack
-      await onLoadPlaylists();
-
-      // For a complete reset reload the window
-      window.location.reload();
+      // Note: clearCache() already handles:
+      // - Deleting entire database
+      // - Preserving essential localStorage settings
+      // - Setting minimal required state
+      // - Full page reload
     } catch (err) {
       console.error("Failed to clear cache:", err);
       alert(
@@ -426,8 +422,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="border-t pt-4 mt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium">Clear Cache</h3>
-                  <p className="text-sm text-zinc-500 max-w-56">
+                  <h3 className="font-medium">Clear Cache & DB</h3>
+                  <p className="text-sm text-zinc-500 max-w-60">
                     Clear all cached playlists, versions, statuses and notes
                   </p>
                 </div>
@@ -437,7 +433,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={handleClearCache}
                   disabled={isLoading}
                 >
-                  {isLoading ? "Clearing..." : "Clear Cache"}
+                  {isLoading ? "Clearing..." : "Clear Cache & DB"}
                 </Button>
               </div>
             </div>
