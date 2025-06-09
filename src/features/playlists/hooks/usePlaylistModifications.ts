@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Playlist, AssetVersion } from "@/types";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { ftrackService } from "@/services/ftrack";
 
 interface Modifications {

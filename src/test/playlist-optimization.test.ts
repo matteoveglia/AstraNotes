@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '../store/db';
-import { playlistStore } from '../store/playlistStore';
+import { playlistStore } from '../store/playlist';
 import { usePlaylistCreationStore } from '../store/playlistCreationStore';
 import type { AssetVersion, CreatePlaylistRequest } from '../types';
 
@@ -149,7 +149,7 @@ describe('Playlist Optimization', () => {
     const localVersions = await playlistStore.getLocalPlaylistVersions(playlistId);
     expect(localVersions).toHaveLength(2);
     expect(localVersions[0].playlistId).toBe(playlistId);
-    expect(localVersions[0].versionId).toBe('v1');
+    expect(localVersions[0].id).toBe('v1');
     expect(localVersions[0].addedAt).toBeDefined();
   });
 

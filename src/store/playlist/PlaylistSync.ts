@@ -5,14 +5,45 @@
  * This ensures no UI remounting or data loss.
  */
 
-import { EventEmitter } from 'events';
+// Simple browser-compatible event emitter
+class SimpleEventEmitter {
+  private listeners: Record<string, Function[]> = {};
+  
+  on(event: string, listener: Function): void {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(listener);
+  }
+  
+  off(event: string, listener: Function): void {
+    if (!this.listeners[event]) return;
+    this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+  }
+  
+  emit(event: string, data?: any): void {
+    if (!this.listeners[event]) return;
+    this.listeners[event].forEach(listener => {
+      try {
+        listener(data);
+      } catch (error) {
+        console.error(`[EventEmitter] Error in listener for ${event}:`, error);
+      }
+    });
+  }
+  
+  removeAllListeners(): void {
+    this.listeners = {};
+  }
+}
+
 import { PlaylistRepository } from './PlaylistRepository';
 import { PlaylistCache } from './PlaylistCache';
 import { FtrackService } from '@/services/ftrack';
 import { PlaylistEntity, SyncOperations, PlaylistEvent, SyncProgress } from './types';
 import { CreatePlaylistRequest } from '@/types';
 
-export class PlaylistSync extends EventEmitter implements SyncOperations {
+export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
   private activeSyncs = new Set<string>();
   
   constructor(

@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Playlist, NoteStatus, AssetVersion } from "@/types";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { db, type CachedVersion, type NoteAttachment } from "@/store/db";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "@/components/ui/toast";

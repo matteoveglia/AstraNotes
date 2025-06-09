@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ftrackService } from "../services/ftrack";
 import { db } from "../store/db";
-import { playlistStore } from "../store/playlistStore";
+import { playlistStore } from "../store/playlist";
 import { useSettings } from "../store/settingsStore";
 import { useLabelStore } from "../store/labelStore";
 import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";

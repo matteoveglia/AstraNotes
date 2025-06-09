@@ -17,7 +17,7 @@ import React, {
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
-import { playlistStore } from "../store/playlistStore";
+import { playlistStore } from "../store/playlist";
 import { usePlaylistsStore } from "../store/playlistsStore";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { useSettings } from "../store/settingsStore";

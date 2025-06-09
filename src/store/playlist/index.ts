@@ -5,7 +5,38 @@
  * NO ID CHANGES - playlists maintain stable UUIDs throughout their lifecycle.
  */
 
-import { EventEmitter } from 'events';
+// Simple browser-compatible event emitter
+class SimpleEventEmitter {
+  private listeners: Record<string, Function[]> = {};
+  
+  on(event: string, listener: Function): void {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(listener);
+  }
+  
+  off(event: string, listener: Function): void {
+    if (!this.listeners[event]) return;
+    this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+  }
+  
+  emit(event: string, data?: any): void {
+    if (!this.listeners[event]) return;
+    this.listeners[event].forEach(listener => {
+      try {
+        listener(data);
+      } catch (error) {
+        console.error(`[EventEmitter] Error in listener for ${event}:`, error);
+      }
+    });
+  }
+  
+  removeAllListeners(): void {
+    this.listeners = {};
+  }
+}
+
 import { PlaylistRepository } from './PlaylistRepository';
 import { PlaylistCache } from './PlaylistCache';
 import { PlaylistSync } from './PlaylistSync';
@@ -14,7 +45,7 @@ import { FtrackService } from '@/services/ftrack';
 import { PlaylistEntity, VersionEntity, PlaylistEvent } from './types';
 import { Playlist, AssetVersion, CreatePlaylistRequest } from '@/types';
 
-export class PlaylistStore extends EventEmitter {
+export class PlaylistStore extends SimpleEventEmitter {
   private repository = new PlaylistRepository();
   private cache = new PlaylistCache();
   private ftrackService = new FtrackService();
@@ -25,9 +56,9 @@ export class PlaylistStore extends EventEmitter {
     super();
     
     // Forward events from sync module to maintain backward compatibility
-    this.sync.on('sync-started', (data) => this.emit('sync-started', data));
-    this.sync.on('sync-completed', (data) => this.emit('sync-completed', data));
-    this.sync.on('sync-failed', (data) => this.emit('sync-failed', data));
+    this.sync.on('sync-started', (data: any) => this.emit('sync-started', data));
+    this.sync.on('sync-completed', (data: any) => this.emit('sync-completed', data));
+    this.sync.on('sync-failed', (data: any) => this.emit('sync-failed', data));
     
     console.log('[PlaylistStore] Initialized with modular architecture and stable UUIDs');
   }
@@ -312,6 +343,154 @@ export class PlaylistStore extends EventEmitter {
       createdAt: version.createdAt,
       updatedAt: version.updatedAt,
     };
+  }
+  
+  // =================== BACKWARD COMPATIBILITY METHODS ===================
+  
+  /**
+   * @deprecated Use event listeners instead of polling
+   * Legacy method for backward compatibility - does nothing in new architecture
+   */
+  stopPolling(): void {
+    console.warn('[PlaylistStore] stopPolling() is deprecated - new architecture uses event-driven updates');
+  }
+  
+  /**
+   * @deprecated Use event listeners instead of polling
+   * Legacy method for backward compatibility - does nothing in new architecture
+   */
+  async startPolling(
+    _playlistId: string, 
+    _callback?: (added: any, removed: any, addedVersions: any, removedVersions: any, freshVersions: any) => void
+  ): Promise<void> {
+    console.warn('[PlaylistStore] startPolling() is deprecated - use event listeners instead');
+  }
+  
+  /**
+   * @deprecated Use getPlaylist() instead
+   * Legacy method for backward compatibility
+   */
+  async initializePlaylist(playlistId: string, _playlist: Playlist): Promise<void> {
+    console.warn('[PlaylistStore] initializePlaylist() is deprecated - use getPlaylist() instead');
+    await this.getPlaylist(playlistId);
+  }
+  
+  /**
+   * @deprecated Use createPlaylist() or updatePlaylist() instead
+   * Legacy method for backward compatibility
+   */
+  async cachePlaylist(playlist: Playlist): Promise<void> {
+    console.warn('[PlaylistStore] cachePlaylist() is deprecated - use createPlaylist() or updatePlaylist() instead');
+    // For now, just cache it
+    this.cache.setPlaylist(playlist.id, playlist);
+  }
+  
+  /**
+   * @deprecated Not needed in new architecture
+   * Legacy method for backward compatibility - returns playlist as-is
+   */
+  cleanPlaylistForStorage(playlist: Playlist): Playlist {
+    console.warn('[PlaylistStore] cleanPlaylistForStorage() is deprecated - not needed in new architecture');
+    return playlist;
+  }
+  
+  /**
+   * @deprecated Use addVersionsToPlaylist() with array instead
+   * Legacy method for backward compatibility
+   */
+  async addVersionToPlaylist(playlistId: string, version: AssetVersion): Promise<void> {
+    await this.addVersionsToPlaylist(playlistId, [version]);
+  }
+  
+  /**
+   * @deprecated Use saveDraft() and updatePlaylist() instead
+   * Legacy method for backward compatibility
+   */
+  async saveNoteStatus(versionId: string, playlistId: string, status: string, content: string, labelId?: string | boolean): Promise<void> {
+    if (content) {
+      await this.saveDraft(playlistId, versionId, content, typeof labelId === 'string' ? labelId : undefined);
+    }
+    // Note status is now handled internally by DraftManager
+  }
+  
+  /**
+   * @deprecated Use saveDraft() instead
+   * Legacy method for backward compatibility
+   */
+  async saveAttachments(_versionId: string, _playlistId: string, _attachments: any[]): Promise<void> {
+    console.warn('[PlaylistStore] saveAttachments() is deprecated - attachments are handled by DraftManager');
+  }
+  
+  /**
+   * @deprecated Use clearDraft() instead
+   * Legacy method for backward compatibility
+   */
+  async clearAttachments(versionId: string, playlistId: string): Promise<void> {
+    await this.clearDraft(playlistId, versionId);
+  }
+  
+  /**
+   * @deprecated Not needed in new architecture
+   * Legacy method for backward compatibility
+   */
+  async clearAddedVersions(_playlistId: string): Promise<void> {
+    console.warn('[PlaylistStore] clearAddedVersions() is deprecated - not needed in new architecture');
+  }
+  
+  /**
+   * @deprecated Use getPlaylistVersions() instead
+   * Legacy method for backward compatibility
+   */
+  async getLocalPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {
+    return this.getPlaylistVersions(playlistId);
+  }
+  
+  /**
+   * @deprecated Not needed in new architecture
+   * Legacy method for backward compatibility
+   */
+  async clearManuallyAddedFlags(_playlistId: string, _versionIds: string[]): Promise<void> {
+    console.warn('[PlaylistStore] clearManuallyAddedFlags() is deprecated - not needed in new architecture');
+  }
+  
+  /**
+   * @deprecated Not needed in new architecture
+   * Legacy method for backward compatibility
+   */
+  async updatePlaylistAndRestartPolling(
+    _playlistId: string, 
+    _callback?: (added: any, removed: any, addedVersions: any, removedVersions: any, freshVersions: any) => void
+  ): Promise<void> {
+    console.warn('[PlaylistStore] updatePlaylistAndRestartPolling() is deprecated - use event listeners instead');
+  }
+  
+  /**
+   * Initializes Quick Notes playlist in the database if it doesn't exist
+   */
+  async initializeQuickNotes(): Promise<void> {
+    console.log('[PlaylistStore] Initializing Quick Notes playlist...');
+    
+    const quickNotesId = 'quick-notes';
+    const existing = await this.repository.getPlaylist(quickNotesId);
+    
+    if (!existing) {
+      const now = new Date().toISOString();
+      const quickNotesEntity: PlaylistEntity = {
+        id: quickNotesId,
+        name: 'Quick Notes',
+        type: 'list',
+        localStatus: 'draft',
+        ftrackSyncStatus: 'not_synced',
+        projectId: 'none', // Quick Notes doesn't belong to a specific project
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      await this.repository.createPlaylist(quickNotesEntity);
+      console.log('[PlaylistStore] Created Quick Notes playlist in database');
+    } else {
+      console.log('[PlaylistStore] Quick Notes playlist already exists');
+    }
   }
   
   // =================== LIFECYCLE ===================

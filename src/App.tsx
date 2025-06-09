@@ -10,7 +10,7 @@ import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useLabelStore } from "./store/labelStore";
 import { useProjectStore } from "./store/projectStore";
-import { playlistStore } from "./store/playlistStore";
+import { playlistStore } from "./store/playlist";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeStore } from "./store/themeStore";

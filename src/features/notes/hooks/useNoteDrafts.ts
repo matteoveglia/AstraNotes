@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { db } from "@/store/db";
 import { NoteStatus } from "@/types";
 import Dexie from "dexie";
