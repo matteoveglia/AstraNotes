@@ -1392,7 +1392,10 @@ export class FtrackService {
       }
       const entityData = entityQuery.data[0];
       const schemaId = entityData.project.project_schema_id;
-      const objectTypeId = entityData.object_type_id;
+      // CRITICAL FIX: Only access object_type_id if it was included in the projection
+      const objectTypeId = (entityType !== "AssetVersion" && entityType !== "Task") 
+        ? entityData.object_type_id 
+        : undefined;
       log(
         `[fetchApplicableStatuses] schemaId: ${schemaId}, objectTypeId: ${objectTypeId}`,
       );

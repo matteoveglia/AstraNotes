@@ -368,6 +368,14 @@ export class PlaylistStore extends SimpleEventEmitter {
     return this.sync.getActiveSyncs();
   }
   
+  /**
+   * Gets the ftrack ID for a synced playlist
+   */
+  async getFtrackId(playlistId: string): Promise<string | null> {
+    const entity = await this.repository.getPlaylist(playlistId);
+    return entity?.ftrackId || null;
+  }
+  
   // =================== DRAFT OPERATIONS ===================
   
   /**

@@ -615,7 +615,7 @@ export function useNoteManagement(playlist: Playlist) {
                 playlist.id,
                 "published",
                 content,
-                attachments.length > 0, // Pass attachment info
+                labelId, // Pass the actual label ID
               );
 
               // Update in memory
@@ -774,7 +774,7 @@ export function useNoteManagement(playlist: Playlist) {
                 playlist.id,
                 "published",
                 content,
-                attachments.length > 0, // Pass attachment info
+                labelId, // Pass the actual label ID
               );
 
               // Update in memory

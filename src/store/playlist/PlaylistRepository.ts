@@ -136,9 +136,12 @@ export class PlaylistRepository implements PlaylistOperations {
   
   async bulkAddVersions(playlistId: string, versions: VersionEntity[]): Promise<void> {
     const records = versions.map(version => this.versionEntityToRecord(version));
-    await db.versions.bulkAdd(records);
     
-    console.log(`[PlaylistRepository] Bulk added ${versions.length} versions to playlist ${playlistId}`);
+    // CRITICAL FIX: Use bulkPut() instead of bulkAdd() to handle existing versions
+    // This prevents ConstraintError when versions already exist
+    await db.versions.bulkPut(records);
+    
+    console.log(`[PlaylistRepository] Bulk added/updated ${versions.length} versions to playlist ${playlistId}`);
   }
   
   // =================== UTILITY METHODS ===================

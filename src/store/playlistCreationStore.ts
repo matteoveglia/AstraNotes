@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { CreatePlaylistRequest, CreatePlaylistResponse, Playlist, PlaylistCategory, AssetVersion } from '@/types';
 import { FtrackService } from '@/services/ftrack';
 import { db } from './db';
+import { playlistStore } from './playlist';
 
 interface PlaylistCreationState {
   // Creation state
@@ -46,15 +47,63 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>((set, get)
   categories: [],
   categoriesLoading: false,
 
-  // Actions - ALL DISABLED
+  // Actions
   createPlaylist: async (request: CreatePlaylistRequest, versions?: AssetVersion[]): Promise<Playlist> => {
-    set({ isCreating: false, createError: 'Legacy playlist creation disabled. Use playlistStore.createPlaylist instead' });
-    throw new Error('Legacy playlist creation disabled. Use playlistStore.createPlaylist instead');
+    set({ isCreating: true, createError: null });
+    
+    try {
+      console.log('[PlaylistCreationStore] Creating playlist via modular store:', request);
+      
+      // Create playlist using new modular store
+      const playlist = await playlistStore.createPlaylist(request);
+      
+      // Add versions if provided
+      if (versions && versions.length > 0) {
+        console.log(`[PlaylistCreationStore] Adding ${versions.length} versions to playlist ${playlist.id}`);
+        await playlistStore.addVersionsToPlaylist(playlist.id, versions);
+        
+        // Get updated playlist with versions
+        const updatedPlaylist = await playlistStore.getPlaylist(playlist.id);
+        if (updatedPlaylist) {
+          set({ isCreating: false });
+          return updatedPlaylist;
+        }
+      }
+      
+      set({ isCreating: false });
+      return playlist;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create playlist';
+      console.error('[PlaylistCreationStore] Create playlist failed:', error);
+      set({ isCreating: false, createError: errorMessage });
+      throw error;
+    }
   },
 
   syncPlaylist: async (playlistId: string): Promise<string> => {
-    set({ isSyncing: false, syncError: 'Legacy sync disabled. Use playlistStore.syncPlaylist instead' });
-    throw new Error('Legacy sync disabled. Use playlistStore.syncPlaylist instead');
+    set({ isSyncing: true, syncError: null, syncProgress: { current: 0, total: 1 } });
+    
+    try {
+      console.log('[PlaylistCreationStore] Syncing playlist via modular store:', playlistId);
+      
+      // Sync playlist using new modular store
+      await playlistStore.syncPlaylist(playlistId);
+      
+      // Get ftrack ID from synced playlist
+      const ftrackId = await playlistStore.getFtrackId(playlistId);
+      
+      if (!ftrackId) {
+        throw new Error('Sync completed but no ftrack ID found');
+      }
+      
+      set({ isSyncing: false, syncProgress: null });
+      return ftrackId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';
+      console.error('[PlaylistCreationStore] Sync playlist failed:', error);
+      set({ isSyncing: false, syncError: errorMessage, syncProgress: null });
+      throw error;
+    }
   },
 
   fetchCategories: async (projectId: string): Promise<void> => {

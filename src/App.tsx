@@ -165,6 +165,41 @@ const App: React.FC = () => {
         activePlaylistId === "quick-notes" ||
         (activePlaylistId && loadedVersionsRef.current[activePlaylistId])
       ) {
+        // CRITICAL FIX: For Quick Notes, load versions from database only (no ftrack)
+        if (activePlaylistId === "quick-notes" && !loadedVersionsRef.current["quick-notes"]) {
+          console.log('Loading Quick Notes versions from database only...');
+          try {
+            const databaseVersions = await playlistStore.getPlaylistVersions("quick-notes");
+            const assetVersions = databaseVersions.map(v => ({
+              id: v.id,
+              name: v.name,
+              version: v.version,
+              thumbnailUrl: v.thumbnailUrl,
+              thumbnailId: v.thumbnailId,
+              reviewSessionObjectId: v.reviewSessionObjectId,
+              createdAt: v.addedAt,
+              updatedAt: v.addedAt,
+              manuallyAdded: v.manuallyAdded,
+              // Convert VersionEntity to AssetVersion format
+              draftContent: v.draftContent,
+              labelId: v.labelId,
+              noteStatus: v.noteStatus,
+            }));
+            
+            setLocalPlaylists(
+              playlists.map((playlist) =>
+                playlist.id === "quick-notes"
+                  ? { ...playlist, versions: assetVersions }
+                  : playlist,
+              ),
+            );
+            
+            loadedVersionsRef.current["quick-notes"] = true;
+            console.log(`Quick Notes loaded ${assetVersions.length} versions from database`);
+          } catch (error) {
+            console.error('Failed to load Quick Notes versions:', error);
+          }
+        }
         return;
       }
 
