@@ -95,8 +95,16 @@ const App: React.FC = () => {
     console.log("loadPlaylistsWithLists called:", { selectedProjectId, hasValidatedSelectedProject });
     
     try {
-      // Initialize Quick Notes if it doesn't exist
+      // Initialize Quick Notes if it doesn't exist - creates database entry
       await playlistStore.initializeQuickNotes();
+      
+      // CRITICAL FIX: Also ensure Quick Notes exists in UI store
+      const { playlists, setPlaylists } = usePlaylistsStore.getState();
+      const hasQuickNotes = playlists.some(p => p.id === 'quick-notes');
+      if (!hasQuickNotes) {
+        console.log('Adding Quick Notes to UI store...');
+        setPlaylists([...playlists]); // This will trigger setPlaylists to add Quick Notes
+      }
       
       // Only load playlists if we have a validated project selection
       if (!selectedProjectId || !hasValidatedSelectedProject) {
@@ -180,26 +188,31 @@ const App: React.FC = () => {
         console.log(
           `Loading versions for active playlist: ${activePlaylistId}`,
         );
-        const versions =
+        
+        // CRITICAL FIX: Load ftrack versions first
+        const ftrackVersions =
           await ftrackService.getPlaylistVersions(activePlaylistId);
 
-        console.log(`Received versions from service:`, {
-          count: versions.length,
-          versions: versions
-            .slice(0, 3)
-            .map((v) => ({ id: v.id, name: v.name, version: v.version })), // Log first 3 for brevity
-        });
+        console.log(`Received ${ftrackVersions.length} versions from ftrack service`);
+
+        // CRITICAL FIX: Merge with database versions to preserve manual additions and drafts
+        const mergedVersions = await playlistStore.loadAndMergeVersions(
+          activePlaylistId,
+          ftrackVersions
+        );
+
+        console.log(`Using ${mergedVersions.length} merged versions (ftrack + database)`);
 
         setLocalPlaylists(
           playlists.map((playlist) =>
             playlist.id === activePlaylistId
-              ? { ...playlist, versions }
+              ? { ...playlist, versions: mergedVersions }
               : playlist,
           ),
         );
 
         console.log(
-          `Updated playlists state. Active playlist now has ${versions.length} versions`,
+          `Updated playlists state. Active playlist now has ${mergedVersions.length} versions`,
         );
 
         // Mark that we've loaded versions for this playlist

@@ -78,7 +78,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
         console.log('Starting comprehensive cleanup of local playlists...');
         
         // Get ALL local playlists to inspect them
-        const allLocalPlaylists = await db.localPlaylists.toArray();
+        const allLocalPlaylists: any[] = []; // Legacy table removed
         console.log('Total local playlists found:', allLocalPlaylists.length);
         
         // Aggressive cleanup conditions - remove playlists that are:
@@ -110,12 +110,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
           
           // Delete the playlists and their associated data
           for (const playlist of playlistsToDelete) {
-            await db.transaction('rw', [db.localPlaylists, db.localPlaylistVersions, db.versions], async () => {
-              // Delete the playlist
-              await db.localPlaylists.delete(playlist.id);
-              
-              // Delete associated versions relationships
-              await db.localPlaylistVersions.where('playlistId').equals(playlist.id).delete();
+            await db.transaction('rw', [db.versions], async () => {
+              // Legacy tables removed - only clean up versions
+              console.log('Legacy playlist cleanup disabled for:', playlist.id);
               
               // Clean up versions that were marked for this local playlist
               await db.versions.where('playlistId').equals(playlist.id).delete();
@@ -131,31 +128,31 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       }
 
       // Get current count after cleanup
-      const remainingLocalPlaylists = await db.localPlaylists.toArray();
+      const remainingLocalPlaylists: any[] = []; // Legacy table removed
       console.log('Remaining local playlists after cleanup:', remainingLocalPlaylists.length);
 
       // Fetch both ftrack playlists and local playlists (both pending and synced)
       const [fetchedPlaylists, localPlaylists] = await Promise.all([
         ftrackService.getPlaylists(),
         // Get all local playlists - both pending (not yet synced) and synced (converted in place)
-        db.localPlaylists.filter(lp => {
+        ([] as any[]).filter((lp: any) => { // Legacy table removed
           const isPending = lp.syncState === 'pending' && 
                            (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
                            !lp.ftrackId;
           const isSynced = lp.syncState === 'synced' && !!lp.ftrackId;
           return isPending || isSynced;
-        }).toArray()
+        }) // Legacy table removed - return empty array
       ]);
 
       console.log('Loaded playlists:', {
         ftrackCount: fetchedPlaylists.length,
         localCount: localPlaylists.length,
-        localPlaylists: localPlaylists.map(lp => ({ id: lp.id, name: lp.name, syncState: lp.syncState, isLocalOnly: lp.isLocalOnly }))
+        localPlaylists: localPlaylists.map((lp: any) => ({ id: lp.id, name: lp.name, syncState: lp.syncState, isLocalOnly: lp.isLocalOnly }))
       });
 
       // Convert local playlists to Playlist format and load their versions
       const localPlaylistsFormatted: Playlist[] = await Promise.all(
-        localPlaylists.map(async (local) => {
+        localPlaylists.map(async (local: any) => {
           // Load versions for this local playlist from the database
           const versions = await db.versions
             .where('playlistId').equals(local.id)
@@ -236,11 +233,11 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   },
 
   cleanupLocalPlaylists: async () => {
-    console.log('🧹 Manual cleanup of local playlists triggered...');
+    console.log('🧹 Legacy cleanup disabled - use new playlist store instead');
     
     try {
-      // Get ALL local playlists to inspect them
-      const allLocalPlaylists = await db.localPlaylists.toArray();
+      // Legacy functionality disabled
+      const allLocalPlaylists: any[] = []; // Legacy table removed
       console.log('🔍 Total local playlists found:', allLocalPlaylists.length);
       
       if (allLocalPlaylists.length > 0) {
@@ -275,12 +272,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
         
         // Delete the playlists and their associated data
         for (const playlist of playlistsToDelete) {
-          await db.transaction('rw', [db.localPlaylists, db.localPlaylistVersions, db.versions], async () => {
-            // Delete the playlist
-            await db.localPlaylists.delete(playlist.id);
-            
-            // Delete associated versions relationships
-            await db.localPlaylistVersions.where('playlistId').equals(playlist.id).delete();
+          await db.transaction('rw', [db.versions], async () => {
+            // Legacy cleanup disabled
+            console.log('Legacy playlist deletion disabled for:', playlist.id);
             
             // Clean up versions that were marked for this local playlist
             await db.versions.where('playlistId').equals(playlist.id).delete();
@@ -293,7 +287,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       }
       
       // Show final count
-      const finalCount = await db.localPlaylists.count();
+      const finalCount = 0; // Legacy table removed
       console.log('📊 Final local playlist count:', finalCount);
       
     } catch (error) {
@@ -302,11 +296,11 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   },
 
   debugLocalPlaylists: async () => {
-    console.log('🔍 DEBUG: Inspecting local playlists...');
+    console.log('🔍 DEBUG: Legacy debug disabled - use new playlist store instead');
     
     try {
-      const allLocalPlaylists = await db.localPlaylists.toArray();
-      const allLocalVersions = await db.localPlaylistVersions.toArray();
+      const allLocalPlaylists: any[] = []; // Legacy table removed
+      const allLocalVersions: any[] = []; // Legacy table removed
       const allVersions = await db.versions.toArray();
       
       console.log('📊 Database counts:', {

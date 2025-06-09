@@ -143,7 +143,7 @@ export function useNoteManagement(playlist: Playlist) {
         );
 
         // Save draft content, status, and label to database
-        await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+        await playlistStore.saveDraft(playlist.id, versionId, content, labelId);
 
         // Also update the status separately to ensure it's set correctly, passing attachments info
         if (newStatus !== currentStatus) {
@@ -186,8 +186,8 @@ export function useNoteManagement(playlist: Playlist) {
           try {
             // Try to save just the content without attachments as a last resort
             await playlistStore.saveDraft(
-              versionId,
               playlist.id,
+              versionId,
               content,
               labelId,
             );

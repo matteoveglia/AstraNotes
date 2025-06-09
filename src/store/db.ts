@@ -137,35 +137,7 @@ export interface CachedPlaylist {
   ftrackSyncStatus?: 'not_synced' | 'syncing' | 'synced' | 'failed';
 }
 
-/**
- * Local playlist stored before ftrack synchronization (DEPRECATED)
- * Kept for migration purposes only
- */
-export interface LocalPlaylist {
-  id: string;
-  name: string;
-  type: 'reviewsession' | 'list';
-  categoryId?: string;
-  categoryName?: string;
-  description?: string;
-  projectId: string;
-  isLocalOnly: boolean;
-  syncState: 'pending' | 'syncing' | 'synced' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-  ftrackId?: string; // Set after successful sync
-}
-
-/**
- * Track local versions before sync (DEPRECATED)
- * Kept for migration purposes only
- */
-export interface LocalPlaylistVersion {
-  playlistId: string;
-  versionId: string;
-  addedAt: string;
-  syncedAt?: string;
-}
+// Legacy interfaces removed - no migration needed per user directive
 
 export class AstraNotesDB extends Dexie {
   // New unified tables with stable UUIDs
@@ -173,37 +145,25 @@ export class AstraNotesDB extends Dexie {
   versions!: Table<VersionRecord>;
   attachments!: Table<NoteAttachment>;
   
-  // Legacy tables - kept for migration/cleanup
-  legacyPlaylists!: Table<CachedPlaylist>;
-  localPlaylists!: Table<LocalPlaylist>;
-  localPlaylistVersions!: Table<LocalPlaylistVersion>;
+  // Legacy tables removed - no migration needed per user directive
 
   constructor() {
     super("AstraNotesDB");
     console.log("Initializing AstraNotesDB schema with stable UUIDs...");
 
-    // Version 6: New stable UUID architecture
-    this.version(6).stores({
-      // New unified tables with stable UUIDs
+    // Version 7: Stable UUID architecture with legacy tables removed
+    this.version(7).stores({
+      // Unified tables with stable UUIDs
       playlists: "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
       versions: "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
       attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
-      
-      // Legacy tables renamed for migration
-      legacyPlaylists: "id, lastAccessed, lastChecked",
-      localPlaylists: "id, syncState, projectId, type, createdAt, updatedAt",
-      localPlaylistVersions: "[playlistId+versionId], playlistId, versionId, addedAt",
     });
 
-    // Legacy version 5 schema for migration reference
-    this.version(5).stores({
-      playlists: "id, lastAccessed, lastChecked",
-      versions:
-        "[playlistId+id], playlistId, lastModified, draftContent, labelId, name, version, thumbnailUrl, reviewSessionObjectId, createdAt, updatedAt, isRemoved, lastChecked, noteStatus, isLocalPlaylist, syncedAt, localPlaylistAddedAt",
-      attachments:
-        "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
-      localPlaylists: "id, syncState, projectId, type, createdAt, updatedAt",
-      localPlaylistVersions: "[playlistId+versionId], playlistId, versionId, addedAt",
+    // Previous version maintained for upgrade path  
+    this.version(6).stores({
+      playlists: "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
+      versions: "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
+      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
 
     this.versions.hook("creating", function (primKey, obj) {
@@ -224,11 +184,8 @@ export class AstraNotesDB extends Dexie {
 
   async cleanOldData() {
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    
-    // Clean legacy playlists
-    await this.legacyPlaylists.where("lastAccessed").below(sixtyDaysAgo).delete();
 
-    // Get all active playlist IDs from new unified table
+    // Get all active playlist IDs from unified table
     const activePlaylists = await this.playlists.toArray();
     const activePlaylistIds = new Set(activePlaylists.map((p) => p.id));
 

@@ -9,7 +9,7 @@
  * - Attachment management
  */
 
-import { db, NoteAttachment, LocalPlaylist, LocalPlaylistVersion } from "./db";
+import { db, NoteAttachment } from "./db";
 import { Playlist, AssetVersion, NoteStatus, CreatePlaylistRequest } from "@/types";
 import { FtrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
@@ -301,20 +301,13 @@ export class PlaylistStore {
       if (dbVersions.length === 0) {
         // Try to get from legacy playlist table if it exists
         try {
-          const legacyPlaylist = await db.legacyPlaylists?.get(id);
-          if (legacyPlaylist?.versions && legacyPlaylist.versions.length > 0) {
+          const legacyPlaylist = null; // Legacy table removed
+          if (false) { // Legacy playlist disabled
             console.log(
-              `[PlaylistStore] Converting ${legacyPlaylist.versions.length} legacy versions for ${id}`,
+              `[PlaylistStore] Converting legacy versions for ${id}`,
             );
             // Convert legacy versions to new format
-            dbVersions = legacyPlaylist.versions.map((version: any) => 
-              db.cleanVersionForStorage(version, id, version.manuallyAdded || false, version.addedAt)
-            );
-            
-            // Save these versions to the new versions table
-            for (const version of dbVersions) {
-              await db.versions.put(version, [id, version.id]);
-            }
+            dbVersions = []; // Legacy playlist disabled
           }
         } catch (error) {
           console.log('[PlaylistStore] No legacy playlist table available');
@@ -1700,12 +1693,12 @@ export class PlaylistStore {
       // For local playlists, also add to localPlaylistVersions for sync
       if (playlistId.startsWith('local_')) {
         try {
-          const localVersion: LocalPlaylistVersion = {
+          const localVersion: any = { // Legacy type removed
             playlistId: playlistId,
             versionId: version.id,
             addedAt: new Date().toISOString(),
           };
-          await db.localPlaylistVersions.put(localVersion);
+          console.warn("Legacy localPlaylistVersions table disabled");
           log(`Added version ${version.id} to localPlaylistVersions for local playlist ${playlistId}`);
         } catch (error) {
           // Don't fail the main operation if this fails, just log it
@@ -1740,16 +1733,9 @@ export class PlaylistStore {
 
       // NEW: Auto-sync detection
       if (playlistId.startsWith('local_')) {
-        const localPlaylist = await db.localPlaylists.get(playlistId);
-        if (localPlaylist?.syncState === 'pending') {
-          // Emit event for UI components to handle
-          window.dispatchEvent(new CustomEvent('local-playlist-needs-sync', {
-            detail: { 
-              playlistId, 
-              playlistName: localPlaylist.name,
-              versionCount: await this.getLocalPlaylistVersions(playlistId).then(v => v.length)
-            }
-          }));
+        if (false) { // Legacy playlist disabled
+          // Legacy local playlist sync handling disabled
+          console.warn("Legacy local playlist sync disabled");
         }
       }
 
@@ -1817,10 +1803,7 @@ export class PlaylistStore {
       if (playlistId.startsWith('local_')) {
         try {
           for (const versionId of versionIds) {
-            await db.localPlaylistVersions
-              .where('[playlistId+versionId]')
-              .equals([playlistId, versionId])
-              .delete();
+            console.warn("Legacy localPlaylistVersions table disabled");
           }
           log(`Removed ${versionIds.length} versions from localPlaylistVersions for local playlist ${playlistId}`);
         } catch (error) {
@@ -1906,42 +1889,8 @@ export class PlaylistStore {
    * Creates a local-only playlist that hasn't been synced to ftrack yet
    */
   async createLocalPlaylist(request: CreatePlaylistRequest): Promise<Playlist> {
-    const playlistId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-
-    const localPlaylist: LocalPlaylist = {
-      id: playlistId,
-      name: request.name,
-      type: request.type,
-      categoryId: request.categoryId,
-      categoryName: request.categoryName,
-      description: request.description,
-      projectId: request.projectId,
-      isLocalOnly: true,
-      syncState: 'pending',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.localPlaylists.add(localPlaylist);
-
-    const playlist: Playlist = {
-      id: playlistId,
-      name: request.name,
-      title: request.name,
-      notes: [],
-      createdAt: now,
-      updatedAt: now,
-      type: request.type,
-      categoryId: request.categoryId,
-      categoryName: request.categoryName,
-      isLocalOnly: true,
-      localVersions: [],
-      ftrackSyncState: 'pending',
-      versions: [],
-    };
-
-    return playlist;
+    console.warn("Legacy createLocalPlaylist called - use playlistStore.createPlaylist instead");
+    throw new Error("Legacy createLocalPlaylist disabled. Use playlistStore.createPlaylist instead");
   }
 
   /**
@@ -1949,10 +1898,7 @@ export class PlaylistStore {
    */
   async updatePlaylistSyncState(playlistId: string, state: Playlist['ftrackSyncState']): Promise<void> {
     try {
-      await db.localPlaylists.update(playlistId, {
-        syncState: state as any,
-        updatedAt: new Date().toISOString(),
-      });
+      console.warn("Legacy localPlaylists table disabled");
       log(`Updated playlist ${playlistId} sync state to ${state}`);
     } catch (error) {
       console.error(`Failed to update playlist sync state:`, error);
@@ -2002,25 +1948,17 @@ export class PlaylistStore {
   /**
    * Gets local playlist data
    */
-  async getLocalPlaylist(playlistId: string): Promise<LocalPlaylist | null> {
-    try {
-      return await db.localPlaylists.get(playlistId) || null;
-    } catch (error) {
-      console.error(`Failed to get local playlist ${playlistId}:`, error);
-      return null;
-    }
+  async getLocalPlaylist(playlistId: string): Promise<any | null> {
+    console.warn("Legacy getLocalPlaylist called - use playlistStore.getPlaylist instead");
+    return null;
   }
 
   /**
    * Gets all local playlists
    */
-  async getLocalPlaylists(): Promise<LocalPlaylist[]> {
-    try {
-      return await db.localPlaylists.toArray();
-    } catch (error) {
-      console.error(`Failed to get local playlists:`, error);
-      return [];
-    }
+  async getLocalPlaylists(): Promise<any[]> {
+    console.warn("Legacy getLocalPlaylists called - use playlistStore.getPlaylistsByProject instead");
+    return [];
   }
 
   /**
@@ -2029,13 +1967,13 @@ export class PlaylistStore {
   async addVersionsToLocalPlaylist(playlistId: string, versions: AssetVersion[]): Promise<void> {
     try {
       const now = new Date().toISOString();
-      const localVersions: LocalPlaylistVersion[] = versions.map(v => ({
+      const localVersions: any[] = versions.map(v => ({ // Legacy type removed
         playlistId,
         versionId: v.id,
         addedAt: now,
       }));
 
-      await db.localPlaylistVersions.bulkAdd(localVersions);
+      console.warn("Legacy localPlaylistVersions table disabled");
       log(`Added ${versions.length} versions to local playlist ${playlistId}`);
     } catch (error) {
       console.error(`Failed to add versions to local playlist:`, error);
@@ -2071,7 +2009,7 @@ export class PlaylistStore {
   /**
    * Gets versions for a local playlist
    */
-  async getLocalPlaylistVersions(playlistId: string): Promise<LocalPlaylistVersion[]> {
+  async getLocalPlaylistVersions(playlistId: string): Promise<any[]> { // Legacy type removed
     if (this.useConsolidatedQueries) {
       // NEW: Query versions table instead
       const versions = await db.versions
@@ -2088,7 +2026,7 @@ export class PlaylistStore {
     }
     
     try {
-      return await db.localPlaylistVersions.where('playlistId').equals(playlistId).toArray();
+      return []; // Legacy table removed
     } catch (error) {
       console.error(`Failed to get local playlist versions:`, error);
       return [];
@@ -2100,9 +2038,8 @@ export class PlaylistStore {
    */
   async deleteLocalPlaylist(playlistId: string): Promise<void> {
     try {
-      await db.transaction('rw', [db.localPlaylists, db.localPlaylistVersions], async () => {
-        await db.localPlaylists.delete(playlistId);
-        await db.localPlaylistVersions.where('playlistId').equals(playlistId).delete();
+          await db.transaction('rw', [db.versions], async () => {
+      console.warn("Legacy playlist deletion disabled for:", playlistId);
       });
       log(`Deleted local playlist ${playlistId}`);
     } catch (error) {

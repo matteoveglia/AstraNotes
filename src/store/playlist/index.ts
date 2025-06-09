@@ -52,6 +52,9 @@ export class PlaylistStore extends SimpleEventEmitter {
   private sync = new PlaylistSync(this.repository, this.cache, this.ftrackService);
   private drafts = new DraftManager(this.repository);
   
+  // Singleton initialization tracking
+  private initializationPromises = new Map<string, Promise<void>>();
+  
   constructor() {
     super();
     
@@ -119,20 +122,133 @@ export class PlaylistStore extends SimpleEventEmitter {
     
     // Load from database
     const entity = await this.repository.getPlaylist(id);
-    if (!entity) {
-      console.log(`[PlaylistStore] Playlist not found: ${id}`);
-      return null;
+    if (entity) {
+      // Load versions
+      const versions = await this.repository.getPlaylistVersions(id);
+      
+      // Convert to UI model
+      playlist = this.entityToPlaylist(entity, versions);
+      this.cache.setPlaylist(id, playlist);
+      
+      console.log(`[PlaylistStore] Loaded playlist: ${id} with ${versions.length} versions`);
+      return playlist;
     }
     
-    // Load versions
-    const versions = await this.repository.getPlaylistVersions(id);
+    // CRITICAL FIX: If not found in database, check UI store and create database entry if needed
+    const { playlists } = (await import('../playlistsStore')).usePlaylistsStore.getState();
+    const uiPlaylist = playlists.find(p => p.id === id);
     
-    // Convert to UI model
-    playlist = this.entityToPlaylist(entity, versions);
-    this.cache.setPlaylist(id, playlist);
+          if (uiPlaylist) {
+        console.log(`[PlaylistStore] Found playlist in UI store but not database: ${id} - creating database entry`);
+        
+        // Create database entry for UI playlist - sanitize to avoid DataCloneError
+        const playlistEntity: PlaylistEntity = {
+          id: id,
+          name: String(uiPlaylist.name || 'Untitled'),
+          type: (uiPlaylist.type === 'reviewsession' || uiPlaylist.type === 'list') ? uiPlaylist.type : 'list',
+          localStatus: uiPlaylist.isLocalOnly ? 'draft' : 'synced',
+          ftrackSyncStatus: uiPlaylist.isLocalOnly ? 'not_synced' : 'synced',
+          ftrackId: uiPlaylist.isLocalOnly ? undefined : (typeof id === 'string' ? id : undefined),
+          projectId: 'none', // Default for Quick Notes and other UI playlists
+          createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
+          updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
+        };
+        
+        // Use safe initialization to prevent race conditions
+        await this.safeInitializePlaylist(id, playlistEntity);
+      
+      // Convert UI playlist to our format and cache it - sanitize to avoid DataCloneError
+      playlist = {
+        id: String(uiPlaylist.id),
+        name: String(uiPlaylist.name || 'Untitled'),
+        title: String(uiPlaylist.title || uiPlaylist.name || 'Untitled'),
+        type: uiPlaylist.type || 'list',
+        versions: Array.isArray(uiPlaylist.versions) ? uiPlaylist.versions.map(v => ({
+          ...v,
+          // Ensure all version fields are serializable
+          id: String(v.id),
+          name: String(v.name || ''),
+          version: Number(v.version) || 0,
+          thumbnailUrl: String(v.thumbnailUrl || ''),
+          thumbnailId: String(v.thumbnailId || ''),
+          reviewSessionObjectId: String(v.reviewSessionObjectId || ''),
+          createdAt: typeof v.createdAt === 'string' ? v.createdAt : new Date().toISOString(),
+          updatedAt: typeof v.updatedAt === 'string' ? v.updatedAt : new Date().toISOString(),
+          manuallyAdded: Boolean(v.manuallyAdded),
+        })) : [],
+        notes: Array.isArray(uiPlaylist.notes) ? uiPlaylist.notes : [],
+        createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
+        updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
+        isLocalOnly: Boolean(uiPlaylist.isLocalOnly),
+        ftrackSyncState: uiPlaylist.ftrackSyncState || 'pending',
+        categoryId: uiPlaylist.categoryId ? String(uiPlaylist.categoryId) : undefined,
+        categoryName: uiPlaylist.categoryName ? String(uiPlaylist.categoryName) : undefined,
+      };
+      
+      this.cache.setPlaylist(id, playlist);
+      console.log(`[PlaylistStore] Created database entry and cached UI playlist: ${id}`);
+      return playlist;
+    }
     
-    console.log(`[PlaylistStore] Loaded playlist: ${id} with ${versions.length} versions`);
-    return playlist;
+    console.log(`[PlaylistStore] Playlist not found: ${id}`);
+    return null;
+  }
+  
+  /**
+   * CRITICAL FIX: Loads and merges versions from database AND ftrack
+   * This fixes the persistence issue where manually added versions disappear on reload
+   */
+  async loadAndMergeVersions(playlistId: string, ftrackVersions: AssetVersion[]): Promise<AssetVersion[]> {
+    console.log(`[PlaylistStore] Loading and merging versions for playlist: ${playlistId}`);
+    
+    // 1. Load existing versions from database first
+    const databaseVersions = await this.repository.getPlaylistVersions(playlistId);
+    console.log(`[PlaylistStore] Found ${databaseVersions.length} versions in database`);
+    
+    // 2. Convert database versions to AssetVersion format
+    const dbAssetVersions = databaseVersions.map(v => this.entityToAssetVersion(v));
+    
+    // 3. Create version maps for efficient merging
+    const dbVersionMap = new Map(dbAssetVersions.map(v => [v.id, v]));
+    const ftrackVersionMap = new Map(ftrackVersions.map(v => [v.id, v]));
+    
+    // 4. Merge logic: Database versions take precedence for draft content and manual additions
+    const mergedVersions: AssetVersion[] = [];
+    
+    // Add all database versions (these include manual additions and draft content)
+    for (const dbVersion of dbAssetVersions) {
+      const ftrackVersion = ftrackVersionMap.get(dbVersion.id);
+      
+             if (ftrackVersion) {
+         // Version exists in both - merge with database taking precedence for user data
+         const mergedVersion = {
+           ...ftrackVersion, // Base ftrack data
+           ...dbVersion,     // Override with database data (drafts, manual flags, etc.)
+         } as AssetVersion;
+         mergedVersions.push(mergedVersion);
+      } else {
+        // Version only in database (manually added) - keep it
+        mergedVersions.push(dbVersion);
+      }
+    }
+    
+    // Add ftrack-only versions (new versions from API)
+    for (const ftrackVersion of ftrackVersions) {
+      if (!dbVersionMap.has(ftrackVersion.id)) {
+        mergedVersions.push(ftrackVersion);
+      }
+    }
+    
+    console.log(`[PlaylistStore] Merged ${mergedVersions.length} versions (${databaseVersions.length} from DB, ${ftrackVersions.length} from ftrack)`);
+    
+    // 5. Store any new ftrack versions in database for future persistence
+    const newFtrackVersions = ftrackVersions.filter(v => !dbVersionMap.has(v.id));
+    if (newFtrackVersions.length > 0) {
+      console.log(`[PlaylistStore] Storing ${newFtrackVersions.length} new ftrack versions in database`);
+      await this.addVersionsToPlaylist(playlistId, newFtrackVersions);
+    }
+    
+    return mergedVersions;
   }
   
   /**
@@ -163,6 +279,44 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Adds versions to a playlist
    */
   async addVersionsToPlaylist(playlistId: string, versions: AssetVersion[]): Promise<void> {
+    // CRITICAL FIX: Ensure playlist exists in database before adding versions
+    let playlist = await this.repository.getPlaylist(playlistId);
+    
+    if (!playlist) {
+      // Check if playlist exists in UI store but not database
+      const { playlists } = (await import('../playlistsStore')).usePlaylistsStore.getState();
+      const uiPlaylist = playlists.find(p => p.id === playlistId);
+      
+      if (uiPlaylist) {
+        console.log(`[PlaylistStore] Playlist ${playlistId} exists in UI but not database - creating database entry`);
+        
+        // Create database entry for UI playlist - sanitize to avoid DataCloneError
+        const playlistEntity: PlaylistEntity = {
+          id: playlistId,
+          name: String(uiPlaylist.name || 'Untitled'),
+          type: (uiPlaylist.type === 'reviewsession' || uiPlaylist.type === 'list') ? uiPlaylist.type : 'list',
+          localStatus: uiPlaylist.isLocalOnly ? 'draft' : 'synced',
+          ftrackSyncStatus: uiPlaylist.isLocalOnly ? 'not_synced' : 'synced',
+          ftrackId: uiPlaylist.isLocalOnly ? undefined : (typeof playlistId === 'string' ? playlistId : undefined),
+          projectId: 'none', // Default for Quick Notes and other UI playlists
+          createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
+          updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
+        };
+        
+        // Use safe initialization to prevent race conditions
+        await this.safeInitializePlaylist(playlistId, playlistEntity);
+        console.log(`[PlaylistStore] Created database entry for playlist: ${playlistId}`);
+      } else {
+        // If it's Quick Notes specifically, initialize it
+        if (playlistId === 'quick-notes') {
+          console.log(`[PlaylistStore] Quick Notes not found - initializing`);
+          await this.initializeQuickNotes();
+        } else {
+          throw new Error(`Playlist ${playlistId} not found in database or UI store. Create it first.`);
+        }
+      }
+    }
+    
     const versionEntities = versions.map(v => this.assetVersionToEntity(v, playlistId));
     await this.repository.bulkAddVersions(playlistId, versionEntities);
     this.cache.invalidate(playlistId);
@@ -326,22 +480,23 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
   
   private assetVersionToEntity(version: AssetVersion, playlistId: string): VersionEntity {
+    // Sanitize all fields to prevent DataCloneError - ensure everything is serializable
     return {
-      id: version.id,
-      playlistId,
-      name: version.name,
-      version: version.version,
-      thumbnailUrl: version.thumbnailUrl,
-      thumbnailId: version.thumbnailId,
-      reviewSessionObjectId: version.reviewSessionObjectId,
+      id: String(version.id || ''),
+      playlistId: String(playlistId || ''),
+      name: String(version.name || ''),
+      version: Number(version.version) || 0,
+      thumbnailUrl: typeof version.thumbnailUrl === 'string' ? version.thumbnailUrl : '',
+      thumbnailId: typeof version.thumbnailId === 'string' ? version.thumbnailId : '',
+      reviewSessionObjectId: typeof version.reviewSessionObjectId === 'string' ? version.reviewSessionObjectId : '',
       draftContent: undefined,
       labelId: '',
       noteStatus: 'empty',
       addedAt: new Date().toISOString(),
       lastModified: Date.now(),
-      manuallyAdded: version.manuallyAdded || false,
-      createdAt: version.createdAt,
-      updatedAt: version.updatedAt,
+      manuallyAdded: Boolean(version.manuallyAdded),
+      createdAt: typeof version.createdAt === 'string' ? version.createdAt : new Date().toISOString(),
+      updatedAt: typeof version.updatedAt === 'string' ? version.updatedAt : new Date().toISOString(),
     };
   }
   
@@ -349,49 +504,21 @@ export class PlaylistStore extends SimpleEventEmitter {
   
   /**
    * @deprecated Use event listeners instead of polling
-   * Legacy method for backward compatibility - does nothing in new architecture
+   * Minimal stub for backward compatibility
    */
   stopPolling(): void {
-    console.warn('[PlaylistStore] stopPolling() is deprecated - new architecture uses event-driven updates');
+    // Silent stub - polling not needed in event-driven architecture
   }
   
   /**
    * @deprecated Use event listeners instead of polling
-   * Legacy method for backward compatibility - does nothing in new architecture
+   * Minimal stub for backward compatibility
    */
   async startPolling(
     _playlistId: string, 
     _callback?: (added: any, removed: any, addedVersions: any, removedVersions: any, freshVersions: any) => void
   ): Promise<void> {
-    console.warn('[PlaylistStore] startPolling() is deprecated - use event listeners instead');
-  }
-  
-  /**
-   * @deprecated Use getPlaylist() instead
-   * Legacy method for backward compatibility
-   */
-  async initializePlaylist(playlistId: string, _playlist: Playlist): Promise<void> {
-    console.warn('[PlaylistStore] initializePlaylist() is deprecated - use getPlaylist() instead');
-    await this.getPlaylist(playlistId);
-  }
-  
-  /**
-   * @deprecated Use createPlaylist() or updatePlaylist() instead
-   * Legacy method for backward compatibility
-   */
-  async cachePlaylist(playlist: Playlist): Promise<void> {
-    console.warn('[PlaylistStore] cachePlaylist() is deprecated - use createPlaylist() or updatePlaylist() instead');
-    // For now, just cache it
-    this.cache.setPlaylist(playlist.id, playlist);
-  }
-  
-  /**
-   * @deprecated Not needed in new architecture
-   * Legacy method for backward compatibility - returns playlist as-is
-   */
-  cleanPlaylistForStorage(playlist: Playlist): Playlist {
-    console.warn('[PlaylistStore] cleanPlaylistForStorage() is deprecated - not needed in new architecture');
-    return playlist;
+    // Silent stub - polling not needed in event-driven architecture
   }
   
   /**
@@ -414,11 +541,43 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
   
   /**
+   * @deprecated Use getPlaylistVersions() instead
+   * Legacy method for backward compatibility
+   */
+  async getLocalPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {
+    return this.getPlaylistVersions(playlistId);
+  }
+  
+  /**
+   * @deprecated Use getPlaylist() instead
+   * Legacy method for backward compatibility
+   */
+  async initializePlaylist(playlistId: string, _playlist: Playlist): Promise<void> {
+    await this.getPlaylist(playlistId);
+  }
+  
+  /**
+   * @deprecated Use cache directly instead
+   * Legacy method for backward compatibility
+   */
+  async cachePlaylist(playlist: Playlist): Promise<void> {
+    this.cache.setPlaylist(playlist.id, playlist);
+  }
+  
+  /**
+   * @deprecated Not needed in new architecture
+   * Legacy method for backward compatibility - returns playlist as-is
+   */
+  cleanPlaylistForStorage(playlist: Playlist): Playlist {
+    return playlist;
+  }
+  
+  /**
    * @deprecated Use saveDraft() instead
    * Legacy method for backward compatibility
    */
   async saveAttachments(_versionId: string, _playlistId: string, _attachments: any[]): Promise<void> {
-    console.warn('[PlaylistStore] saveAttachments() is deprecated - attachments are handled by DraftManager');
+    // Attachments are handled by DraftManager
   }
   
   /**
@@ -434,15 +593,7 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Legacy method for backward compatibility
    */
   async clearAddedVersions(_playlistId: string): Promise<void> {
-    console.warn('[PlaylistStore] clearAddedVersions() is deprecated - not needed in new architecture');
-  }
-  
-  /**
-   * @deprecated Use getPlaylistVersions() instead
-   * Legacy method for backward compatibility
-   */
-  async getLocalPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {
-    return this.getPlaylistVersions(playlistId);
+    // Not needed in new architecture
   }
   
   /**
@@ -450,47 +601,93 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Legacy method for backward compatibility
    */
   async clearManuallyAddedFlags(_playlistId: string, _versionIds: string[]): Promise<void> {
-    console.warn('[PlaylistStore] clearManuallyAddedFlags() is deprecated - not needed in new architecture');
+    // Not needed in new architecture
   }
   
   /**
-   * @deprecated Not needed in new architecture
+   * @deprecated Use event listeners instead
    * Legacy method for backward compatibility
    */
   async updatePlaylistAndRestartPolling(
     _playlistId: string, 
     _callback?: (added: any, removed: any, addedVersions: any, removedVersions: any, freshVersions: any) => void
   ): Promise<void> {
-    console.warn('[PlaylistStore] updatePlaylistAndRestartPolling() is deprecated - use event listeners instead');
+    // Event listeners handle updates automatically
+  }
+  
+  /**
+   * Safely initializes a playlist in the database if it doesn't exist
+   * Prevents concurrent initialization calls using singleton pattern
+   */
+  private async safeInitializePlaylist(playlistId: string, playlistEntity: PlaylistEntity): Promise<void> {
+    // Check if initialization is already in progress
+    const existingPromise = this.initializationPromises.get(playlistId);
+    if (existingPromise) {
+      console.log(`[PlaylistStore] Initialization already in progress for ${playlistId}, waiting...`);
+      return existingPromise;
+    }
+    
+    // Create new initialization promise
+    const initPromise = this.performPlaylistInitialization(playlistId, playlistEntity);
+    this.initializationPromises.set(playlistId, initPromise);
+    
+    try {
+      await initPromise;
+    } finally {
+      // Clean up the promise when done
+      this.initializationPromises.delete(playlistId);
+    }
+  }
+  
+  /**
+   * Performs the actual playlist initialization work
+   */
+  private async performPlaylistInitialization(playlistId: string, playlistEntity: PlaylistEntity): Promise<void> {
+    console.log(`[PlaylistStore] Initializing playlist: ${playlistId}`);
+    
+    try {
+      // First check if it already exists
+      const existing = await this.repository.getPlaylist(playlistId);
+      
+      if (existing) {
+        console.log(`[PlaylistStore] Playlist ${playlistId} already exists in database`);
+        return;
+      }
+      
+      // Try to create it
+      await this.repository.createPlaylist(playlistEntity);
+      console.log(`[PlaylistStore] Created playlist ${playlistId} in database`);
+      
+    } catch (error: any) {
+      if (error.name === 'ConstraintError') {
+        // Another call succeeded - this is fine
+        console.log(`[PlaylistStore] Playlist ${playlistId} was created by concurrent call`);
+      } else {
+        console.error(`[PlaylistStore] Error initializing playlist ${playlistId}:`, error);
+        throw error; // Re-throw non-constraint errors
+      }
+    }
   }
   
   /**
    * Initializes Quick Notes playlist in the database if it doesn't exist
    */
   async initializeQuickNotes(): Promise<void> {
-    console.log('[PlaylistStore] Initializing Quick Notes playlist...');
-    
     const quickNotesId = 'quick-notes';
-    const existing = await this.repository.getPlaylist(quickNotesId);
+    const now = new Date().toISOString();
     
-    if (!existing) {
-      const now = new Date().toISOString();
-      const quickNotesEntity: PlaylistEntity = {
-        id: quickNotesId,
-        name: 'Quick Notes',
-        type: 'list',
-        localStatus: 'draft',
-        ftrackSyncStatus: 'not_synced',
-        projectId: 'none', // Quick Notes doesn't belong to a specific project
-        createdAt: now,
-        updatedAt: now,
-      };
-      
-      await this.repository.createPlaylist(quickNotesEntity);
-      console.log('[PlaylistStore] Created Quick Notes playlist in database');
-    } else {
-      console.log('[PlaylistStore] Quick Notes playlist already exists');
-    }
+    const quickNotesEntity: PlaylistEntity = {
+      id: quickNotesId,
+      name: 'Quick Notes',
+      type: 'list',
+      localStatus: 'draft',
+      ftrackSyncStatus: 'not_synced',
+      projectId: 'none',
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    return this.safeInitializePlaylist(quickNotesId, quickNotesEntity);
   }
   
   // =================== LIFECYCLE ===================
