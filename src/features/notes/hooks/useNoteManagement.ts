@@ -508,13 +508,13 @@ export function useNoteManagement(playlist: Playlist) {
       return newAttachments;
     });
 
-    // Reset to empty in the database using saveDraft to ensure labelId is cleared
-    await playlistStore.saveDraft(versionId, playlist.id, "", "");
+    // CRITICAL FIX: Correct parameter order for saveDraft (playlistId, versionId, content, labelId)
+    await playlistStore.saveDraft(playlist.id, versionId, "", "");
 
-    // Also update the status to empty
+    // CRITICAL FIX: Correct parameter order for saveNoteStatus (versionId, playlistId, status, content)
     await playlistStore.saveNoteStatus(versionId, playlist.id, "empty", "");
 
-    // Clear attachments from database
+    // CRITICAL FIX: Correct parameter order for clearAttachments (versionId, playlistId)
     await playlistStore.clearAttachments(versionId, playlist.id);
   };
 
@@ -553,11 +553,12 @@ export function useNoteManagement(playlist: Playlist) {
         // Process each version
         for (const { versionId } of items) {
           try {
-            // Skip if already published
+            // Skip if already published - count as success since it's already done
             if (noteStatuses[versionId] === "published") {
               console.debug(
                 `[useNoteManagement] Skipping already published note ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -571,12 +572,13 @@ export function useNoteManagement(playlist: Playlist) {
             }
 
             const content = noteDrafts[versionId] || "";
-            // Skip if content is empty and no attachments
+            // Skip if content is empty and no attachments - count as success since nothing to publish
             const attachments = noteAttachments[versionId] || [];
             if (!content.trim() && attachments.length === 0) {
               console.debug(
                 `[useNoteManagement] Skipping empty note for version ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -712,11 +714,12 @@ export function useNoteManagement(playlist: Playlist) {
         // Process each version
         for (const { versionId } of items) {
           try {
-            // Skip if already published
+            // Skip if already published - count as success since it's already done
             if (noteStatuses[versionId] === "published") {
               console.debug(
                 `[useNoteManagement] Skipping already published note ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -730,12 +733,13 @@ export function useNoteManagement(playlist: Playlist) {
             }
 
             const content = noteDrafts[versionId] || "";
-            // Skip if content is empty and no attachments
+            // Skip if content is empty and no attachments - count as success since nothing to publish
             const attachments = noteAttachments[versionId] || [];
             if (!content.trim() && attachments.length === 0) {
               console.debug(
                 `[useNoteManagement] Skipping empty note for version ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 

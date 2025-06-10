@@ -880,8 +880,11 @@ export const MainContent: React.FC<MainContentProps> = ({
             />
           ) : null}
           <div className="flex items-center gap-2">
-            {/* Show sync button for local playlists with content */}
+            {/* Show sync button for local playlists with content (but NEVER for Quick Notes) */}
             {(() => {
+              // CRITICAL FIX: Quick Notes should NEVER show sync button
+              if (activePlaylist.isQuickNotes) return false;
+              
               const hasVersionsToSync = (activePlaylist.versions?.length || 0) > 0;
               const hasManuallyAdded = activePlaylist.versions?.some(v => v.manuallyAdded) || false;
               const shouldShowSync = activePlaylist.isLocalOnly && 
@@ -890,6 +893,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               
               console.log('Sync button condition check:', {
                 playlistId: activePlaylist.id,
+                isQuickNotes: activePlaylist.isQuickNotes,
                 isLocalOnly: activePlaylist.isLocalOnly,
                 ftrackSyncState: activePlaylist.ftrackSyncState,
                 hasVersionsToSync,

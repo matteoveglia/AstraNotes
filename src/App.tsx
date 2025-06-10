@@ -95,22 +95,23 @@ const App: React.FC = () => {
     console.log("loadPlaylistsWithLists called:", { selectedProjectId, hasValidatedSelectedProject });
     
     try {
-      // Initialize Quick Notes if it doesn't exist - creates database entry
+      // CRITICAL FIX: Always initialize Quick Notes first - it's a permanent special playlist
       await playlistStore.initializeQuickNotes();
       
-      // CRITICAL FIX: Also ensure Quick Notes exists in UI store
-      const { playlists, setPlaylists } = usePlaylistsStore.getState();
-      const hasQuickNotes = playlists.some(p => p.id === 'quick-notes');
+      // CRITICAL FIX: Ensure Quick Notes exists in the current component state
+      const currentPlaylists = usePlaylistsStore.getState().playlists;
+      const hasQuickNotes = currentPlaylists.some(p => p.id === 'quick-notes');
       if (!hasQuickNotes) {
-        console.log('Adding Quick Notes to UI store...');
-        setPlaylists([...playlists]); // This will trigger setPlaylists to add Quick Notes
+        console.log('Quick Notes missing from state, will be added by setPlaylists()');
       }
       
-      // Only load playlists if we have a validated project selection
+      // Set Quick Notes as active if no project is selected
       if (!selectedProjectId || !hasValidatedSelectedProject) {
-        console.log("No validated project - clearing playlists in loadPlaylistsWithLists");
-        setLocalPlaylists([]);
-        setStorePlaylists([]);
+        console.log("No validated project - showing only Quick Notes");
+        if (!activePlaylistId || activePlaylistId !== "quick-notes") {
+          setActivePlaylist("quick-notes");
+          setOpenPlaylists(["quick-notes"]);
+        }
         return;
       }
       
@@ -291,45 +292,57 @@ const App: React.FC = () => {
       console.log("Loading playlists for project:", selectedProjectId);
       loadPlaylistsWithLists();
     } else {
-      // No project selected or not validated - clear playlists immediately
-      console.log("No validated project - clearing playlists in useEffect");
-      setLocalPlaylists([]);
-      setStorePlaylists([]);
-      setActivePlaylist(null);
-      setOpenPlaylists([]);
-      // Clear the loaded versions cache when clearing project
-      loadedVersionsRef.current = {};
-      console.log("Cleared loadedVersionsRef cache");
+      // No project selected or not validated - clear project playlists but keep Quick Notes
+      console.log("No validated project - clearing project playlists, keeping Quick Notes");
+      
+      // Keep Quick Notes in playlists
+      const quickNotesPlaylist = {
+        id: "quick-notes",
+        name: "Quick Notes",
+        title: "Quick Notes",
+        notes: [],
+        versions: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isQuickNotes: true,
+        isLocalOnly: false, // CRITICAL FIX: Quick Notes should never show as local only
+      };
+      
+      setLocalPlaylists([quickNotesPlaylist]);
+      setStorePlaylists([]); // Clear store playlists (project-specific)
+      setActivePlaylist("quick-notes"); // Always set Quick Notes as active when no project
+      setOpenPlaylists(["quick-notes"]); // Keep Quick Notes open
+      
+      // Clear the loaded versions cache when clearing project (except Quick Notes)
+      const newCache = { "quick-notes": true };
+      loadedVersionsRef.current = newCache;
+      console.log("Cleared loadedVersionsRef cache except Quick Notes");
     }
   }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylistsWithLists, setLocalPlaylists, setStorePlaylists, setActivePlaylist]);
 
   // Handle playlist state when project selection changes
   useEffect(() => {
-    // Only manage Quick Notes when we have a validated project
-    if (!selectedProjectId || !hasValidatedSelectedProject) {
-      // No project selected - ensure Quick Notes is not active
-      if (activePlaylistId === "quick-notes") {
-        setActivePlaylist(null);
-      }
-      if (openPlaylists.includes("quick-notes")) {
-        setOpenPlaylists([]);
-      }
-      return;
-    }
-
     const quickNotesExists = playlists.some(p => p.isQuickNotes);
     
-    if (quickNotesExists && !openPlaylists.includes("quick-notes")) {
-      // Project selected and Quick Notes exists but not in open playlists - add it
-      setOpenPlaylists(["quick-notes"]);
-      if (!activePlaylistId) {
-        setActivePlaylist("quick-notes");
+    if (selectedProjectId && hasValidatedSelectedProject) {
+      // Project selected - ensure Quick Notes is in open playlists if it exists
+      if (quickNotesExists && !openPlaylists.includes("quick-notes")) {
+        setOpenPlaylists(prev => ["quick-notes", ...prev.filter(id => id !== "quick-notes")]);
+        
+        // Set Quick Notes as active if no other playlist is active
+        if (!activePlaylistId) {
+          setActivePlaylist("quick-notes");
+        }
       }
-    } else if (!quickNotesExists && openPlaylists.includes("quick-notes")) {
-      // Quick Notes should exist but doesn't - remove it from open playlists
-      setOpenPlaylists([]);
-      if (activePlaylistId === "quick-notes") {
-        setActivePlaylist(null);
+    } else {
+      // No project selected - Quick Notes should be the only active playlist
+      if (quickNotesExists) {
+        if (activePlaylistId !== "quick-notes") {
+          setActivePlaylist("quick-notes");
+        }
+        if (!openPlaylists.includes("quick-notes") || openPlaylists.length > 1) {
+          setOpenPlaylists(["quick-notes"]);
+        }
       }
     }
   }, [selectedProjectId, hasValidatedSelectedProject, playlists, openPlaylists, activePlaylistId, setActivePlaylist]);
@@ -389,12 +402,44 @@ const App: React.FC = () => {
       const { playlistId, ftrackId, playlistName } = event.detail;
       console.log('Playlist synced - converted in place:', { playlistId, ftrackId, playlistName });
       
-      // The playlist was converted in place, so we just need to reload to get the updated state
-      // No need to remove anything since the same playlist ID is preserved
-      setTimeout(() => {
-        console.log('Triggering playlist reload after sync to get updated sync state...');
-        loadPlaylistsWithLists();
-      }, 100);
+      // CRITICAL FIX: Use functional state update to get current state with safety checks
+      setLocalPlaylists(currentPlaylists => {
+        // Safety check: ensure currentPlaylists is an array
+        if (!Array.isArray(currentPlaylists)) {
+          console.warn('currentPlaylists is not an array:', currentPlaylists);
+          // Force reload with proper state
+          setTimeout(() => {
+            loadPlaylistsWithLists();
+          }, 100);
+          return [];
+        }
+        
+        const playlistIndex = currentPlaylists.findIndex(p => p && p.id === playlistId);
+        
+        if (playlistIndex >= 0) {
+          const updatedPlaylists = [...currentPlaylists];
+          updatedPlaylists[playlistIndex] = {
+            ...updatedPlaylists[playlistIndex],
+            isLocalOnly: false,
+            ftrackSyncState: 'synced' as const,
+            // Clear manually added flags from versions to remove purple borders
+            versions: updatedPlaylists[playlistIndex].versions?.map(v => ({
+              ...v,
+              manuallyAdded: false,
+            })) || [],
+          };
+          
+          console.log('Updated synced playlist in state without full reload - no remounting!');
+          return updatedPlaylists;
+        } else {
+          console.warn('Synced playlist not found in current state, falling back to reload');
+          // Only reload if we can't find the playlist (shouldn't happen)
+          setTimeout(() => {
+            loadPlaylistsWithLists();
+          }, 100);
+          return currentPlaylists;
+        }
+      });
     };
 
     window.addEventListener('playlist-synced', handlePlaylistSynced as EventListener);

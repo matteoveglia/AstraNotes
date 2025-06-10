@@ -1798,10 +1798,33 @@ export class FtrackService {
           try {
         const session = await this.ensureSession();
 
-        // Query for the entity to get its object type and project schema
-        const entityResult = await session.query(
-          `select object_type_id, project.project_schema_id from ${entityType} where id is "${entityId}"`
-        );
+        // CRITICAL FIX: Handle AssetVersion differently since it doesn't have object_type_id
+        let entityResult: any;
+        let objectTypeName: string;
+        
+        if (entityType === "AssetVersion") {
+          // AssetVersion doesn't have object_type_id, just use the entity type
+          entityResult = await session.query(
+            `select project.project_schema_id from ${entityType} where id is "${entityId}"`
+          );
+          objectTypeName = "AssetVersion";
+        } else {
+          // Other entities have object_type_id
+          entityResult = await session.query(
+            `select object_type_id, project.project_schema_id from ${entityType} where id is "${entityId}"`
+          );
+          
+          if (entityResult?.data?.length) {
+            const entity = entityResult.data[0];
+            // Get object type name
+            const objectType = this.allObjectTypes.find(
+              (ot) => ot.id === entity.object_type_id,
+            );
+            objectTypeName = objectType?.name || entityType;
+          } else {
+            objectTypeName = entityType;
+          }
+        }
 
         if (!entityResult?.data?.length) {
           console.warn(`Entity ${entityType}:${entityId} not found`);
@@ -1809,12 +1832,6 @@ export class FtrackService {
         }
 
         const entity = entityResult.data[0];
-
-        // Get object type name
-        const objectType = this.allObjectTypes.find(
-          (ot) => ot.id === entity.object_type_id,
-        );
-        const objectTypeName = objectType?.name || entityType;
 
         // Get project schema
         const projectSchemaId = entity.project?.project_schema_id;

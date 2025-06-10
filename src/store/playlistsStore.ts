@@ -22,6 +22,7 @@ const QUICK_NOTES_PLAYLIST: Playlist = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   isQuickNotes: true,
+  isLocalOnly: false, // CRITICAL FIX: Quick Notes should never show as local only
 };
 
 interface PlaylistsState {
@@ -131,32 +132,33 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       const remainingLocalPlaylists: any[] = []; // Legacy table removed
       console.log('Remaining local playlists after cleanup:', remainingLocalPlaylists.length);
 
-      // Fetch both ftrack playlists and local playlists (both pending and synced)
-      const [fetchedPlaylists, localPlaylists] = await Promise.all([
+      // CRITICAL FIX: Load from NEW modular store database (db.playlists)
+      const [fetchedPlaylists, databasePlaylists] = await Promise.all([
         ftrackService.getPlaylists(),
-        // Get all local playlists - both pending (not yet synced) and synced (converted in place)
-        ([] as any[]).filter((lp: any) => { // Legacy table removed
-          const isPending = lp.syncState === 'pending' && 
-                           (lp.isLocalOnly === true || lp.isLocalOnly === undefined) && 
-                           !lp.ftrackId;
-          const isSynced = lp.syncState === 'synced' && !!lp.ftrackId;
-          return isPending || isSynced;
-        }) // Legacy table removed - return empty array
+        // Load ALL playlists from the new modular store database
+        db.playlists.toArray()
       ]);
 
       console.log('Loaded playlists:', {
         ftrackCount: fetchedPlaylists.length,
-        localCount: localPlaylists.length,
-        localPlaylists: localPlaylists.map((lp: any) => ({ id: lp.id, name: lp.name, syncState: lp.syncState, isLocalOnly: lp.isLocalOnly }))
+        databaseCount: databasePlaylists.length,
+        databasePlaylists: databasePlaylists.map((dp: any) => ({ 
+          id: dp.id, 
+          name: dp.name, 
+          localStatus: dp.localStatus, 
+          ftrackSyncStatus: dp.ftrackSyncStatus,
+          ftrackId: dp.ftrackId 
+        }))
       });
 
-      // Convert local playlists to Playlist format and load their versions
-      const localPlaylistsFormatted: Playlist[] = await Promise.all(
-        localPlaylists.map(async (local: any) => {
-          // Load versions for this local playlist from the database
+      // Convert database playlists to Playlist format and load their versions
+      const databasePlaylistsFormatted: Playlist[] = await Promise.all(
+        databasePlaylists.map(async (dbPlaylist: any) => {
+          // Load versions for this database playlist
           const versions = await db.versions
-            .where('playlistId').equals(local.id)
-            .toArray(); // All versions for this playlist ID (both local and synced)
+            .where('playlistId').equals(dbPlaylist.id)
+            .and(v => !v.isRemoved) // Only active versions
+            .toArray();
 
           // Convert database versions to AssetVersion format
           const playlistVersions = versions.map(v => ({
@@ -166,32 +168,40 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             thumbnailUrl: v.thumbnailUrl || '',
             thumbnailId: v.thumbnailId || '',
             reviewSessionObjectId: v.reviewSessionObjectId || '',
-            createdAt: v.createdAt,
-            updatedAt: v.updatedAt,
+            createdAt: v.addedAt || v.createdAt,
+            updatedAt: v.addedAt || v.updatedAt,
             manuallyAdded: v.manuallyAdded || false,
           }));
 
-          console.log(`Loaded ${playlistVersions.length} versions for local playlist ${local.id}`);
+          console.log(`Loaded ${playlistVersions.length} versions for database playlist ${dbPlaylist.id}`);
 
           return {
-            id: local.id,
-            name: local.name,
-            title: local.name,
+            id: dbPlaylist.id,
+            name: dbPlaylist.name,
+            title: dbPlaylist.name,
             notes: [],
-            versions: playlistVersions, // Load actual versions from database
-            createdAt: local.createdAt,
-            updatedAt: local.updatedAt,
-            isLocalOnly: local.syncState === 'pending', // Only pending playlists are local-only
-            ftrackSyncState: local.syncState as any,
-            type: local.type,
-            categoryId: local.categoryId,
-            categoryName: local.categoryName,
+            versions: playlistVersions,
+            createdAt: dbPlaylist.createdAt,
+            updatedAt: dbPlaylist.updatedAt,
+            // Map database status to UI format
+            isLocalOnly: dbPlaylist.localStatus === 'draft' || dbPlaylist.ftrackSyncStatus === 'not_synced',
+            ftrackSyncState: dbPlaylist.ftrackSyncStatus === 'synced' ? 'synced' : 'pending',
+            type: dbPlaylist.type,
+            categoryId: dbPlaylist.categoryId,
+            categoryName: dbPlaylist.categoryName,
           };
         })
       );
 
-      // Combine ftrack playlists with pending local playlists
-      const allPlaylists = [...fetchedPlaylists, ...localPlaylistsFormatted];
+      // Combine ftrack playlists with database playlists, avoiding duplicates
+      // If a playlist exists both in ftrack and database, prefer the database version (has local modifications)
+      const ftrackIds = new Set(fetchedPlaylists.map(p => p.id));
+      const databaseIds = new Set(databasePlaylists.map(p => p.ftrackId).filter(Boolean));
+      
+      // Only include ftrack playlists that don't have a corresponding database entry
+      const uniqueFtrackPlaylists = fetchedPlaylists.filter(fp => !databaseIds.has(fp.id));
+      
+      const allPlaylists = [...uniqueFtrackPlaylists, ...databasePlaylistsFormatted];
       setPlaylists(allPlaylists); // Quick Notes will be preserved by setPlaylists
     } catch (error) {
       setError(

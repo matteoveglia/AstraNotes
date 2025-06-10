@@ -463,9 +463,13 @@ export class PlaylistStore extends SimpleEventEmitter {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       
-      // Status mapping for UI compatibility
-      isLocalOnly: entity.localStatus !== 'synced',
+      // Status mapping for UI compatibility  
+      // CRITICAL FIX: Quick Notes should NEVER be considered local only
+      isLocalOnly: entity.id === 'quick-notes' ? false : entity.localStatus !== 'synced',
       ftrackSyncState: entity.ftrackSyncStatus === 'not_synced' ? 'pending' : entity.ftrackSyncStatus,
+      
+      // CRITICAL FIX: Add isQuickNotes flag
+      isQuickNotes: entity.id === 'quick-notes',
       
       // Additional metadata
       categoryId: entity.categoryId,
@@ -597,11 +601,36 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
   
   /**
-   * @deprecated Not needed in new architecture
-   * Legacy method for backward compatibility
+   * Clears all manually added versions from a playlist
+   * CRITICAL FIX: This was a stub, now properly implemented
    */
-  async clearAddedVersions(_playlistId: string): Promise<void> {
-    // Not needed in new architecture
+  async clearAddedVersions(playlistId: string): Promise<void> {
+    try {
+      console.log(`[PlaylistStore] Clearing manually added versions from playlist: ${playlistId}`);
+      
+      // Get all manually added versions first
+      const allVersions = await this.repository.getPlaylistVersions(playlistId);
+      const manuallyAddedVersions = allVersions.filter(v => v.manuallyAdded);
+      
+      console.log(`[PlaylistStore] Found ${manuallyAddedVersions.length} manually added versions to remove`);
+      
+      // Remove each manually added version
+      for (const version of manuallyAddedVersions) {
+        await this.repository.updateVersion(playlistId, version.id, { 
+          isRemoved: true
+        });
+      }
+      
+      // Clear cache to force reload
+      this.cache.invalidate(playlistId);
+      
+      console.log(`[PlaylistStore] Cleared ${manuallyAddedVersions.length} manually added versions from playlist: ${playlistId}`);
+      this.emit('versions-cleared', { playlistId, count: manuallyAddedVersions.length });
+      
+    } catch (error) {
+      console.error(`[PlaylistStore] Failed to clear added versions from playlist ${playlistId}:`, error);
+      throw error;
+    }
   }
   
   /**
