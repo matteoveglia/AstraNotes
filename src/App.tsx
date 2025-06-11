@@ -4,7 +4,7 @@ import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
-import type { Playlist } from "@/types";
+import type { Playlist, AssetVersion } from "@/types";
 import { useWhatsNew } from "./hooks/useWhatsNew";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
@@ -117,41 +117,11 @@ const App: React.FC = () => {
       
       // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
       console.log("Using store's loadPlaylists (includes cleanup)...");
+      // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
+      // Remove redundant second fetch that was causing duplicates
       await loadPlaylists();
       
-      // After store loads, we need to also get Lists since store only gets Review Sessions
-      const projectFilter = selectedProjectId;
-      console.log("Loading additional Lists for project:", projectFilter);
-      
-      const lists = await ftrackService.getLists(projectFilter);
-      console.log("Loaded", lists.length, "lists");
-      
-      // Combine store playlists with lists (deduplicate by ID)
-      if (lists.length > 0) {
-        const currentPlaylists = usePlaylistsStore.getState().playlists;
-        
-        // Create a map of existing playlist IDs to avoid duplicates
-        const existingIds = new Set(currentPlaylists.map(p => p.id));
-        
-        // Only add Lists that aren't already in store playlists
-        const newLists = lists.filter(list => !existingIds.has(list.id));
-        
-        console.log('Deduplication check:', {
-          currentPlaylistsCount: currentPlaylists.length,
-          listsFromAPI: lists.length,
-          newListsToAdd: newLists.length,
-          existingIds: Array.from(existingIds)
-        });
-        
-        if (newLists.length > 0) {
-          const combinedPlaylists = [...currentPlaylists, ...newLists];
-          setLocalPlaylists(combinedPlaylists);
-          setStorePlaylists(combinedPlaylists.filter((p) => !p.isQuickNotes));
-          console.log('Added', newLists.length, 'new Lists to playlists');
-        } else {
-          console.log('No new Lists to add - all already exist in store');
-        }
-      }
+      console.log('Playlists loaded with proper deduplication - no additional fetching needed');
       
     } catch (error) {
       console.error("Failed to load playlists with lists:", error);
@@ -225,9 +195,33 @@ const App: React.FC = () => {
           `Loading versions for active playlist: ${activePlaylistId}`,
         );
         
-        // CRITICAL FIX: Load ftrack versions first
+        // CRITICAL FIX: Get the playlist to extract ftrackId for API call
+        const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
+        if (!currentPlaylist?.ftrackId) {
+          console.log(`[App] Playlist ${activePlaylistId} has no ftrackId - skipping ftrack version loading`);
+          // Still try to load database versions
+          const mergedVersions = await playlistStore.loadAndMergeVersions(
+            activePlaylistId,
+            []
+          );
+          
+          setLocalPlaylists(
+            playlists.map((playlist) =>
+              playlist.id === activePlaylistId
+                ? { ...playlist, versions: mergedVersions }
+                : playlist,
+            ),
+          );
+
+          if (activePlaylistId) {
+            loadedVersionsRef.current[activePlaylistId] = true;
+          }
+          return;
+        }
+        
+        // CRITICAL FIX: Use ftrackId for API call instead of database UUID
         const ftrackVersions =
-          await ftrackService.getPlaylistVersions(activePlaylistId);
+          await ftrackService.getPlaylistVersions(currentPlaylist.ftrackId);
 
         console.log(`Received ${ftrackVersions.length} versions from ftrack service`);
 
@@ -402,44 +396,43 @@ const App: React.FC = () => {
       const { playlistId, ftrackId, playlistName } = event.detail;
       console.log('Playlist synced - converted in place:', { playlistId, ftrackId, playlistName });
       
-      // CRITICAL FIX: Use functional state update to get current state with safety checks
-      setLocalPlaylists(currentPlaylists => {
-        // Safety check: ensure currentPlaylists is an array
-        if (!Array.isArray(currentPlaylists)) {
-          console.warn('currentPlaylists is not an array:', currentPlaylists);
-          // Force reload with proper state
-          setTimeout(() => {
-            loadPlaylistsWithLists();
-          }, 100);
-          return [];
-        }
+      // CRITICAL FIX: Use direct state update with current playlists
+      const currentPlaylists = playlists;
+      
+      // Safety check: ensure currentPlaylists is an array
+      if (!Array.isArray(currentPlaylists)) {
+        console.warn('currentPlaylists is not an array:', currentPlaylists);
+        // Force reload with proper state
+        setTimeout(() => {
+          loadPlaylistsWithLists();
+        }, 100);
+        return;
+      }
+      
+      const playlistIndex = currentPlaylists.findIndex((p: Playlist) => p && p.id === playlistId);
+      
+      if (playlistIndex >= 0) {
+        const updatedPlaylists = [...currentPlaylists];
+        updatedPlaylists[playlistIndex] = {
+          ...updatedPlaylists[playlistIndex],
+          isLocalOnly: false,
+          ftrackSyncState: 'synced' as const,
+          // Clear manually added flags from versions to remove purple borders
+          versions: updatedPlaylists[playlistIndex].versions?.map((v: AssetVersion) => ({
+            ...v,
+            manuallyAdded: false,
+          })) || [],
+        };
         
-        const playlistIndex = currentPlaylists.findIndex(p => p && p.id === playlistId);
-        
-        if (playlistIndex >= 0) {
-          const updatedPlaylists = [...currentPlaylists];
-          updatedPlaylists[playlistIndex] = {
-            ...updatedPlaylists[playlistIndex],
-            isLocalOnly: false,
-            ftrackSyncState: 'synced' as const,
-            // Clear manually added flags from versions to remove purple borders
-            versions: updatedPlaylists[playlistIndex].versions?.map(v => ({
-              ...v,
-              manuallyAdded: false,
-            })) || [],
-          };
-          
-          console.log('Updated synced playlist in state without full reload - no remounting!');
-          return updatedPlaylists;
-        } else {
-          console.warn('Synced playlist not found in current state, falling back to reload');
-          // Only reload if we can't find the playlist (shouldn't happen)
-          setTimeout(() => {
-            loadPlaylistsWithLists();
-          }, 100);
-          return currentPlaylists;
-        }
-      });
+        console.log('Updated synced playlist in state without full reload - no remounting!');
+        setLocalPlaylists(updatedPlaylists);
+      } else {
+        console.warn('Synced playlist not found in current state, falling back to reload');
+        // Only reload if we can't find the playlist (shouldn't happen)
+        setTimeout(() => {
+          loadPlaylistsWithLists();
+        }, 100);
+      }
     };
 
     window.addEventListener('playlist-synced', handlePlaylistSynced as EventListener);

@@ -141,14 +141,57 @@ export class PlaylistStore extends SimpleEventEmitter {
           if (uiPlaylist) {
         console.log(`[PlaylistStore] Found playlist in UI store but not database: ${id} - creating database entry`);
         
-        // Create database entry for UI playlist - sanitize to avoid DataCloneError
+        // CRITICAL FIX: Don't save ftrack native playlists to database - they should remain in UI store only
+        const isLocalPlaylist = uiPlaylist.isLocalOnly;
+        const isQuickNotes = id === 'quick-notes';
+        const isFtrackNative = !isLocalPlaylist && !isQuickNotes;
+        
+        console.log(`[PlaylistStore] Playlist type analysis - isLocal: ${isLocalPlaylist}, isQuickNotes: ${isQuickNotes}, isFtrackNative: ${isFtrackNative}`);
+        
+        if (isFtrackNative) {
+          console.log(`[PlaylistStore] Skipping database save for ftrack native playlist: ${id} - keeping in UI store only`);
+          
+          // Convert UI playlist to our format and cache it - sanitize to avoid DataCloneError
+          playlist = {
+            id: String(uiPlaylist.id),
+            name: String(uiPlaylist.name || 'Untitled'),
+            title: String(uiPlaylist.title || uiPlaylist.name || 'Untitled'),
+            type: uiPlaylist.type || 'list',
+            versions: Array.isArray(uiPlaylist.versions) ? uiPlaylist.versions.map(v => ({
+              ...v,
+              // Ensure all version fields are serializable
+              id: String(v.id),
+              name: String(v.name || ''),
+              version: Number(v.version) || 0,
+              thumbnailUrl: String(v.thumbnailUrl || ''),
+              thumbnailId: String(v.thumbnailId || ''),
+              reviewSessionObjectId: String(v.reviewSessionObjectId || ''),
+              createdAt: typeof v.createdAt === 'string' ? v.createdAt : new Date().toISOString(),
+              updatedAt: typeof v.updatedAt === 'string' ? v.updatedAt : new Date().toISOString(),
+              manuallyAdded: Boolean(v.manuallyAdded),
+            })) : [],
+            notes: Array.isArray(uiPlaylist.notes) ? uiPlaylist.notes : [],
+            createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
+            updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
+            isLocalOnly: Boolean(uiPlaylist.isLocalOnly),
+            ftrackSyncState: uiPlaylist.ftrackSyncState || 'synced', // Ftrack native playlists are always synced
+            categoryId: uiPlaylist.categoryId ? String(uiPlaylist.categoryId) : undefined,
+            categoryName: uiPlaylist.categoryName ? String(uiPlaylist.categoryName) : undefined,
+          };
+          
+          this.cache.setPlaylist(id, playlist);
+          console.log(`[PlaylistStore] Cached ftrack native playlist without database save: ${id}`);
+          return playlist;
+        }
+        
+        // Create database entry for local playlists and Quick Notes only
         const playlistEntity: PlaylistEntity = {
           id: id,
           name: String(uiPlaylist.name || 'Untitled'),
           type: (uiPlaylist.type === 'reviewsession' || uiPlaylist.type === 'list') ? uiPlaylist.type : 'list',
-          localStatus: uiPlaylist.isLocalOnly ? 'draft' : 'synced',
-          ftrackSyncStatus: uiPlaylist.isLocalOnly ? 'not_synced' : 'synced',
-          ftrackId: uiPlaylist.isLocalOnly ? undefined : (typeof id === 'string' ? id : undefined),
+          localStatus: isLocalPlaylist ? 'draft' : 'synced',
+          ftrackSyncStatus: isLocalPlaylist ? 'not_synced' : 'synced',
+          ftrackId: undefined, // ftrackId should only be set after successful sync, not during initialization
           projectId: 'none', // Default for Quick Notes and other UI playlists
           createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
           updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
@@ -297,10 +340,15 @@ export class PlaylistStore extends SimpleEventEmitter {
           type: (uiPlaylist.type === 'reviewsession' || uiPlaylist.type === 'list') ? uiPlaylist.type : 'list',
           localStatus: uiPlaylist.isLocalOnly ? 'draft' : 'synced',
           ftrackSyncStatus: uiPlaylist.isLocalOnly ? 'not_synced' : 'synced',
-          ftrackId: uiPlaylist.isLocalOnly ? undefined : (typeof playlistId === 'string' ? playlistId : undefined),
-          projectId: 'none', // Default for Quick Notes and other UI playlists
+          // CRITICAL FIX: Preserve ftrack metadata for ftrack native playlists
+          ftrackId: uiPlaylist.ftrackId || (uiPlaylist.isLocalOnly ? undefined : playlistId), // For ftrack native playlists, ftrackId = playlistId
+          projectId: String(uiPlaylist.projectId || 'none'), // Preserve project ID
+          categoryId: uiPlaylist.categoryId, // Preserve category ID
+          categoryName: uiPlaylist.categoryName, // Preserve category name
+          description: uiPlaylist.description, // Preserve description
           createdAt: typeof uiPlaylist.createdAt === 'string' ? uiPlaylist.createdAt : new Date().toISOString(),
           updatedAt: typeof uiPlaylist.updatedAt === 'string' ? uiPlaylist.updatedAt : new Date().toISOString(),
+          syncedAt: uiPlaylist.isLocalOnly ? undefined : new Date().toISOString(), // Mark ftrack native as synced
         };
         
         // Use safe initialization to prevent race conditions
@@ -463,6 +511,9 @@ export class PlaylistStore extends SimpleEventEmitter {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       
+      // CRITICAL FIX: Include ftrackId from database entity
+      ftrackId: entity.ftrackId,
+      
       // Status mapping for UI compatibility  
       // CRITICAL FIX: Quick Notes should NEVER be considered local only
       isLocalOnly: entity.id === 'quick-notes' ? false : entity.localStatus !== 'synced',
@@ -546,10 +597,31 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Legacy method for backward compatibility
    */
   async saveNoteStatus(versionId: string, playlistId: string, status: string, content: string, labelId?: string | boolean): Promise<void> {
-    if (content) {
-      await this.saveDraft(playlistId, versionId, content, typeof labelId === 'string' ? labelId : undefined);
+    // CRITICAL FIX for Issue #9: Properly save the note status instead of always calling saveDraft
+    try {
+      const labelIdStr = typeof labelId === 'string' ? labelId : undefined;
+      
+      if (status === 'published') {
+        // For published notes, update the version record directly with published status
+        await this.repository.updateVersion(playlistId, versionId, {
+          noteStatus: 'published',
+          draftContent: content,
+          labelId: labelIdStr,
+          lastModified: Date.now()
+        });
+        console.log(`[PlaylistStore] Updated note status to PUBLISHED for version ${versionId}`);
+      } else {
+        // For draft/empty notes, use the saveDraft flow which properly handles status logic
+        await this.saveDraft(playlistId, versionId, content, labelIdStr);
+      }
+      
+      // Clear cache to ensure fresh data
+      this.cache.invalidate(playlistId);
+      
+    } catch (error) {
+      console.error(`[PlaylistStore] Failed to save note status for ${versionId}:`, error);
+      throw error;
     }
-    // Note status is now handled internally by DraftManager
   }
   
   /**

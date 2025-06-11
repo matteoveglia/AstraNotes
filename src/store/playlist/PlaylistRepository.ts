@@ -47,12 +47,25 @@ export class PlaylistRepository implements PlaylistOperations {
       updatedAt: new Date().toISOString(),
     };
     
+    console.log(`[PlaylistRepository] About to update playlist ${id} with record:`, updateRecord);
+    console.log(`[PlaylistRepository] ftrackId in updates:`, updates.ftrackId);
+    console.log(`[PlaylistRepository] ftrackId in updateRecord:`, updateRecord.ftrackId);
+    
     const updated = await db.playlists.update(id, updateRecord);
     if (updated === 0) {
       throw new Error(`Playlist ${id} not found for update`);
     }
     
     console.log(`[PlaylistRepository] Updated playlist: ${id}`, updates);
+    
+    // Verify the update worked by reading back the record
+    const verifyRecord = await db.playlists.get(id);
+    console.log(`[PlaylistRepository] Verification - playlist after update:`, {
+      id: verifyRecord?.id,
+      ftrackId: verifyRecord?.ftrackId,
+      ftrackSyncStatus: verifyRecord?.ftrackSyncStatus,
+      localStatus: verifyRecord?.localStatus
+    });
   }
   
   async deletePlaylist(id: string): Promise<void> {

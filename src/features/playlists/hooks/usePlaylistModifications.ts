@@ -76,6 +76,19 @@ export function usePlaylistModifications(
     );
 
     try {
+      // CRITICAL FIX: Mark removed versions in database before updating UI
+      if (modifications.removedVersions && modifications.removedVersions.length > 0) {
+        console.debug(`[usePlaylistModifications] Marking ${modifications.removedVersions.length} versions as removed in database`);
+        for (const removedVersionId of modifications.removedVersions) {
+          try {
+            await playlistStore.removeVersionFromPlaylist(playlist.id, removedVersionId);
+            console.debug(`[usePlaylistModifications] Marked version ${removedVersionId} as removed`);
+          } catch (error) {
+            console.error(`[usePlaylistModifications] Failed to mark version ${removedVersionId} as removed:`, error);
+          }
+        }
+      }
+
       // Get manually added versions from current playlist
       const manualVersions =
         playlist.versions?.filter((v) => v.manuallyAdded) || [];
@@ -163,10 +176,16 @@ export function usePlaylistModifications(
   const refreshPlaylist = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      // For synced playlists, use ftrackId; for local playlists, skip refresh
+      if (!playlist.ftrackId) {
+        console.debug(`[usePlaylistModifications] Cannot refresh local-only playlist ${playlist.id}`);
+        return false;
+      }
+
       // If we have pending versions, use those, otherwise fetch fresh ones
       const freshVersions =
         pendingVersions ||
-        (await ftrackService.getPlaylistVersions(playlist.id));
+        (await ftrackService.getPlaylistVersions(playlist.ftrackId));
 
       // Create maps for quick lookup
       const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));

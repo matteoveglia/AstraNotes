@@ -32,6 +32,9 @@ export interface Playlist {
   isLocalOnly?: boolean;
   localVersions?: AssetVersion[];
   ftrackSyncState?: 'pending' | 'syncing' | 'synced' | 'failed';
+  ftrackId?: string; // CRITICAL FIX: Add ftrackId for synced playlists
+  projectId?: string; // CRITICAL FIX: Add projectId for ftrack playlists
+  description?: string; // CRITICAL FIX: Add description for ftrack playlists
 }
 
 /**

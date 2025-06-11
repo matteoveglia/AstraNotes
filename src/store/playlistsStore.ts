@@ -133,11 +133,15 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       console.log('Remaining local playlists after cleanup:', remainingLocalPlaylists.length);
 
       // CRITICAL FIX: Load from NEW modular store database (db.playlists)
-      const [fetchedPlaylists, databasePlaylists] = await Promise.all([
-        ftrackService.getPlaylists(),
+      // Also fix Issue #4: Load BOTH review sessions AND lists from ftrack
+      const [reviewSessions, lists, databasePlaylists] = await Promise.all([
+        ftrackService.getPlaylists(), // Review Sessions
+        ftrackService.getLists(),    // Lists  
         // Load ALL playlists from the new modular store database
         db.playlists.toArray()
       ]);
+      
+      const fetchedPlaylists = [...reviewSessions, ...lists];
 
       console.log('Loaded playlists:', {
         ftrackCount: fetchedPlaylists.length,
@@ -150,6 +154,13 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
           ftrackId: dp.ftrackId 
         }))
       });
+      
+      // DEBUG: Let's also see what ftrack playlists we're getting
+      console.log('Ftrack playlists loaded:', fetchedPlaylists.slice(0, 5).map(fp => ({
+        id: fp.id,
+        name: fp.name,
+        type: fp.type || (fp as any).__entity_type__
+      })));
 
       // Convert database playlists to Playlist format and load their versions
       const databasePlaylistsFormatted: Playlist[] = await Promise.all(
@@ -183,6 +194,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             versions: playlistVersions,
             createdAt: dbPlaylist.createdAt,
             updatedAt: dbPlaylist.updatedAt,
+            // CRITICAL FIX: Include ftrackId from database
+            ftrackId: dbPlaylist.ftrackId,
             // Map database status to UI format
             isLocalOnly: dbPlaylist.localStatus === 'draft' || dbPlaylist.ftrackSyncStatus === 'not_synced',
             ftrackSyncState: dbPlaylist.ftrackSyncStatus === 'synced' ? 'synced' : 'pending',
@@ -193,15 +206,114 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
         })
       );
 
-      // Combine ftrack playlists with database playlists, avoiding duplicates
+      // CRITICAL FIX for Issue #4: Enhanced deduplication to prevent duplicate playlists after sync
       // If a playlist exists both in ftrack and database, prefer the database version (has local modifications)
       const ftrackIds = new Set(fetchedPlaylists.map(p => p.id));
       const databaseIds = new Set(databasePlaylists.map(p => p.ftrackId).filter(Boolean));
       
-      // Only include ftrack playlists that don't have a corresponding database entry
-      const uniqueFtrackPlaylists = fetchedPlaylists.filter(fp => !databaseIds.has(fp.id));
+      console.log('Deduplication data:', {
+        ftrackCount: fetchedPlaylists.length,
+        databaseCount: databasePlaylists.length,
+        ftrackIds: Array.from(ftrackIds),
+        databaseFtrackIds: Array.from(databaseIds)
+      });
       
-      const allPlaylists = [...uniqueFtrackPlaylists, ...databasePlaylistsFormatted];
+      // Enhanced filtering: exclude ftrack playlists that already have database entries
+      const uniqueFtrackPlaylists = fetchedPlaylists.filter(fp => {
+        const isDuplicateByFtrackId = databaseIds.has(fp.id);
+        
+        // EXTRA DEBUG: Log every ftrack playlist being checked
+        console.log('Deduplication check for ftrack playlist:', {
+          ftrackId: fp.id,
+          name: fp.name,
+          isDuplicateByFtrackId,
+          databaseHasFtrackId: databaseIds.has(fp.id),
+          databaseFtrackIds: Array.from(databaseIds)
+        });
+        
+        if (isDuplicateByFtrackId) {
+          console.log('✅ Excluding duplicate ftrack playlist (already in database):', {
+            ftrackId: fp.id,
+            name: fp.name
+          });
+        } else {
+          console.log('❌ Adding ftrack playlist (no database entry found):', {
+            ftrackId: fp.id,
+            name: fp.name
+          });
+        }
+        
+        return !isDuplicateByFtrackId;
+      });
+      
+      console.log('After deduplication:', {
+        uniqueFtrackPlaylists: uniqueFtrackPlaylists.length,
+        databasePlaylists: databasePlaylistsFormatted.length
+      });
+      
+      // CRITICAL FIX: Store ftrack playlists in database so they have proper metadata on reload
+      console.log('Storing ftrack playlists in database for persistent metadata...');
+      const formattedFtrackPlaylists = [];
+      
+      for (const ftrackPlaylist of uniqueFtrackPlaylists) {
+        try {
+          // Check if we already have a database entry for this ftrack playlist
+          const existingEntry = await db.playlists.where('ftrackId').equals(ftrackPlaylist.id).first();
+          
+          let playlistId: string;
+          if (existingEntry) {
+            // Use existing stable UUID
+            playlistId = existingEntry.id;
+            console.log(`Using existing database entry for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`);
+          } else {
+            // Generate new stable UUID for this ftrack playlist
+            playlistId = crypto.randomUUID();
+            console.log(`Generated new stable UUID for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`);
+            
+            // Create a clean serializable object for database storage
+            const playlistEntity = {
+              id: playlistId, // STABLE UUID - never changes
+              name: String(ftrackPlaylist.name),
+              type: (ftrackPlaylist.type || 'reviewsession') as 'reviewsession' | 'list',
+              localStatus: 'synced' as const, // Ftrack native playlists are already "synced"
+              ftrackSyncStatus: 'synced' as const,
+              ftrackId: String(ftrackPlaylist.id), // External reference only
+              projectId: ftrackPlaylist.projectId ? String(ftrackPlaylist.projectId) : '', // Ensure string
+              categoryId: ftrackPlaylist.categoryId ? String(ftrackPlaylist.categoryId) : undefined,
+              categoryName: ftrackPlaylist.categoryName ? String(ftrackPlaylist.categoryName) : undefined,
+              description: ftrackPlaylist.description ? String(ftrackPlaylist.description) : undefined,
+              createdAt: ftrackPlaylist.createdAt ? String(ftrackPlaylist.createdAt) : new Date().toISOString(),
+              updatedAt: ftrackPlaylist.updatedAt ? String(ftrackPlaylist.updatedAt) : new Date().toISOString(),
+              syncedAt: new Date().toISOString(), // Mark as synced now
+            };
+            
+            // Store in database with stable UUID
+            await db.playlists.put(playlistEntity);
+            console.log(`Stored ftrack playlist in database: ${ftrackPlaylist.id} -> ${playlistId} (${ftrackPlaylist.name})`);
+          }
+          
+          // Format for UI with stable UUID as id
+          formattedFtrackPlaylists.push({
+            ...ftrackPlaylist,
+            id: playlistId, // Use stable UUID as playlist ID
+            ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            isLocalOnly: false, // Ftrack native playlists are not local-only
+            ftrackSyncState: 'synced' as const, // Ftrack native playlists are already synced
+          });
+          
+        } catch (error) {
+          console.error(`Failed to store ftrack playlist ${ftrackPlaylist.id}:`, error);
+          // Still add to UI even if database storage failed
+          formattedFtrackPlaylists.push({
+            ...ftrackPlaylist,
+            ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            isLocalOnly: false, // Ftrack native playlists are not local-only
+            ftrackSyncState: 'synced' as const, // Ftrack native playlists are already synced
+          });
+        }
+      }
+      
+      const allPlaylists = [...formattedFtrackPlaylists, ...databasePlaylistsFormatted];
       setPlaylists(allPlaylists); // Quick Notes will be preserved by setPlaylists
     } catch (error) {
       setError(

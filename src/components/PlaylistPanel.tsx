@@ -131,7 +131,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const [error, setError] = useState(initialError);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
+  const { setPlaylists: setStorePlaylists, loadPlaylists } = usePlaylistsStore();
   const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
 
   // Generate categories from playlists with status
@@ -231,13 +231,13 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Fetch both review sessions and lists
-      const [latestReviewSessions, latestLists] = await Promise.all([
-        ftrackService.getPlaylists(),
-        ftrackService.getLists(),
-      ]);
-
-      const latestPlaylists = [...latestReviewSessions, ...latestLists];
+      // CRITICAL FIX for Issue #4: Use the proper loadPlaylists method with deduplication
+      // instead of directly fetching from ftrack and bypassing the database
+      await loadPlaylists();
+      
+      // Get the updated playlists from the store
+      const { playlists: updatedStorePlaylists } = usePlaylistsStore.getState();
+      const latestPlaylists = updatedStorePlaylists;
 
       // Create a map of current playlists for easy lookup
       const currentPlaylistMap = new Map(playlists.map((p) => [p.id, p]));

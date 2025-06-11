@@ -135,12 +135,17 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
       } as PlaylistEvent);
       
       // 7. Update playlist with success - SAME ID, just add ftrack metadata
+      console.log(`[PlaylistSync] About to update playlist ${playlistId} with ftrackId: ${ftrackResponse.id}`);
+      console.log(`[PlaylistSync] Full ftrackResponse:`, ftrackResponse);
+      
       await this.repository.updatePlaylist(playlistId, {
         ftrackId: ftrackResponse.id,
         localStatus: 'synced',
         ftrackSyncStatus: 'synced',
         syncedAt: new Date().toISOString(),
       });
+      
+      console.log(`[PlaylistSync] Database update completed for playlist ${playlistId}`);
       
       // 8. Clear cache to force fresh load
       this.cache.invalidate(playlistId);

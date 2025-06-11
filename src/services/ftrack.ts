@@ -510,6 +510,7 @@ export class FtrackService {
         updatedAt: session.end_date || session.created_at,
         isQuickNotes: false,
         type: "reviewsession" as const,
+        projectId: session.project_id, // CRITICAL FIX: Include project ID for database storage
       }));
     } catch (error) {
       log("Failed to fetch playlists:", error);
@@ -566,6 +567,7 @@ export class FtrackService {
         categoryId: list.category_id,
         categoryName: list.category?.name || "Uncategorized",
         isOpen: list.is_open,
+        projectId: list.project_id, // CRITICAL FIX: Include project ID for database storage
       }));
     } catch (error) {
       log("Failed to fetch lists:", error);

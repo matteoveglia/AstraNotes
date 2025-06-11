@@ -587,7 +587,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   // Handler to open playlist in ftrack
-  const handleOpenPlaylistInFtrack = () => {
+  const handleOpenPlaylistInFtrack = async () => {
     // NEW: Handle local playlists properly
     if (activePlaylist.id.startsWith('local_') || activePlaylist.isLocalOnly) {
       console.log('Cannot open local playlist in ftrack - not yet synced');
@@ -595,17 +595,45 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
 
     const baseUrl = settings.serverUrl.replace(/\/$/, "");
-    if (!baseUrl || !activePlaylist.id) return;
+    if (!baseUrl) return;
+
+    // CRITICAL FIX for Issue #4: Use ftrackId for synced playlists, not the UUID
+    let ftrackEntityId = activePlaylist.id; // Default fallback
+    
+    if (activePlaylist.ftrackSyncState === 'synced') {
+      // For synced playlists, get the ftrack ID from the database
+      try {
+        const ftrackId = await playlistStore.getFtrackId(activePlaylist.id);
+        if (ftrackId) {
+          ftrackEntityId = ftrackId;
+          console.log(`[MainContent] Using ftrack ID ${ftrackId} for synced playlist ${activePlaylist.id}`);
+        } else {
+          console.warn(`[MainContent] No ftrack ID found for synced playlist ${activePlaylist.id}, using UUID as fallback`);
+        }
+      } catch (error) {
+        console.error(`[MainContent] Failed to get ftrack ID for playlist ${activePlaylist.id}:`, error);
+      }
+    }
 
     // Determine entity type based on playlist type
     const entityType = activePlaylist.type === "reviewsession" ? "reviewsession" : "list";
     
-    const url = `${baseUrl}/#entityId=${activePlaylist.id}&entityType=${entityType}&itemId=projects&view=versions_v1`;
+    const url = `${baseUrl}/#entityId=${ftrackEntityId}&entityType=${entityType}&itemId=projects&view=versions_v1`;
+    console.log(`[MainContent] Opening ftrack URL: ${url}`);
     open(url);
   };
 
-  const handleSyncSuccess = (playlistId: string) => {
+  const handleSyncSuccess = async (playlistId: string) => {
     console.log('handleSyncSuccess called for synced playlist ID:', playlistId);
+    
+    // Get the actual ftrack ID from the database after sync
+    let actualFtrackId: string | null = null;
+    try {
+      actualFtrackId = await playlistStore.getFtrackId(playlistId);
+      console.log('Retrieved ftrack ID after sync:', { playlistId, actualFtrackId });
+    } catch (error) {
+      console.error('Failed to get ftrack ID after sync:', error);
+    }
     
     // The playlist was converted in place, so we just update the local state to reflect sync
     const updatedPlaylist = {
@@ -631,12 +659,16 @@ export const MainContent: React.FC<MainContentProps> = ({
     window.dispatchEvent(new CustomEvent('playlist-synced', { 
       detail: { 
         playlistId: activePlaylist.id,
-        ftrackId: playlistId, // This is actually the same as playlistId now
+        ftrackId: actualFtrackId, // Use actual ftrack ID from database
         playlistName: activePlaylist.name
       } 
     }));
     
-    console.log('Sync success handling completed - playlist converted in place:', playlistId);
+    console.log('Sync success handling completed - playlist converted in place:', {
+      playlistId,
+      actualFtrackId,
+      playlistName: activePlaylist.name
+    });
   };
 
   const handleSyncError = (error: string) => {
