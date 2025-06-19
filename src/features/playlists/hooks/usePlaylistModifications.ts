@@ -93,6 +93,18 @@ export function usePlaylistModifications(
       const manualVersions =
         playlist.versions?.filter((v) => v.manuallyAdded) || [];
 
+      // Find newly added versions that need to be persisted to database
+      const currentVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
+      const newVersionsToAdd = pendingVersions.filter(v => !currentVersionIds.has(v.id));
+      
+      console.debug(`[usePlaylistModifications] Found ${newVersionsToAdd.length} new versions to persist to database`);
+      
+      // CRITICAL FIX: Persist newly added versions to database first
+      if (newVersionsToAdd.length > 0) {
+        console.debug(`[usePlaylistModifications] Adding ${newVersionsToAdd.length} versions to database for playlist ${playlist.id}`);
+        await playlistStore.addVersionsToPlaylist(playlist.id, newVersionsToAdd);
+      }
+
       // Create a map of pending versions for quick lookup
       const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
 
@@ -113,6 +125,7 @@ export function usePlaylistModifications(
         mergedVersionsCount: mergedVersions.length,
         manualVersionsCount: manualVersions.length,
         pendingVersionsCount: pendingVersions.length,
+        newVersionsAdded: newVersionsToAdd.length,
       });
 
       // Clear pending versions and modifications FIRST to prevent UI flickering
@@ -120,7 +133,7 @@ export function usePlaylistModifications(
       setModifications({ added: 0, removed: 0 });
       console.debug(`[usePlaylistModifications] Cleared pending state`);
 
-      // Update the cache
+      // Update the cache (versions are already in database from above)
       await playlistStore.cachePlaylist(
         playlistStore.cleanPlaylistForStorage(updatedPlaylist),
       );
@@ -178,7 +191,7 @@ export function usePlaylistModifications(
     try {
       // For synced playlists, use ftrackId; for local playlists, skip refresh
       if (!playlist.ftrackId) {
-        console.debug(`[usePlaylistModifications] Cannot refresh local-only playlist ${playlist.id}`);
+        console.debug(`Cannot refresh local-only playlist: ${playlist.name}`);
         return false;
       }
 

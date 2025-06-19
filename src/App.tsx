@@ -399,40 +399,40 @@ const App: React.FC = () => {
       // CRITICAL FIX: Use direct state update with current playlists
       const currentPlaylists = playlists;
       
-      // Safety check: ensure currentPlaylists is an array
-      if (!Array.isArray(currentPlaylists)) {
-        console.warn('currentPlaylists is not an array:', currentPlaylists);
-        // Force reload with proper state
-        setTimeout(() => {
-          loadPlaylistsWithLists();
-        }, 100);
+        // Safety check: ensure currentPlaylists is an array
+        if (!Array.isArray(currentPlaylists)) {
+          console.warn('currentPlaylists is not an array:', currentPlaylists);
+          // Force reload with proper state
+          setTimeout(() => {
+            loadPlaylistsWithLists();
+          }, 100);
         return;
-      }
-      
-      const playlistIndex = currentPlaylists.findIndex((p: Playlist) => p && p.id === playlistId);
-      
-      if (playlistIndex >= 0) {
-        const updatedPlaylists = [...currentPlaylists];
-        updatedPlaylists[playlistIndex] = {
-          ...updatedPlaylists[playlistIndex],
-          isLocalOnly: false,
-          ftrackSyncState: 'synced' as const,
-          // Clear manually added flags from versions to remove purple borders
-          versions: updatedPlaylists[playlistIndex].versions?.map((v: AssetVersion) => ({
-            ...v,
-            manuallyAdded: false,
-          })) || [],
-        };
+        }
         
-        console.log('Updated synced playlist in state without full reload - no remounting!');
+      const playlistIndex = currentPlaylists.findIndex((p: Playlist) => p && p.id === playlistId);
+        
+        if (playlistIndex >= 0) {
+          const updatedPlaylists = [...currentPlaylists];
+          updatedPlaylists[playlistIndex] = {
+            ...updatedPlaylists[playlistIndex],
+            isLocalOnly: false,
+            ftrackSyncState: 'synced' as const,
+            // Clear manually added flags from versions to remove purple borders
+          versions: updatedPlaylists[playlistIndex].versions?.map((v: AssetVersion) => ({
+              ...v,
+              manuallyAdded: false,
+            })) || [],
+          };
+          
+          console.log('Updated synced playlist in state without full reload - no remounting!');
         setLocalPlaylists(updatedPlaylists);
-      } else {
-        console.warn('Synced playlist not found in current state, falling back to reload');
-        // Only reload if we can't find the playlist (shouldn't happen)
-        setTimeout(() => {
-          loadPlaylistsWithLists();
-        }, 100);
-      }
+        } else {
+          console.warn('Synced playlist not found in current state, falling back to reload');
+          // Only reload if we can't find the playlist (shouldn't happen)
+          setTimeout(() => {
+            loadPlaylistsWithLists();
+          }, 100);
+        }
     };
 
     window.addEventListener('playlist-synced', handlePlaylistSynced as EventListener);

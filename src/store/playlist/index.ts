@@ -82,8 +82,9 @@ export class PlaylistStore extends SimpleEventEmitter {
         id,
         name: request.name,
         type: request.type,
-        localStatus: 'draft',
-        ftrackSyncStatus: 'not_synced',
+        localStatus: request.ftrackId ? 'synced' : 'draft',
+        ftrackSyncStatus: request.ftrackId ? 'synced' : 'not_synced',
+        ftrackId: request.ftrackId,
         projectId: request.projectId,
         categoryId: request.categoryId,
         categoryName: request.categoryName,
@@ -423,6 +424,80 @@ export class PlaylistStore extends SimpleEventEmitter {
     const entity = await this.repository.getPlaylist(playlistId);
     return entity?.ftrackId || null;
   }
+
+  /**
+   * Refreshes a playlist by fetching latest versions from ftrack
+   */
+  async refreshPlaylist(playlistId: string): Promise<{ success: boolean; addedCount?: number; removedCount?: number; error?: string }> {
+    try {
+      console.log(`[PlaylistStore] Refreshing playlist: ${playlistId}`);
+      
+      // Get playlist entity to access ftrackId
+      const entity = await this.repository.getPlaylist(playlistId);
+      if (!entity) {
+        throw new Error(`Playlist ${playlistId} not found`);
+      }
+
+      if (!entity.ftrackId) {
+        console.debug(`[PlaylistStore] Cannot refresh local-only playlist: ${playlistId}`);
+        return { success: false, error: 'Local-only playlist cannot be refreshed' };
+      }
+
+      // Fetch fresh versions from ftrack
+      const freshVersions = await this.ftrackService.getPlaylistVersions(entity.ftrackId);
+      
+      // Get current versions
+      const currentVersions = await this.repository.getPlaylistVersions(playlistId);
+      const currentVersionIds = new Set(currentVersions.filter(v => !v.isRemoved).map(v => v.id));
+      const freshVersionIds = new Set(freshVersions.map(v => v.id));
+
+      // Calculate changes
+      const addedVersions = freshVersions.filter(v => !currentVersionIds.has(v.id));
+      
+      // CRITICAL FIX: Only remove ftrack versions, preserve manually added versions
+      const removedVersionIds = Array.from(currentVersionIds).filter(id => {
+        const currentVersion = currentVersions.find(v => v.id === id);
+        // Only remove if it's not in fresh versions AND it's not manually added
+        return !freshVersionIds.has(id) && !currentVersion?.manuallyAdded;
+      });
+
+      // Apply changes to database
+      if (addedVersions.length > 0) {
+        await this.addVersionsToPlaylist(playlistId, addedVersions);
+      }
+
+      if (removedVersionIds.length > 0) {
+        for (const versionId of removedVersionIds) {
+          await this.removeVersionFromPlaylist(playlistId, versionId);
+        }
+      }
+
+      // Clear cache to force reload
+      this.cache.invalidate(playlistId);
+
+      console.log(`[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersionIds.length}`);
+      
+      this.emit('playlist-refreshed', { 
+        playlistId, 
+        addedCount: addedVersions.length, 
+        removedCount: removedVersionIds.length 
+      });
+
+      return { 
+        success: true, 
+        addedCount: addedVersions.length, 
+        removedCount: removedVersionIds.length 
+      };
+      
+    } catch (error) {
+      console.error(`[PlaylistStore] Failed to refresh playlist ${playlistId}:`, error);
+      this.emit('playlist-error', { operation: 'refresh', playlistId, error: error instanceof Error ? error.message : 'Unknown error' });
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
   
   // =================== DRAFT OPERATIONS ===================
   
@@ -522,9 +597,11 @@ export class PlaylistStore extends SimpleEventEmitter {
       // CRITICAL FIX: Add isQuickNotes flag
       isQuickNotes: entity.id === 'quick-notes',
       
-      // Additional metadata
+      // Additional metadata - CRITICAL FIX: Include ALL entity fields
+      projectId: entity.projectId,
       categoryId: entity.categoryId,
       categoryName: entity.categoryName,
+      description: entity.description,
     };
   }
   

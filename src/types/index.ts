@@ -171,6 +171,7 @@ export interface CreatePlaylistRequest {
   categoryName?: string;
   description?: string;
   projectId: string;
+  ftrackId?: string; // Optional ftrack ID for test scenarios
 }
 
 /**
