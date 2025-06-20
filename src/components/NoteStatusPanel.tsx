@@ -238,7 +238,7 @@ export function NoteStatusPanel({
           <div>
             <h3 className="text-sm font-medium mb-2">Version Status</h3>
             <Select
-              value={currentStatuses?.versionStatusId}
+              value={currentStatuses?.versionStatusId || ""}
               onValueChange={(value) => handleStatusChange(value, "version")}
               onOpenChange={(open) => {
                 setIsVersionSelectOpen(open);
@@ -269,7 +269,7 @@ export function NoteStatusPanel({
             <div>
               <h3 className="text-sm font-medium mb-2">Shot Status</h3>
               <Select
-                value={currentStatuses?.parentStatusId}
+                value={currentStatuses?.parentStatusId || ""}
                 onValueChange={(value) => handleStatusChange(value, "parent")}
                 onOpenChange={(open) => {
                   setIsParentSelectOpen(open);

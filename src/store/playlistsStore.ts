@@ -196,8 +196,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             updatedAt: dbPlaylist.updatedAt,
             // CRITICAL FIX: Include ftrackId from database
             ftrackId: dbPlaylist.ftrackId,
-            // Map database status to UI format
-            isLocalOnly: dbPlaylist.localStatus === 'draft' || dbPlaylist.ftrackSyncStatus === 'not_synced',
+            // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
+            isLocalOnly: dbPlaylist.id === 'quick-notes' ? false : (dbPlaylist.localStatus === 'draft' || dbPlaylist.ftrackSyncStatus === 'not_synced'),
+            isQuickNotes: dbPlaylist.id === 'quick-notes',
             ftrackSyncState: dbPlaylist.ftrackSyncStatus === 'synced' ? 'synced' : 'pending',
             type: dbPlaylist.type,
             categoryId: dbPlaylist.categoryId,

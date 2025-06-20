@@ -6,6 +6,7 @@
  * - Confirmation modal with version list
  * - Progress indication during sync
  * - Success/error feedback
+ * - Proper sync cancellation with cleanup warning
  */
 
 import React, { useState } from 'react';
@@ -17,6 +18,16 @@ import {
   DialogTitle, 
   DialogFooter 
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Tooltip,
   TooltipContent,
@@ -41,14 +52,17 @@ export function SyncPlaylistButton({
   onSyncError,
 }: SyncPlaylistButtonProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCancelAlert, setShowCancelAlert] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+  const [syncCompleted, setSyncCompleted] = useState(false);
 
   const handleSyncClick = async () => {
     console.log('Sync button clicked for playlist:', playlist.id);
     setSyncError(null);
     setSyncProgress(null);
+    setSyncCompleted(false);
     setShowConfirmDialog(true);
   };
 
@@ -60,7 +74,10 @@ export function SyncPlaylistButton({
     try {
       // Listen for sync events to update progress
       const handleProgress = (data: any) => setSyncProgress(data.progress || { current: 2, total: 4 });
-      const handleCompleted = (data: any) => setSyncProgress({ current: 4, total: 4 });
+      const handleCompleted = (data: any) => {
+        setSyncProgress({ current: 4, total: 4 });
+        setSyncCompleted(true);
+      };
       
       playlistStore.on('sync-progress', handleProgress);
       playlistStore.on('sync-completed', handleCompleted);
@@ -73,10 +90,13 @@ export function SyncPlaylistButton({
       playlistStore.off('sync-completed', handleCompleted);
       
       console.log('Sync completed successfully for playlist:', playlist.id, '(same ID - no remounting!)');
-      setShowConfirmDialog(false);
       
-      // Pass the SAME playlist ID - no navigation needed!
-      onSyncSuccess(playlist.id);
+      // Auto-close the dialog after a brief delay to show success
+      setTimeout(() => {
+        setShowConfirmDialog(false);
+        onSyncSuccess(playlist.id);
+      }, 1500);
+      
     } catch (error) {
       console.error('Sync failed for playlist:', playlist.id, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to sync playlist';
@@ -87,11 +107,30 @@ export function SyncPlaylistButton({
     }
   };
 
+  const handleCancelSync = async () => {
+    if (isSyncing) {
+      try {
+        await playlistStore.cancelSync(playlist.id);
+        setShowConfirmDialog(false);
+        setShowCancelAlert(true);
+      } catch (error) {
+        console.error('Failed to cancel sync:', error);
+        setSyncError('Failed to cancel sync');
+      }
+    } else {
+      setShowConfirmDialog(false);
+    }
+    setSyncError(null);
+    setSyncProgress(null);
+    setSyncCompleted(false);
+  };
+
   const handleCloseDialog = () => {
     if (!isSyncing) {
       setShowConfirmDialog(false);
       setSyncError(null);
       setSyncProgress(null);
+      setSyncCompleted(false);
     }
   };
 
@@ -143,7 +182,6 @@ export function SyncPlaylistButton({
             </DialogTitle>
           </DialogHeader>
 
-
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">
@@ -184,8 +222,8 @@ export function SyncPlaylistButton({
               </div>
             )}
 
-            {/* Success Message */}
-            {syncProgress?.current === syncProgress?.total && !isSyncing && (
+            {/* Success Message - Only show when actually completed */}
+            {syncCompleted && !isSyncing && (
               <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                 <CheckCircle className="h-4 w-4" />
                 <span className="text-sm">Playlist synced successfully!</span>
@@ -207,27 +245,49 @@ export function SyncPlaylistButton({
             <Button
               type="button"
               variant="outline"
-              onClick={handleCloseDialog}
-              disabled={isSyncing}
+              onClick={handleCancelSync}
+              disabled={syncCompleted}
             >
-              {isSyncing ? 'Syncing...' : 'Cancel'}
+              {isSyncing ? 'Cancel Sync' : 'Cancel'}
             </Button>
-            {!isSyncing && (!syncProgress || syncProgress.current < syncProgress.total) && (
+            {!syncCompleted && (
               <Button
                 onClick={handleConfirmSync}
                 disabled={isSyncing}
               >
-                Sync to ftrack
-              </Button>
-            )}
-            {syncProgress?.current === syncProgress?.total && !isSyncing && (
-              <Button onClick={handleCloseDialog}>
-                Close
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  'Sync to ftrack'
+                )}
               </Button>
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cleanup Warning Alert */}
+      <AlertDialog open={showCancelAlert} onOpenChange={setShowCancelAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sync Cancelled</AlertDialogTitle>
+            <AlertDialogDescription>
+              The sync operation has been cancelled. If a playlist was partially created in ftrack, 
+              you may need to manually clean it up to avoid duplicates when syncing again.
+              <br /><br />
+              Please check your ftrack project for any incomplete playlists named "{playlist.name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowCancelAlert(false)}>
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 } 

@@ -1731,14 +1731,21 @@ export class FtrackService {
       }));
       log("[SchemaStatusMapping] All Statuses:", allStatuses);
 
-      // 4. Fetch all Schema (the link between ProjectSchema and ObjectType)
+      // 4. Fetch all WorkflowSchemas (needed for AssetVersion status lookup)
+      const workflowSchemaResult = await session.query(
+        "select id, name, statuses.id, statuses.name, statuses.color from WorkflowSchema",
+      );
+      this.allWorkflowSchemas = workflowSchemaResult.data;
+      log("[SchemaStatusMapping] All WorkflowSchemas:", this.allWorkflowSchemas);
+
+      // 5. Fetch all Schema (the link between ProjectSchema and ObjectType)
       const schemaResult = await session.query(
         "select id, project_schema_id, object_type_id from Schema",
       );
       const allSchemas = schemaResult.data;
       log("[SchemaStatusMapping] All Schema:", allSchemas);
 
-      // 5. Fetch all SchemaStatus (the link between Schema and Status)
+      // 6. Fetch all SchemaStatus (the link between Schema and Status)
       const schemaStatusResult = await session.query(
         "select schema_id, status_id from SchemaStatus",
       );
@@ -1794,67 +1801,69 @@ export class FtrackService {
     entityId: string,
   ): Promise<Status[]> {
     if (!this.schemaStatusMappingReady) {
-      await this.fetchAllSchemaStatusData();
+      log("[SchemaStatusMapping] Mapping not ready, returning empty");
+      return [];
     }
-
-          try {
-        const session = await this.ensureSession();
-
-        // CRITICAL FIX: Handle AssetVersion differently since it doesn't have object_type_id
-        let entityResult: any;
-        let objectTypeName: string;
-        
-        if (entityType === "AssetVersion") {
-          // AssetVersion doesn't have object_type_id, just use the entity type
-          entityResult = await session.query(
-            `select project.project_schema_id from ${entityType} where id is "${entityId}"`
+    try {
+      const session = await this.getSession();
+      // 1. Get the entity's project and project_schema_id
+      const entityQuery = await session.query(
+        `select project.id, project.project_schema_id from ${entityType} where id is "${entityId}"`,
+      );
+      const entityData = entityQuery.data[0];
+      if (!entityData) {
+        log(
+          `[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`,
+        );
+        return [];
+      }
+      const projectSchemaId = entityData.project?.project_schema_id;
+      if (!projectSchemaId) {
+        log(
+          `[SchemaStatusMapping] No project_schema_id for entity: ${entityType} ${entityId}`,
+        );
+        return [];
+      }
+      // Special handling for AssetVersion (uses workflow schema, not Schema/SchemaStatus)
+      if (entityType === "AssetVersion") {
+        // Get the ProjectSchema to find asset_version_workflow_schema_id
+        const schemaResult = await session.query(
+          `select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`,
+        );
+        const schema = schemaResult.data[0];
+        const workflowSchemaId = schema?.asset_version_workflow_schema_id;
+        if (!workflowSchemaId) {
+          log(
+            `[SchemaStatusMapping] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`,
           );
-          objectTypeName = "AssetVersion";
-        } else {
-          // Other entities have object_type_id
-          entityResult = await session.query(
-            `select object_type_id, project.project_schema_id from ${entityType} where id is "${entityId}"`
-          );
-          
-          if (entityResult?.data?.length) {
-            const entity = entityResult.data[0];
-            // Get object type name
-            const objectType = this.allObjectTypes.find(
-              (ot) => ot.id === entity.object_type_id,
-            );
-            objectTypeName = objectType?.name || entityType;
-          } else {
-            objectTypeName = entityType;
-          }
-        }
-
-        if (!entityResult?.data?.length) {
-          console.warn(`Entity ${entityType}:${entityId} not found`);
           return [];
         }
-
-        const entity = entityResult.data[0];
-
-        // Get project schema
-        const projectSchemaId = entity.project?.project_schema_id;
-      if (!projectSchemaId) {
-        console.warn(`No project schema found for entity ${entityType}:${entityId}`);
-        return [];
+        // Find the workflow schema and its statuses
+        const workflowSchema = this.allWorkflowSchemas.find(
+          (ws: any) => ws.id === workflowSchemaId,
+        );
+        const statuses =
+          workflowSchema?.statuses?.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+          })) || [];
+        log(
+          `[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`,
+          statuses,
+        );
+        return statuses;
       }
-
-      // Get statuses from mapping
-      const schemaMapping = this.schemaStatusMapping[projectSchemaId];
-      if (!schemaMapping) {
-        console.warn(`No schema mapping found for project schema ${projectSchemaId}`);
-        return [];
-      }
-
-      const statuses = schemaMapping[objectTypeName] || [];
-      log(`Found ${statuses.length} statuses for ${objectTypeName} in schema ${projectSchemaId}`);
-
+      // 2. Use mapping for all other types
+      const statuses =
+        this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
+      log(
+        `[SchemaStatusMapping] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`,
+        statuses,
+      );
       return statuses;
     } catch (error) {
-      console.error("Error fetching statuses for entity:", error);
+      log("[SchemaStatusMapping] Failed to get statuses for entity:", error);
       return [];
     }
   }
