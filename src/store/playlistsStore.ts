@@ -34,7 +34,7 @@ interface PlaylistsState {
   setActivePlaylist: (playlistId: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
-  loadPlaylists: () => Promise<void>;
+  loadPlaylists: () => Promise<{ deletedPlaylists?: Array<{ id: string; name: string }> }>;
   updatePlaylist: (playlistId: string) => Promise<void>;
   cleanupLocalPlaylists: () => Promise<void>;
   debugLocalPlaylists: () => Promise<void>;
@@ -72,6 +72,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
     const { setLoading, setError, setPlaylists } = get();
     setLoading(true);
     setError(null);
+
+    let deletedPlaylists: Array<{ id: string; name: string }> = [];
 
     try {
       // AGGRESSIVE CLEANUP: Remove all old/broken local playlists FIRST
@@ -154,6 +156,49 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
           ftrackId: dp.ftrackId 
         }))
       });
+      
+      // CRITICAL FIX: Add Ftrack Validation - Remove orphaned database playlists that no longer exist in ftrack
+      const ftrackPlaylistIds = new Set(fetchedPlaylists.map(fp => fp.id));
+      const orphanedPlaylists = databasePlaylists.filter(dbPlaylist => {
+        // Check if database playlist has ftrackId but it's not found in current ftrack playlists
+        return dbPlaylist.ftrackId && !ftrackPlaylistIds.has(dbPlaylist.ftrackId);
+      });
+      
+      if (orphanedPlaylists.length > 0) {
+        console.log(`🧹 [CLEANUP] Found ${orphanedPlaylists.length} orphaned database playlists that no longer exist in ftrack:`, 
+          orphanedPlaylists.map(p => ({ id: p.id, name: p.name, ftrackId: p.ftrackId })));
+        
+        // Remove orphaned playlists from database
+        for (const orphanedPlaylist of orphanedPlaylists) {
+          try {
+            console.log(`🗑️  [CLEANUP] Removing orphaned playlist from database: ${orphanedPlaylist.name} (ftrackId: ${orphanedPlaylist.ftrackId})`);
+            
+            // Remove playlist and all its versions from database
+            await db.transaction('rw', [db.playlists, db.versions], async () => {
+              await db.playlists.delete(orphanedPlaylist.id);
+              await db.versions.where('playlistId').equals(orphanedPlaylist.id).delete();
+            });
+            
+            // Track deleted playlist for UI updates
+            deletedPlaylists.push({
+              id: orphanedPlaylist.id,
+              name: orphanedPlaylist.name
+            });
+            
+            console.log(`✅ [CLEANUP] Successfully removed orphaned playlist: ${orphanedPlaylist.name}`);
+          } catch (error) {
+            console.error(`❌ [CLEANUP] Failed to remove orphaned playlist ${orphanedPlaylist.name}:`, error);
+          }
+        }
+        
+        // Reload database playlists after cleanup
+        const cleanedDatabasePlaylists = await db.playlists.toArray();
+        console.log(`🎯 [CLEANUP] Database cleanup complete. Remaining playlists: ${cleanedDatabasePlaylists.length} (removed ${orphanedPlaylists.length})`);
+        
+        // Update the databasePlaylists array to reflect the cleanup
+        databasePlaylists.splice(0); // Clear original array
+        databasePlaylists.push(...cleanedDatabasePlaylists); // Add cleaned playlists
+      }
       
       // DEBUG: Let's also see what ftrack playlists we're getting
       console.log('Ftrack playlists loaded:', fetchedPlaylists.slice(0, 5).map(fp => ({
@@ -316,11 +361,14 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       
       const allPlaylists = [...formattedFtrackPlaylists, ...databasePlaylistsFormatted];
       setPlaylists(allPlaylists); // Quick Notes will be preserved by setPlaylists
+      
+      return { deletedPlaylists: deletedPlaylists.length > 0 ? deletedPlaylists : undefined };
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Failed to load playlists",
       );
       console.error("Failed to load playlists:", error);
+      return { deletedPlaylists: deletedPlaylists.length > 0 ? deletedPlaylists : undefined };
     } finally {
       setLoading(false);
     }

@@ -119,7 +119,20 @@ const App: React.FC = () => {
       console.log("Using store's loadPlaylists (includes cleanup)...");
       // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
       // Remove redundant second fetch that was causing duplicates
-      await loadPlaylists();
+      const loadResult = await loadPlaylists();
+      
+      // CRITICAL FIX: Handle startup cleanup - if playlists were deleted, just log them (no alerts during startup)
+      if (loadResult.deletedPlaylists && loadResult.deletedPlaylists.length > 0) {
+        console.log('🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:', 
+          loadResult.deletedPlaylists.map(p => `${p.name} (${p.id})`));
+        
+        // If the active playlist was deleted during startup, redirect to Quick Notes
+        if (activePlaylistId && loadResult.deletedPlaylists.some(deleted => deleted.id === activePlaylistId)) {
+          console.log('🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes');
+          setActivePlaylist("quick-notes");
+          setOpenPlaylists(["quick-notes"]);
+        }
+      }
       
       console.log('Playlists loaded with proper deduplication - no additional fetching needed');
       

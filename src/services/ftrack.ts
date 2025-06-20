@@ -255,6 +255,9 @@ export class FtrackService {
         thumbnailId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        // CRITICAL FIX: Versions from ftrack playlists should NOT be marked as manually added
+        // They are native ftrack versions, not user-added ones
+        manuallyAdded: false,
       };
     });
   }
@@ -1163,7 +1166,9 @@ export class FtrackService {
             thumbnailId,
             createdAt: version.date || new Date().toISOString(),
             updatedAt: version.date || new Date().toISOString(),
-            manuallyAdded: true,
+            // CRITICAL FIX: Search results should NOT be marked as manually added by default
+            // They only become manuallyAdded when user explicitly adds them to a playlist
+            manuallyAdded: false,
           };
         }) || [];
 

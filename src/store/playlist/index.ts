@@ -416,6 +416,13 @@ export class PlaylistStore extends SimpleEventEmitter {
   getActiveSyncs(): string[] {
     return this.sync.getActiveSyncs();
   }
+
+  /**
+   * Cancels an active sync operation
+   */
+  async cancelSync(playlistId: string): Promise<void> {
+    return this.sync.cancelSync(playlistId);
+  }
   
   /**
    * Gets the ftrack ID for a synced playlist
@@ -445,6 +452,41 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // Fetch fresh versions from ftrack
       const freshVersions = await this.ftrackService.getPlaylistVersions(entity.ftrackId);
+      
+      // CRITICAL FIX: If playlist returns empty and ftrack service logs "Playlist not found", remove entire playlist
+      if (freshVersions.length === 0) {
+        console.log(`[PlaylistStore] Playlist ${entity.ftrackId} returned no versions - checking if it was deleted from ftrack`);
+        
+        // Get current versions to see if playlist had versions before
+        const currentVersions = await this.repository.getPlaylistVersions(playlistId);
+        const nonManualVersions = currentVersions.filter(v => !v.isRemoved && !v.manuallyAdded);
+        
+        // If playlist had ftrack versions before but now returns empty, it was likely deleted
+        if (nonManualVersions.length > 0) {
+          console.log(`🗑️  [CLEANUP] Playlist ${entity.name} (ftrackId: ${entity.ftrackId}) appears to be deleted from ftrack - removing from database`);
+          
+          try {
+            // Remove entire playlist from database
+            await this.deletePlaylist(playlistId);
+            
+            console.log(`✅ [CLEANUP] Successfully removed deleted playlist from database: ${entity.name}`);
+            this.emit('playlist-deleted', { playlistId, reason: 'deleted-from-ftrack' });
+            
+            return { 
+              success: true, 
+              addedCount: 0, 
+              removedCount: 0,
+              error: 'Playlist was deleted from ftrack and removed from database'
+            };
+          } catch (deleteError) {
+            console.error(`❌ [CLEANUP] Failed to remove deleted playlist ${entity.name}:`, deleteError);
+            return { 
+              success: false, 
+              error: `Failed to remove deleted playlist: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`
+            };
+          }
+        }
+      }
       
       // Get current versions
       const currentVersions = await this.repository.getPlaylistVersions(playlistId);
@@ -634,6 +676,8 @@ export class PlaylistStore extends SimpleEventEmitter {
       noteStatus: 'empty',
       addedAt: new Date().toISOString(),
       lastModified: Date.now(),
+      // CRITICAL FIX: For synced playlists, versions from ftrack should be manuallyAdded: false
+      // Only user-added versions should be manuallyAdded: true
       manuallyAdded: Boolean(version.manuallyAdded),
       createdAt: typeof version.createdAt === 'string' ? version.createdAt : new Date().toISOString(),
       updatedAt: typeof version.updatedAt === 'string' ? version.updatedAt : new Date().toISOString(),
