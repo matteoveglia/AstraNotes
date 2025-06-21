@@ -563,9 +563,7 @@ export class PlaylistStore extends SimpleEventEmitter {
   /**
    * Refreshes a playlist by fetching latest versions from ftrack
    */
-  async refreshPlaylist(
-    playlistId: string,
-  ): Promise<{
+  async refreshPlaylist(playlistId: string): Promise<{
     success: boolean;
     addedCount?: number;
     removedCount?: number;

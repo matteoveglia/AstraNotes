@@ -71,6 +71,7 @@ interface CreateResponse {
 interface SearchVersionsOptions {
   searchTerm: string;
   limit?: number;
+  projectId?: string | null;
 }
 
 export class FtrackService {
@@ -1087,7 +1088,7 @@ export class FtrackService {
   async searchVersions(
     options: SearchVersionsOptions,
   ): Promise<AssetVersion[]> {
-    const { searchTerm, limit = 50 } = options;
+    const { searchTerm, limit = 50, projectId } = options;
     const session = await this.ensureSession();
     const cacheKey = JSON.stringify(options);
 
@@ -1116,6 +1117,13 @@ export class FtrackService {
         if (whereClause) whereClause += " and ";
         whereClause += `version = ${versionMatch[1]}`;
       }
+
+      // PROJECT FILTERING FIX: Add project filter to search query
+      if (projectId) {
+        if (whereClause) whereClause += " and ";
+        whereClause += `asset.parent.project_id is "${projectId}"`;
+      }
+
       // If no valid search criteria, return empty results
       if (!whereClause) {
         return [];
@@ -1125,6 +1133,7 @@ export class FtrackService {
         id,
         version,
         asset.name,
+        asset.parent.project_id,
         thumbnail.id,
         thumbnail.name,
         thumbnail.component_locations,

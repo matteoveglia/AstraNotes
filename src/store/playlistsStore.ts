@@ -34,7 +34,7 @@ interface PlaylistsState {
   setActivePlaylist: (playlistId: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
-  loadPlaylists: () => Promise<{
+  loadPlaylists: (projectId?: string | null) => Promise<{
     deletedPlaylists?: Array<{ id: string; name: string }>;
   }>;
   updatePlaylist: (playlistId: string) => Promise<void>;
@@ -72,7 +72,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 
-  loadPlaylists: async () => {
+  loadPlaylists: async (projectId?: string | null) => {
     const { setLoading, setError, setPlaylists } = get();
     setLoading(true);
     setError(null);
@@ -161,9 +161,14 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
 
       // CRITICAL FIX: Load from NEW modular store database (db.playlists)
       // Also fix Issue #4: Load BOTH review sessions AND lists from ftrack
+      // PROJECT FILTERING FIX: Pass projectId to ftrack service calls
+      console.log(
+        "Loading playlists from ftrack with project filter:",
+        projectId,
+      );
       const [reviewSessions, lists, databasePlaylists] = await Promise.all([
-        ftrackService.getPlaylists(), // Review Sessions
-        ftrackService.getLists(), // Lists
+        ftrackService.getPlaylists(projectId), // Review Sessions with project filter
+        ftrackService.getLists(projectId), // Lists with project filter
         // Load ALL playlists from the new modular store database
         db.playlists.toArray(),
       ]);
@@ -183,12 +188,41 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       });
 
       // CRITICAL FIX: Add Ftrack Validation - Remove orphaned database playlists that no longer exist in ftrack
+      // FIX ISSUE #2: Make cleanup more conservative to prevent data loss when switching projects
+      // Only consider a playlist "orphaned" if:
+      // 1. It has a ftrackId (was synced to ftrack)
+      // 2. It belongs to the CURRENT PROJECT (check projectId)
+      // 3. It's not found in the current project's ftrack playlists
+      // This prevents deleting playlists from other projects when switching
+
       const ftrackPlaylistIds = new Set(fetchedPlaylists.map((fp) => fp.id));
       const orphanedPlaylists = databasePlaylists.filter((dbPlaylist) => {
-        // Check if database playlist has ftrackId but it's not found in current ftrack playlists
-        return (
-          dbPlaylist.ftrackId && !ftrackPlaylistIds.has(dbPlaylist.ftrackId)
-        );
+        // Skip local-only playlists (no ftrackId) - they're never orphaned
+        if (!dbPlaylist.ftrackId) {
+          return false;
+        }
+
+        // Skip playlists from other projects - they're not orphaned, just filtered
+        if (
+          projectId &&
+          dbPlaylist.projectId &&
+          dbPlaylist.projectId !== projectId
+        ) {
+          console.log(
+            `⏭️  [CLEANUP] Skipping playlist from different project: ${dbPlaylist.name} (project: ${dbPlaylist.projectId}, current: ${projectId})`,
+          );
+          return false;
+        }
+
+        // Only consider orphaned if it was synced to current project but no longer exists there
+        const isOrphaned = !ftrackPlaylistIds.has(dbPlaylist.ftrackId);
+        if (isOrphaned) {
+          console.log(
+            `🧹 [CLEANUP] Found truly orphaned playlist: ${dbPlaylist.name} (ftrackId: ${dbPlaylist.ftrackId}, project: ${dbPlaylist.projectId})`,
+          );
+        }
+
+        return isOrphaned;
       });
 
       if (orphanedPlaylists.length > 0) {
@@ -296,6 +330,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             updatedAt: dbPlaylist.updatedAt,
             // CRITICAL FIX: Include ftrackId from database
             ftrackId: dbPlaylist.ftrackId,
+            // CRITICAL FIX: Include projectId from database for UI filtering
+            projectId: dbPlaylist.projectId,
             // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
             isLocalOnly:
               dbPlaylist.id === "quick-notes"
@@ -437,6 +473,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             ...ftrackPlaylist,
             id: playlistId, // Use stable UUID as playlist ID
             ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
             isLocalOnly: false, // Ftrack native playlists are not local-only
             ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced
           });
@@ -449,6 +486,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
           formattedFtrackPlaylists.push({
             ...ftrackPlaylist,
             ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
             isLocalOnly: false, // Ftrack native playlists are not local-only
             ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced
           });
@@ -459,7 +497,45 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
         ...formattedFtrackPlaylists,
         ...databasePlaylistsFormatted,
       ];
-      setPlaylists(allPlaylists); // Quick Notes will be preserved by setPlaylists
+
+      // FIX ISSUE #2: Filter playlists for UI based on current project
+      // Keep ALL playlists in database, but only show current project's playlists in UI
+      const filteredPlaylists = projectId
+        ? allPlaylists.filter((playlist) => {
+            // Always include Quick Notes regardless of project
+            if (playlist.isQuickNotes) {
+              return true;
+            }
+
+            // For project-specific playlists, only show those from current project
+            // Check both projectId field and whether it's a local playlist
+            const belongsToCurrentProject = playlist.projectId === projectId;
+            const isLocalOnlyPlaylist =
+              playlist.isLocalOnly && !playlist.ftrackId;
+
+            if (belongsToCurrentProject || isLocalOnlyPlaylist) {
+              console.log(
+                `✅ [FILTER] Including playlist in UI: ${playlist.name} (project: ${playlist.projectId}, isLocal: ${isLocalOnlyPlaylist})`,
+              );
+              return true;
+            } else {
+              console.log(
+                `⏭️  [FILTER] Hiding playlist from different project: ${playlist.name} (project: ${playlist.projectId}, current: ${projectId})`,
+              );
+              return false;
+            }
+          })
+        : allPlaylists.filter(
+            (playlist) =>
+              // When no project selected, only show Quick Notes
+              playlist.isQuickNotes,
+          );
+
+      console.log(
+        `📊 [FILTER] Showing ${filteredPlaylists.length} of ${allPlaylists.length} total playlists for project ${projectId || "none"}`,
+      );
+
+      setPlaylists(filteredPlaylists); // Show only filtered playlists in UI
 
       return {
         deletedPlaylists:

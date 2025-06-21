@@ -92,81 +92,89 @@ const App: React.FC = () => {
   }, [loadProjects, fetchLabels]);
 
   // New function to load both review sessions and lists
-  const loadPlaylistsWithLists = useCallback(async () => {
-    console.log("loadPlaylistsWithLists called:", {
-      selectedProjectId,
-      hasValidatedSelectedProject,
-    });
+  const loadPlaylistsWithLists = useCallback(
+    async (projectId?: string | null) => {
+      console.log("loadPlaylistsWithLists called:", {
+        providedProjectId: projectId,
+        currentSelectedProjectId: selectedProjectId,
+        hasValidatedSelectedProject,
+      });
 
-    try {
-      // CRITICAL FIX: Always initialize Quick Notes first - it's a permanent special playlist
-      await playlistStore.initializeQuickNotes();
+      // CRITICAL FIX: Use the provided projectId parameter instead of captured selectedProjectId to avoid race conditions
+      const actualProjectId = projectId ?? selectedProjectId;
 
-      // CRITICAL FIX: Ensure Quick Notes exists in the current component state
-      const currentPlaylists = usePlaylistsStore.getState().playlists;
-      const hasQuickNotes = currentPlaylists.some(
-        (p) => p.id === "quick-notes",
-      );
-      if (!hasQuickNotes) {
-        console.log(
-          "Quick Notes missing from state, will be added by setPlaylists()",
+      try {
+        // CRITICAL FIX: Always initialize Quick Notes first - it's a permanent special playlist
+        await playlistStore.initializeQuickNotes();
+
+        // CRITICAL FIX: Ensure Quick Notes exists in the current component state
+        const currentPlaylists = usePlaylistsStore.getState().playlists;
+        const hasQuickNotes = currentPlaylists.some(
+          (p) => p.id === "quick-notes",
         );
-      }
-
-      // Set Quick Notes as active if no project is selected
-      if (!selectedProjectId || !hasValidatedSelectedProject) {
-        console.log("No validated project - showing only Quick Notes");
-        if (!activePlaylistId || activePlaylistId !== "quick-notes") {
-          setActivePlaylist("quick-notes");
-          setOpenPlaylists(["quick-notes"]);
+        if (!hasQuickNotes) {
+          console.log(
+            "Quick Notes missing from state, will be added by setPlaylists()",
+          );
         }
-        return;
-      }
 
-      // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
-      console.log("Using store's loadPlaylists (includes cleanup)...");
-      // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
-      // Remove redundant second fetch that was causing duplicates
-      const loadResult = await loadPlaylists();
+        // Set Quick Notes as active if no project is selected
+        if (!actualProjectId || !hasValidatedSelectedProject) {
+          console.log("No validated project - showing only Quick Notes");
+          if (!activePlaylistId || activePlaylistId !== "quick-notes") {
+            setActivePlaylist("quick-notes");
+            setOpenPlaylists(["quick-notes"]);
+          }
+          return;
+        }
 
-      // CRITICAL FIX: Handle startup cleanup - if playlists were deleted, just log them (no alerts during startup)
-      if (
-        loadResult.deletedPlaylists &&
-        loadResult.deletedPlaylists.length > 0
-      ) {
-        console.log(
-          "🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:",
-          loadResult.deletedPlaylists.map((p) => `${p.name} (${p.id})`),
-        );
+        // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
+        console.log("Using store's loadPlaylists (includes cleanup)...");
+        // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
+        // Remove redundant second fetch that was causing duplicates
+        // PROJECT FILTERING FIX: Pass actualProjectId to enable project filtering
+        const loadResult = await loadPlaylists(actualProjectId);
 
-        // If the active playlist was deleted during startup, redirect to Quick Notes
+        // CRITICAL FIX: Handle startup cleanup - if playlists were deleted, just log them (no alerts during startup)
         if (
-          activePlaylistId &&
-          loadResult.deletedPlaylists.some(
-            (deleted) => deleted.id === activePlaylistId,
-          )
+          loadResult.deletedPlaylists &&
+          loadResult.deletedPlaylists.length > 0
         ) {
           console.log(
-            "🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes",
+            "🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:",
+            loadResult.deletedPlaylists.map((p) => `${p.name} (${p.id})`),
           );
-          setActivePlaylist("quick-notes");
-          setOpenPlaylists(["quick-notes"]);
-        }
-      }
 
-      console.log(
-        "Playlists loaded with proper deduplication - no additional fetching needed",
-      );
-    } catch (error) {
-      console.error("Failed to load playlists with lists:", error);
-    }
-  }, [
-    selectedProjectId,
-    hasValidatedSelectedProject,
-    loadPlaylists,
-    setLocalPlaylists,
-    setStorePlaylists,
-  ]);
+          // If the active playlist was deleted during startup, redirect to Quick Notes
+          if (
+            activePlaylistId &&
+            loadResult.deletedPlaylists.some(
+              (deleted) => deleted.id === activePlaylistId,
+            )
+          ) {
+            console.log(
+              "🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes",
+            );
+            setActivePlaylist("quick-notes");
+            setOpenPlaylists(["quick-notes"]);
+          }
+        }
+
+        console.log(
+          "Playlists loaded with proper deduplication - no additional fetching needed",
+        );
+      } catch (error) {
+        console.error("Failed to load playlists with lists:", error);
+      }
+    },
+    [
+      // CRITICAL FIX: Remove selectedProjectId from dependency array to avoid closure capture race conditions
+      hasValidatedSelectedProject,
+      loadPlaylists,
+      setLocalPlaylists,
+      setStorePlaylists,
+    ],
+  );
 
   // Load versions when active playlist changes
   useEffect(() => {
@@ -330,8 +338,8 @@ const App: React.FC = () => {
       console.log("Project changed:", projectId);
 
       if (projectId) {
-        // Only load playlists if a project is actually selected
-        loadPlaylistsWithLists();
+        // CRITICAL FIX: Pass the actual projectId parameter instead of using closure
+        loadPlaylistsWithLists(projectId);
       } else {
         // Project cleared - don't load anything
         console.log("Project cleared - not loading playlists");
@@ -350,7 +358,13 @@ const App: React.FC = () => {
     if (selectedProjectId && hasValidatedSelectedProject) {
       // Only load when we have a validated project selection
       console.log("Loading playlists for project:", selectedProjectId);
-      loadPlaylistsWithLists();
+
+      // FIX ISSUE #1: Clear playlist state immediately to prevent flash of old data
+      setLocalPlaylists([]);
+      setStorePlaylists([]);
+
+      // CRITICAL FIX: Pass selectedProjectId as parameter to avoid closure capture race conditions
+      loadPlaylistsWithLists(selectedProjectId);
     } else {
       // No project selected or not validated - clear project playlists but keep Quick Notes
       console.log(
@@ -502,7 +516,9 @@ const App: React.FC = () => {
         console.warn("currentPlaylists is not an array:", currentPlaylists);
         // Force reload with proper state
         setTimeout(() => {
-          loadPlaylistsWithLists();
+          // CRITICAL FIX: Get current project ID for reload
+          const currentProjectId = useProjectStore.getState().selectedProjectId;
+          loadPlaylistsWithLists(currentProjectId);
         }, 100);
         return;
       }
@@ -539,7 +555,9 @@ const App: React.FC = () => {
         );
         // Only reload if we can't find the playlist (shouldn't happen)
         setTimeout(() => {
-          loadPlaylistsWithLists();
+          // CRITICAL FIX: Get current project ID for reload
+          const currentProjectId = useProjectStore.getState().selectedProjectId;
+          loadPlaylistsWithLists(currentProjectId);
         }, 100);
       }
     };
@@ -641,7 +659,10 @@ const App: React.FC = () => {
         <div className="h-screen flex flex-col">
           <TopBar
             onLoadPlaylists={async () => {
-              await loadPlaylistsWithLists();
+              // CRITICAL FIX: Get current project ID for manual reload
+              const currentProjectId =
+                useProjectStore.getState().selectedProjectId;
+              await loadPlaylistsWithLists(currentProjectId);
             }}
             onCloseAllPlaylists={handleCloseAll}
             onProjectChange={handleProjectChange}
@@ -693,7 +714,9 @@ const App: React.FC = () => {
                             </p>
                             <p className="text-zinc-600 mb-4">{error}</p>
                             <button
-                              onClick={loadPlaylists}
+                              onClick={() =>
+                                loadPlaylistsWithLists(selectedProjectId)
+                              }
                               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             >
                               Try again
