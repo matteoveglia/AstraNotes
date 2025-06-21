@@ -231,7 +231,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
 
           console.log(`Loaded ${playlistVersions.length} versions for database playlist ${dbPlaylist.id}`);
 
-          return {
+          const convertedPlaylist = {
             id: dbPlaylist.id,
             name: dbPlaylist.name,
             title: dbPlaylist.name,
@@ -244,11 +244,13 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
             // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
             isLocalOnly: dbPlaylist.id === 'quick-notes' ? false : (dbPlaylist.localStatus === 'draft' || dbPlaylist.ftrackSyncStatus === 'not_synced'),
             isQuickNotes: dbPlaylist.id === 'quick-notes',
-            ftrackSyncState: dbPlaylist.ftrackSyncStatus === 'synced' ? 'synced' : 'pending',
+            ftrackSyncState: dbPlaylist.ftrackSyncStatus === 'synced' ? 'synced' as const : 'pending' as const,
             type: dbPlaylist.type,
             categoryId: dbPlaylist.categoryId,
             categoryName: dbPlaylist.categoryName,
           };
+
+          return convertedPlaylist;
         })
       );
 

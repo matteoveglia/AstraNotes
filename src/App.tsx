@@ -430,6 +430,8 @@ const App: React.FC = () => {
             ...updatedPlaylists[playlistIndex],
             isLocalOnly: false,
             ftrackSyncState: 'synced' as const,
+            // CRITICAL FIX: Include ftrackId from sync event for refresh functionality
+            ftrackId: ftrackId,
             // Clear manually added flags from versions to remove purple borders
           versions: updatedPlaylists[playlistIndex].versions?.map((v: AssetVersion) => ({
               ...v,
@@ -535,7 +537,7 @@ const App: React.FC = () => {
       <ErrorBoundary>
         <div className="h-screen flex flex-col">
           <TopBar
-            onLoadPlaylists={loadPlaylists}
+            onLoadPlaylists={async () => { await loadPlaylistsWithLists(); }}
             onCloseAllPlaylists={handleCloseAll}
             onProjectChange={handleProjectChange}
             shouldShowWhatsNew={shouldShowModal}

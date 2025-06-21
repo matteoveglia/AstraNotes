@@ -145,6 +145,18 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
         syncedAt: new Date().toISOString(),
       });
       
+      // CRITICAL FIX: Update all versions to mark them as no longer manually added
+      // After sync, all versions are now part of the official ftrack playlist
+      if (versions.length > 0) {
+        console.log(`[PlaylistSync] Updating ${versions.length} versions to mark as no longer manually added`);
+        for (const version of versions) {
+          await this.repository.updateVersion(playlistId, version.id, {
+            manuallyAdded: false
+          });
+        }
+        console.log(`[PlaylistSync] Successfully updated version flags for ${versions.length} versions`);
+      }
+      
       console.log(`[PlaylistSync] Database update completed for playlist ${playlistId}`);
       
       // 8. Clear cache to force fresh load

@@ -189,6 +189,8 @@ export function usePlaylistModifications(
   const refreshPlaylist = useCallback(async () => {
     setIsRefreshing(true);
     try {
+
+      
       // For synced playlists, use ftrackId; for local playlists, skip refresh
       if (!playlist.ftrackId) {
         console.debug(`Cannot refresh local-only playlist: ${playlist.name}`);
@@ -223,6 +225,8 @@ export function usePlaylistModifications(
       const removedVersions = currentVersions
         .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
         .map((v) => v.id);
+
+
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
         setModifications({

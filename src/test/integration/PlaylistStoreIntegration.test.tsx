@@ -353,7 +353,7 @@ describe('Playlist Store Integration Tests', () => {
       
       // Test the database-to-UI conversion directly
       // This simulates what the fixed playlistsStore.ts conversion does
-      const convertedPlaylist = {
+      const convertedPlaylist = dbEntry ? {
         id: dbEntry.id,
         name: dbEntry.name,
         title: dbEntry.name,
@@ -365,14 +365,15 @@ describe('Playlist Store Integration Tests', () => {
         // CRITICAL FIX: Quick Notes should NEVER be considered local only 
         isLocalOnly: dbEntry.id === 'quick-notes' ? false : (dbEntry.localStatus === 'draft' || dbEntry.ftrackSyncStatus === 'not_synced'),
         isQuickNotes: dbEntry.id === 'quick-notes',
-        ftrackSyncState: dbEntry.ftrackSyncStatus === 'synced' ? 'synced' : 'pending',
+        ftrackSyncState: dbEntry.ftrackSyncStatus === 'synced' ? 'synced' as const : 'pending' as const,
         type: dbEntry.type,
-      };
+      } : null;
       
       // Verify Quick Notes maintains its special properties after database conversion
-      expect(convertedPlaylist.isQuickNotes).toBe(true);
-      expect(convertedPlaylist.isLocalOnly).toBe(false); // CRITICAL: Should never be true, even in draft status
-      expect(convertedPlaylist.name).toBe('Quick Notes');
+      expect(convertedPlaylist).toBeDefined();
+      expect(convertedPlaylist?.isQuickNotes).toBe(true);
+      expect(convertedPlaylist?.isLocalOnly).toBe(false); // CRITICAL: Should never be true, even in draft status
+      expect(convertedPlaylist?.name).toBe('Quick Notes');
     });
 
     it('should handle Quick Notes differently from regular local playlists in database conversion', async () => {

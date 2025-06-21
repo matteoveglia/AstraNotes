@@ -225,7 +225,7 @@ describe('Critical Workflows Integration Tests', () => {
 
       // Should get fresh data
       const freshPlaylist = await playlistStore.getPlaylist(playlist.id);
-      expect(freshPlaylist?.versions.some(v => v.id === 'cache-test-version')).toBe(true);
+      expect(freshPlaylist?.versions?.some(v => v.id === 'cache-test-version')).toBe(true);
     });
   });
 
