@@ -92,11 +92,11 @@ describe("usePlaylistsStore", () => {
     state = usePlaylistsStore.getState();
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
-    
+
     // With project filtering: when no projectId is provided, only Quick Notes should be shown
     const names = state.playlists.map((p) => p.name);
     expect(names).toContain("Quick Notes");
-    
+
     // "Playlist 1" should NOT be included when no project is selected (project filtering)
     expect(names).not.toContain("Playlist 1");
     expect(names).toHaveLength(1); // Only Quick Notes
@@ -114,14 +114,16 @@ describe("usePlaylistsStore", () => {
     (ftrackService.getPlaylists as any).mockResolvedValue(mockPlaylists);
     (ftrackService.getLists as any).mockResolvedValue([]);
 
-    const promise = usePlaylistsStore.getState().loadPlaylists("test-project-id");
+    const promise = usePlaylistsStore
+      .getState()
+      .loadPlaylists("test-project-id");
 
     await promise;
 
     const state = usePlaylistsStore.getState();
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
-    
+
     // With projectId provided, should include both Quick Notes and project playlists
     const names = state.playlists.map((p) => p.name);
     expect(names).toContain("Quick Notes");
