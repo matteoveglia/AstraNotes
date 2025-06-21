@@ -36,7 +36,9 @@ class GitHubService {
       );
 
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `GitHub API error: ${response.status} ${response.statusText}`,
+        );
       }
 
       const release: GitHubRelease = await response.json();
@@ -65,7 +67,9 @@ class GitHubService {
       );
 
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `GitHub API error: ${response.status} ${response.statusText}`,
+        );
       }
 
       const release: GitHubRelease = await response.json();
@@ -90,4 +94,4 @@ class GitHubService {
   }
 }
 
-export const githubService = new GitHubService(); 
+export const githubService = new GitHubService();

@@ -77,14 +77,27 @@ export function usePlaylistModifications(
 
     try {
       // CRITICAL FIX: Mark removed versions in database before updating UI
-      if (modifications.removedVersions && modifications.removedVersions.length > 0) {
-        console.debug(`[usePlaylistModifications] Marking ${modifications.removedVersions.length} versions as removed in database`);
+      if (
+        modifications.removedVersions &&
+        modifications.removedVersions.length > 0
+      ) {
+        console.debug(
+          `[usePlaylistModifications] Marking ${modifications.removedVersions.length} versions as removed in database`,
+        );
         for (const removedVersionId of modifications.removedVersions) {
           try {
-            await playlistStore.removeVersionFromPlaylist(playlist.id, removedVersionId);
-            console.debug(`[usePlaylistModifications] Marked version ${removedVersionId} as removed`);
+            await playlistStore.removeVersionFromPlaylist(
+              playlist.id,
+              removedVersionId,
+            );
+            console.debug(
+              `[usePlaylistModifications] Marked version ${removedVersionId} as removed`,
+            );
           } catch (error) {
-            console.error(`[usePlaylistModifications] Failed to mark version ${removedVersionId} as removed:`, error);
+            console.error(
+              `[usePlaylistModifications] Failed to mark version ${removedVersionId} as removed:`,
+              error,
+            );
           }
         }
       }
@@ -94,15 +107,26 @@ export function usePlaylistModifications(
         playlist.versions?.filter((v) => v.manuallyAdded) || [];
 
       // Find newly added versions that need to be persisted to database
-      const currentVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
-      const newVersionsToAdd = pendingVersions.filter(v => !currentVersionIds.has(v.id));
-      
-      console.debug(`[usePlaylistModifications] Found ${newVersionsToAdd.length} new versions to persist to database`);
-      
+      const currentVersionIds = new Set(
+        playlist.versions?.map((v) => v.id) || [],
+      );
+      const newVersionsToAdd = pendingVersions.filter(
+        (v) => !currentVersionIds.has(v.id),
+      );
+
+      console.debug(
+        `[usePlaylistModifications] Found ${newVersionsToAdd.length} new versions to persist to database`,
+      );
+
       // CRITICAL FIX: Persist newly added versions to database first
       if (newVersionsToAdd.length > 0) {
-        console.debug(`[usePlaylistModifications] Adding ${newVersionsToAdd.length} versions to database for playlist ${playlist.id}`);
-        await playlistStore.addVersionsToPlaylist(playlist.id, newVersionsToAdd);
+        console.debug(
+          `[usePlaylistModifications] Adding ${newVersionsToAdd.length} versions to database for playlist ${playlist.id}`,
+        );
+        await playlistStore.addVersionsToPlaylist(
+          playlist.id,
+          newVersionsToAdd,
+        );
       }
 
       // Create a map of pending versions for quick lookup
@@ -189,8 +213,6 @@ export function usePlaylistModifications(
   const refreshPlaylist = useCallback(async () => {
     setIsRefreshing(true);
     try {
-
-      
       // For synced playlists, use ftrackId; for local playlists, skip refresh
       if (!playlist.ftrackId) {
         console.debug(`Cannot refresh local-only playlist: ${playlist.name}`);
@@ -225,8 +247,6 @@ export function usePlaylistModifications(
       const removedVersions = currentVersions
         .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
         .map((v) => v.id);
-
-
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
         setModifications({

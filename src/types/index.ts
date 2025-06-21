@@ -31,7 +31,7 @@ export interface Playlist {
   isOpen?: boolean;
   isLocalOnly?: boolean;
   localVersions?: AssetVersion[];
-  ftrackSyncState?: 'pending' | 'syncing' | 'synced' | 'failed';
+  ftrackSyncState?: "pending" | "syncing" | "synced" | "failed";
   ftrackId?: string; // CRITICAL FIX: Add ftrackId for synced playlists
   projectId?: string; // CRITICAL FIX: Add projectId for ftrack playlists
   description?: string; // CRITICAL FIX: Add description for ftrack playlists
@@ -166,7 +166,7 @@ export interface Project {
  */
 export interface CreatePlaylistRequest {
   name: string;
-  type: 'reviewsession' | 'list';
+  type: "reviewsession" | "list";
   categoryId?: string;
   categoryName?: string;
   description?: string;
@@ -189,7 +189,7 @@ export interface SyncPlaylistRequest {
 export interface CreatePlaylistResponse {
   id: string;
   name: string;
-  type: 'reviewsession' | 'list';
+  type: "reviewsession" | "list";
   ftrackUrl?: string;
   success: boolean;
   error?: string;

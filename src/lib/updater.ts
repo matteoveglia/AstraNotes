@@ -136,10 +136,10 @@ export async function checkForUpdates() {
         });
 
         console.log("Download complete, preparing to relaunch");
-        
+
         // Set flag to show What's New modal on next start
         useWhatsNewStore.getState().setShouldShowOnNextStart(true);
-        
+
         await relaunch();
       } else {
         console.log("User declined update");

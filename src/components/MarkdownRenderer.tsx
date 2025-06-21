@@ -29,11 +29,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       if (currentList.length > 0) {
         elements.push(
           listType === "ul" ? (
-            <ul key={`list-${key++}`} className="list-disc list-inside space-y-1 mb-4">
+            <ul
+              key={`list-${key++}`}
+              className="list-disc list-inside space-y-1 mb-4"
+            >
               {currentList}
             </ul>
           ) : (
-            <ol key={`list-${key++}`} className="list-decimal list-inside space-y-1 mb-4">
+            <ol
+              key={`list-${key++}`}
+              className="list-decimal list-inside space-y-1 mb-4"
+            >
               {currentList}
             </ol>
           ),
@@ -143,20 +149,22 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     let key = 0;
 
     // URLs - match http/https URLs
-    result = (result as string).split(/(https?:\/\/[^\s]+)/).map((part, index) => {
-      if (part.match(/^https?:\/\//)) {
-        return (
-          <button
-            key={`url-${key++}-${index}`}
-            onClick={() => handleLinkClick(part)}
-            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer"
-          >
-            {part}
-          </button>
-        );
-      }
-      return part;
-    });
+    result = (result as string)
+      .split(/(https?:\/\/[^\s]+)/)
+      .map((part, index) => {
+        if (part.match(/^https?:\/\//)) {
+          return (
+            <button
+              key={`url-${key++}-${index}`}
+              onClick={() => handleLinkClick(part)}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer"
+            >
+              {part}
+            </button>
+          );
+        }
+        return part;
+      });
 
     // Bold text **text**
     if (Array.isArray(result)) {
@@ -165,7 +173,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           return node.split(/(\*\*[^*]+\*\*)/).map((part, partIndex) => {
             if (part.startsWith("**") && part.endsWith("**")) {
               return (
-                <strong key={`bold-${key++}-${nodeIndex}-${partIndex}`} className="font-semibold">
+                <strong
+                  key={`bold-${key++}-${nodeIndex}-${partIndex}`}
+                  className="font-semibold"
+                >
                   {part.slice(2, -2)}
                 </strong>
               );
@@ -176,16 +187,18 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         return node;
       });
     } else {
-      result = (result as string).split(/(\*\*[^*]+\*\*)/).map((part, index) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return (
-            <strong key={`bold-${key++}-${index}`} className="font-semibold">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        return part;
-      });
+      result = (result as string)
+        .split(/(\*\*[^*]+\*\*)/)
+        .map((part, index) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return (
+              <strong key={`bold-${key++}-${index}`} className="font-semibold">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return part;
+        });
     }
 
     // Flatten and process italic
@@ -193,9 +206,16 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       return nodes.flatMap((node, nodeIndex) => {
         if (typeof node === "string") {
           return node.split(/(\*[^*]+\*)/).map((part, partIndex) => {
-            if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**")) {
+            if (
+              part.startsWith("*") &&
+              part.endsWith("*") &&
+              !part.startsWith("**")
+            ) {
               return (
-                <em key={`italic-${key++}-${nodeIndex}-${partIndex}`} className="italic">
+                <em
+                  key={`italic-${key++}-${nodeIndex}-${partIndex}`}
+                  className="italic"
+                >
                   {part.slice(1, -1)}
                 </em>
               );
@@ -245,4 +265,4 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       {parseMarkdown(content)}
     </div>
   );
-}; 
+};

@@ -72,7 +72,8 @@ const App: React.FC = () => {
   } = usePlaylistsStore();
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   const { fetchLabels } = useLabelStore();
-  const { selectedProjectId, hasValidatedSelectedProject, loadProjects } = useProjectStore();
+  const { selectedProjectId, hasValidatedSelectedProject, loadProjects } =
+    useProjectStore();
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   // Store loaded versions to prevent reloading
@@ -92,19 +93,26 @@ const App: React.FC = () => {
 
   // New function to load both review sessions and lists
   const loadPlaylistsWithLists = useCallback(async () => {
-    console.log("loadPlaylistsWithLists called:", { selectedProjectId, hasValidatedSelectedProject });
-    
+    console.log("loadPlaylistsWithLists called:", {
+      selectedProjectId,
+      hasValidatedSelectedProject,
+    });
+
     try {
       // CRITICAL FIX: Always initialize Quick Notes first - it's a permanent special playlist
       await playlistStore.initializeQuickNotes();
-      
+
       // CRITICAL FIX: Ensure Quick Notes exists in the current component state
       const currentPlaylists = usePlaylistsStore.getState().playlists;
-      const hasQuickNotes = currentPlaylists.some(p => p.id === 'quick-notes');
+      const hasQuickNotes = currentPlaylists.some(
+        (p) => p.id === "quick-notes",
+      );
       if (!hasQuickNotes) {
-        console.log('Quick Notes missing from state, will be added by setPlaylists()');
+        console.log(
+          "Quick Notes missing from state, will be added by setPlaylists()",
+        );
       }
-      
+
       // Set Quick Notes as active if no project is selected
       if (!selectedProjectId || !hasValidatedSelectedProject) {
         console.log("No validated project - showing only Quick Notes");
@@ -114,32 +122,51 @@ const App: React.FC = () => {
         }
         return;
       }
-      
+
       // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
       console.log("Using store's loadPlaylists (includes cleanup)...");
       // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
       // Remove redundant second fetch that was causing duplicates
       const loadResult = await loadPlaylists();
-      
+
       // CRITICAL FIX: Handle startup cleanup - if playlists were deleted, just log them (no alerts during startup)
-      if (loadResult.deletedPlaylists && loadResult.deletedPlaylists.length > 0) {
-        console.log('🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:', 
-          loadResult.deletedPlaylists.map(p => `${p.name} (${p.id})`));
-        
+      if (
+        loadResult.deletedPlaylists &&
+        loadResult.deletedPlaylists.length > 0
+      ) {
+        console.log(
+          "🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:",
+          loadResult.deletedPlaylists.map((p) => `${p.name} (${p.id})`),
+        );
+
         // If the active playlist was deleted during startup, redirect to Quick Notes
-        if (activePlaylistId && loadResult.deletedPlaylists.some(deleted => deleted.id === activePlaylistId)) {
-          console.log('🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes');
+        if (
+          activePlaylistId &&
+          loadResult.deletedPlaylists.some(
+            (deleted) => deleted.id === activePlaylistId,
+          )
+        ) {
+          console.log(
+            "🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes",
+          );
           setActivePlaylist("quick-notes");
           setOpenPlaylists(["quick-notes"]);
         }
       }
-      
-      console.log('Playlists loaded with proper deduplication - no additional fetching needed');
-      
+
+      console.log(
+        "Playlists loaded with proper deduplication - no additional fetching needed",
+      );
     } catch (error) {
       console.error("Failed to load playlists with lists:", error);
     }
-  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylists, setLocalPlaylists, setStorePlaylists]);
+  }, [
+    selectedProjectId,
+    hasValidatedSelectedProject,
+    loadPlaylists,
+    setLocalPlaylists,
+    setStorePlaylists,
+  ]);
 
   // Load versions when active playlist changes
   useEffect(() => {
@@ -150,11 +177,15 @@ const App: React.FC = () => {
         (activePlaylistId && loadedVersionsRef.current[activePlaylistId])
       ) {
         // CRITICAL FIX: For Quick Notes, load versions from database only (no ftrack)
-        if (activePlaylistId === "quick-notes" && !loadedVersionsRef.current["quick-notes"]) {
-          console.log('Loading Quick Notes versions from database only...');
+        if (
+          activePlaylistId === "quick-notes" &&
+          !loadedVersionsRef.current["quick-notes"]
+        ) {
+          console.log("Loading Quick Notes versions from database only...");
           try {
-            const databaseVersions = await playlistStore.getPlaylistVersions("quick-notes");
-            const assetVersions = databaseVersions.map(v => ({
+            const databaseVersions =
+              await playlistStore.getPlaylistVersions("quick-notes");
+            const assetVersions = databaseVersions.map((v) => ({
               id: v.id,
               name: v.name,
               version: v.version,
@@ -169,7 +200,7 @@ const App: React.FC = () => {
               labelId: v.labelId,
               noteStatus: v.noteStatus,
             }));
-            
+
             setLocalPlaylists(
               playlists.map((playlist) =>
                 playlist.id === "quick-notes"
@@ -177,20 +208,27 @@ const App: React.FC = () => {
                   : playlist,
               ),
             );
-            
+
             loadedVersionsRef.current["quick-notes"] = true;
-            console.log(`Quick Notes loaded ${assetVersions.length} versions from database`);
+            console.log(
+              `Quick Notes loaded ${assetVersions.length} versions from database`,
+            );
           } catch (error) {
-            console.error('Failed to load Quick Notes versions:', error);
+            console.error("Failed to load Quick Notes versions:", error);
           }
         }
         return;
       }
 
       // Skip local playlists - they already have their versions loaded from database
-      const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
-      if (currentPlaylist?.isLocalOnly || activePlaylistId?.startsWith('local_')) {
-        console.log(`Skipping version loading for local playlist: ${activePlaylistId} (isLocalOnly: ${currentPlaylist?.isLocalOnly})`);
+      const currentPlaylist = playlists.find((p) => p.id === activePlaylistId);
+      if (
+        currentPlaylist?.isLocalOnly ||
+        activePlaylistId?.startsWith("local_")
+      ) {
+        console.log(
+          `Skipping version loading for local playlist: ${activePlaylistId} (isLocalOnly: ${currentPlaylist?.isLocalOnly})`,
+        );
         if (activePlaylistId) {
           loadedVersionsRef.current[activePlaylistId] = true;
         }
@@ -207,17 +245,21 @@ const App: React.FC = () => {
         console.log(
           `Loading versions for active playlist: ${activePlaylistId}`,
         );
-        
+
         // CRITICAL FIX: Get the playlist to extract ftrackId for API call
-        const currentPlaylist = playlists.find(p => p.id === activePlaylistId);
+        const currentPlaylist = playlists.find(
+          (p) => p.id === activePlaylistId,
+        );
         if (!currentPlaylist?.ftrackId) {
-          console.log(`[App] Playlist ${activePlaylistId} has no ftrackId - skipping ftrack version loading`);
+          console.log(
+            `[App] Playlist ${activePlaylistId} has no ftrackId - skipping ftrack version loading`,
+          );
           // Still try to load database versions
           const mergedVersions = await playlistStore.loadAndMergeVersions(
             activePlaylistId,
-            []
+            [],
           );
-          
+
           setLocalPlaylists(
             playlists.map((playlist) =>
               playlist.id === activePlaylistId
@@ -231,20 +273,25 @@ const App: React.FC = () => {
           }
           return;
         }
-        
-        // CRITICAL FIX: Use ftrackId for API call instead of database UUID
-        const ftrackVersions =
-          await ftrackService.getPlaylistVersions(currentPlaylist.ftrackId);
 
-        console.log(`Received ${ftrackVersions.length} versions from ftrack service`);
+        // CRITICAL FIX: Use ftrackId for API call instead of database UUID
+        const ftrackVersions = await ftrackService.getPlaylistVersions(
+          currentPlaylist.ftrackId,
+        );
+
+        console.log(
+          `Received ${ftrackVersions.length} versions from ftrack service`,
+        );
 
         // CRITICAL FIX: Merge with database versions to preserve manual additions and drafts
         const mergedVersions = await playlistStore.loadAndMergeVersions(
           activePlaylistId,
-          ftrackVersions
+          ftrackVersions,
         );
 
-        console.log(`Using ${mergedVersions.length} merged versions (ftrack + database)`);
+        console.log(
+          `Using ${mergedVersions.length} merged versions (ftrack + database)`,
+        );
 
         setLocalPlaylists(
           playlists.map((playlist) =>
@@ -278,30 +325,38 @@ const App: React.FC = () => {
   }, [activePlaylistId, playlists, setLocalPlaylists]);
 
   // Handle project changes
-  const handleProjectChange = useCallback((projectId: string | null) => {
-    console.log("Project changed:", projectId);
-    
-    if (projectId) {
-      // Only load playlists if a project is actually selected
-      loadPlaylistsWithLists();
-    } else {
-      // Project cleared - don't load anything
-      console.log("Project cleared - not loading playlists");
-    }
-  }, [loadPlaylistsWithLists]);
+  const handleProjectChange = useCallback(
+    (projectId: string | null) => {
+      console.log("Project changed:", projectId);
+
+      if (projectId) {
+        // Only load playlists if a project is actually selected
+        loadPlaylistsWithLists();
+      } else {
+        // Project cleared - don't load anything
+        console.log("Project cleared - not loading playlists");
+      }
+    },
+    [loadPlaylistsWithLists],
+  );
 
   // Reload when project changes or validation completes
   useEffect(() => {
-    console.log("Project state changed:", { selectedProjectId, hasValidatedSelectedProject });
-    
+    console.log("Project state changed:", {
+      selectedProjectId,
+      hasValidatedSelectedProject,
+    });
+
     if (selectedProjectId && hasValidatedSelectedProject) {
       // Only load when we have a validated project selection
       console.log("Loading playlists for project:", selectedProjectId);
       loadPlaylistsWithLists();
     } else {
       // No project selected or not validated - clear project playlists but keep Quick Notes
-      console.log("No validated project - clearing project playlists, keeping Quick Notes");
-      
+      console.log(
+        "No validated project - clearing project playlists, keeping Quick Notes",
+      );
+
       // Keep Quick Notes in playlists
       const quickNotesPlaylist = {
         id: "quick-notes",
@@ -314,28 +369,38 @@ const App: React.FC = () => {
         isQuickNotes: true,
         isLocalOnly: false, // CRITICAL FIX: Quick Notes should never show as local only
       };
-      
+
       setLocalPlaylists([quickNotesPlaylist]);
       setStorePlaylists([]); // Clear store playlists (project-specific)
       setActivePlaylist("quick-notes"); // Always set Quick Notes as active when no project
       setOpenPlaylists(["quick-notes"]); // Keep Quick Notes open
-      
+
       // Clear the loaded versions cache when clearing project (except Quick Notes)
       const newCache = { "quick-notes": true };
       loadedVersionsRef.current = newCache;
       console.log("Cleared loadedVersionsRef cache except Quick Notes");
     }
-  }, [selectedProjectId, hasValidatedSelectedProject, loadPlaylistsWithLists, setLocalPlaylists, setStorePlaylists, setActivePlaylist]);
+  }, [
+    selectedProjectId,
+    hasValidatedSelectedProject,
+    loadPlaylistsWithLists,
+    setLocalPlaylists,
+    setStorePlaylists,
+    setActivePlaylist,
+  ]);
 
   // Handle playlist state when project selection changes
   useEffect(() => {
-    const quickNotesExists = playlists.some(p => p.isQuickNotes);
-    
+    const quickNotesExists = playlists.some((p) => p.isQuickNotes);
+
     if (selectedProjectId && hasValidatedSelectedProject) {
       // Project selected - ensure Quick Notes is in open playlists if it exists
       if (quickNotesExists && !openPlaylists.includes("quick-notes")) {
-        setOpenPlaylists(prev => ["quick-notes", ...prev.filter(id => id !== "quick-notes")]);
-        
+        setOpenPlaylists((prev) => [
+          "quick-notes",
+          ...prev.filter((id) => id !== "quick-notes"),
+        ]);
+
         // Set Quick Notes as active if no other playlist is active
         if (!activePlaylistId) {
           setActivePlaylist("quick-notes");
@@ -347,12 +412,22 @@ const App: React.FC = () => {
         if (activePlaylistId !== "quick-notes") {
           setActivePlaylist("quick-notes");
         }
-        if (!openPlaylists.includes("quick-notes") || openPlaylists.length > 1) {
+        if (
+          !openPlaylists.includes("quick-notes") ||
+          openPlaylists.length > 1
+        ) {
           setOpenPlaylists(["quick-notes"]);
         }
       }
     }
-  }, [selectedProjectId, hasValidatedSelectedProject, playlists, openPlaylists, activePlaylistId, setActivePlaylist]);
+  }, [
+    selectedProjectId,
+    hasValidatedSelectedProject,
+    playlists,
+    openPlaylists,
+    activePlaylistId,
+    setActivePlaylist,
+  ]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     console.log(`Selecting playlist: ${playlistId}`);
@@ -389,17 +464,23 @@ const App: React.FC = () => {
     });
   };
 
-  // Handle custom playlist selection events from child components  
+  // Handle custom playlist selection events from child components
   useEffect(() => {
     const handlePlaylistSelectEvent = (event: CustomEvent) => {
       const { playlistId } = event.detail;
-      console.log('Received playlist-select event:', playlistId);
+      console.log("Received playlist-select event:", playlistId);
       handlePlaylistSelect(playlistId);
     };
 
-    window.addEventListener('playlist-select', handlePlaylistSelectEvent as EventListener);
+    window.addEventListener(
+      "playlist-select",
+      handlePlaylistSelectEvent as EventListener,
+    );
     return () => {
-      window.removeEventListener('playlist-select', handlePlaylistSelectEvent as EventListener);
+      window.removeEventListener(
+        "playlist-select",
+        handlePlaylistSelectEvent as EventListener,
+      );
     };
   }, [handlePlaylistSelect]);
 
@@ -407,52 +488,71 @@ const App: React.FC = () => {
   useEffect(() => {
     const handlePlaylistSynced = (event: CustomEvent) => {
       const { playlistId, ftrackId, playlistName } = event.detail;
-      console.log('Playlist synced - converted in place:', { playlistId, ftrackId, playlistName });
-      
+      console.log("Playlist synced - converted in place:", {
+        playlistId,
+        ftrackId,
+        playlistName,
+      });
+
       // CRITICAL FIX: Use direct state update with current playlists
       const currentPlaylists = playlists;
-      
-        // Safety check: ensure currentPlaylists is an array
-        if (!Array.isArray(currentPlaylists)) {
-          console.warn('currentPlaylists is not an array:', currentPlaylists);
-          // Force reload with proper state
-          setTimeout(() => {
-            loadPlaylistsWithLists();
-          }, 100);
+
+      // Safety check: ensure currentPlaylists is an array
+      if (!Array.isArray(currentPlaylists)) {
+        console.warn("currentPlaylists is not an array:", currentPlaylists);
+        // Force reload with proper state
+        setTimeout(() => {
+          loadPlaylistsWithLists();
+        }, 100);
         return;
-        }
-        
-      const playlistIndex = currentPlaylists.findIndex((p: Playlist) => p && p.id === playlistId);
-        
-        if (playlistIndex >= 0) {
-          const updatedPlaylists = [...currentPlaylists];
-          updatedPlaylists[playlistIndex] = {
-            ...updatedPlaylists[playlistIndex],
-            isLocalOnly: false,
-            ftrackSyncState: 'synced' as const,
-            // CRITICAL FIX: Include ftrackId from sync event for refresh functionality
-            ftrackId: ftrackId,
-            // Clear manually added flags from versions to remove purple borders
-          versions: updatedPlaylists[playlistIndex].versions?.map((v: AssetVersion) => ({
-              ...v,
-              manuallyAdded: false,
-            })) || [],
-          };
-          
-          console.log('Updated synced playlist in state without full reload - no remounting!');
+      }
+
+      const playlistIndex = currentPlaylists.findIndex(
+        (p: Playlist) => p && p.id === playlistId,
+      );
+
+      if (playlistIndex >= 0) {
+        const updatedPlaylists = [...currentPlaylists];
+        updatedPlaylists[playlistIndex] = {
+          ...updatedPlaylists[playlistIndex],
+          isLocalOnly: false,
+          ftrackSyncState: "synced" as const,
+          // CRITICAL FIX: Include ftrackId from sync event for refresh functionality
+          ftrackId: ftrackId,
+          // Clear manually added flags from versions to remove purple borders
+          versions:
+            updatedPlaylists[playlistIndex].versions?.map(
+              (v: AssetVersion) => ({
+                ...v,
+                manuallyAdded: false,
+              }),
+            ) || [],
+        };
+
+        console.log(
+          "Updated synced playlist in state without full reload - no remounting!",
+        );
         setLocalPlaylists(updatedPlaylists);
-        } else {
-          console.warn('Synced playlist not found in current state, falling back to reload');
-          // Only reload if we can't find the playlist (shouldn't happen)
-          setTimeout(() => {
-            loadPlaylistsWithLists();
-          }, 100);
-        }
+      } else {
+        console.warn(
+          "Synced playlist not found in current state, falling back to reload",
+        );
+        // Only reload if we can't find the playlist (shouldn't happen)
+        setTimeout(() => {
+          loadPlaylistsWithLists();
+        }, 100);
+      }
     };
 
-    window.addEventListener('playlist-synced', handlePlaylistSynced as EventListener);
+    window.addEventListener(
+      "playlist-synced",
+      handlePlaylistSynced as EventListener,
+    );
     return () => {
-      window.removeEventListener('playlist-synced', handlePlaylistSynced as EventListener);
+      window.removeEventListener(
+        "playlist-synced",
+        handlePlaylistSynced as EventListener,
+      );
     };
   }, [loadPlaylistsWithLists]);
 
@@ -461,7 +561,7 @@ const App: React.FC = () => {
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
     if (activePlaylistId === playlistId) {
       // Only switch to Quick Notes if it exists
-      const quickNotesExists = playlists.some(p => p.isQuickNotes);
+      const quickNotesExists = playlists.some((p) => p.isQuickNotes);
       if (quickNotesExists) {
         setActivePlaylist("quick-notes");
       } else {
@@ -472,7 +572,7 @@ const App: React.FC = () => {
 
   const handleCloseAll = () => {
     // Only keep Quick Notes if it exists (i.e., a project is selected)
-    const quickNotesExists = playlists.some(p => p.isQuickNotes);
+    const quickNotesExists = playlists.some((p) => p.isQuickNotes);
     if (quickNotesExists) {
       setOpenPlaylists(["quick-notes"]);
       setActivePlaylist("quick-notes");
@@ -483,24 +583,26 @@ const App: React.FC = () => {
   };
 
   const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    console.log('handlePlaylistUpdate called:', {
+    console.log("handlePlaylistUpdate called:", {
       playlistId: updatedPlaylist.id,
       playlistName: updatedPlaylist.name,
       versionsCount: updatedPlaylist.versions?.length || 0,
-      isQuickNotes: updatedPlaylist.isQuickNotes
+      isQuickNotes: updatedPlaylist.isQuickNotes,
     });
-    
-    const existingIndex = playlists.findIndex((p: Playlist) => p.id === updatedPlaylist.id);
+
+    const existingIndex = playlists.findIndex(
+      (p: Playlist) => p.id === updatedPlaylist.id,
+    );
     if (existingIndex >= 0) {
       // Update existing playlist
       const updated = [...playlists];
       updated[existingIndex] = updatedPlaylist;
       setLocalPlaylists(updated);
-      console.log('Updated existing playlist in App state');
+      console.log("Updated existing playlist in App state");
     } else {
       // Add new playlist
       setLocalPlaylists([...playlists, updatedPlaylist]);
-      console.log('Added new playlist to App state');
+      console.log("Added new playlist to App state");
     }
   };
 
@@ -515,10 +617,11 @@ const App: React.FC = () => {
         loadedVersionsRef.current[activePlaylistId] &&
         !loadingVersions));
 
-  const shouldShowContent = hasValidatedSelectedProject || selectedProjectId === null;
+  const shouldShowContent =
+    hasValidatedSelectedProject || selectedProjectId === null;
 
   // Debug logging for development only
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     console.log("App rendering decision:", {
       activePlaylistId,
       hasActivePlaylistData: !!activePlaylistData,
@@ -537,7 +640,9 @@ const App: React.FC = () => {
       <ErrorBoundary>
         <div className="h-screen flex flex-col">
           <TopBar
-            onLoadPlaylists={async () => { await loadPlaylistsWithLists(); }}
+            onLoadPlaylists={async () => {
+              await loadPlaylistsWithLists();
+            }}
             onCloseAllPlaylists={handleCloseAll}
             onProjectChange={handleProjectChange}
             shouldShowWhatsNew={shouldShowModal}
@@ -598,7 +703,8 @@ const App: React.FC = () => {
                           <p className="text-zinc-500">Loading playlists...</p>
                         ) : (
                           <div className="text-center">
-                            {!selectedProjectId || !hasValidatedSelectedProject ? (
+                            {!selectedProjectId ||
+                            !hasValidatedSelectedProject ? (
                               <NoProjectSelectedState />
                             ) : (
                               <p className="text-zinc-500 select-none">

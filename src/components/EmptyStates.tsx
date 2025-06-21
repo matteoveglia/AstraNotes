@@ -18,7 +18,8 @@ export const NoProjectSelectedState: React.FC = () => (
       Select a Project
     </h3>
     <p className="text-zinc-600 dark:text-zinc-400 mb-4 max-w-md">
-      Choose a project from the dropdown above to view its playlists and start taking notes.
+      Choose a project from the dropdown above to view its playlists and start
+      taking notes.
     </p>
     <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
       <ArrowUp className="w-4 h-4" />
@@ -37,4 +38,4 @@ export const PlaylistPanelEmptyState: React.FC = () => (
       Select a project above to view playlists
     </p>
   </div>
-); 
+);

@@ -3,4 +3,4 @@
  * Exports for notes components
  */
 
-export { QuickNotesToPlaylistButton } from './QuickNotesToPlaylistButton'; 
+export { QuickNotesToPlaylistButton } from "./QuickNotesToPlaylistButton";

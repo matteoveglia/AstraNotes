@@ -200,8 +200,8 @@ describe('Playlist Store Optimization', () => {
 */
 
 // Placeholder test to prevent empty test file
-describe('Placeholder', () => {
-  it('should pass', () => {
+describe("Placeholder", () => {
+  it("should pass", () => {
     expect(true).toBe(true);
   });
-}); 
+});

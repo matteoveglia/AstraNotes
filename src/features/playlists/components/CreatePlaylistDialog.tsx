@@ -3,35 +3,35 @@
  * Dialog component for creating new playlists.
  * Features:
  * - Form validation for playlist creation
- * - Radio buttons for Review Session/List selection  
+ * - Radio buttons for Review Session/List selection
  * - Category dropdown for List type
  * - Version preview for pre-selected versions
  * - Loading states and error handling
  */
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { usePlaylistCreationStore } from '@/store/playlistCreationStore';
-import { CreatePlaylistRequest, Playlist, AssetVersion } from '@/types';
-import { Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { usePlaylistCreationStore } from "@/store/playlistCreationStore";
+import { CreatePlaylistRequest, Playlist, AssetVersion } from "@/types";
+import { Loader2, AlertCircle } from "lucide-react";
 
 interface CreatePlaylistDialogProps {
   isOpen: boolean;
@@ -43,7 +43,7 @@ interface CreatePlaylistDialogProps {
 
 interface FormData {
   name: string;
-  type: 'reviewsession' | 'list';
+  type: "reviewsession" | "list";
   categoryId: string;
   description: string;
 }
@@ -58,13 +58,13 @@ export function CreatePlaylistDialog({
   onClose,
   onSuccess,
   preSelectedVersions = [],
-  projectId = '', // TODO: Get from app context
+  projectId = "", // TODO: Get from app context
 }: CreatePlaylistDialogProps) {
-  console.log('CreatePlaylistDialog render:', {
+  console.log("CreatePlaylistDialog render:", {
     isOpen,
     preSelectedVersionsCount: preSelectedVersions.length,
     projectId,
-    versions: preSelectedVersions.map(v => ({ id: v.id, name: v.name }))
+    versions: preSelectedVersions.map((v) => ({ id: v.id, name: v.name })),
   });
   const {
     isCreating,
@@ -77,17 +77,17 @@ export function CreatePlaylistDialog({
   } = usePlaylistCreationStore();
 
   const [formData, setFormData] = useState<FormData>({
-    name: '',
-    type: 'reviewsession',
-    categoryId: '',
-    description: '',
+    name: "",
+    type: "reviewsession",
+    categoryId: "",
+    description: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
 
   // Fetch categories when dialog opens and type is list
   useEffect(() => {
-    if (isOpen && formData.type === 'list' && projectId) {
+    if (isOpen && formData.type === "list" && projectId) {
       fetchCategories(projectId);
     }
   }, [isOpen, formData.type, projectId, fetchCategories]);
@@ -102,9 +102,9 @@ export function CreatePlaylistDialog({
 
   // Update category selection when type changes
   useEffect(() => {
-    if (formData.type === 'reviewsession') {
-      setFormData(prev => ({ ...prev, categoryId: '' }));
-      setErrors(prev => ({ ...prev, categoryId: undefined }));
+    if (formData.type === "reviewsession") {
+      setFormData((prev) => ({ ...prev, categoryId: "" }));
+      setErrors((prev) => ({ ...prev, categoryId: undefined }));
     }
   }, [formData.type]);
 
@@ -112,11 +112,11 @@ export function CreatePlaylistDialog({
     const newErrors: FormErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Playlist name is required';
+      newErrors.name = "Playlist name is required";
     }
 
-    if (formData.type === 'list' && !formData.categoryId) {
-      newErrors.categoryId = 'Category is required for lists';
+    if (formData.type === "list" && !formData.categoryId) {
+      newErrors.categoryId = "Category is required for lists";
     }
 
     setErrors(newErrors);
@@ -125,7 +125,7 @@ export function CreatePlaylistDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -136,61 +136,60 @@ export function CreatePlaylistDialog({
         type: formData.type,
         projectId,
         description: formData.description.trim() || undefined,
-        categoryId: formData.type === 'list' ? formData.categoryId : undefined,
-        categoryName: formData.type === 'list' 
-          ? categories.find(c => c.id === formData.categoryId)?.name 
-          : undefined,
+        categoryId: formData.type === "list" ? formData.categoryId : undefined,
+        categoryName:
+          formData.type === "list"
+            ? categories.find((c) => c.id === formData.categoryId)?.name
+            : undefined,
       };
 
-      console.log('CreatePlaylistDialog: Creating playlist with versions:', {
+      console.log("CreatePlaylistDialog: Creating playlist with versions:", {
         request,
         versionsCount: preSelectedVersions.length,
-        versions: preSelectedVersions.map(v => ({ id: v.id, name: v.name }))
+        versions: preSelectedVersions.map((v) => ({ id: v.id, name: v.name })),
       });
       const playlist = await createPlaylist(request, preSelectedVersions);
-      console.log('CreatePlaylistDialog: Playlist created:', {
+      console.log("CreatePlaylistDialog: Playlist created:", {
         playlistId: playlist.id,
         versionsCount: playlist.versions?.length || 0,
-        versions: playlist.versions?.map(v => ({ id: v.id, name: v.name }))
+        versions: playlist.versions?.map((v) => ({ id: v.id, name: v.name })),
       });
-      
+
       // Reset form
       setFormData({
-        name: '',
-        type: 'reviewsession',
-        categoryId: '',
-        description: '',
+        name: "",
+        type: "reviewsession",
+        categoryId: "",
+        description: "",
       });
-      
+
       onSuccess(playlist);
       onClose();
     } catch (error) {
       // Error handling is managed by the store
-      console.error('Failed to create playlist:', error);
+      console.error("Failed to create playlist:", error);
     }
   };
 
   const handleClose = () => {
     setFormData({
-      name: '',
-      type: 'reviewsession', 
-      categoryId: '',
-      description: '',
+      name: "",
+      type: "reviewsession",
+      categoryId: "",
+      description: "",
     });
     setErrors({});
     clearErrors();
     onClose();
   };
 
-  const selectedCategory = categories.find(c => c.id === formData.categoryId);
+  const selectedCategory = categories.find((c) => c.id === formData.categoryId);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            Create New Playlist
-          </DialogTitle>
+          <DialogTitle>Create New Playlist</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -202,9 +201,11 @@ export function CreatePlaylistDialog({
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Enter playlist name"
-              className={errors.name ? 'border-red-500' : ''}
+              className={errors.name ? "border-red-500" : ""}
             />
             {errors.name && (
               <p className="text-sm text-red-500 flex items-center gap-1">
@@ -221,10 +222,13 @@ export function CreatePlaylistDialog({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="reviewsession"
-                  checked={formData.type === 'reviewsession'}
+                  checked={formData.type === "reviewsession"}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setFormData(prev => ({ ...prev, type: 'reviewsession' }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        type: "reviewsession",
+                      }));
                     }
                   }}
                 />
@@ -235,10 +239,10 @@ export function CreatePlaylistDialog({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="list"
-                  checked={formData.type === 'list'}
+                  checked={formData.type === "list"}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setFormData(prev => ({ ...prev, type: 'list' }));
+                      setFormData((prev) => ({ ...prev, type: "list" }));
                     }
                   }}
                 />
@@ -250,20 +254,28 @@ export function CreatePlaylistDialog({
           </div>
 
           {/* Category Selection (List only) */}
-          {formData.type === 'list' && (
+          {formData.type === "list" && (
             <div className="space-y-2">
               <Label htmlFor="category" className="text-sm font-medium">
                 Category *
               </Label>
               <Select
                 value={formData.categoryId}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, categoryId: value }))
+                }
                 disabled={categoriesLoading}
               >
-                <SelectTrigger className={errors.categoryId ? 'border-red-500' : ''}>
-                  <SelectValue placeholder={
-                    categoriesLoading ? 'Loading categories...' : 'Select a category'
-                  } />
+                <SelectTrigger
+                  className={errors.categoryId ? "border-red-500" : ""}
+                >
+                  <SelectValue
+                    placeholder={
+                      categoriesLoading
+                        ? "Loading categories..."
+                        : "Select a category"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -283,7 +295,7 @@ export function CreatePlaylistDialog({
           )}
 
           {/* Description (Review Session only) */}
-          {formData.type === 'reviewsession' && (
+          {formData.type === "reviewsession" && (
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-medium">
                 Description
@@ -291,7 +303,12 @@ export function CreatePlaylistDialog({
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="Optional description"
                 rows={3}
                 spellCheck={false}
@@ -307,7 +324,10 @@ export function CreatePlaylistDialog({
               </Label>
               <div className="max-h-24 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/30">
                 {preSelectedVersions.map((version) => (
-                  <div key={version.id} className="text-xs text-muted-foreground">
+                  <div
+                    key={version.id}
+                    className="text-xs text-muted-foreground"
+                  >
                     {version.name} v{version.version}
                   </div>
                 ))}
@@ -334,10 +354,7 @@ export function CreatePlaylistDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isCreating}
-            >
+            <Button type="submit" disabled={isCreating}>
               {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Playlist
             </Button>
@@ -346,4 +363,4 @@ export function CreatePlaylistDialog({
       </DialogContent>
     </Dialog>
   );
-} 
+}

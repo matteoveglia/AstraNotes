@@ -58,12 +58,12 @@ export const useWhatsNewStore = create<WhatsNewState>()(
 
       shouldShowForVersion: (currentVersion: string) => {
         const { lastShownVersion, shouldShowOnNextStart } = get();
-        
+
         // Always show if explicitly set to show on next start
         if (shouldShowOnNextStart) {
           return true;
         }
-        
+
         // Show if we haven't shown for this version yet
         return lastShownVersion !== currentVersion;
       },
@@ -80,4 +80,4 @@ export const useWhatsNewStore = create<WhatsNewState>()(
       name: "astra-notes-whats-new-state",
     },
   ),
-); 
+);

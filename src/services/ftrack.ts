@@ -448,24 +448,24 @@ export class FtrackService {
    */
   async getProjects(): Promise<Project[]> {
     const session = await this.ensureSession();
-    
+
     // Try basic query without status - let's see what fields are actually available
     const query = `
       select id, name, full_name
       from Project 
       order by name asc
     `;
-    
+
     try {
       log("Running projects query:", query);
       const response = await session.query(query);
       log("Received projects response:", response);
-      
+
       return response.data.map((project: any) => ({
         id: project.id,
         name: project.name,
         fullName: project.full_name || project.name,
-        status: 'Active' as const // Default to Active for now - TODO: fetch real status
+        status: "Active" as const, // Default to Active for now - TODO: fetch real status
       }));
     } catch (error) {
       log("Failed to fetch projects:", error);
@@ -492,11 +492,11 @@ export class FtrackService {
         created_by_id,
         project_id
       from ReviewSession`;
-      
+
       if (projectId) {
         query += ` where project_id is "${projectId}"`;
       }
-      
+
       query += ` order by created_at desc`;
 
       log("Running query:", query);
@@ -546,11 +546,11 @@ export class FtrackService {
         category.name
       from List 
       where is_open is true`;
-      
+
       if (projectId) {
         query += ` and project_id is "${projectId}"`;
       }
-      
+
       query += ` order by category.name, name`;
 
       log("Running list query:", query);
@@ -1341,11 +1341,11 @@ export class FtrackService {
       }
 
       // Rest of the method...
-          } catch (error) {
-        // Use safe console error to avoid exposing credentials in logs
-        safeConsoleError("Error getting API key:", error);
-        throw error;
-      }
+    } catch (error) {
+      // Use safe console error to avoid exposing credentials in logs
+      safeConsoleError("Error getting API key:", error);
+      throw error;
+    }
   }
 
   /**
@@ -1400,9 +1400,10 @@ export class FtrackService {
       const entityData = entityQuery.data[0];
       const schemaId = entityData.project.project_schema_id;
       // CRITICAL FIX: Only access object_type_id if it was included in the projection
-      const objectTypeId = (entityType !== "AssetVersion" && entityType !== "Task") 
-        ? entityData.object_type_id 
-        : undefined;
+      const objectTypeId =
+        entityType !== "AssetVersion" && entityType !== "Task"
+          ? entityData.object_type_id
+          : undefined;
       log(
         `[fetchApplicableStatuses] schemaId: ${schemaId}, objectTypeId: ${objectTypeId}`,
       );
@@ -1741,7 +1742,10 @@ export class FtrackService {
         "select id, name, statuses.id, statuses.name, statuses.color from WorkflowSchema",
       );
       this.allWorkflowSchemas = workflowSchemaResult.data;
-      log("[SchemaStatusMapping] All WorkflowSchemas:", this.allWorkflowSchemas);
+      log(
+        "[SchemaStatusMapping] All WorkflowSchemas:",
+        this.allWorkflowSchemas,
+      );
 
       // 5. Fetch all Schema (the link between ProjectSchema and ObjectType)
       const schemaResult = await session.query(
@@ -1876,10 +1880,12 @@ export class FtrackService {
   /**
    * Creates a new Review Session in ftrack
    */
-  async createReviewSession(request: CreatePlaylistRequest): Promise<CreatePlaylistResponse> {
+  async createReviewSession(
+    request: CreatePlaylistRequest,
+  ): Promise<CreatePlaylistResponse> {
     try {
       const session = await this.ensureSession();
-      
+
       if (!this.currentUserId) {
         throw new Error("User ID not available");
       }
@@ -1890,29 +1896,29 @@ export class FtrackService {
       log("Creating ReviewSession with data:", {
         name: request.name,
         project_id: request.projectId,
-        description: request.description || '',
+        description: request.description || "",
         created_by_id: this.currentUserId,
         start_date: now.toISOString(),
-        end_date: endDate.toISOString()
+        end_date: endDate.toISOString(),
       });
 
-      const response = await session.create('ReviewSession', {
+      const response = (await session.create("ReviewSession", {
         name: request.name,
         project_id: request.projectId,
-        description: request.description || '',
+        description: request.description || "",
         created_by_id: this.currentUserId,
         start_date: now.toISOString(),
-        end_date: endDate.toISOString()
-      }) as any;
+        end_date: endDate.toISOString(),
+      })) as any;
 
       log("ReviewSession creation response:", response);
       log("ReviewSession response.data:", response.data);
       log("ReviewSession response structure:", {
-        hasId: 'id' in response,
-        hasData: 'data' in response,
-        dataHasId: response.data && 'id' in response.data,
+        hasId: "id" in response,
+        hasData: "data" in response,
+        dataHasId: response.data && "id" in response.data,
         responseType: typeof response,
-        responseKeys: Object.keys(response)
+        responseKeys: Object.keys(response),
       });
 
       const reviewSessionId = response.data?.id;
@@ -1920,25 +1926,29 @@ export class FtrackService {
       log("Extracted ReviewSession ID:", reviewSessionId);
 
       if (!reviewSessionId) {
-        throw new Error("Failed to get ID from ReviewSession creation response");
+        throw new Error(
+          "Failed to get ID from ReviewSession creation response",
+        );
       }
 
       return {
         id: reviewSessionId,
         name: reviewSessionName || request.name,
-        type: 'reviewsession',
-        success: true
+        type: "reviewsession",
+        success: true,
       };
-
     } catch (error) {
       log("Failed to create ReviewSession:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create review session';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create review session";
       return {
-        id: '',
+        id: "",
         name: request.name,
-        type: 'reviewsession',
+        type: "reviewsession",
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -1946,10 +1956,12 @@ export class FtrackService {
   /**
    * Creates a new List in ftrack
    */
-  async createList(request: CreatePlaylistRequest): Promise<CreatePlaylistResponse> {
+  async createList(
+    request: CreatePlaylistRequest,
+  ): Promise<CreatePlaylistResponse> {
     try {
       const session = await this.ensureSession();
-      
+
       if (!this.currentUserId) {
         throw new Error("User ID not available");
       }
@@ -1966,21 +1978,21 @@ export class FtrackService {
       });
 
       // Create AssetVersionList - this is the correct entity type for asset version lists
-      const response = await session.create('AssetVersionList', {
+      const response = await session.create("AssetVersionList", {
         name: request.name,
         project_id: request.projectId,
         category_id: request.categoryId,
         owner_id: this.currentUserId,
       });
-      
+
       log("AssetVersionList creation response:", response);
       log("AssetVersionList response.data:", response.data);
       log("List response structure:", {
-        hasId: 'id' in response,
-        hasData: 'data' in response,
-        dataHasId: response.data && 'id' in response.data,
+        hasId: "id" in response,
+        hasData: "data" in response,
+        dataHasId: response.data && "id" in response.data,
         responseType: typeof response,
-        responseKeys: Object.keys(response)
+        responseKeys: Object.keys(response),
       });
 
       const listId = response.data?.id;
@@ -1988,25 +2000,29 @@ export class FtrackService {
       log("Extracted AssetVersionList ID:", listId);
 
       if (!listId) {
-        throw new Error("Failed to get ID from AssetVersionList creation response");
+        throw new Error(
+          "Failed to get ID from AssetVersionList creation response",
+        );
       }
 
       return {
         id: listId,
         name: listName || request.name,
-        type: 'list',
-        success: true
+        type: "list",
+        success: true,
       };
-
     } catch (error) {
       log("Failed to create AssetVersionList:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create asset version list';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create asset version list";
       return {
-        id: '',
+        id: "",
         name: request.name,
-        type: 'list',
+        type: "list",
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }
@@ -2018,9 +2034,7 @@ export class FtrackService {
     try {
       const session = await this.ensureSession();
 
-      const result = await session.query(
-        `select id, name from ListCategory`
-      );
+      const result = await session.query(`select id, name from ListCategory`);
 
       if (!result?.data) {
         return [];
@@ -2029,10 +2043,9 @@ export class FtrackService {
       return result.data.map((category: any) => ({
         id: category.id,
         name: category.name,
-        type: 'lists' as const,
-        playlists: []
+        type: "lists" as const,
+        playlists: [],
       }));
-
     } catch (error) {
       console.error("Failed to fetch list categories:", error);
       return [];
@@ -2043,84 +2056,95 @@ export class FtrackService {
    * Adds asset versions to an existing ftrack playlist
    */
   async addVersionsToPlaylist(
-    playlistId: string, 
-    versionIds: string[], 
-    playlistType: 'reviewsession' | 'list'
+    playlistId: string,
+    versionIds: string[],
+    playlistType: "reviewsession" | "list",
   ): Promise<SyncVersionsResponse> {
     try {
       const session = await this.ensureSession();
       const syncedVersionIds: string[] = [];
       const failedVersionIds: string[] = [];
 
-      log(`Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`);
+      log(
+        `Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`,
+      );
 
       for (let i = 0; i < versionIds.length; i++) {
         const versionId = versionIds[i];
-        
+
         try {
-          if (playlistType === 'reviewsession') {
+          if (playlistType === "reviewsession") {
             // Create ReviewSessionObject
             const createData = {
               review_session_id: playlistId,
               version_id: versionId,
               name: `Version ${i + 1}`,
-              description: '',
-              sort_order: i
+              description: "",
+              sort_order: i,
             };
             log(`Creating ReviewSessionObject with data:`, createData);
-            const response = await session.create('ReviewSessionObject', createData);
+            const response = await session.create(
+              "ReviewSessionObject",
+              createData,
+            );
             log(`ReviewSessionObject creation response:`, response);
           } else {
             // For AssetVersionList, we need to add the version to the 'items' relationship
             // First get the AssetVersionList entity
             log(`Getting AssetVersionList entity for ID: ${playlistId}`);
             const listResult = await session.query(
-              `select id, name, items from AssetVersionList where id is "${playlistId}"`
+              `select id, name, items from AssetVersionList where id is "${playlistId}"`,
             );
-            
+
             if (!listResult?.data || listResult.data.length === 0) {
-              throw new Error(`AssetVersionList with ID ${playlistId} not found`);
+              throw new Error(
+                `AssetVersionList with ID ${playlistId} not found`,
+              );
             }
-            
+
             const assetVersionList = listResult.data[0];
-            log(`AssetVersionList found:`, { 
-              id: assetVersionList.id, 
+            log(`AssetVersionList found:`, {
+              id: assetVersionList.id,
               name: assetVersionList.name,
-              itemsCount: assetVersionList.items?.length || 0
+              itemsCount: assetVersionList.items?.length || 0,
             });
 
             // Get the AssetVersion entity
             log(`Getting AssetVersion entity for ID: ${versionId}`);
             const versionResult = await session.query(
-              `select id, asset.name, version from AssetVersion where id is "${versionId}"`
+              `select id, asset.name, version from AssetVersion where id is "${versionId}"`,
             );
-            
+
             if (!versionResult?.data || versionResult.data.length === 0) {
               throw new Error(`AssetVersion with ID ${versionId} not found`);
             }
-            
+
             const assetVersion = versionResult.data[0];
-            log(`AssetVersion found:`, { 
-              id: assetVersion.id, 
+            log(`AssetVersion found:`, {
+              id: assetVersion.id,
               name: assetVersion.asset.name,
-              version: assetVersion.version
+              version: assetVersion.version,
             });
 
             // Add the version to the list's items - try using push() instead of append()
-            log(`Adding AssetVersion ${versionId} to AssetVersionList ${playlistId}`);
+            log(
+              `Adding AssetVersion ${versionId} to AssetVersionList ${playlistId}`,
+            );
             if (!assetVersionList.items) {
               assetVersionList.items = [];
             }
             assetVersionList.items.push(assetVersion);
-            
+
             // Update the AssetVersionList with the new items using session.update()
-            await session.update('AssetVersionList', playlistId, {
-              items: assetVersionList.items
+            await session.update("AssetVersionList", playlistId, {
+              items: assetVersionList.items,
             });
-            
-            log(`Successfully added AssetVersion ${versionId} to AssetVersionList ${playlistId}`);
+
+            log(
+              `Successfully added AssetVersion ${versionId} to AssetVersionList ${playlistId}`,
+            );
           }
-          
+
           syncedVersionIds.push(versionId);
         } catch (error) {
           log(`Failed to add version ${versionId} to playlist:`, error);
@@ -2135,18 +2159,21 @@ export class FtrackService {
         syncedVersionIds,
         failedVersionIds,
         success: failedVersionIds.length === 0,
-        error: failedVersionIds.length > 0 ? `Failed to sync ${failedVersionIds.length} versions` : undefined
+        error:
+          failedVersionIds.length > 0
+            ? `Failed to sync ${failedVersionIds.length} versions`
+            : undefined,
       };
-
     } catch (error) {
       log("Failed to sync versions:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sync versions';
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to sync versions";
       return {
         playlistId,
         syncedVersionIds: [],
         failedVersionIds: versionIds,
         success: false,
-        error: errorMessage
+        error: errorMessage,
       };
     }
   }

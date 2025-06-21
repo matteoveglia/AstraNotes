@@ -341,19 +341,21 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
               </TooltipProvider>
             </motion.div>
             {/* Quick Notes to Playlist Button */}
-            {isQuickNotes && currentVersions.length > 0 && onPlaylistCreated && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", duration: 0.4, delay: 0.3 }}
-                exit={{ opacity: 0, scale: 0.7 }}
-              >
-                <QuickNotesToPlaylistButton
-                  versions={currentVersions}
-                  onSuccess={onPlaylistCreated}
-                />
-              </motion.div>
-            )}
+            {isQuickNotes &&
+              currentVersions.length > 0 &&
+              onPlaylistCreated && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", duration: 0.4, delay: 0.3 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                >
+                  <QuickNotesToPlaylistButton
+                    versions={currentVersions}
+                    onSuccess={onPlaylistCreated}
+                  />
+                </motion.div>
+              )}
           </div>
         </div>
 

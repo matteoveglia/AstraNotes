@@ -245,7 +245,10 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                     <span className="truncate flex-1">{playlist.name}</span>
                     <div className="flex items-center gap-1">
                       {playlist.isLocalOnly && (
-                        <span className="text-orange-500 text-xs flex-shrink-0" title="Local only - not synced to ftrack">
+                        <span
+                          className="text-orange-500 text-xs flex-shrink-0"
+                          title="Local only - not synced to ftrack"
+                        >
                           ●
                         </span>
                       )}

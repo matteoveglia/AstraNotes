@@ -33,12 +33,12 @@ interface TopBarProps {
   onWhatsNewClose?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ 
-  onLoadPlaylists, 
+export const TopBar: React.FC<TopBarProps> = ({
+  onLoadPlaylists,
   onCloseAllPlaylists,
   onProjectChange,
-  shouldShowWhatsNew = false, 
-  onWhatsNewClose 
+  shouldShowWhatsNew = false,
+  onWhatsNewClose,
 }) => {
   const { isConnected } = useConnectionStatus();
   const { settings } = useSettings();
@@ -81,7 +81,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               </TooltipContent>
             </Tooltip>
           </div>
-          
+
           <ProjectSelector onProjectChange={onProjectChange} />
         </div>
         <div className="flex items-center gap-1">
@@ -136,9 +136,9 @@ export const TopBar: React.FC<TopBarProps> = ({
               />
             </div>
           </button>
-          <WhatsNewModal 
-            autoShow={shouldShowWhatsNew} 
-            onModalShouldClose={onWhatsNewClose} 
+          <WhatsNewModal
+            autoShow={shouldShowWhatsNew}
+            onModalShouldClose={onWhatsNewClose}
           />
           <SettingsModal
             onLoadPlaylists={onLoadPlaylists}

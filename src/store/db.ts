@@ -33,63 +33,63 @@ export interface NoteAttachment {
  * Uses stable UUIDs that never change, with separate external references
  */
 export interface PlaylistRecord {
-  id: string;              // STABLE UUID - never changes
+  id: string; // STABLE UUID - never changes
   name: string;
-  type?: 'reviewsession' | 'list'; // Optional for backward compatibility
-  
+  type?: "reviewsession" | "list"; // Optional for backward compatibility
+
   // Status management - clear separation of local vs ftrack state
-  localStatus?: 'draft' | 'ready_to_sync' | 'synced'; // Optional for backward compatibility
-  ftrackSyncStatus?: 'not_synced' | 'syncing' | 'synced' | 'failed'; // Optional for backward compatibility
-  ftrackStatus?: 'open' | 'closed'; // Only for synced playlists
-  
+  localStatus?: "draft" | "ready_to_sync" | "synced"; // Optional for backward compatibility
+  ftrackSyncStatus?: "not_synced" | "syncing" | "synced" | "failed"; // Optional for backward compatibility
+  ftrackStatus?: "open" | "closed"; // Only for synced playlists
+
   // External references - separate from identity
-  ftrackId?: string;       // Reference to ftrack entity (NULL until synced)
-  projectId?: string;      // Optional for backward compatibility
+  ftrackId?: string; // Reference to ftrack entity (NULL until synced)
+  projectId?: string; // Optional for backward compatibility
   categoryId?: string;
   categoryName?: string;
   description?: string;
-  
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
-  syncedAt?: string;       // When sync was completed
-  lastChecked?: string | number;    // Last time we checked ftrack status (backward compatibility)
+  syncedAt?: string; // When sync was completed
+  lastChecked?: string | number; // Last time we checked ftrack status (backward compatibility)
 }
 
 /**
  * Enhanced version record with stable playlist reference
  */
 export interface VersionRecord {
-  id: string;              // Version ID from ftrack
-  playlistId: string;      // STABLE playlist UUID reference
-  
+  id: string; // Version ID from ftrack
+  playlistId: string; // STABLE playlist UUID reference
+
   // Version data
   name: string;
   version: number;
-  thumbnailUrl?: string;   // Optional for backward compatibility
+  thumbnailUrl?: string; // Optional for backward compatibility
   thumbnailId?: string;
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Draft/note data - persists through sync
   draftContent?: string;
-  labelId: string;         // Required for compatibility
-  noteStatus?: 'empty' | 'draft' | 'published' | 'reviewed'; // Optional for backward compatibility
-  
+  labelId: string; // Required for compatibility
+  noteStatus?: "empty" | "draft" | "published" | "reviewed"; // Optional for backward compatibility
+
   // Metadata
-  addedAt?: string;        // When added to playlist (optional for backward compatibility)
-  lastModified: number;    // Draft modification timestamp
+  addedAt?: string; // When added to playlist (optional for backward compatibility)
+  lastModified: number; // Draft modification timestamp
   manuallyAdded?: boolean; // User-added vs auto-populated (optional for backward compatibility)
-  isRemoved?: boolean;     // Soft delete flag
-  
+  isRemoved?: boolean; // Soft delete flag
+
   // Backward compatibility for attachments
   attachments?: NoteAttachment[];
-  
+
   // Legacy fields for backward compatibility
-  isLocalPlaylist?: boolean;      // Deprecated: use playlist-level status instead
-  localPlaylistAddedAt?: string;  // Deprecated: use addedAt instead  
-  syncedAt?: string;              // Deprecated: use playlist-level syncedAt instead
+  isLocalPlaylist?: boolean; // Deprecated: use playlist-level status instead
+  localPlaylistAddedAt?: string; // Deprecated: use addedAt instead
+  syncedAt?: string; // Deprecated: use playlist-level syncedAt instead
 }
 
 // Legacy interfaces for backward compatibility during migration
@@ -102,9 +102,9 @@ export interface CachedVersion extends AssetVersion {
   isRemoved?: boolean;
   attachments?: NoteAttachment[];
   // NEW: Fields for playlist consolidation
-  isLocalPlaylist?: boolean;      // marks versions in local playlists
-  syncedAt?: string;              // when synced to ftrack
-  localPlaylistAddedAt?: string;  // replaces localPlaylistVersions.addedAt
+  isLocalPlaylist?: boolean; // marks versions in local playlists
+  syncedAt?: string; // when synced to ftrack
+  localPlaylistAddedAt?: string; // replaces localPlaylistVersions.addedAt
 }
 
 // Legacy playlist interface for backward compatibility
@@ -122,19 +122,19 @@ export interface CachedPlaylist {
   isQuickNotes?: boolean;
   versions?: AssetVersion[];
   notes?: any[];
-  
+
   // Additional fields for compatibility with new schema
-  type?: 'reviewsession' | 'list';
+  type?: "reviewsession" | "list";
   projectId?: string;
   categoryId?: string;
   categoryName?: string;
   ftrackId?: string;
   isLocalOnly?: boolean;
-  ftrackSyncState?: 'not_synced' | 'syncing' | 'synced' | 'failed' | 'pending';
-  
+  ftrackSyncState?: "not_synced" | "syncing" | "synced" | "failed" | "pending";
+
   // New status fields mapped from PlaylistRecord
-  localStatus?: 'draft' | 'ready_to_sync' | 'synced';
-  ftrackSyncStatus?: 'not_synced' | 'syncing' | 'synced' | 'failed';
+  localStatus?: "draft" | "ready_to_sync" | "synced";
+  ftrackSyncStatus?: "not_synced" | "syncing" | "synced" | "failed";
 }
 
 // Legacy interfaces removed - no migration needed per user directive
@@ -144,7 +144,7 @@ export class AstraNotesDB extends Dexie {
   playlists!: Table<PlaylistRecord>;
   versions!: Table<VersionRecord>;
   attachments!: Table<NoteAttachment>;
-  
+
   // Legacy tables removed - no migration needed per user directive
 
   constructor() {
@@ -154,20 +154,29 @@ export class AstraNotesDB extends Dexie {
     // Version 7: Stable UUID architecture with legacy tables removed
     this.version(7).stores({
       // Unified tables with stable UUIDs
-      playlists: "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
-      versions: "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
-      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
+      playlists:
+        "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
+      versions:
+        "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
+      attachments:
+        "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
 
-    // Previous version maintained for upgrade path  
+    // Previous version maintained for upgrade path
     this.version(6).stores({
-      playlists: "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
-      versions: "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
-      attachments: "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
+      playlists:
+        "id, ftrackId, projectId, localStatus, ftrackSyncStatus, type, createdAt",
+      versions:
+        "[playlistId+id], playlistId, lastModified, noteStatus, isRemoved",
+      attachments:
+        "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
 
     this.versions.hook("creating", function (primKey, obj) {
-      console.log('Creating version with stable playlist reference:', { primKey, playlistId: obj.playlistId });
+      console.log("Creating version with stable playlist reference:", {
+        primKey,
+        playlistId: obj.playlistId,
+      });
       return obj;
     });
 
@@ -210,7 +219,7 @@ export class AstraNotesDB extends Dexie {
   async clearCache() {
     try {
       console.log("Clearing entire database...");
-      
+
       // Close current connection
       this.close();
 
@@ -245,38 +254,48 @@ export class AstraNotesDB extends Dexie {
    * Helper method to clean version data for storage in new unified schema
    */
   cleanVersionForStorage(
-    version: any, 
-    playlistId: string, 
-    isManuallyAdded = false, 
-    addedAt?: string
+    version: any,
+    playlistId: string,
+    isManuallyAdded = false,
+    addedAt?: string,
   ): VersionRecord {
     return {
       id: version.id,
       playlistId, // Stable UUID reference
-      
+
       // Version data
       name: version.name || "",
       version: version.version || 1,
       thumbnailUrl: version.thumbnailUrl || version.thumbnail_url,
       thumbnailId: version.thumbnailId || "",
       reviewSessionObjectId: version.reviewSessionObjectId || "",
-      createdAt: typeof version.createdAt === "string" ? version.createdAt : new Date().toISOString(),
-      updatedAt: typeof version.updatedAt === "string" ? version.updatedAt : new Date().toISOString(),
-      
+      createdAt:
+        typeof version.createdAt === "string"
+          ? version.createdAt
+          : new Date().toISOString(),
+      updatedAt:
+        typeof version.updatedAt === "string"
+          ? version.updatedAt
+          : new Date().toISOString(),
+
       // Draft/note data
       draftContent: version.draftContent,
       labelId: version.labelId || "",
-      noteStatus: version.noteStatus || 'empty',
-      
+      noteStatus: version.noteStatus || "empty",
+
       // Metadata
-      addedAt: addedAt || version.addedAt || version.localPlaylistAddedAt || new Date().toISOString(),
+      addedAt:
+        addedAt ||
+        version.addedAt ||
+        version.localPlaylistAddedAt ||
+        new Date().toISOString(),
       lastModified: Date.now(),
       manuallyAdded: isManuallyAdded || version.manuallyAdded || false,
       isRemoved: version.isRemoved || false,
-      
+
       // Backward compatibility
       attachments: version.attachments || [],
-      
+
       // Legacy fields (for backward compatibility during transition)
       isLocalPlaylist: version.isLocalPlaylist,
       localPlaylistAddedAt: version.localPlaylistAddedAt,
@@ -289,7 +308,7 @@ export class AstraNotesDB extends Dexie {
    */
   createPlaylistRecord(data: {
     name: string;
-    type: 'reviewsession' | 'list';
+    type: "reviewsession" | "list";
     projectId: string;
     categoryId?: string;
     categoryName?: string;
@@ -297,23 +316,23 @@ export class AstraNotesDB extends Dexie {
     ftrackId?: string;
   }): PlaylistRecord {
     const now = new Date().toISOString();
-    
+
     return {
       id: crypto.randomUUID(), // Stable UUID that never changes
       name: data.name,
       type: data.type,
-      
+
       // Initial status - local until synced
-      localStatus: data.ftrackId ? 'synced' : 'draft',
-      ftrackSyncStatus: data.ftrackId ? 'synced' : 'not_synced',
-      
+      localStatus: data.ftrackId ? "synced" : "draft",
+      ftrackSyncStatus: data.ftrackId ? "synced" : "not_synced",
+
       // External references
       ftrackId: data.ftrackId,
       projectId: data.projectId,
       categoryId: data.categoryId,
       categoryName: data.categoryName,
       description: data.description,
-      
+
       // Timestamps
       createdAt: now,
       updatedAt: now,

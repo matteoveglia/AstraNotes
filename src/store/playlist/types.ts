@@ -1,8 +1,8 @@
 /**
- * @fileoverview types.ts  
+ * @fileoverview types.ts
  * Shared types for the modular playlist store architecture.
  * These types support the stable UUID architecture with separate external references.
- * 
+ *
  * Key Design Principles:
  * - Stable UUIDs that never change throughout playlist lifecycle
  * - Clear separation between local state and ftrack state
@@ -10,56 +10,56 @@
  * - Backward compatibility with existing interfaces
  */
 
-import { AssetVersion, Note, Playlist, CreatePlaylistRequest } from '@/types';
+import { AssetVersion, Note, Playlist, CreatePlaylistRequest } from "@/types";
 
 // Core playlist entity with stable UUID architecture
 export interface PlaylistEntity {
-  id: string;              // STABLE UUID - never changes
+  id: string; // STABLE UUID - never changes
   name: string;
-  type: 'reviewsession' | 'list';
-  
+  type: "reviewsession" | "list";
+
   // Status management - clear separation
-  localStatus: 'draft' | 'ready_to_sync' | 'synced';
-  ftrackSyncStatus: 'not_synced' | 'syncing' | 'synced' | 'failed';
-  ftrackStatus?: 'open' | 'closed';
-  
-  // External references - separate from identity  
-  ftrackId?: string;       // NULL until synced
+  localStatus: "draft" | "ready_to_sync" | "synced";
+  ftrackSyncStatus: "not_synced" | "syncing" | "synced" | "failed";
+  ftrackStatus?: "open" | "closed";
+
+  // External references - separate from identity
+  ftrackId?: string; // NULL until synced
   projectId: string;
   categoryId?: string;
   categoryName?: string;
   description?: string;
-  
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
   syncedAt?: string;
-  lastChecked?: string | number;  // Backward compatibility with existing DB
+  lastChecked?: string | number; // Backward compatibility with existing DB
 }
 
 // Version entity tied to stable playlist ID
 export interface VersionEntity {
-  id: string;              // Version ID from ftrack
-  playlistId: string;      // STABLE playlist UUID
-  
+  id: string; // Version ID from ftrack
+  playlistId: string; // STABLE playlist UUID
+
   // Version data
   name: string;
   version: number;
   thumbnailUrl?: string;
   thumbnailId?: string;
   reviewSessionObjectId?: string;
-  
+
   // Draft data
   draftContent?: string;
-  labelId?: string;  // Optional to match DB flexibility
-  noteStatus: 'empty' | 'draft' | 'published' | 'reviewed';  // Include 'reviewed' for backward compatibility
-  
+  labelId?: string; // Optional to match DB flexibility
+  noteStatus: "empty" | "draft" | "published" | "reviewed"; // Include 'reviewed' for backward compatibility
+
   // Metadata
   addedAt: string;
   lastModified: number;
   manuallyAdded: boolean;
   isRemoved?: boolean;
-  
+
   // Legacy compatibility - required fields in existing DB
   createdAt: string;
   updatedAt: string;
@@ -69,7 +69,7 @@ export interface VersionEntity {
 
 // Event types for the event system
 export interface PlaylistEvent {
-  type: 'sync-started' | 'sync-completed' | 'sync-failed' | 'playlist-updated';
+  type: "sync-started" | "sync-completed" | "sync-failed" | "playlist-updated";
   playlistId: string;
   data?: any;
   error?: string;
@@ -77,8 +77,8 @@ export interface PlaylistEvent {
 
 // Cache configuration
 export interface CacheConfig {
-  ttl: number;           // Time to live in milliseconds
-  maxEntries: number;    // Maximum cache entries
+  ttl: number; // Time to live in milliseconds
+  maxEntries: number; // Maximum cache entries
   cleanupInterval: number; // Cleanup interval
 }
 
@@ -98,7 +98,7 @@ export interface PlaylistOperations {
   getPlaylistsByProject(projectId: string): Promise<PlaylistEntity[]>;
 }
 
-// Cache operations interface  
+// Cache operations interface
 export interface CacheOperations {
   get<T>(key: string): T | null;
   set<T>(key: string, value: T): void;
@@ -109,22 +109,34 @@ export interface CacheOperations {
 // Sync operations interface
 export interface SyncOperations {
   syncPlaylist(playlistId: string): Promise<void>;
-  checkSyncStatus(playlistId: string): Promise<'not_synced' | 'syncing' | 'synced' | 'failed'>;
+  checkSyncStatus(
+    playlistId: string,
+  ): Promise<"not_synced" | "syncing" | "synced" | "failed">;
 }
 
 // Draft operations interface
 export interface DraftOperations {
-  saveDraft(playlistId: string, versionId: string, content: string, labelId?: string): Promise<void>;
-  getDraftContent(playlistId: string, versionId: string): Promise<string | null>;
+  saveDraft(
+    playlistId: string,
+    versionId: string,
+    content: string,
+    labelId?: string,
+  ): Promise<void>;
+  getDraftContent(
+    playlistId: string,
+    versionId: string,
+  ): Promise<string | null>;
   clearDraft(playlistId: string, versionId: string): Promise<void>;
   publishNote(playlistId: string, versionId: string): Promise<void>;
 }
 
 // Type guards
 export function isPlaylistEntity(obj: any): obj is PlaylistEntity {
-  return obj && typeof obj.id === 'string' && typeof obj.name === 'string';
+  return obj && typeof obj.id === "string" && typeof obj.name === "string";
 }
 
 export function isVersionEntity(obj: any): obj is VersionEntity {
-  return obj && typeof obj.id === 'string' && typeof obj.playlistId === 'string';
-} 
+  return (
+    obj && typeof obj.id === "string" && typeof obj.playlistId === "string"
+  );
+}

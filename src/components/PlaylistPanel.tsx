@@ -142,12 +142,16 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
-  const [showDeletedPlaylistsAlert, setShowDeletedPlaylistsAlert] = useState(false);
-  const [playlistsToDelete, setPlaylistsToDelete] = useState<Array<{ id: string; name: string }>>([]);
+  const [showDeletedPlaylistsAlert, setShowDeletedPlaylistsAlert] =
+    useState(false);
+  const [playlistsToDelete, setPlaylistsToDelete] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [deletedPlaylistsInfo, setDeletedPlaylistsInfo] = useState<{
     playlists: Array<{ id: string; name: string }>;
   } | null>(null);
-  const { setPlaylists: setStorePlaylists, loadPlaylists } = usePlaylistsStore();
+  const { setPlaylists: setStorePlaylists, loadPlaylists } =
+    usePlaylistsStore();
   const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
 
   // Generate categories from playlists with status
@@ -229,7 +233,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   useEffect(() => {
     if (initialPlaylists.length > 0) {
       // Use playlists from props (already loaded by parent with Quick Notes from DB)
-      setPlaylists(initialPlaylists.map(p => ({ ...p, status: undefined })));
+      setPlaylists(initialPlaylists.map((p) => ({ ...p, status: undefined })));
       setLoading(false);
       setError(null); // Clear any previous errors
     }
@@ -248,27 +252,30 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     // Check what playlists would be deleted BEFORE showing confirmation
     try {
       // Get current database playlists
-      const { db } = await import('@/store/db');
+      const { db } = await import("@/store/db");
       const databasePlaylists = await db.playlists.toArray();
-      
-      // Get current ftrack playlists  
+
+      // Get current ftrack playlists
       const [reviewSessions, lists] = await Promise.all([
         ftrackService.getPlaylists(selectedProjectId),
         ftrackService.getLists(selectedProjectId),
       ]);
       const fetchedPlaylists = [...reviewSessions, ...lists];
-      
+
       // Find playlists that would be deleted (exist in DB but not in ftrack)
-      const ftrackPlaylistIds = new Set(fetchedPlaylists.map(fp => fp.id));
-      const orphanedPlaylists = databasePlaylists.filter(dbPlaylist => {
-        return dbPlaylist.ftrackId && !ftrackPlaylistIds.has(dbPlaylist.ftrackId);
+      const ftrackPlaylistIds = new Set(fetchedPlaylists.map((fp) => fp.id));
+      const orphanedPlaylists = databasePlaylists.filter((dbPlaylist) => {
+        return (
+          dbPlaylist.ftrackId && !ftrackPlaylistIds.has(dbPlaylist.ftrackId)
+        );
       });
-      
-      setPlaylistsToDelete(orphanedPlaylists.map(p => ({ id: p.id, name: p.name })));
+
+      setPlaylistsToDelete(
+        orphanedPlaylists.map((p) => ({ id: p.id, name: p.name })),
+      );
       setShowRefreshConfirm(true);
-      
     } catch (error) {
-      console.error('Failed to check for playlists to delete:', error);
+      console.error("Failed to check for playlists to delete:", error);
       // Still show confirmation even if check failed
       setPlaylistsToDelete([]);
       setShowRefreshConfirm(true);
@@ -282,39 +289,54 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       // CRITICAL FIX for Issue #4: Use the proper loadPlaylists method with deduplication
       // instead of directly fetching from ftrack and bypassing the database
       const refreshResult = await loadPlaylists();
-      
+
       // CRITICAL FIX: Check if any playlists were deleted during refresh
-      if (refreshResult.deletedPlaylists && refreshResult.deletedPlaylists.length > 0) {
-        console.log('🚨 [CLEANUP] Playlists were deleted during refresh:', refreshResult.deletedPlaylists);
-        
+      if (
+        refreshResult.deletedPlaylists &&
+        refreshResult.deletedPlaylists.length > 0
+      ) {
+        console.log(
+          "🚨 [CLEANUP] Playlists were deleted during refresh:",
+          refreshResult.deletedPlaylists,
+        );
+
         // Check if the active playlist was deleted and redirect if needed
         const wasActivePlaylistDeleted = refreshResult.deletedPlaylists.some(
-          deleted => deleted.id === activePlaylist
+          (deleted) => deleted.id === activePlaylist,
         );
-        
+
         if (wasActivePlaylistDeleted) {
-          onPlaylistSelect('quick-notes');
+          onPlaylistSelect("quick-notes");
         }
-        
+
         // Store deletion info for simple notification dialog
         setDeletedPlaylistsInfo({
           playlists: refreshResult.deletedPlaylists,
         });
-        
+
         // Show the deleted playlists notification
         setShowDeletedPlaylistsAlert(true);
       }
-      
+
       // Get the updated playlists from the store
       const { playlists: updatedStorePlaylists } = usePlaylistsStore.getState();
       const latestPlaylists = updatedStorePlaylists;
-      
+
       // CRITICAL FIX: If playlists were deleted, filter them out from local state too
       let filteredLatestPlaylists = latestPlaylists;
-      if (refreshResult.deletedPlaylists && refreshResult.deletedPlaylists.length > 0) {
-        const deletedIds = new Set(refreshResult.deletedPlaylists.map(d => d.id));
-        filteredLatestPlaylists = latestPlaylists.filter(p => !deletedIds.has(p.id));
-        console.log('🗑️ [UI UPDATE] Filtered out deleted playlists from UI state');
+      if (
+        refreshResult.deletedPlaylists &&
+        refreshResult.deletedPlaylists.length > 0
+      ) {
+        const deletedIds = new Set(
+          refreshResult.deletedPlaylists.map((d) => d.id),
+        );
+        filteredLatestPlaylists = latestPlaylists.filter(
+          (p) => !deletedIds.has(p.id),
+        );
+        console.log(
+          "🗑️ [UI UPDATE] Filtered out deleted playlists from UI state",
+        );
       }
 
       // Create a map of current playlists for easy lookup
@@ -370,7 +392,10 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             !p.isQuickNotes && // Never remove Quick Notes
             p.status !== "removed" && // Don't re-mark already removed playlists
             !filteredLatestPlaylists.some((l) => l.id === p.id) &&
-            !(refreshResult.deletedPlaylists && refreshResult.deletedPlaylists.some(d => d.id === p.id)), // Don't mark deleted playlists as "removed"
+            !(
+              refreshResult.deletedPlaylists &&
+              refreshResult.deletedPlaylists.some((d) => d.id === p.id)
+            ), // Don't mark deleted playlists as "removed"
         )
         .map((p) => {
           const existing = storePlaylistMap.get(p.id);
@@ -455,22 +480,22 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       status: "added" as const,
     };
 
-    setPlaylists(prev => [
-      ...prev.filter(p => p.id !== playlist.id), // Remove if exists
-      newPlaylistWithStatus
+    setPlaylists((prev) => [
+      ...prev.filter((p) => p.id !== playlist.id), // Remove if exists
+      newPlaylistWithStatus,
     ]);
 
     // Add to store as well
     const { playlists: storePlaylists } = usePlaylistsStore.getState();
     const updatedStorePlaylists = [
-      ...storePlaylists.filter(p => p.id !== playlist.id), // Remove if exists
-      playlist
+      ...storePlaylists.filter((p) => p.id !== playlist.id), // Remove if exists
+      playlist,
     ];
     setStorePlaylists(updatedStorePlaylists);
 
     // Auto-select the new playlist
     onPlaylistSelect(playlist.id);
-    
+
     setShowCreateDialog(false);
   };
 
@@ -491,7 +516,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const categories = generateCategories(playlists);
 
   // Check if we should show empty state
-  const shouldShowEmptyState = !selectedProjectId || !hasValidatedSelectedProject;
+  const shouldShowEmptyState =
+    !selectedProjectId || !hasValidatedSelectedProject;
 
   return (
     <div className="w-72 border-r p-4 relative flex flex-col h-full">
@@ -532,13 +558,17 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             <div className="flex-shrink-0">
               <Button
                 variant={
-                  activePlaylist === quickNotesPlaylist.id ? "default" : "outline"
+                  activePlaylist === quickNotesPlaylist.id
+                    ? "default"
+                    : "outline"
                 }
                 size="lg"
                 onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
                 className="w-full justify-start text-left mb-1"
               >
-                <span className="truncate flex-1">{quickNotesPlaylist.title}</span>
+                <span className="truncate flex-1">
+                  {quickNotesPlaylist.title}
+                </span>
               </Button>
               <hr className="my-4 border-zinc-200 dark:border-zinc-700" />
             </div>
@@ -590,34 +620,42 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       />
 
       {/* Pre-refresh confirmation dialog */}
-      <AlertDialog open={showRefreshConfirm} onOpenChange={setShowRefreshConfirm}>
+      <AlertDialog
+        open={showRefreshConfirm}
+        onOpenChange={setShowRefreshConfirm}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Refresh Playlists</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>
-                  This will refresh all playlists from ftrack.
-                </p>
-                
+                <p>This will refresh all playlists from ftrack.</p>
+
                 {playlistsToDelete.length > 0 ? (
                   <>
                     <p className="text-destructive font-medium">
-                      ⚠️ The following playlist{playlistsToDelete.length > 1 ? 's' : ''} will be removed 
+                      ⚠️ The following playlist
+                      {playlistsToDelete.length > 1 ? "s" : ""} will be removed
                       (deleted from ftrack):
                     </p>
-                    
+
                     {/* List of playlists to be deleted */}
                     <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/30">
                       {playlistsToDelete.map((playlist) => (
-                        <div key={playlist.id} className="text-xs text-muted-foreground">
+                        <div
+                          key={playlist.id}
+                          className="text-xs text-muted-foreground"
+                        >
                           {playlist.name}
                         </div>
                       ))}
                     </div>
-                    
+
                     <p className="text-sm">
-                      <strong>Make sure to save any work on these playlists before continuing.</strong>
+                      <strong>
+                        Make sure to save any work on these playlists before
+                        continuing.
+                      </strong>
                     </p>
                   </>
                 ) : (
@@ -625,7 +663,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                     No playlists will be removed.
                   </p>
                 )}
-                
+
                 <p className="text-sm">
                   Do you want to proceed with the refresh?
                 </p>
@@ -635,38 +673,54 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmRefresh}>
-              {playlistsToDelete.length > 0 ? 'Remove & Refresh' : 'Refresh Playlists'}
+              {playlistsToDelete.length > 0
+                ? "Remove & Refresh"
+                : "Refresh Playlists"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Simple deleted playlists notification */}
-      <AlertDialog open={showDeletedPlaylistsAlert} onOpenChange={setShowDeletedPlaylistsAlert}>
+      <AlertDialog
+        open={showDeletedPlaylistsAlert}
+        onOpenChange={setShowDeletedPlaylistsAlert}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Playlists Removed</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
                 <p>
-                  The following playlist{deletedPlaylistsInfo?.playlists && deletedPlaylistsInfo.playlists.length > 1 ? 's have' : ' has'} been removed:
+                  The following playlist
+                  {deletedPlaylistsInfo?.playlists &&
+                  deletedPlaylistsInfo.playlists.length > 1
+                    ? "s have"
+                    : " has"}{" "}
+                  been removed:
                 </p>
-                
+
                 {/* Simple list of deleted playlists */}
-                {deletedPlaylistsInfo?.playlists && deletedPlaylistsInfo.playlists.length > 0 && (
-                  <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/30">
-                    {deletedPlaylistsInfo.playlists.map((playlist) => (
-                      <div key={playlist.id} className="text-xs text-muted-foreground">
-                        {playlist.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {deletedPlaylistsInfo?.playlists &&
+                  deletedPlaylistsInfo.playlists.length > 0 && (
+                    <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-muted/30">
+                      {deletedPlaylistsInfo.playlists.map((playlist) => (
+                        <div
+                          key={playlist.id}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {playlist.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowDeletedPlaylistsAlert(false)}>
+            <AlertDialogAction
+              onClick={() => setShowDeletedPlaylistsAlert(false)}
+            >
               Close
             </AlertDialogAction>
           </AlertDialogFooter>
