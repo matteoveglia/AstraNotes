@@ -4,14 +4,15 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 
 ## Features
 
-- 🎬 **Playlist Support**: Browse and view ftrack client review and list playlists
-- ✍️ **Note Creation**: Create, edit, and publish notes on versions
-- 🏷️ **Label Support**: Categorise notes with customizable labels pulled from ftrack
-- ⚙️ **Status Management**: View and update shot and version statuses directly
-- 📊 **Quick Notes**: Create notes on any version, on the fly, without a playlist
-- 🔄 **Real-time Updates**: Get notified of playlist changes and added/removed playlists in real-time
+- 🎬 **Broad Playlist Support**: Browse, view and create ftrack client review and list playlists.
+- 📂 **Project Selection**: Quickly switch between ftrack projects.
+- ✍️ **Note Creation**: Create, edit, and publish notes on versions.
+- 🏷️ **Label Support**: Categorise notes with customizable labels pulled from ftrack.
+- ⚙️ **Status Management**: View and update shot and version statuses directly.
+- 📊 **Quick Notes**: Create notes on any version, on the fly, without a playlist.
+- 🔄 **Smooth Updates**: At the touch of button pull in new ftrack playlists and changes to an existing playlist
 - 🔍 **Version Search**: Find and manually add specific versions to playlists, on the fly, without affecting ftrack.
-- 💾 **Offline Mode**: Draft notes offline and publish when connected
+- 💾 **Offline Persistence**: Draft notes offline and publish when connected, all data is stored locally on device.
 - 📤 **CSV Export**: Export notes to CSV
 - 🖼️ **Thumbnail Previews**
 - 🔄 **Auto-updates**
@@ -19,11 +20,11 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 
 ## Roadmap
 - **Project Selection:** Allow users to quickly switch between ftrack projects.
-- **Playlist Creation & Sync:** Enable creation of new playlists, including syncing to ftrack and generating playlists from quick notes.
+- ✅ **Playlist Creation & Sync:** Create new playlists, sync to ftrack, and generate playlists from quick notes (completed).
 - **User Mentions:** Support @-mentioning users within notes.
 - **Multiple Notes per Version:** Allow adding new notes to versions that already have published notes.
 - **Related Versions:** Feature to display related versions (from the same shot), including their shot and version status.
-- **Open Playlist in Ftrack:** Provide a direct link/button to open the current playlist in ftrack.
+- ✅ **Open Playlist in Ftrack:** Provide a direct link/button to open the current playlist in ftrack (completed).
 
 ## Installation
 
@@ -59,7 +60,7 @@ These settings can be updated anytime through the settings panel.
 ### Common Issues
 
 - **Connection Error**: Verify your ftrack credentials in Settings
-- **Missing Thumbnails**: Check your connection to ftrack
+- **Missing Thumbnails**: Check your connection to ftrack or reload the playlist
 
 ### Logs
 
