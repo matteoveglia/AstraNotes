@@ -12,13 +12,13 @@ import { useUpdateStore } from "@/store/updateStore";
 export const useWhatsNew = () => {
   const [shouldShowModal, setShouldShowModal] = useState(false);
   const [isCheckingVersion, setIsCheckingVersion] = useState(true);
-  
+
   const {
     shouldShowForVersion,
     shouldShowOnNextStart,
     setShouldShowOnNextStart,
   } = useWhatsNewStore();
-  
+
   const { resetUpdateState } = useUpdateStore();
 
   useEffect(() => {
@@ -30,10 +30,11 @@ export const useWhatsNew = () => {
     try {
       // Get current app version
       const currentVersion = await getVersion();
-      
+
       // Check if we should show the modal
-      const shouldShow = shouldShowForVersion(currentVersion) || shouldShowOnNextStart;
-      
+      const shouldShow =
+        shouldShowForVersion(currentVersion) || shouldShowOnNextStart;
+
       if (shouldShow) {
         setShouldShowModal(true);
         // Reset the "show on next start" flag since we're showing it now
@@ -62,4 +63,4 @@ export const useWhatsNew = () => {
     hideModal,
     showModal,
   };
-}; 
+};

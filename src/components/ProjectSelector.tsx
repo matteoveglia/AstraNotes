@@ -6,7 +6,13 @@
  */
 
 import React, { useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { useProjectStore } from "../store/projectStore";
 import { GlowEffect } from "./ui/glow-effect";
 import { Folder, AlertCircle, X } from "lucide-react";
@@ -26,19 +32,19 @@ interface ProjectSelectorProps {
   className?: string;
 }
 
-export const ProjectSelector: React.FC<ProjectSelectorProps> = ({ 
+export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   onProjectChange,
-  className
+  className,
 }) => {
-  const { 
-    projects, 
-    selectedProjectId, 
-    isLoading, 
+  const {
+    projects,
+    selectedProjectId,
+    isLoading,
     error,
     hasValidatedSelectedProject,
-    setSelectedProject, 
+    setSelectedProject,
     loadProjects,
-    validateSelectedProject
+    validateSelectedProject,
   } = useProjectStore();
 
   // Load projects on mount (validation happens automatically in loadProjects)
@@ -57,11 +63,17 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     onProjectChange?.(null);
   };
 
-  const shouldShowGlow = !selectedProjectId && !isLoading && projects.length > 0;
+  const shouldShowGlow =
+    !selectedProjectId && !isLoading && projects.length > 0;
 
   return (
     <TooltipProvider>
-      <div className={cn("flex items-center gap-2 min-w-[200px] relative", className)}>    
+      <div
+        className={cn(
+          "flex items-center gap-2 min-w-[200px] relative",
+          className,
+        )}
+      >
         <div className="relative flex-1">
           {shouldShowGlow && (
             <GlowEffect
@@ -72,19 +84,23 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
               scale={1.05}
             />
           )}
-          
+
           <Select
             value={selectedProjectId || "none"}
             onValueChange={handleValueChange}
             disabled={isLoading}
           >
-            <SelectTrigger className={cn(
-              "w-full relative z-10 h-7 bg-white dark:bg-zinc-900",
-              selectedProjectId && "pr-8", // Add padding when X button is shown
-              shouldShowGlow && "ring-2 ring-blue-200 dark:ring-blue-800"
-            )}>
-              <SelectValue 
-                placeholder={isLoading ? "Loading projects..." : "Select project..."} 
+            <SelectTrigger
+              className={cn(
+                "w-full relative z-10 h-7 bg-white dark:bg-zinc-900",
+                selectedProjectId && "pr-8", // Add padding when X button is shown
+                shouldShowGlow && "ring-2 ring-blue-200 dark:ring-blue-800",
+              )}
+            >
+              <SelectValue
+                placeholder={
+                  isLoading ? "Loading projects..." : "Select project..."
+                }
               />
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-zinc-900">
@@ -98,7 +114,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
               ))}
             </SelectContent>
           </Select>
-          
+
           {selectedProjectId && (
             <button
               type="button"
@@ -132,4 +148,4 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       </div>
     </TooltipProvider>
   );
-}; 
+};

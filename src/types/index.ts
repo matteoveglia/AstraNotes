@@ -12,6 +12,9 @@
  * @property categoryId Optional category ID for list-type playlists
  * @property categoryName Optional category name for list-type playlists
  * @property isOpen For list-type playlists, indicates if the list is open
+ * @property isLocalOnly Flag for playlists not yet synced to ftrack
+ * @property localVersions Locally added versions before sync
+ * @property ftrackSyncState Sync state for local playlists
  */
 export interface Playlist {
   id: string;
@@ -26,6 +29,12 @@ export interface Playlist {
   categoryId?: string;
   categoryName?: string;
   isOpen?: boolean;
+  isLocalOnly?: boolean;
+  localVersions?: AssetVersion[];
+  ftrackSyncState?: "pending" | "syncing" | "synced" | "failed";
+  ftrackId?: string; // CRITICAL FIX: Add ftrackId for synced playlists
+  projectId?: string; // CRITICAL FIX: Add projectId for ftrack playlists
+  description?: string; // CRITICAL FIX: Add description for ftrack playlists
 }
 
 /**
@@ -150,4 +159,49 @@ export interface Project {
   name: string;
   fullName: string;
   status: ProjectStatus;
+}
+
+/**
+ * Request payload for creating a new playlist
+ */
+export interface CreatePlaylistRequest {
+  name: string;
+  type: "reviewsession" | "list";
+  categoryId?: string;
+  categoryName?: string;
+  description?: string;
+  projectId: string;
+  ftrackId?: string; // Optional ftrack ID for test scenarios
+}
+
+/**
+ * Request payload for syncing a local playlist to ftrack
+ */
+export interface SyncPlaylistRequest {
+  playlistId: string;
+  versions: AssetVersion[];
+  removeLocalFlags?: boolean;
+}
+
+/**
+ * Response from playlist creation
+ */
+export interface CreatePlaylistResponse {
+  id: string;
+  name: string;
+  type: "reviewsession" | "list";
+  ftrackUrl?: string;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Response from version synchronization
+ */
+export interface SyncVersionsResponse {
+  playlistId: string;
+  syncedVersionIds: string[];
+  failedVersionIds: string[];
+  success: boolean;
+  error?: string;
 }

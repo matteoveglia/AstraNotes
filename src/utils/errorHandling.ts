@@ -93,32 +93,45 @@ export function useErrorHandler() {
 export function sanitizeError(error: unknown): unknown {
   if (error instanceof Error) {
     let message = error.message;
-    
+
     // Remove API keys, tokens, and credential information - preserve original format
     // Handle both camelCase (apiKey) and snake/kebab case (api_key, api-key)
-    message = message.replace(/(apiKey)[:\s]*[a-zA-Z0-9\-_.]+/gi, 'api_key: [REDACTED]');
-    message = message.replace(/(api[_-]?key)[:\s]*[a-zA-Z0-9\-_.]+/gi, '$1: [REDACTED]');
-    message = message.replace(/(token)[:\s]*[a-zA-Z0-9\-_.]+/gi, '$1: [REDACTED]');
-    message = message.replace(/(password)[:\s]*[^\s,]+/gi, '$1: [REDACTED]');
-    message = message.replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, 'Basic [REDACTED]');
-    message = message.replace(/Bearer\s+[a-zA-Z0-9\-_.]+/gi, 'Bearer [REDACTED]');
-    
+    message = message.replace(
+      /(apiKey)[:\s]*[a-zA-Z0-9\-_.]+/gi,
+      "api_key: [REDACTED]",
+    );
+    message = message.replace(
+      /(api[_-]?key)[:\s]*[a-zA-Z0-9\-_.]+/gi,
+      "$1: [REDACTED]",
+    );
+    message = message.replace(
+      /(token)[:\s]*[a-zA-Z0-9\-_.]+/gi,
+      "$1: [REDACTED]",
+    );
+    message = message.replace(/(password)[:\s]*[^\s,]+/gi, "$1: [REDACTED]");
+    message = message.replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, "Basic [REDACTED]");
+    message = message.replace(
+      /Bearer\s+[a-zA-Z0-9\-_.]+/gi,
+      "Bearer [REDACTED]",
+    );
+
     // Create a new error with sanitized message
     const sanitizedError = new Error(message);
     sanitizedError.name = error.name;
     sanitizedError.stack = error.stack?.replace(error.message, message);
-    
+
     return sanitizedError;
   }
-  
-  if (typeof error === 'string') {
-    return error.replace(/(API key)[:\s]*[a-zA-Z0-9\-_.]+/gi, 'api_key: [REDACTED]')
-                .replace(/(token)[:\s]*[a-zA-Z0-9\-_.]+/gi, '$1: [REDACTED]')
-                .replace(/(password)[:\s]*[^\s,]+/gi, '$1: [REDACTED]')
-                .replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, 'Basic [REDACTED]')
-                .replace(/Bearer\s+[a-zA-Z0-9\-_.]+/gi, 'Bearer [REDACTED]');
+
+  if (typeof error === "string") {
+    return error
+      .replace(/(API key)[:\s]*[a-zA-Z0-9\-_.]+/gi, "api_key: [REDACTED]")
+      .replace(/(token)[:\s]*[a-zA-Z0-9\-_.]+/gi, "$1: [REDACTED]")
+      .replace(/(password)[:\s]*[^\s,]+/gi, "$1: [REDACTED]")
+      .replace(/Basic\s+[a-zA-Z0-9+/=]+/gi, "Basic [REDACTED]")
+      .replace(/Bearer\s+[a-zA-Z0-9\-_.]+/gi, "Bearer [REDACTED]");
   }
-  
+
   return error;
 }
 

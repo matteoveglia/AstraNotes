@@ -38,13 +38,9 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [release, setRelease] = useState<GitHubRelease | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
-  
-  const {
-    cachedRelease,
-    lastFetchedAt,
-    setCachedRelease,
-    markAsShown,
-  } = useWhatsNewStore();
+
+  const { cachedRelease, lastFetchedAt, setCachedRelease, markAsShown } =
+    useWhatsNewStore();
 
   const fetchAppVersion = useCallback(async () => {
     if (!appVersion) {
@@ -62,8 +58,14 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
     setError(null);
 
     const oneHour = 60 * 60 * 1000;
-    if (cachedRelease && lastFetchedAt && (Date.now() - lastFetchedAt < oneHour)) {
-      console.log("Using fresh cached GitHub release data for What's New modal.");
+    if (
+      cachedRelease &&
+      lastFetchedAt &&
+      Date.now() - lastFetchedAt < oneHour
+    ) {
+      console.log(
+        "Using fresh cached GitHub release data for What's New modal.",
+      );
       setRelease(cachedRelease);
       setIsLoading(false);
       return;
@@ -76,9 +78,13 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
       setCachedRelease(releaseData);
     } catch (err) {
       console.error("Failed to load release data:", err);
-      setError("Failed to load release information. Please check your internet connection or try again later.");
+      setError(
+        "Failed to load release information. Please check your internet connection or try again later.",
+      );
       if (cachedRelease) {
-        console.warn("Using stale cached GitHub release data due to fetch error.");
+        console.warn(
+          "Using stale cached GitHub release data due to fetch error.",
+        );
         setRelease(cachedRelease);
       }
     } finally {
@@ -96,8 +102,9 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
     if (isOpen) {
       // Check if we have fresh cached data first
       const oneHour = 60 * 60 * 1000;
-      const hasFreshCache = cachedRelease && lastFetchedAt && (Date.now() - lastFetchedAt < oneHour);
-      
+      const hasFreshCache =
+        cachedRelease && lastFetchedAt && Date.now() - lastFetchedAt < oneHour;
+
       if (hasFreshCache) {
         // Use cached data immediately, no loading state needed
         setRelease(cachedRelease);
@@ -111,7 +118,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         // Only fetch if we don't have fresh cache
         fetchReleaseData();
       }
-      
+
       fetchAppVersion();
     } else {
       // Reset state when modal closes (but don't clear cached data)
@@ -130,7 +137,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
       onModalShouldClose?.();
     }
   };
-  
+
   const handleRetry = () => {
     setError(null);
     fetchReleaseData();
@@ -181,7 +188,9 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading latest release notes...</p>
+                <p className="text-sm text-muted-foreground">
+                  Loading latest release notes...
+                </p>
               </div>
             </div>
           )}
@@ -228,17 +237,18 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
                   className="text-sm prose dark:prose-invert max-w-none"
                 />
               </div>
-
             </div>
           )}
-          
+
           {!isLoading && !error && !release && (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">No release information found.</p>
+              <p className="text-sm text-muted-foreground">
+                No release information found.
+              </p>
             </div>
           )}
         </div>
       </DialogContent>
     </Dialog>
   );
-}; 
+};

@@ -9,8 +9,9 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useDebounce } from "../hooks/useDebounce";
-import { AssetVersion } from "@/types";
+import { AssetVersion, Playlist } from "@/types";
 import { ftrackService } from "../services/ftrack";
+import { useProjectStore } from "../store/projectStore";
 import { Checkbox } from "./ui/checkbox";
 import { motion } from "motion/react";
 import {
@@ -19,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { QuickNotesToPlaylistButton } from "@/features/notes/components/QuickNotesToPlaylistButton";
 
 interface VersionSearchProps {
   onVersionSelect: (version: AssetVersion) => void;
@@ -27,6 +29,7 @@ interface VersionSearchProps {
   hasManuallyAddedVersions?: boolean;
   isQuickNotes?: boolean;
   currentVersions?: AssetVersion[]; // Current versions in the playlist
+  onPlaylistCreated?: (playlist: Playlist) => void;
 }
 
 export const VersionSearch: React.FC<VersionSearchProps> = ({
@@ -36,6 +39,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   hasManuallyAddedVersions = false,
   isQuickNotes = false,
   currentVersions = [],
+  onPlaylistCreated,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<AssetVersion[]>([]);
@@ -43,6 +47,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [isMultiVersionSearch, setIsMultiVersionSearch] = useState(false);
+
+  // PROJECT FILTERING FIX: Get selected project ID for search filtering
+  const { selectedProjectId } = useProjectStore();
 
   // Create a Set of current version IDs for efficient lookup
   const currentVersionIds = new Set(currentVersions.map((v) => v.id));
@@ -102,9 +109,12 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           .map((term) => term.trim())
           .filter((term) => term.length > 0);
 
-        // Search for each version term individually
+        // Search for each version term individually with project filtering
         const searchPromises = versionTerms.map((term) =>
-          ftrackService.searchVersions({ searchTerm: term }),
+          ftrackService.searchVersions({
+            searchTerm: term,
+            projectId: selectedProjectId,
+          }),
         );
 
         const searchResults = await Promise.all(searchPromises);
@@ -118,10 +128,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
 
         setResults(uniqueResults);
       } else {
-        // Regular single search
+        // Regular single search with project filtering
         setIsMultiVersionSearch(false);
         const versions = await ftrackService.searchVersions({
           searchTerm: debouncedSearchTerm,
+          projectId: selectedProjectId,
         });
         setResults(versions);
       }
@@ -130,7 +141,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, selectedProjectId]);
 
   useEffect(() => {
     handleSearch();
@@ -337,6 +348,22 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                 </Tooltip>
               </TooltipProvider>
             </motion.div>
+            {/* Quick Notes to Playlist Button */}
+            {isQuickNotes &&
+              currentVersions.length > 0 &&
+              onPlaylistCreated && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: "spring", duration: 0.4, delay: 0.3 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                >
+                  <QuickNotesToPlaylistButton
+                    versions={currentVersions}
+                    onSuccess={onPlaylistCreated}
+                  />
+                </motion.div>
+              )}
           </div>
         </div>
 

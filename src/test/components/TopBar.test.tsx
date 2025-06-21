@@ -1,6 +1,43 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderWithUserEvent, screen } from "@/test/utils";
+import { renderWithUserEvent, screen, act } from "@/test/utils";
 import { TopBar } from "@/components/TopBar";
+
+// Mock WhatsNewModal component
+vi.mock("@/components/WhatsNewModal", () => ({
+  WhatsNewModal: ({ autoShow, onModalShouldClose }: any) => (
+    <div data-testid="whats-new-modal" />
+  ),
+}));
+
+// Mock SettingsModal component
+vi.mock("@/components/SettingsModal", () => ({
+  SettingsModal: ({ onLoadPlaylists, onCloseAllPlaylists }: any) => (
+    <button data-testid="settings-modal" aria-label="settings">
+      Settings
+    </button>
+  ),
+}));
+
+// Mock ProjectSelector component
+vi.mock("@/components/ProjectSelector", () => ({
+  ProjectSelector: ({ onProjectChange }: any) => (
+    <div data-testid="project-selector">Project Selector</div>
+  ),
+}));
+
+// Mock project store
+vi.mock("@/store/projectStore", () => ({
+  useProjectStore: (selector: any) => {
+    const state = {
+      selectedProject: null,
+      availableProjects: [],
+      isLoading: false,
+      setSelectedProject: vi.fn(),
+      loadProjects: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
+}));
 
 // Mock any hooks, store, or context the component might be using
 vi.mock("@/store/uiStore", () => ({
@@ -47,32 +84,38 @@ vi.mock("@/store/themeStore", () => ({
 }));
 
 describe("TopBar", () => {
-  it("renders correctly", () => {
-    renderWithUserEvent(
-      <TopBar 
-        onLoadPlaylists={async () => {}}
-        onCloseAllPlaylists={() => {}}
-      />
-    );
+  it("renders correctly", async () => {
+    await act(async () => {
+      renderWithUserEvent(
+        <TopBar
+          onLoadPlaylists={async () => {}}
+          onCloseAllPlaylists={() => {}}
+        />,
+      );
+    });
 
     // Updated assertion to look for the heading instead of banner role
     expect(screen.getByText("AstraNotes")).toBeInTheDocument();
   });
 
   it("handles settings button click", async () => {
-    const { user } = renderWithUserEvent(
-      <TopBar 
-        onLoadPlaylists={async () => {}}
-        onCloseAllPlaylists={() => {}}
-      />
-    );
+    const { user } = await act(async () => {
+      return renderWithUserEvent(
+        <TopBar
+          onLoadPlaylists={async () => {}}
+          onCloseAllPlaylists={() => {}}
+        />,
+      );
+    });
 
     // Find settings button in the rendered component
-    const settingsButton = screen.getByRole("button", { name: /settings/i });
+    const settingsButton = screen.getByTestId("settings-modal");
     expect(settingsButton).toBeInTheDocument();
 
     // Click the settings button
-    await user.click(settingsButton);
+    await act(async () => {
+      await user.click(settingsButton);
+    });
 
     // Add assertions for expected behavior after click if needed
   });

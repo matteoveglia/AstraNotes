@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from "react";
 import { ftrackService } from "@/services/ftrack";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 
 interface PublishResult {
   success: boolean;

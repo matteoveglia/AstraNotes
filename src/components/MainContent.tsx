@@ -17,7 +17,8 @@ import React, {
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Playlist, AssetVersion, NoteStatus } from "@/types";
-import { playlistStore } from "../store/playlistStore";
+import { playlistStore } from "../store/playlist";
+import { usePlaylistsStore } from "../store/playlistsStore";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { useSettings } from "../store/settingsStore";
 import { motion, AnimatePresence } from "motion/react";
@@ -35,6 +36,13 @@ import { PublishingControls } from "@/features/notes/components/PublishingContro
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { VersionFilter } from "@/features/versions/components/VersionFilter";
+import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -94,8 +102,32 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Stop any existing polling immediately
       playlistStore.stopPolling();
 
-      // Initialize the playlist in store with error handling
-      await playlistStore.initializePlaylist(playlistId, playlistToInit);
+      // For local playlists (both pending and synced), skip ftrack initialization and use versions directly
+      if (playlistToInit.isLocalOnly || playlistId.startsWith("local_")) {
+        console.debug(
+          `[MainContent] Local playlist detected, skipping ftrack initialization`,
+          {
+            playlistId,
+            isLocalOnly: playlistToInit.isLocalOnly,
+            versionsCount: playlistToInit.versions?.length || 0,
+            versions: playlistToInit.versions?.map((v) => ({
+              id: v.id,
+              name: v.name,
+            })),
+          },
+        );
+        // Just cache the playlist with its existing versions, using cleanPlaylistForStorage to convert
+        const cachedPlaylist =
+          playlistStore.cleanPlaylistForStorage(playlistToInit);
+        console.debug(
+          `[MainContent] Cached playlist versions:`,
+          cachedPlaylist.versions?.length || 0,
+        );
+        await playlistStore.cachePlaylist(cachedPlaylist);
+      } else {
+        // Initialize the playlist in store with error handling
+        await playlistStore.initializePlaylist(playlistId, playlistToInit);
+      }
 
       // Get the cached/merged version with proper data from IndexedDB
       const cached = await playlistStore.getPlaylist(playlistId);
@@ -114,16 +146,37 @@ export const MainContent: React.FC<MainContentProps> = ({
           originalVersionsCount: playlistToInit.versions?.length || 0,
           cachedVersionsCount: cached?.versions?.length || 0,
           finalVersionsCount: finalPlaylist.versions?.length || 0,
+          isLocalOnly: playlistToInit.isLocalOnly,
+          originalVersions: playlistToInit.versions?.map((v) => ({
+            id: v.id,
+            name: v.name,
+          })),
+          cachedVersions: cached?.versions?.map((v) => ({
+            id: v.id,
+            name: v.name,
+          })),
+          finalVersions: finalPlaylist.versions?.map((v) => ({
+            id: v.id,
+            name: v.name,
+          })),
         },
       );
 
+      console.debug(
+        `[MainContent] About to call setActivePlaylist for ${playlistId}`,
+      );
       setActivePlaylist(finalPlaylist);
+      console.debug(`[MainContent] Called setActivePlaylist for ${playlistId}`);
 
       // Clear timeout on successful completion
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
         initializationTimeoutRef.current = null;
       }
+
+      console.debug(
+        `[MainContent] Initialization completed successfully for ${playlistId}`,
+      );
     } catch (error) {
       console.error(
         `[MainContent] Failed to initialize playlist ${playlistId}:`,
@@ -320,7 +373,16 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   const handleClearAll = () => {
-    if (!activePlaylist.isQuickNotes) return;
+    console.log("handleClearAll called:", {
+      isQuickNotes: activePlaylist.isQuickNotes,
+      versionsCount: activePlaylist.versions?.length || 0,
+      playlistId: activePlaylist.id,
+    });
+
+    if (!activePlaylist.isQuickNotes) {
+      console.log("Not Quick Notes, skipping clear");
+      return;
+    }
 
     // Clear all versions from the playlist
     const updatedPlaylist = {
@@ -328,9 +390,20 @@ export const MainContent: React.FC<MainContentProps> = ({
       versions: [],
     };
 
+    console.log("Clearing Quick Notes versions, calling onPlaylistUpdate:", {
+      hasCallback: !!onPlaylistUpdate,
+      playlistName: updatedPlaylist.name,
+      newVersionsCount: updatedPlaylist.versions.length,
+    });
+
     // Update the playlist in the store
     if (onPlaylistUpdate) {
       onPlaylistUpdate(updatedPlaylist);
+      console.log("Quick Notes onPlaylistUpdate called successfully");
+    } else {
+      console.warn(
+        "No onPlaylistUpdate callback available to clear Quick Notes",
+      );
     }
   };
 
@@ -544,15 +617,179 @@ export const MainContent: React.FC<MainContentProps> = ({
   };
 
   // Handler to open playlist in ftrack
-  const handleOpenPlaylistInFtrack = () => {
+  const handleOpenPlaylistInFtrack = async () => {
+    // NEW: Handle local playlists properly
+    if (activePlaylist.id.startsWith("local_") || activePlaylist.isLocalOnly) {
+      console.log("Cannot open local playlist in ftrack - not yet synced");
+      return;
+    }
+
     const baseUrl = settings.serverUrl.replace(/\/$/, "");
-    if (!baseUrl || !activePlaylist.id) return;
+    if (!baseUrl) return;
+
+    // CRITICAL FIX for Issue #4: Use ftrackId for synced playlists, not the UUID
+    let ftrackEntityId = activePlaylist.id; // Default fallback
+
+    if (activePlaylist.ftrackSyncState === "synced") {
+      // For synced playlists, get the ftrack ID from the database
+      try {
+        const ftrackId = await playlistStore.getFtrackId(activePlaylist.id);
+        if (ftrackId) {
+          ftrackEntityId = ftrackId;
+          console.log(
+            `[MainContent] Using ftrack ID ${ftrackId} for synced playlist ${activePlaylist.id}`,
+          );
+        } else {
+          console.warn(
+            `[MainContent] No ftrack ID found for synced playlist ${activePlaylist.id}, using UUID as fallback`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[MainContent] Failed to get ftrack ID for playlist ${activePlaylist.id}:`,
+          error,
+        );
+      }
+    }
 
     // Determine entity type based on playlist type
-    const entityType = activePlaylist.type === "reviewsession" ? "reviewsession" : "list";
-    
-    const url = `${baseUrl}/#entityId=${activePlaylist.id}&entityType=${entityType}&itemId=projects&view=versions_v1`;
+    const entityType =
+      activePlaylist.type === "reviewsession" ? "reviewsession" : "list";
+
+    const url = `${baseUrl}/#entityId=${ftrackEntityId}&entityType=${entityType}&itemId=projects&view=versions_v1`;
+    console.log(`[MainContent] Opening ftrack URL: ${url}`);
     open(url);
+  };
+
+  const handleSyncSuccess = async (playlistId: string) => {
+    console.log("handleSyncSuccess called for synced playlist ID:", playlistId);
+
+    // Get the actual ftrack ID from the database after sync
+    let actualFtrackId: string | null = null;
+    try {
+      actualFtrackId = await playlistStore.getFtrackId(playlistId);
+      console.log("Retrieved ftrack ID after sync:", {
+        playlistId,
+        actualFtrackId,
+      });
+    } catch (error) {
+      console.error("Failed to get ftrack ID after sync:", error);
+    }
+
+    // The playlist was converted in place, so we just update the local state to reflect sync
+    const updatedPlaylist = {
+      ...activePlaylist,
+      // Keep the same ID since playlist was converted in place
+      isLocalOnly: false,
+      ftrackSyncState: "synced" as const,
+      // Clear manually added flags from versions to remove purple borders
+      versions:
+        activePlaylist.versions?.map((v) => ({
+          ...v,
+          manuallyAdded: false,
+        })) || [],
+    };
+
+    setActivePlaylist(updatedPlaylist);
+
+    // Update parent component state
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(updatedPlaylist);
+    }
+
+    // Notify App component that sync is complete (no navigation needed since same ID)
+    window.dispatchEvent(
+      new CustomEvent("playlist-synced", {
+        detail: {
+          playlistId: activePlaylist.id,
+          ftrackId: actualFtrackId, // Use actual ftrack ID from database
+          playlistName: activePlaylist.name,
+        },
+      }),
+    );
+
+    console.log(
+      "Sync success handling completed - playlist converted in place:",
+      {
+        playlistId,
+        actualFtrackId,
+        playlistName: activePlaylist.name,
+      },
+    );
+  };
+
+  const handleSyncError = (error: string) => {
+    console.error("Sync error:", error);
+    // Could show a toast notification here
+  };
+
+  const handlePlaylistCreated = async (playlist: Playlist) => {
+    console.log("handlePlaylistCreated called with playlist:", {
+      id: playlist.id,
+      name: playlist.name,
+      versionsCount: playlist.versions?.length || 0,
+      isLocalOnly: playlist.isLocalOnly,
+      versions: playlist.versions?.map((v) => ({ id: v.id, name: v.name })),
+    });
+
+    // Clear Quick Notes since we're moving the versions to a new playlist
+    if (activePlaylist.isQuickNotes) {
+      console.log("Clearing Quick Notes versions after playlist creation");
+      try {
+        // Clear both local state and notify parent
+        const clearedQuickNotes = {
+          ...activePlaylist,
+          versions: [],
+        };
+        setActivePlaylist(clearedQuickNotes);
+
+        if (onPlaylistUpdate) {
+          onPlaylistUpdate(clearedQuickNotes);
+        }
+
+        console.log("Quick Notes cleared successfully");
+      } catch (error) {
+        console.error("Failed to clear Quick Notes:", error);
+      }
+    }
+
+    // Add the new playlist to the store
+    const { playlists: storePlaylists, setPlaylists: setStorePlaylists } =
+      usePlaylistsStore.getState();
+    const updatedStorePlaylists = [
+      ...storePlaylists.filter((p) => p.id !== playlist.id), // Remove if exists
+      playlist,
+    ];
+    setStorePlaylists(updatedStorePlaylists);
+
+    // Notify parent component (App) about the new playlist to trigger playlist panel refresh
+    if (onPlaylistUpdate) {
+      onPlaylistUpdate(playlist);
+    }
+
+    // Auto-navigate to the new playlist using App's navigation system
+    console.log("Starting auto-navigation to new playlist:", {
+      newPlaylistId: playlist.id,
+      newPlaylistName: playlist.name,
+      usingAppNavigation: true,
+    });
+
+    try {
+      // Use a small delay to ensure the playlist is fully added to the state first
+      setTimeout(() => {
+        // Trigger playlist selection through the App's handlePlaylistSelect
+        // This ensures both the activePlaylistId and openPlaylists are updated properly
+        const playlistSelectEvent = new CustomEvent("playlist-select", {
+          detail: { playlistId: playlist.id },
+        });
+        window.dispatchEvent(playlistSelectEvent);
+        console.log("Auto-navigation event dispatched successfully");
+      }, 100);
+    } catch (error) {
+      console.error("Auto-navigation failed:", error);
+    }
+
+    console.log("Playlist created from Quick Notes:", playlist.name);
   };
 
   // Show initialization error if it exists
@@ -565,27 +802,44 @@ export const MainContent: React.FC<MainContentProps> = ({
               <CardTitle className="text-xl text-red-600">
                 Error Loading Playlist
               </CardTitle>
-              <div 
+              <div
                 className="flex items-center gap-2 group"
                 onMouseEnter={() => setIsPlaylistTitleHovered(true)}
                 onMouseLeave={() => setIsPlaylistTitleHovered(false)}
               >
                 <p className="text-sm text-muted-foreground">
                   {activePlaylist.name}
+                  {activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-2 cursor-help">• Local only</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            This playlist is local only and not synced to
+                            ftrack. Use the sync button to push it to ftrack.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </p>
                 <AnimatePresence>
-                  {isPlaylistTitleHovered && !activePlaylist.isQuickNotes && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -10, scale: 1 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -10, scale: 1 }}
-                      transition={{ duration: 0.1, ease: "easeOut" }}
-                      onClick={handleOpenPlaylistInFtrack}
-                      className="cursor-pointer"
-                    >
-                      <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
-                    </motion.div>
-                  )}
+                  {isPlaylistTitleHovered &&
+                    !activePlaylist.isQuickNotes &&
+                    !activePlaylist.isLocalOnly && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10, scale: 1 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -10, scale: 1 }}
+                        transition={{ duration: 0.1, ease: "easeOut" }}
+                        onClick={handleOpenPlaylistInFtrack}
+                        className="cursor-pointer"
+                      >
+                        <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                      </motion.div>
+                    )}
                 </AnimatePresence>
               </div>
             </div>
@@ -632,7 +886,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
         <div className="flex items-center gap-2">
           <div className="flex flex-col">
-            <div 
+            <div
               className="flex items-center gap-2 group"
               onMouseEnter={() => setIsPlaylistTitleHovered(true)}
               onMouseLeave={() => setIsPlaylistTitleHovered(false)}
@@ -646,18 +900,21 @@ export const MainContent: React.FC<MainContentProps> = ({
                 )}
               </CardTitle>
               <AnimatePresence>
-                {isPlaylistTitleHovered && !isInitializing && !activePlaylist.isQuickNotes && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -10, scale: 1 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -10, scale: 1 }}
-                    transition={{ duration: 0.1, ease: "easeOut" }}
-                    onClick={handleOpenPlaylistInFtrack}
-                    className="cursor-pointer"
-                  >
-                    <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                  </motion.div>
-                )}
+                {isPlaylistTitleHovered &&
+                  !isInitializing &&
+                  !activePlaylist.isQuickNotes &&
+                  !activePlaylist.isLocalOnly && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10, scale: 1 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -10, scale: 1 }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      onClick={handleOpenPlaylistInFtrack}
+                      className="cursor-pointer"
+                    >
+                      <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                    </motion.div>
+                  )}
               </AnimatePresence>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -669,6 +926,21 @@ export const MainContent: React.FC<MainContentProps> = ({
                   {sortedVersions.length !== 1 ? "s" : ""}
                   {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
                     ` (${activePlaylist.versions?.length || 0} total)`}
+                  {activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-2 cursor-help">• Local only</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            This playlist is local only and not synced to
+                            ftrack. Use the sync button to push it to ftrack.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </>
               )}
             </p>
@@ -695,6 +967,39 @@ export const MainContent: React.FC<MainContentProps> = ({
             />
           ) : null}
           <div className="flex items-center gap-2">
+            {/* Show sync button for local playlists with content (but NEVER for Quick Notes) */}
+            {(() => {
+              // CRITICAL FIX: Quick Notes should NEVER show sync button
+              if (activePlaylist.isQuickNotes) return false;
+
+              const hasVersionsToSync =
+                (activePlaylist.versions?.length || 0) > 0;
+              const hasManuallyAdded =
+                activePlaylist.versions?.some((v) => v.manuallyAdded) || false;
+              const shouldShowSync =
+                activePlaylist.isLocalOnly &&
+                activePlaylist.ftrackSyncState === "pending" &&
+                (hasVersionsToSync || hasManuallyAdded);
+
+              console.log("Sync button condition check:", {
+                playlistId: activePlaylist.id,
+                isQuickNotes: activePlaylist.isQuickNotes,
+                isLocalOnly: activePlaylist.isLocalOnly,
+                ftrackSyncState: activePlaylist.ftrackSyncState,
+                hasVersionsToSync,
+                hasManuallyAdded,
+                shouldShowSync,
+                versionsCount: activePlaylist.versions?.length || 0,
+              });
+              return shouldShowSync;
+            })() && (
+              <SyncPlaylistButton
+                playlist={activePlaylist}
+                versionsToSync={activePlaylist.versions || []}
+                onSyncSuccess={handleSyncSuccess}
+                onSyncError={handleSyncError}
+              />
+            )}
             <PublishingControls
               selectedCount={selectedVersions.length}
               draftCount={getDraftCount()}
@@ -754,6 +1059,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           )}
           isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
           currentVersions={activePlaylist.versions || []}
+          onPlaylistCreated={handlePlaylistCreated}
         />
       )}
     </Card>

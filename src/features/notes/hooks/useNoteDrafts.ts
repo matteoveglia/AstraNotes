@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { db } from "@/store/db";
 import { NoteStatus } from "@/types";
 import Dexie from "dexie";
@@ -56,7 +56,7 @@ export function useNoteDrafts(playlistId: string) {
         const statusMap: Record<string, NoteStatus> = {};
 
         // First, add all published notes to ensure they have priority
-        publishedDrafts.forEach((draft: CachedVersion) => {
+        publishedDrafts.forEach((draft) => {
           statusMap[draft.id] = "published";
 
           if (draft.draftContent) {
@@ -69,7 +69,7 @@ export function useNoteDrafts(playlistId: string) {
         });
 
         // Then process all drafts
-        allDrafts.forEach((draft: CachedVersion) => {
+        allDrafts.forEach((draft) => {
           // Only update status if it's not already set to published
           if (!statusMap[draft.id] || statusMap[draft.id] !== "published") {
             statusMap[draft.id] =

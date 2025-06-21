@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Playlist, NoteStatus, AssetVersion } from "@/types";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { db, type CachedVersion, type NoteAttachment } from "@/store/db";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "@/components/ui/toast";
@@ -143,7 +143,7 @@ export function useNoteManagement(playlist: Playlist) {
         );
 
         // Save draft content, status, and label to database
-        await playlistStore.saveDraft(versionId, playlist.id, content, labelId);
+        await playlistStore.saveDraft(playlist.id, versionId, content, labelId);
 
         // Also update the status separately to ensure it's set correctly, passing attachments info
         if (newStatus !== currentStatus) {
@@ -186,8 +186,8 @@ export function useNoteManagement(playlist: Playlist) {
           try {
             // Try to save just the content without attachments as a last resort
             await playlistStore.saveDraft(
-              versionId,
               playlist.id,
+              versionId,
               content,
               labelId,
             );
@@ -508,13 +508,13 @@ export function useNoteManagement(playlist: Playlist) {
       return newAttachments;
     });
 
-    // Reset to empty in the database using saveDraft to ensure labelId is cleared
-    await playlistStore.saveDraft(versionId, playlist.id, "", "");
+    // CRITICAL FIX: Correct parameter order for saveDraft (playlistId, versionId, content, labelId)
+    await playlistStore.saveDraft(playlist.id, versionId, "", "");
 
-    // Also update the status to empty
+    // CRITICAL FIX: Correct parameter order for saveNoteStatus (versionId, playlistId, status, content)
     await playlistStore.saveNoteStatus(versionId, playlist.id, "empty", "");
 
-    // Clear attachments from database
+    // CRITICAL FIX: Correct parameter order for clearAttachments (versionId, playlistId)
     await playlistStore.clearAttachments(versionId, playlist.id);
   };
 
@@ -553,11 +553,12 @@ export function useNoteManagement(playlist: Playlist) {
         // Process each version
         for (const { versionId } of items) {
           try {
-            // Skip if already published
+            // Skip if already published - count as success since it's already done
             if (noteStatuses[versionId] === "published") {
               console.debug(
                 `[useNoteManagement] Skipping already published note ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -571,12 +572,13 @@ export function useNoteManagement(playlist: Playlist) {
             }
 
             const content = noteDrafts[versionId] || "";
-            // Skip if content is empty and no attachments
+            // Skip if content is empty and no attachments - count as success since nothing to publish
             const attachments = noteAttachments[versionId] || [];
             if (!content.trim() && attachments.length === 0) {
               console.debug(
                 `[useNoteManagement] Skipping empty note for version ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -615,7 +617,7 @@ export function useNoteManagement(playlist: Playlist) {
                 playlist.id,
                 "published",
                 content,
-                attachments.length > 0, // Pass attachment info
+                labelId, // Pass the actual label ID
               );
 
               // Update in memory
@@ -712,11 +714,12 @@ export function useNoteManagement(playlist: Playlist) {
         // Process each version
         for (const { versionId } of items) {
           try {
-            // Skip if already published
+            // Skip if already published - count as success since it's already done
             if (noteStatuses[versionId] === "published") {
               console.debug(
                 `[useNoteManagement] Skipping already published note ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -730,12 +733,13 @@ export function useNoteManagement(playlist: Playlist) {
             }
 
             const content = noteDrafts[versionId] || "";
-            // Skip if content is empty and no attachments
+            // Skip if content is empty and no attachments - count as success since nothing to publish
             const attachments = noteAttachments[versionId] || [];
             if (!content.trim() && attachments.length === 0) {
               console.debug(
                 `[useNoteManagement] Skipping empty note for version ${versionId}`,
               );
+              successVersions.push({ versionId }); // Count as success
               continue;
             }
 
@@ -774,7 +778,7 @@ export function useNoteManagement(playlist: Playlist) {
                 playlist.id,
                 "published",
                 content,
-                attachments.length > 0, // Pass attachment info
+                labelId, // Pass the actual label ID
               );
 
               // Update in memory

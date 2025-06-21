@@ -138,7 +138,7 @@ describe("network utilities", () => {
         "API operation failed:",
         expect.objectContaining({
           message: mockError.message,
-          name: mockError.name
+          name: mockError.name,
         }),
       );
       expect(response).toEqual({

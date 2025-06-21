@@ -31,43 +31,47 @@ Sentry.init({
   allowUrls: [window.location.origin],
   beforeSend(event) {
     // Filter out API credential errors from Sentry logging
-    const errorMessage = event.exception?.values?.[0]?.value || '';
-    const errorType = event.exception?.values?.[0]?.type || '';
-    
+    const errorMessage = event.exception?.values?.[0]?.value || "";
+    const errorType = event.exception?.values?.[0]?.type || "";
+
     // Check if this is an API credential related error
-    const isCredentialError = 
-      errorMessage.includes('credentials') ||
-      errorMessage.includes('API key') ||
-      errorMessage.includes('api key') ||
-      errorMessage.includes('apiKey') ||
-      errorMessage.includes('Invalid username') ||
-      errorMessage.includes('authentication') ||
-      errorMessage.includes('auth') ||
-      errorMessage.includes('ftrack-user') ||
-      errorMessage.includes('Missing API authentication') ||
-      errorType === 'AuthenticationError' ||
-      (event.tags && event.tags.component === 'auth') ||
-      (event.fingerprint && event.fingerprint.some(fp => 
-        typeof fp === 'string' && fp.includes('credential')
-      ));
+    const isCredentialError =
+      errorMessage.includes("credentials") ||
+      errorMessage.includes("API key") ||
+      errorMessage.includes("api key") ||
+      errorMessage.includes("apiKey") ||
+      errorMessage.includes("Invalid username") ||
+      errorMessage.includes("authentication") ||
+      errorMessage.includes("auth") ||
+      errorMessage.includes("ftrack-user") ||
+      errorMessage.includes("Missing API authentication") ||
+      errorType === "AuthenticationError" ||
+      (event.tags && event.tags.component === "auth") ||
+      (event.fingerprint &&
+        event.fingerprint.some(
+          (fp) => typeof fp === "string" && fp.includes("credential"),
+        ));
 
     // Also check breadcrumbs and extra data for credential information
-    const hasSensitiveData = event.breadcrumbs?.some(breadcrumb =>
-      breadcrumb.message?.includes('API key') ||
-      breadcrumb.message?.includes('credentials') ||
-      breadcrumb.message?.includes('apiKey')
-    ) || Object.values(event.extra || {}).some(value =>
-      typeof value === 'string' && (
-        value.includes('API key') ||
-        value.includes('credentials') ||
-        value.includes('apiKey')
-      )
-    );
+    const hasSensitiveData =
+      event.breadcrumbs?.some(
+        (breadcrumb) =>
+          breadcrumb.message?.includes("API key") ||
+          breadcrumb.message?.includes("credentials") ||
+          breadcrumb.message?.includes("apiKey"),
+      ) ||
+      Object.values(event.extra || {}).some(
+        (value) =>
+          typeof value === "string" &&
+          (value.includes("API key") ||
+            value.includes("credentials") ||
+            value.includes("apiKey")),
+      );
 
     if (isCredentialError || hasSensitiveData) {
       console.log("Filtering out credential error from Sentry:", {
         message: errorMessage,
-        type: errorType
+        type: errorType,
       });
       return null; // Don't send to Sentry
     }

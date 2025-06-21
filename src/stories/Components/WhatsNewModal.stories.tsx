@@ -60,7 +60,8 @@ const meta: Meta<typeof WhatsNewModal> = {
     layout: "centered",
     docs: {
       description: {
-        component: "Modal for displaying release notes and what's new information from GitHub releases.",
+        component:
+          "Modal for displaying release notes and what's new information from GitHub releases.",
       },
     },
   },
@@ -113,4 +114,4 @@ export const WithCachedData: Story = {
 
     return <WhatsNewModal {...args} />;
   },
-}; 
+};

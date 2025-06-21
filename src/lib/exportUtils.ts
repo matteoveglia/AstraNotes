@@ -6,7 +6,7 @@
  */
 
 import { Playlist } from "@/types";
-import { playlistStore } from "../store/playlistStore";
+import { playlistStore } from "../store/playlist";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { downloadDir, join } from "@tauri-apps/api/path";
 

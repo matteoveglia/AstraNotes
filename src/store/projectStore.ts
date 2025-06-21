@@ -5,10 +5,10 @@
  * @store
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { ftrackService } from '../services/ftrack';
-import type { Project } from '@/types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { ftrackService } from "../services/ftrack";
+import type { Project } from "@/types";
 
 interface ProjectState {
   projects: Project[];
@@ -16,7 +16,7 @@ interface ProjectState {
   isLoading: boolean;
   error: string | null;
   hasValidatedSelectedProject: boolean;
-  
+
   // Actions
   setProjects: (projects: Project[]) => void;
   setSelectedProject: (projectId: string | null) => void;
@@ -36,27 +36,28 @@ export const useProjectStore = create<ProjectState>()(
       hasValidatedSelectedProject: false,
 
       setProjects: (projects) => set({ projects }),
-      
-      setSelectedProject: (projectId) => set({ 
-        selectedProjectId: projectId,
-        hasValidatedSelectedProject: projectId !== null
-      }),
-      
+
+      setSelectedProject: (projectId) =>
+        set({
+          selectedProjectId: projectId,
+          hasValidatedSelectedProject: projectId !== null,
+        }),
+
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
 
       loadProjects: async () => {
         set({ isLoading: true, error: null });
-        
+
         try {
           const projects = await ftrackService.getProjects();
-          
+
           // Validate selected project exists after loading projects
           const { selectedProjectId } = get();
           let hasValidSelectedProject = false;
-          
+
           if (selectedProjectId) {
-            const exists = projects.find(p => p.id === selectedProjectId);
+            const exists = projects.find((p) => p.id === selectedProjectId);
             if (exists) {
               hasValidSelectedProject = true;
             } else {
@@ -64,16 +65,19 @@ export const useProjectStore = create<ProjectState>()(
               set({ selectedProjectId: null });
             }
           }
-          
-          set({ 
-            projects, 
+
+          set({
+            projects,
             isLoading: false,
-            hasValidatedSelectedProject: hasValidSelectedProject
+            hasValidatedSelectedProject: hasValidSelectedProject,
           });
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to load projects',
-            isLoading: false 
+          set({
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to load projects",
+            isLoading: false,
           });
         }
       },
@@ -84,24 +88,24 @@ export const useProjectStore = create<ProjectState>()(
           set({ hasValidatedSelectedProject: false });
           return false;
         }
-        
-        const exists = projects.find(p => p.id === selectedProjectId);
+
+        const exists = projects.find((p) => p.id === selectedProjectId);
         const isValid = !!exists;
-        
+
         set({ hasValidatedSelectedProject: isValid });
-        
+
         if (!isValid) {
           set({ selectedProjectId: null });
         }
-        
+
         return isValid;
-      }
+      },
     }),
     {
-      name: 'astranotes-project-selection',
+      name: "astranotes-project-selection",
       partialize: (state) => ({
-        selectedProjectId: state.selectedProjectId
+        selectedProjectId: state.selectedProjectId,
       }),
-    }
-  )
-); 
+    },
+  ),
+);

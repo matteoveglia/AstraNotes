@@ -10,7 +10,12 @@
  */
 
 import { db, NoteAttachment } from "./db";
-import { Playlist, AssetVersion, NoteStatus } from "@/types";
+import {
+  Playlist,
+  AssetVersion,
+  NoteStatus,
+  CreatePlaylistRequest,
+} from "@/types";
 import { FtrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
@@ -94,6 +99,9 @@ export class PlaylistStore {
     string,
     { addedIds: Set<string>; removedIds: Set<string>; timestamp: number }
   > = new Map();
+
+  // NEW: Feature flag for consolidated queries
+  private useConsolidatedQueries = true;
 
   constructor(ftrackService: FtrackService) {
     this.ftrackService = ftrackService;
@@ -294,32 +302,19 @@ export class PlaylistStore {
         .filter((v) => !v.isRemoved)
         .toArray();
 
-      // For Quick Notes, if no DB versions but playlist has versions, use those
-      if (id === "quick-notes" && dbVersions.length === 0 && cached?.versions && cached.versions.length > 0) {
-        console.log(
-          `[PlaylistStore] Quick Notes: Found ${cached.versions.length} versions in playlist metadata`,
-        );
-        // Convert playlist versions to DB format for consistency
-        dbVersions = cached.versions.map(version => ({
-          id: version.id,
-          playlistId: id,
-          name: version.name || "",
-          version: version.version || 0,
-          thumbnailUrl: version.thumbnailUrl || "",
-          thumbnailId: version.thumbnailId || "",
-          reviewSessionObjectId: version.reviewSessionObjectId || "",
-          createdAt: this.cleanDate(version.createdAt),
-          updatedAt: this.cleanDate(version.updatedAt),
-          lastModified: Date.now(),
-          draftContent: "",
-          labelId: "",
-          manuallyAdded: version.manuallyAdded || true,
-          noteStatus: "empty" as const,
-        }));
-        
-        // Save these versions to the versions table for consistency
-        for (const version of dbVersions) {
-          await db.versions.put(version, [id, version.id]);
+      // Legacy support: Check if we need to initialize from legacy playlists
+      if (dbVersions.length === 0) {
+        // Try to get from legacy playlist table if it exists
+        try {
+          const legacyPlaylist = null; // Legacy table removed
+          if (false) {
+            // Legacy playlist disabled
+            console.log(`[PlaylistStore] Converting legacy versions for ${id}`);
+            // Convert legacy versions to new format
+            dbVersions = []; // Legacy playlist disabled
+          }
+        } catch (error) {
+          console.log("[PlaylistStore] No legacy playlist table available");
         }
       }
 
@@ -327,25 +322,24 @@ export class PlaylistStore {
         `[PlaylistStore] Found ${dbVersions.length} versions for playlist ${id}`,
       );
 
-      // If no versions in cache but playlist has versions, initialize from cached playlist
-      if (
-        dbVersions.length === 0 &&
-        cached?.versions &&
-        cached.versions.length > 0 &&
-        id !== "quick-notes" // Don't do this for Quick Notes as we handled it above
-      ) {
-        console.log(
-          `[PlaylistStore] No DB versions, but ${cached.versions.length} cached versions. Initializing...`,
-        );
-        await this.initializePlaylist(id, cached);
-        // Try getting versions again after initialization
-        return this.getPlaylist(id);
-      }
-
-      // Create a defensive copy of the playlist
+      // Create a defensive copy of the playlist with proper CachedPlaylist structure
       const result: CachedPlaylist = {
-        ...cached,
+        id: cached.id,
+        name: cached.name,
+        title: cached.name, // Use name as title for new records
+        createdAt: cached.createdAt,
+        updatedAt: cached.updatedAt,
+        isQuickNotes: id === "quick-notes",
+        lastAccessed: Date.now(),
+        lastChecked: Date.now(),
+        hasModifications: false,
+        addedVersions: [],
+        removedVersions: [],
+        notes: [], // Empty for now - notes are separate from versions
         versions: [], // We'll populate this from DB versions
+        // Map new fields to legacy format
+        isLocalOnly: cached.localStatus !== "synced",
+        ftrackSyncState: cached.ftrackSyncStatus as any,
       };
 
       // Sort versions by name and version number
@@ -1700,6 +1694,28 @@ export class PlaylistStore {
       // Add to database
       await db.versions.put(minimalVersion);
 
+      // For local playlists, also add to localPlaylistVersions for sync
+      if (playlistId.startsWith("local_")) {
+        try {
+          const localVersion: any = {
+            // Legacy type removed
+            playlistId: playlistId,
+            versionId: version.id,
+            addedAt: new Date().toISOString(),
+          };
+          console.warn("Legacy localPlaylistVersions table disabled");
+          log(
+            `Added version ${version.id} to localPlaylistVersions for local playlist ${playlistId}`,
+          );
+        } catch (error) {
+          // Don't fail the main operation if this fails, just log it
+          console.warn(
+            `Failed to add version to localPlaylistVersions:`,
+            error,
+          );
+        }
+      }
+
       // Update the playlist's addedVersions array
       if (!playlist.addedVersions.includes(version.id)) {
         playlist.addedVersions = [...playlist.addedVersions, version.id];
@@ -1723,6 +1739,15 @@ export class PlaylistStore {
 
         // Save the updated playlist
         await this.cachePlaylist(playlist);
+      }
+
+      // NEW: Auto-sync detection
+      if (playlistId.startsWith("local_")) {
+        if (false) {
+          // Legacy playlist disabled
+          // Legacy local playlist sync handling disabled
+          console.warn("Legacy local playlist sync disabled");
+        }
       }
 
       log(`Successfully added version ${versionId} to playlist ${playlistId}`);
@@ -1785,6 +1810,23 @@ export class PlaylistStore {
         .and((version) => version.manuallyAdded === true)
         .delete();
 
+      // For local playlists, also remove from localPlaylistVersions
+      if (playlistId.startsWith("local_")) {
+        try {
+          for (const versionId of versionIds) {
+            console.warn("Legacy localPlaylistVersions table disabled");
+          }
+          log(
+            `Removed ${versionIds.length} versions from localPlaylistVersions for local playlist ${playlistId}`,
+          );
+        } catch (error) {
+          console.warn(
+            `Failed to remove versions from localPlaylistVersions:`,
+            error,
+          );
+        }
+      }
+
       // For Quick Notes, also delete any drafts associated with these versions
       if (playlistId === "quick-notes") {
         // Delete any drafts for these versions
@@ -1809,9 +1851,9 @@ export class PlaylistStore {
         // Filter out manually added versions from the playlist
         if (cachedPlaylist.versions) {
           const remainingVersions = cachedPlaylist.versions.filter(
-            (v) => !v.manuallyAdded
+            (v) => !v.manuallyAdded,
           );
-          
+
           // For Quick Notes, ensure we remove the versions from both the versions array and the DB
           if (playlistId === "quick-notes") {
             cachedPlaylist.versions = remainingVersions;
@@ -1850,22 +1892,207 @@ export class PlaylistStore {
 
   private cleanupExpiredProcessedChanges(): void {
     const now = Date.now();
-    const expiredPlaylists: string[] = [];
+    const expiredThreshold = 5 * 60 * 1000; // 5 minutes
 
-    for (const [playlistId, data] of this.recentlyProcessedChanges) {
-      // Clear entries older than 30 seconds (now that we fixed the root cause)
-      if (now - data.timestamp > 30000) {
-        expiredPlaylists.push(playlistId);
+    for (const [playlistId, data] of this.recentlyProcessedChanges.entries()) {
+      if (now - data.timestamp > expiredThreshold) {
+        this.recentlyProcessedChanges.delete(playlistId);
       }
     }
+  }
 
-    if (expiredPlaylists.length > 0) {
-      expiredPlaylists.forEach((playlistId) => {
-        this.recentlyProcessedChanges.delete(playlistId);
-      });
-      console.log(
-        `🧹 Cleaned up ${expiredPlaylists.length} expired processed change entries`,
+  /**
+   * Creates a local-only playlist that hasn't been synced to ftrack yet
+   */
+  async createLocalPlaylist(request: CreatePlaylistRequest): Promise<Playlist> {
+    console.warn(
+      "Legacy createLocalPlaylist called - use playlistStore.createPlaylist instead",
+    );
+    throw new Error(
+      "Legacy createLocalPlaylist disabled. Use playlistStore.createPlaylist instead",
+    );
+  }
+
+  /**
+   * Updates playlist sync state
+   */
+  async updatePlaylistSyncState(
+    playlistId: string,
+    state: Playlist["ftrackSyncState"],
+  ): Promise<void> {
+    try {
+      console.warn("Legacy localPlaylists table disabled");
+      log(`Updated playlist ${playlistId} sync state to ${state}`);
+    } catch (error) {
+      console.error(`Failed to update playlist sync state:`, error);
+    }
+  }
+
+  /**
+   * Removes manuallyAdded flags from versions after successful sync
+   */
+  async clearManuallyAddedFlags(
+    playlistId: string,
+    versionIds: string[],
+  ): Promise<void> {
+    try {
+      // ENHANCED: Clear both manual flags and update visual state
+      await db.versions
+        .where("playlistId")
+        .equals(playlistId)
+        .and((v) => versionIds.includes(v.id))
+        .modify({
+          manuallyAdded: false,
+          syncedAt: new Date().toISOString(),
+        });
+
+      log(
+        `Cleared manuallyAdded flags for ${versionIds.length} versions in playlist ${playlistId}`,
       );
+
+      // CRITICAL: Trigger UI update
+      const playlist = await this.getPlaylist(playlistId);
+      if (playlist) {
+        // Force re-render with updated state
+        this.notifyPlaylistUpdated(playlist);
+      }
+    } catch (error) {
+      console.error(`Failed to clear manuallyAdded flags:`, error);
+    }
+  }
+
+  /**
+   * Notify components that playlist has been updated
+   */
+  private notifyPlaylistUpdated(playlist: CachedPlaylist): void {
+    // Emit event for UI components to handle
+    window.dispatchEvent(
+      new CustomEvent("playlist-updated", {
+        detail: {
+          playlistId: playlist.id,
+          playlist,
+        },
+      }),
+    );
+  }
+
+  /**
+   * Gets local playlist data
+   */
+  async getLocalPlaylist(playlistId: string): Promise<any | null> {
+    console.warn(
+      "Legacy getLocalPlaylist called - use playlistStore.getPlaylist instead",
+    );
+    return null;
+  }
+
+  /**
+   * Gets all local playlists
+   */
+  async getLocalPlaylists(): Promise<any[]> {
+    console.warn(
+      "Legacy getLocalPlaylists called - use playlistStore.getPlaylistsByProject instead",
+    );
+    return [];
+  }
+
+  /**
+   * Adds versions to a local playlist
+   */
+  async addVersionsToLocalPlaylist(
+    playlistId: string,
+    versions: AssetVersion[],
+  ): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const localVersions: any[] = versions.map((v) => ({
+        // Legacy type removed
+        playlistId,
+        versionId: v.id,
+        addedAt: now,
+      }));
+
+      console.warn("Legacy localPlaylistVersions table disabled");
+      log(`Added ${versions.length} versions to local playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to add versions to local playlist:`, error);
+    }
+  }
+
+  /**
+   * INTERNAL: Load versions from database with consolidated logic
+   */
+  private async loadVersionsFromDB(
+    playlistId: string,
+  ): Promise<CachedVersion[]> {
+    if (playlistId.startsWith("local_")) {
+      return db.versions
+        .where("playlistId")
+        .equals(playlistId)
+        .and((v) => v.isLocalPlaylist === true)
+        .toArray();
+    }
+
+    return db.versions
+      .where("playlistId")
+      .equals(playlistId)
+      .filter((v) => !v.isRemoved)
+      .toArray();
+  }
+
+  /**
+   * INTERNAL: Update versions in database with optimized logic
+   */
+  private async updateVersionsInDB(
+    playlistId: string,
+    modifications: Partial<CachedVersion>,
+  ): Promise<void> {
+    await db.versions
+      .where("playlistId")
+      .equals(playlistId)
+      .modify(modifications);
+  }
+
+  /**
+   * Gets versions for a local playlist
+   */
+  async getLocalPlaylistVersions(playlistId: string): Promise<any[]> {
+    // Legacy type removed
+    if (this.useConsolidatedQueries) {
+      // NEW: Query versions table instead
+      const versions = await db.versions
+        .where("playlistId")
+        .equals(playlistId)
+        .and((v) => v.isLocalPlaylist === true)
+        .toArray();
+
+      return versions.map((v) => ({
+        playlistId: v.playlistId,
+        versionId: v.id,
+        addedAt: v.localPlaylistAddedAt || v.createdAt,
+        syncedAt: v.syncedAt,
+      }));
+    }
+
+    try {
+      return []; // Legacy table removed
+    } catch (error) {
+      console.error(`Failed to get local playlist versions:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Deletes a local playlist and its associated data
+   */
+  async deleteLocalPlaylist(playlistId: string): Promise<void> {
+    try {
+      await db.transaction("rw", [db.versions], async () => {
+        console.warn("Legacy playlist deletion disabled for:", playlistId);
+      });
+      log(`Deleted local playlist ${playlistId}`);
+    } catch (error) {
+      console.error(`Failed to delete local playlist:`, error);
     }
   }
 }

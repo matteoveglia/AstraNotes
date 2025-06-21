@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Playlist, AssetVersion } from "@/types";
-import { playlistStore } from "@/store/playlistStore";
+import { playlistStore } from "@/store/playlist";
 import { ftrackService } from "@/services/ftrack";
 
 interface Modifications {
@@ -76,9 +76,58 @@ export function usePlaylistModifications(
     );
 
     try {
+      // CRITICAL FIX: Mark removed versions in database before updating UI
+      if (
+        modifications.removedVersions &&
+        modifications.removedVersions.length > 0
+      ) {
+        console.debug(
+          `[usePlaylistModifications] Marking ${modifications.removedVersions.length} versions as removed in database`,
+        );
+        for (const removedVersionId of modifications.removedVersions) {
+          try {
+            await playlistStore.removeVersionFromPlaylist(
+              playlist.id,
+              removedVersionId,
+            );
+            console.debug(
+              `[usePlaylistModifications] Marked version ${removedVersionId} as removed`,
+            );
+          } catch (error) {
+            console.error(
+              `[usePlaylistModifications] Failed to mark version ${removedVersionId} as removed:`,
+              error,
+            );
+          }
+        }
+      }
+
       // Get manually added versions from current playlist
       const manualVersions =
         playlist.versions?.filter((v) => v.manuallyAdded) || [];
+
+      // Find newly added versions that need to be persisted to database
+      const currentVersionIds = new Set(
+        playlist.versions?.map((v) => v.id) || [],
+      );
+      const newVersionsToAdd = pendingVersions.filter(
+        (v) => !currentVersionIds.has(v.id),
+      );
+
+      console.debug(
+        `[usePlaylistModifications] Found ${newVersionsToAdd.length} new versions to persist to database`,
+      );
+
+      // CRITICAL FIX: Persist newly added versions to database first
+      if (newVersionsToAdd.length > 0) {
+        console.debug(
+          `[usePlaylistModifications] Adding ${newVersionsToAdd.length} versions to database for playlist ${playlist.id}`,
+        );
+        await playlistStore.addVersionsToPlaylist(
+          playlist.id,
+          newVersionsToAdd,
+        );
+      }
 
       // Create a map of pending versions for quick lookup
       const pendingVersionsMap = new Map(pendingVersions.map((v) => [v.id, v]));
@@ -100,6 +149,7 @@ export function usePlaylistModifications(
         mergedVersionsCount: mergedVersions.length,
         manualVersionsCount: manualVersions.length,
         pendingVersionsCount: pendingVersions.length,
+        newVersionsAdded: newVersionsToAdd.length,
       });
 
       // Clear pending versions and modifications FIRST to prevent UI flickering
@@ -107,7 +157,7 @@ export function usePlaylistModifications(
       setModifications({ added: 0, removed: 0 });
       console.debug(`[usePlaylistModifications] Cleared pending state`);
 
-      // Update the cache
+      // Update the cache (versions are already in database from above)
       await playlistStore.cachePlaylist(
         playlistStore.cleanPlaylistForStorage(updatedPlaylist),
       );
@@ -163,10 +213,16 @@ export function usePlaylistModifications(
   const refreshPlaylist = useCallback(async () => {
     setIsRefreshing(true);
     try {
+      // For synced playlists, use ftrackId; for local playlists, skip refresh
+      if (!playlist.ftrackId) {
+        console.debug(`Cannot refresh local-only playlist: ${playlist.name}`);
+        return false;
+      }
+
       // If we have pending versions, use those, otherwise fetch fresh ones
       const freshVersions =
         pendingVersions ||
-        (await ftrackService.getPlaylistVersions(playlist.id));
+        (await ftrackService.getPlaylistVersions(playlist.ftrackId));
 
       // Create maps for quick lookup
       const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));

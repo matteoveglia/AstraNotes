@@ -260,12 +260,18 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   const handleChange = (value: string) => {
     setContent(value);
-    onSave(value, labelId || "", attachments);
+    // CRITICAL FIX for Issue #9: Don't save drafts for published notes
+    if (status !== "published") {
+      onSave(value, labelId || "", attachments);
+    }
   };
 
   const handleLabelChange = (newLabelId: string) => {
     setLabelId(newLabelId);
-    onSave(content, newLabelId, attachments);
+    // CRITICAL FIX for Issue #9: Don't save drafts for published notes
+    if (status !== "published") {
+      onSave(content, newLabelId, attachments);
+    }
   };
 
   const handleClear = () => {
@@ -391,7 +397,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
       // Debounce the save operation to avoid race conditions
       console.log(`Saving ${updatedAttachments.length} attachments`);
-      onSave(content, labelId || "", updatedAttachments);
+      // CRITICAL FIX for Issue #9: Don't save drafts for published notes
+      if (status !== "published") {
+        onSave(content, labelId || "", updatedAttachments);
+      }
     }
   };
 
@@ -399,11 +408,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     (newAttachments: Attachment[]) => {
       setAttachments((prev) => {
         const updated = [...prev, ...newAttachments];
-        onSave(content, labelId || "", updated);
+        // CRITICAL FIX for Issue #9: Don't save drafts for published notes
+        if (status !== "published") {
+          onSave(content, labelId || "", updated);
+        }
         return updated;
       });
     },
-    [content, labelId, onSave],
+    [content, labelId, onSave, status],
   );
 
   const handleRemoveAttachment = useCallback(
@@ -417,11 +429,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
         // Filter out the removed attachment
         const updated = prev.filter((attachment) => attachment.id !== id);
-        onSave(content, labelId || "", updated);
+        // CRITICAL FIX for Issue #9: Don't save drafts for published notes
+        if (status !== "published") {
+          onSave(content, labelId || "", updated);
+        }
         return updated;
       });
     },
-    [content, labelId, onSave],
+    [content, labelId, onSave, status],
   );
 
   // Function to prepare content for ftrack

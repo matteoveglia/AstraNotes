@@ -173,113 +173,84 @@ export function NoteStatusPanel({
 
   // Panel is always open when rendered; closing is handled by parent
   return (
-    <DismissableLayer
-      disableOutsidePointerEvents={false}
-      onEscapeKeyDown={() => {
-        if (onClose) onClose();
-      }}
-      onPointerDownOutside={(event) => {
-        const target = event.target as HTMLElement;
-        if (
-          target.closest("[data-select-trigger]") ||
-          target.closest("[data-select-content]")
-        ) {
-          event.preventDefault();
-          return;
-        }
-        if (onClose) onClose();
-      }}
-      onFocusOutside={(event) => {
-        const target = event.target as HTMLElement;
-        if (
-          target.closest("[data-select-trigger]") ||
-          target.closest("[data-select-content]")
-        ) {
-          event.preventDefault();
-          return;
-        }
-        if (onClose) onClose();
-      }}
-    >
-      <motion.div
-        ref={panelRef}
-        className={cn(
-          "absolute -right-34 top-full mt-2 z-50 bg-background rounded-lg shadow-lg border p-4 min-w-[250px]",
-          className,
-        )}
-        style={{ transform: "translateX(50%)" }}
-        initial={{ opacity: 0, scale: 0.95, y: 0 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 0 }}
-        transition={{ type: "spring", duration: 0.25 }}
+    <div ref={panelRef}>
+      <DismissableLayer
+        disableOutsidePointerEvents={false}
+        onEscapeKeyDown={() => {
+          if (onClose) onClose();
+        }}
+        onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            target.closest("[data-select-trigger]") ||
+            target.closest("[data-select-content]")
+          ) {
+            event.preventDefault();
+            return;
+          }
+          if (onClose) onClose();
+        }}
+        onFocusOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            target.closest("[data-select-trigger]") ||
+            target.closest("[data-select-content]")
+          ) {
+            event.preventDefault();
+            return;
+          }
+        }}
       >
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-semibold text-sm">Statuses</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              if (onClose) onClose();
-            }}
-            className="h-6 w-6 p-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="space-y-4">
-          {isLoading && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
-              <Loader2 className="h-6 w-6 animate-spin" data-testid="loader" />
-            </div>
+        <motion.div
+          className={cn(
+            "absolute -right-34 top-full mt-2 z-50 bg-background rounded-lg shadow-lg border p-4 min-w-[250px]",
+            className,
           )}
-
-          <div>
-            <h3 className="text-sm font-medium mb-2">Version Status</h3>
-            <Select
-              value={currentStatuses?.versionStatusId}
-              onValueChange={(value) => handleStatusChange(value, "version")}
-              onOpenChange={(open) => {
-                setIsVersionSelectOpen(open);
+          style={{ transform: "translateX(50%)" }}
+          initial={{ opacity: 0, scale: 0.95, y: 0 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 0 }}
+          transition={{ type: "spring", duration: 0.25 }}
+        >
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-semibold text-sm">Statuses</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (onClose) onClose();
               }}
+              className="h-6 w-6 p-0"
+              aria-label="Close"
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {versionStatuses.map((status) => (
-                  <SelectItem key={status.id} value={status.id}>
-                    <div className="flex items-center gap-2">
-                      {status.color && (
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: status.color }}
-                        />
-                      )}
-                      {status.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
+          <div className="space-y-4">
+            {isLoading && (
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
+                <Loader2
+                  className="h-6 w-6 animate-spin"
+                  data-testid="loader"
+                />
+              </div>
+            )}
 
-          {currentStatuses?.parentId && (
             <div>
-              <h3 className="text-sm font-medium mb-2">Shot Status</h3>
+              <h3 className="text-sm font-medium mb-2">Version Status</h3>
               <Select
-                value={currentStatuses?.parentStatusId}
-                onValueChange={(value) => handleStatusChange(value, "parent")}
+                value={currentStatuses?.versionStatusId || ""}
+                onValueChange={(value) => handleStatusChange(value, "version")}
                 onOpenChange={(open) => {
-                  setIsParentSelectOpen(open);
+                  setIsVersionSelectOpen(open);
                 }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {parentStatuses.map((status) => (
+                  {versionStatuses.map((status) => (
                     <SelectItem key={status.id} value={status.id}>
                       <div className="flex items-center gap-2">
                         {status.color && (
@@ -295,9 +266,41 @@ export function NoteStatusPanel({
                 </SelectContent>
               </Select>
             </div>
-          )}
-        </div>
-      </motion.div>
-    </DismissableLayer>
+
+            {currentStatuses?.parentId && (
+              <div>
+                <h3 className="text-sm font-medium mb-2">Shot Status</h3>
+                <Select
+                  value={currentStatuses?.parentStatusId || ""}
+                  onValueChange={(value) => handleStatusChange(value, "parent")}
+                  onOpenChange={(open) => {
+                    setIsParentSelectOpen(open);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parentStatuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        <div className="flex items-center gap-2">
+                          {status.color && (
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: status.color }}
+                            />
+                          )}
+                          {status.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </DismissableLayer>
+    </div>
   );
 }
