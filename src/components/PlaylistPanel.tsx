@@ -127,6 +127,8 @@ interface PlaylistPanelProps {
   onPlaylistSelect: (playlistId: string) => void;
   loading: boolean;
   error: string | null;
+  /** Optional refresh callback from parent to ensure proper state synchronization */
+  onRefresh?: () => Promise<void>;
 }
 
 export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
@@ -135,6 +137,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   onPlaylistSelect,
   loading: initialLoading,
   error: initialError,
+  onRefresh,
 }) => {
   const [playlists, setPlaylists] = useState<PlaylistWithStatus[]>([]);
   const [loading, setLoading] = useState(initialLoading);
@@ -286,18 +289,49 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     setShowRefreshConfirm(false);
     setIsRefreshing(true);
     try {
-      // CRITICAL FIX for Issue #4: Use the proper loadPlaylists method with deduplication
-      // instead of directly fetching from ftrack and bypassing the database
-      const refreshResult = await loadPlaylists();
+      // Use parent refresh function if available for proper state synchronization
+      let refreshResult;
+      if (onRefresh) {
+        console.debug(
+          "[PlaylistPanel] Using parent refresh function for proper state sync",
+        );
+        await onRefresh(); // This will update store and trigger App.tsx re-render
 
-      // CRITICAL FIX: Check if any playlists were deleted during refresh
+        // Check if active playlist was deleted and redirect to Quick Notes if needed
+        const { playlists: freshPlaylists } = usePlaylistsStore.getState();
+        const activePlaylistStillExists = freshPlaylists.some(
+          (p) => p.id === activePlaylist,
+        );
+
+        if (
+          activePlaylist &&
+          !activePlaylistStillExists &&
+          activePlaylist !== "quick-notes"
+        ) {
+          console.debug(
+            "[PlaylistPanel] Active playlist was deleted during refresh, redirecting to Quick Notes",
+          );
+          onPlaylistSelect("quick-notes");
+        }
+
+        // Note: Parent refresh updates the store, and new props will flow down via useEffect
+        return; // Exit early, let props update handle the rest
+      } else {
+        console.debug("[PlaylistPanel] Using fallback direct store refresh");
+        refreshResult = await loadPlaylists();
+      }
+
+      // Check if any playlists were deleted during refresh (fallback path only)
       if (
         refreshResult.deletedPlaylists &&
         refreshResult.deletedPlaylists.length > 0
       ) {
-        console.log(
-          "🚨 [CLEANUP] Playlists were deleted during refresh:",
-          refreshResult.deletedPlaylists,
+        console.debug(
+          "[PlaylistPanel] Playlists were deleted during refresh:",
+          {
+            count: refreshResult.deletedPlaylists.length,
+            names: refreshResult.deletedPlaylists.map((p) => p.name),
+          },
         );
 
         // Check if the active playlist was deleted and redirect if needed
@@ -322,7 +356,12 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       const { playlists: updatedStorePlaylists } = usePlaylistsStore.getState();
       const latestPlaylists = updatedStorePlaylists;
 
-      // CRITICAL FIX: If playlists were deleted, filter them out from local state too
+      console.debug("[PlaylistPanel] Store playlists after loadPlaylists:", {
+        storeCount: latestPlaylists.length,
+        localCount: playlists.length,
+      });
+
+      // Filter out deleted playlists from local state
       let filteredLatestPlaylists = latestPlaylists;
       if (
         refreshResult.deletedPlaylists &&
@@ -333,9 +372,6 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         );
         filteredLatestPlaylists = latestPlaylists.filter(
           (p) => !deletedIds.has(p.id),
-        );
-        console.log(
-          "🗑️ [UI UPDATE] Filtered out deleted playlists from UI state",
         );
       }
 
@@ -374,6 +410,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           }
           // If it's new, mark it as added
           if (!current) {
+            console.debug("[PlaylistPanel] Found new playlist:", latest.name);
             return {
               ...latest,
               status: "added" as const,
@@ -437,6 +474,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         return cleanPlaylist;
       });
 
+      // Update store to maintain consistency (fallback path only)
       setStorePlaylists(allPlaylistsForStore);
     } catch (error) {
       console.error("Failed to refresh playlists:", error);
