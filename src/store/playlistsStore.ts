@@ -49,6 +49,16 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   error: null,
 
   setPlaylists: (playlists) => {
+    // Safety check: ensure playlists is an array
+    if (!Array.isArray(playlists)) {
+      console.error(
+        "🔄 [PlaylistsStore] setPlaylists called with non-array:",
+        typeof playlists,
+        playlists,
+      );
+      return; // Don't update state with invalid data
+    }
+
     // Always ensure Quick Notes is in the list
     const hasQuickNotes = playlists.some((p) => p.id === "quick-notes");
     if (hasQuickNotes) {

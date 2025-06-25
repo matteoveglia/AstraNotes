@@ -69,10 +69,32 @@ export interface VersionEntity {
 
 // Event types for the event system
 export interface PlaylistEvent {
-  type: "sync-started" | "sync-completed" | "sync-failed" | "playlist-updated";
+  type:
+    | "sync-started"
+    | "sync-completed"
+    | "sync-failed"
+    | "playlist-updated"
+    | "sync-name-conflict-detected"
+    | "sync-conflict-resolved";
   playlistId: string;
   data?: any;
   error?: string;
+}
+
+// Sync conflict event data
+export interface SyncConflictEventData {
+  playlistId: string;
+  playlistName: string;
+  playlistType: "reviewsession" | "list";
+  projectId: string;
+  errorMessage: string;
+}
+
+// Sync conflict resolution event data
+export interface SyncConflictResolutionEventData {
+  playlistId: string;
+  action: "cancelled" | "renamed";
+  newName?: string;
 }
 
 // Cache configuration

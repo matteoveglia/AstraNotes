@@ -73,10 +73,10 @@ export function CreatePlaylistDialog({
     projectId,
     versions: preSelectedVersions.map((v) => ({ id: v.id, name: v.name })),
   });
-  
+
   const { selectedProjectId } = useProjectStore();
   const currentProjectId = projectId || selectedProjectId || "";
-  
+
   const {
     isCreating,
     createError,
@@ -126,18 +126,22 @@ export function CreatePlaylistDialog({
       // Clear validation when name is empty or dialog closed
       if (!debouncedName.trim() || !currentProjectId || !isOpen) {
         setValidation({ isValidating: false, nameError: null });
-        setErrors(prev => ({ ...prev, name: undefined }));
+        setErrors((prev) => ({ ...prev, name: undefined }));
         return;
       }
 
       setValidation({ isValidating: true, nameError: null });
-      
+
       try {
-        const nameError = await validatePlaylistName(debouncedName.trim(), currentProjectId, formData.type);
+        const nameError = await validatePlaylistName(
+          debouncedName.trim(),
+          currentProjectId,
+          formData.type,
+        );
         setValidation({ isValidating: false, nameError });
-        
+
         // Update form errors to integrate with existing validation
-        setErrors(prev => ({
+        setErrors((prev) => ({
           ...prev,
           name: nameError || undefined,
         }));
@@ -148,7 +152,13 @@ export function CreatePlaylistDialog({
     };
 
     validateName();
-  }, [debouncedName, currentProjectId, formData.type, isOpen, validatePlaylistName]);
+  }, [
+    debouncedName,
+    currentProjectId,
+    formData.type,
+    isOpen,
+    validatePlaylistName,
+  ]);
 
   // Update category selection when type changes
   useEffect(() => {
@@ -177,8 +187,21 @@ export function CreatePlaylistDialog({
 
   // Memoize button disabled state to prevent flashing
   const isSubmitDisabled = useMemo(() => {
-    return isCreating || validation.isValidating || !!validation.nameError || !formData.name.trim() || (formData.type === "list" && !formData.categoryId);
-  }, [isCreating, validation.isValidating, validation.nameError, formData.name, formData.type, formData.categoryId]);
+    return (
+      isCreating ||
+      validation.isValidating ||
+      !!validation.nameError ||
+      !formData.name.trim() ||
+      (formData.type === "list" && !formData.categoryId)
+    );
+  }, [
+    isCreating,
+    validation.isValidating,
+    validation.nameError,
+    formData.name,
+    formData.type,
+    formData.categoryId,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,7 +211,7 @@ export function CreatePlaylistDialog({
     }
 
     try {
-      const         request: CreatePlaylistRequest = {
+      const request: CreatePlaylistRequest = {
         name: formData.name.trim(),
         type: formData.type,
         projectId: currentProjectId,

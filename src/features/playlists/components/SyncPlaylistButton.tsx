@@ -106,6 +106,17 @@ export function SyncPlaylistButton({
       }, 1500);
     } catch (error) {
       console.error("Sync failed for playlist:", playlist.id, error);
+
+      // Check if this is a name conflict error (should be handled by SyncConflictManager)
+      if (error instanceof Error && (error as any).isNameConflict) {
+        console.debug(
+          "[SyncPlaylistButton] Name conflict detected - SyncConflictManager should handle this",
+        );
+        // Don't set error state - let the SyncConflictManager handle the conflict dialog
+        setShowConfirmDialog(false); // Close the sync dialog
+        return; // Exit without setting error
+      }
+
       const errorMessage =
         error instanceof Error ? error.message : "Failed to sync playlist";
       setSyncError(errorMessage);

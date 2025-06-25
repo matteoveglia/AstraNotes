@@ -105,19 +105,92 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
         data: { progress: { current: 1, total: 4, step: "Starting sync" } },
       } as PlaylistEvent);
 
-      // 4. Create in ftrack
-      const ftrackResponse = await this.createInFtrack(playlist);
+      // 4. Pre-sync name validation (check ftrack directly)
+      this.emit("sync-progress", {
+        type: "sync-started",
+        playlistId,
+        data: {
+          progress: {
+            current: 1.5,
+            total: 4,
+            step: "Checking for name conflicts",
+          },
+        },
+      } as PlaylistEvent);
+
+      const nameConflictCheck = await this.checkForFtrackNameConflict(playlist);
+      if (nameConflictCheck.hasConflict) {
+        console.debug(
+          `[PlaylistSync] Pre-sync check found name conflict for: ${playlist.name}`,
+        );
+
+        // Update sync status to indicate conflict
+        await this.repository.updatePlaylist(playlistId, {
+          ftrackSyncStatus: "failed",
+        });
+
+        // Emit conflict event with the conflict details
+        const conflictEventData = {
+          playlistId: playlist.id,
+          playlistName: playlist.name,
+          playlistType: playlist.type,
+          projectId: playlist.projectId,
+          errorMessage: `A playlist named "${playlist.name}" already exists in ftrack`,
+        };
+        console.debug(
+          "[PlaylistSync] About to emit sync-name-conflict-detected event:",
+          conflictEventData,
+        );
+        this.emit("sync-name-conflict-detected", conflictEventData);
+        console.debug("[PlaylistSync] Event emitted successfully");
+
+        // Throw a special error that UI can handle (but different from regular sync errors)
+        const conflictError = new Error(
+          `SYNC_CONFLICT: A playlist named "${playlist.name}" already exists in ftrack`,
+        );
+        (conflictError as any).isNameConflict = true;
+        throw conflictError;
+      }
+
+      // 5. Create in ftrack (name is now validated)
+      let ftrackResponse;
+      try {
+        ftrackResponse = await this.createInFtrack(playlist);
+      } catch (error) {
+        // Check if this is a name conflict
+        const parseResult = this.parseFtrackDuplicateError(error as Error);
+        if (parseResult.isDuplicate) {
+          // Handle name conflict - emit event and mark as waiting for resolution
+          console.debug(
+            `[PlaylistSync] Name conflict detected - putting sync on hold for user resolution`,
+          );
+
+          // Update sync status to indicate waiting for user resolution
+          await this.repository.updatePlaylist(playlistId, {
+            ftrackSyncStatus: "failed", // Mark as failed so UI shows proper state
+          });
+
+          // Emit conflict event for UI to handle
+          this.handleSyncConflict(playlist, error as Error);
+
+          // Note: Keep playlist in activeSyncs - it will be removed when user resolves or cancels
+          return; // Exit sync workflow, waiting for user decision
+        } else {
+          // Not a name conflict, re-throw to normal error handling
+          throw error;
+        }
+      }
 
       this.emit("sync-progress", {
         type: "sync-started",
         playlistId,
-        data: { progress: { current: 2, total: 4, step: "Created in ftrack" } },
+        data: { progress: { current: 2, total: 5, step: "Created in ftrack" } },
       } as PlaylistEvent);
 
-      // 5. Get versions to sync
+      // 6. Get versions to sync
       const versions = await this.repository.getPlaylistVersions(playlistId);
 
-      // 6. Sync versions to ftrack if any exist
+      // 7. Sync versions to ftrack if any exist
       if (versions.length > 0) {
         console.log(
           `[PlaylistSync] Syncing ${versions.length} versions to ftrack playlist: ${ftrackResponse.id}`,
@@ -144,10 +217,10 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
       this.emit("sync-progress", {
         type: "sync-started",
         playlistId,
-        data: { progress: { current: 3, total: 4, step: "Synced versions" } },
+        data: { progress: { current: 3, total: 5, step: "Synced versions" } },
       } as PlaylistEvent);
 
-      // 7. Update playlist with success - SAME ID, just add ftrack metadata
+      // 8. Update playlist with success - SAME ID, just add ftrack metadata
       console.log(
         `[PlaylistSync] About to update playlist ${playlistId} with ftrackId: ${ftrackResponse.id}`,
       );
@@ -180,8 +253,19 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
         `[PlaylistSync] Database update completed for playlist ${playlistId}`,
       );
 
-      // 8. Clear cache to force fresh load
+      // 9. Clear cache to force fresh load
       this.cache.invalidate(playlistId);
+
+      // Emit playlist update event to notify UI of sync status change
+      this.emit("playlist-updated", {
+        playlistId,
+        updates: {
+          ftrackId: ftrackResponse.id,
+          localStatus: "synced",
+          ftrackSyncStatus: "synced",
+          isLocalOnly: false,
+        },
+      });
 
       this.emit("sync-completed", {
         type: "sync-completed",
@@ -189,7 +273,7 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
         data: {
           ftrackId: ftrackResponse.id,
           versionsCount: versions.length,
-          progress: { current: 4, total: 4, step: "Completed" },
+          progress: { current: 5, total: 5, step: "Completed" },
         },
       } as PlaylistEvent);
 
@@ -250,6 +334,204 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
 
       console.log(`[PlaylistSync] Cancelled sync for playlist: ${playlistId}`);
     }
+  }
+
+  // =================== CONFLICT HANDLING ===================
+
+  /**
+   * Checks ftrack directly for playlist name conflicts before attempting sync
+   */
+  private async checkForFtrackNameConflict(
+    playlist: PlaylistEntity,
+  ): Promise<{ hasConflict: boolean; conflictingId?: string }> {
+    try {
+      console.debug(
+        `[PlaylistSync] Checking ftrack for existing playlist named: "${playlist.name}"`,
+      );
+
+      // Query ftrack directly for playlists with the same name and project
+      const existingPlaylists =
+        playlist.type === "reviewsession"
+          ? await this.ftrackService.getPlaylists(playlist.projectId)
+          : await this.ftrackService.getLists(playlist.projectId);
+
+      // Check if any existing playlist has the same name (with proper typing)
+      const conflictingPlaylist = existingPlaylists.find(
+        (p: { name: string; id: string }) => p.name === playlist.name,
+      );
+
+      if (conflictingPlaylist) {
+        console.debug(
+          `[PlaylistSync] Found conflicting playlist in ftrack: ${conflictingPlaylist.id} - "${conflictingPlaylist.name}"`,
+        );
+        return { hasConflict: true, conflictingId: conflictingPlaylist.id };
+      }
+
+      console.debug(
+        `[PlaylistSync] No name conflicts found in ftrack for: "${playlist.name}"`,
+      );
+      return { hasConflict: false };
+    } catch (error) {
+      console.error(
+        `[PlaylistSync] Failed to check for name conflicts in ftrack:`,
+        error,
+      );
+      // If we can't check, proceed with sync (fallback to original error handling)
+      return { hasConflict: false };
+    }
+  }
+
+  /**
+   * Parses ftrack error to detect duplicate name conflicts
+   */
+  private parseFtrackDuplicateError(error: Error): {
+    isDuplicate: boolean;
+    playlistName?: string;
+  } {
+    const errorMessage = error.message;
+
+    // Pattern to match: "Duplicate entry 46856606-e7a8-4e09-ac78-0aa0dbd18e80-ASE w/ GFX for AssetVersionList unique on project_id, name."
+    const duplicatePattern =
+      /Duplicate entry .+ for AssetVersionList unique on project_id, name/i;
+
+    if (duplicatePattern.test(errorMessage)) {
+      // Try to extract playlist name from the error message
+      // The pattern is usually: "Duplicate entry [UUID]-[PLAYLIST_NAME] for AssetVersionList..."
+      const nameMatch = errorMessage.match(
+        /Duplicate entry [^-]+-(.+?) for AssetVersionList/,
+      );
+      const playlistName = nameMatch ? nameMatch[1] : undefined;
+
+      return { isDuplicate: true, playlistName };
+    }
+
+    return { isDuplicate: false };
+  }
+
+  /**
+   * Handles sync conflict by emitting event for UI to show conflict dialog
+   */
+  private handleSyncConflict(playlist: PlaylistEntity, error: Error): void {
+    const parseResult = this.parseFtrackDuplicateError(error);
+
+    if (parseResult.isDuplicate) {
+      console.debug(
+        `[PlaylistSync] Name conflict detected for playlist: ${playlist.name}`,
+      );
+
+      this.emit("sync-name-conflict-detected", {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        playlistType: playlist.type,
+        projectId: playlist.projectId,
+        errorMessage: error.message,
+      });
+    } else {
+      // Not a name conflict, re-throw the original error
+      throw error;
+    }
+  }
+
+  /**
+   * Renames local playlist and retries sync
+   */
+  async resolveConflictAndRetry(
+    playlistId: string,
+    newName: string,
+  ): Promise<void> {
+    console.debug(
+      `[PlaylistSync] Resolving conflict for ${playlistId} with new name: "${newName}"`,
+    );
+
+    try {
+      // Update the playlist name locally
+      console.debug(
+        `[PlaylistSync] About to update playlist name in database: ${playlistId} -> "${newName}"`,
+      );
+      await this.repository.updatePlaylistName(playlistId, newName);
+      console.debug(
+        `[PlaylistSync] Successfully updated playlist name in database`,
+      );
+
+      // Clear cache to ensure fresh data
+      this.cache.invalidate(playlistId);
+      console.debug(
+        `[PlaylistSync] Cache invalidated for playlist: ${playlistId}`,
+      );
+
+      // Emit resolution event
+      console.debug(
+        `[PlaylistSync] About to emit sync-conflict-resolved event`,
+      );
+      this.emit("sync-conflict-resolved", {
+        playlistId,
+        action: "renamed",
+        newName,
+      });
+      console.debug(`[PlaylistSync] Emitted sync-conflict-resolved event`);
+
+      // Emit playlist update event to notify UI of name change
+      console.debug(`[PlaylistSync] About to emit playlist-updated event:`, {
+        playlistId,
+        updates: { name: newName },
+      });
+      this.emit("playlist-updated", {
+        playlistId,
+        updates: { name: newName },
+      });
+      console.debug(`[PlaylistSync] Emitted playlist-updated event`);
+
+      // Retry the sync with the new name
+      console.debug(
+        `[PlaylistSync] Starting retry sync with new name: "${newName}"`,
+      );
+      await this.syncPlaylist(playlistId);
+      console.debug(`[PlaylistSync] Retry sync completed successfully`);
+    } catch (error) {
+      console.error(
+        `[PlaylistSync] Failed to resolve conflict for ${playlistId}:`,
+        error,
+      );
+
+      // Mark sync as failed
+      await this.repository.updatePlaylist(playlistId, {
+        ftrackSyncStatus: "failed",
+      });
+
+      this.emit("sync-failed", {
+        type: "sync-failed",
+        playlistId,
+        error:
+          error instanceof Error ? error.message : "Failed to resolve conflict",
+      } as PlaylistEvent);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Cancels sync due to conflict (user chose to handle in ftrack)
+   */
+  async cancelSyncDueToConflict(playlistId: string): Promise<void> {
+    console.debug(
+      `[PlaylistSync] Cancelling sync for ${playlistId} due to user choice`,
+    );
+
+    // Remove from active syncs
+    this.activeSyncs.delete(playlistId);
+
+    // Reset sync status
+    await this.repository.updatePlaylist(playlistId, {
+      ftrackSyncStatus: "not_synced",
+    });
+
+    // Emit resolution event
+    this.emit("sync-conflict-resolved", {
+      playlistId,
+      action: "cancelled",
+    });
+
+    console.debug(`[PlaylistSync] Sync cancelled for playlist: ${playlistId}`);
   }
 
   // =================== PRIVATE METHODS ===================

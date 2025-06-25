@@ -95,26 +95,57 @@ export class PlaylistRepository implements PlaylistOperations {
     return records.map((record) => this.recordToEntity(record));
   }
 
-  async findByNameAndProject(name: string, projectId: string): Promise<PlaylistEntity | null> {
+  async findByNameAndProject(
+    name: string,
+    projectId: string,
+  ): Promise<PlaylistEntity | null> {
     const record = await db.playlists
       .where("projectId")
       .equals(projectId)
-      .and(playlist => playlist.name === name)
+      .and((playlist) => playlist.name === name)
       .first();
 
     if (!record) return null;
     return this.recordToEntity(record);
   }
 
-  async findByNameProjectAndType(name: string, projectId: string, type: "reviewsession" | "list"): Promise<PlaylistEntity | null> {
+  async findByNameProjectAndType(
+    name: string,
+    projectId: string,
+    type: "reviewsession" | "list",
+  ): Promise<PlaylistEntity | null> {
     const record = await db.playlists
       .where("projectId")
       .equals(projectId)
-      .and(playlist => playlist.name === name && playlist.type === type)
+      .and((playlist) => playlist.name === name && playlist.type === type)
       .first();
 
     if (!record) return null;
     return this.recordToEntity(record);
+  }
+
+  async updatePlaylistName(
+    id: string,
+    newName: string,
+  ): Promise<PlaylistEntity> {
+    const updated = await db.playlists.update(id, {
+      name: newName,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (updated === 0) {
+      throw new Error(`Playlist ${id} not found for name update`);
+    }
+
+    const playlist = await this.getPlaylist(id);
+    if (!playlist) {
+      throw new Error(`Playlist ${id} not found after name update`);
+    }
+
+    console.debug(
+      `[PlaylistRepository] Updated playlist name: ${id} -> "${newName}"`,
+    );
+    return playlist;
   }
 
   // =================== VERSION OPERATIONS ===================

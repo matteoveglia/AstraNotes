@@ -38,7 +38,11 @@ interface PlaylistCreationState {
   ) => Promise<Playlist>;
   syncPlaylist: (playlistId: string) => Promise<string>;
   fetchCategories: (projectId: string) => Promise<void>;
-  validatePlaylistName: (name: string, projectId: string, type: "reviewsession" | "list") => Promise<string | null>;
+  validatePlaylistName: (
+    name: string,
+    projectId: string,
+    type: "reviewsession" | "list",
+  ) => Promise<string | null>;
   clearErrors: () => void;
   resetSyncState: () => void;
   resetStore: () => void;
@@ -145,7 +149,11 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>(
       }
     },
 
-    validatePlaylistName: async (name: string, projectId: string, type: "reviewsession" | "list"): Promise<string | null> => {
+    validatePlaylistName: async (
+      name: string,
+      projectId: string,
+      type: "reviewsession" | "list",
+    ): Promise<string | null> => {
       try {
         return await playlistStore.validatePlaylistName(name, projectId, type);
       } catch (error) {

@@ -16,6 +16,7 @@ import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeStore } from "./store/themeStore";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
+import { SyncConflictManager } from "./features/playlists/components";
 
 const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
@@ -574,12 +575,128 @@ const App: React.FC = () => {
     };
   }, [loadPlaylistsWithLists]);
 
+  // Handle playlist updates (like name changes) from PlaylistStore
+  useEffect(() => {
+    const handlePlaylistUpdate = (data: any) => {
+      const { playlistId, updates } = data;
+      console.debug("🔄 [App] Received playlist-updated event:", {
+        playlistId,
+        updates,
+      });
+
+      // Get current playlists and update them
+      const currentPlaylists = playlists;
+
+      // Safety check: ensure currentPlaylists is an array
+      if (!Array.isArray(currentPlaylists)) {
+        console.warn(
+          "🔄 [App] currentPlaylists is not an array:",
+          typeof currentPlaylists,
+          currentPlaylists,
+        );
+        return; // Don't proceed if playlists is invalid
+      }
+
+      console.debug(
+        "🔄 [App] Current playlists before update:",
+        currentPlaylists.map((p) => ({ id: p.id, name: p.name })),
+      );
+
+      const playlistIndex = currentPlaylists.findIndex(
+        (p: Playlist) => p && p.id === playlistId,
+      );
+
+      if (playlistIndex >= 0) {
+        const updatedPlaylists = [...currentPlaylists];
+        const oldPlaylist = updatedPlaylists[playlistIndex];
+        updatedPlaylists[playlistIndex] = {
+          ...updatedPlaylists[playlistIndex],
+          ...updates,
+        };
+
+        console.debug(
+          `🔄 [App] Updated playlist "${playlistId}" in UI state:`,
+          {
+            before: { name: oldPlaylist.name },
+            after: { name: updatedPlaylists[playlistIndex].name },
+            updates,
+          },
+        );
+        console.debug(
+          "🔄 [App] All playlists after update:",
+          updatedPlaylists.map((p) => ({ id: p.id, name: p.name })),
+        );
+
+        // Update the store with the new array
+        setLocalPlaylists(updatedPlaylists);
+      } else {
+        console.warn(
+          `🔄 [App] Playlist "${playlistId}" not found in current state for update`,
+        );
+        console.debug(
+          "🔄 [App] Available playlist IDs:",
+          currentPlaylists.map((p) => p.id),
+        );
+
+        // If the playlist is not found, it might be a newly created playlist that hasn't been loaded into UI yet
+        // Reload playlists to pick up any new playlists
+        console.debug(
+          "🔄 [App] Reloading playlists to pick up missing playlist",
+        );
+        const currentProjectId = useProjectStore.getState().selectedProjectId;
+        loadPlaylistsWithLists(currentProjectId)
+          .then(() => {
+            console.debug(
+              "🔄 [App] Playlists reloaded after missing playlist update",
+            );
+
+            // Reset the loaded versions flag for this playlist to force version reload
+            // This ensures that when the playlist status changes (e.g., from local to synced),
+            // the versions are reloaded to reflect changes like manuallyAdded flags
+            console.debug(
+              "🔄 [App] Resetting loaded versions flag for playlist:",
+              playlistId,
+            );
+            delete loadedVersionsRef.current[playlistId];
+
+            // If this playlist is currently active, the useEffect will automatically reload versions
+            // because loadedVersionsRef.current[playlistId] is now undefined
+
+            // Force a small state update to ensure React re-renders with the fresh playlist data
+            setTimeout(() => {
+              console.debug(
+                "🔄 [App] Triggering state refresh to ensure UI updates",
+              );
+              // This will trigger a re-render and the version loading effect
+              setLoadingVersions(false);
+            }, 100);
+          })
+          .catch((error) => {
+            console.error(
+              "🔄 [App] Failed to reload playlists after missing playlist update:",
+              error,
+            );
+          });
+      }
+    };
+
+    console.debug("🔄 [App] Setting up playlist-updated event listener");
+    // Listen for playlist updates from the modular store
+    playlistStore.on("playlist-updated", handlePlaylistUpdate);
+
+    return () => {
+      console.debug("🔄 [App] Removing playlist-updated event listener");
+      playlistStore.off("playlist-updated", handlePlaylistUpdate);
+    };
+  }, [setLocalPlaylists, loadPlaylistsWithLists]);
+
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;
     setOpenPlaylists((prev) => prev.filter((id) => id !== playlistId));
     if (activePlaylistId === playlistId) {
       // Only switch to Quick Notes if it exists
-      const quickNotesExists = playlists.some((p) => p.isQuickNotes);
+      const quickNotesExists =
+        Array.isArray(playlists) && playlists.some((p) => p.isQuickNotes);
       if (quickNotesExists) {
         setActivePlaylist("quick-notes");
       } else {
@@ -590,7 +707,8 @@ const App: React.FC = () => {
 
   const handleCloseAll = () => {
     // Only keep Quick Notes if it exists (i.e., a project is selected)
-    const quickNotesExists = playlists.some((p) => p.isQuickNotes);
+    const quickNotesExists =
+      Array.isArray(playlists) && playlists.some((p) => p.isQuickNotes);
     if (quickNotesExists) {
       setOpenPlaylists(["quick-notes"]);
       setActivePlaylist("quick-notes");
@@ -600,13 +718,23 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePlaylistUpdate = (updatedPlaylist: Playlist) => {
-    console.log("handlePlaylistUpdate called:", {
+  const handleMainContentPlaylistUpdate = (updatedPlaylist: Playlist) => {
+    console.log("handleMainContentPlaylistUpdate called:", {
       playlistId: updatedPlaylist.id,
       playlistName: updatedPlaylist.name,
       versionsCount: updatedPlaylist.versions?.length || 0,
       isQuickNotes: updatedPlaylist.isQuickNotes,
     });
+
+    // Safety check: ensure playlists is an array
+    if (!Array.isArray(playlists)) {
+      console.warn(
+        "handleMainContentPlaylistUpdate: playlists is not an array:",
+        typeof playlists,
+        playlists,
+      );
+      return;
+    }
 
     const existingIndex = playlists.findIndex(
       (p: Playlist) => p.id === updatedPlaylist.id,
@@ -625,7 +753,9 @@ const App: React.FC = () => {
   };
 
   // Get the active playlist data
-  const activePlaylistData = playlists.find((p) => p.id === activePlaylistId);
+  const activePlaylistData = Array.isArray(playlists)
+    ? playlists.find((p) => p.id === activePlaylistId)
+    : undefined;
 
   // Determine if we're ready to render the MainContent
   const isPlaylistReady =
@@ -655,6 +785,7 @@ const App: React.FC = () => {
 
   return (
     <ToastProvider>
+      <SyncConflictManager />
       <ErrorBoundary>
         <div className="h-screen flex flex-col">
           <TopBar
@@ -707,7 +838,7 @@ const App: React.FC = () => {
                     >
                       <MainContent
                         playlist={activePlaylistData}
-                        onPlaylistUpdate={handlePlaylistUpdate}
+                        onPlaylistUpdate={handleMainContentPlaylistUpdate}
                       />
                     </ErrorBoundary>
                   ) : (
@@ -751,7 +882,11 @@ const App: React.FC = () => {
               </div>
               <OpenPlaylistsBar
                 playlists={openPlaylists
-                  .map((id) => playlists.find((p) => p.id === id))
+                  .map((id) =>
+                    Array.isArray(playlists)
+                      ? playlists.find((p) => p.id === id)
+                      : undefined,
+                  )
                   .filter((p): p is Playlist => p !== undefined)}
                 activePlaylist={activePlaylistId}
                 onPlaylistSelect={handlePlaylistSelect}

@@ -71,6 +71,26 @@ export class PlaylistStore extends SimpleEventEmitter {
     );
     this.sync.on("sync-failed", (data: any) => this.emit("sync-failed", data));
 
+    // Forward conflict resolution events
+    this.sync.on("sync-name-conflict-detected", (data: any) =>
+      this.emit("sync-name-conflict-detected", data),
+    );
+    this.sync.on("sync-conflict-resolved", (data: any) =>
+      this.emit("sync-conflict-resolved", data),
+    );
+
+    // Forward playlist update events for UI synchronization
+    this.sync.on("playlist-updated", (data: any) => {
+      console.debug(
+        "🔄 [PlaylistStore] Forwarding playlist-updated event:",
+        data,
+      );
+      this.emit("playlist-updated", data);
+      console.debug(
+        "🔄 [PlaylistStore] playlist-updated event forwarded successfully",
+      );
+    });
+
     console.log(
       "[PlaylistStore] Initialized with modular architecture and stable UUIDs",
     );
@@ -553,6 +573,23 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
 
   /**
+   * Resolves a sync conflict by renaming the local playlist and retrying sync
+   */
+  async resolveConflictAndRetry(
+    playlistId: string,
+    newName: string,
+  ): Promise<void> {
+    await this.sync.resolveConflictAndRetry(playlistId, newName);
+  }
+
+  /**
+   * Cancels sync due to name conflict (user chose to handle in ftrack)
+   */
+  async cancelSyncDueToConflict(playlistId: string): Promise<void> {
+    await this.sync.cancelSyncDueToConflict(playlistId);
+  }
+
+  /**
    * Gets the ftrack ID for a synced playlist
    */
   async getFtrackId(playlistId: string): Promise<string | null> {
@@ -586,6 +623,55 @@ export class PlaylistStore extends SimpleEventEmitter {
           success: false,
           error: "Local-only playlist cannot be refreshed",
         };
+      }
+
+      // Check for name changes by fetching playlist details from ftrack
+      let nameUpdated = false;
+      try {
+        // Get playlist details from ftrack to check name
+        let ftrackPlaylist: any = null;
+        if (entity.type === "reviewsession") {
+          const reviewSessions = await this.ftrackService.getPlaylists(
+            entity.projectId,
+          );
+          ftrackPlaylist = reviewSessions.find((p) => p.id === entity.ftrackId);
+        } else {
+          const lists = await this.ftrackService.getLists(entity.projectId);
+          ftrackPlaylist = lists.find((p) => p.id === entity.ftrackId);
+        }
+
+        // Check if name differs and update if necessary
+        if (ftrackPlaylist && ftrackPlaylist.name !== entity.name) {
+          console.log(
+            `[PlaylistStore] Playlist name changed in ftrack: "${entity.name}" -> "${ftrackPlaylist.name}"`,
+          );
+
+          // Update local name to match ftrack
+          await this.repository.updatePlaylistName(
+            playlistId,
+            ftrackPlaylist.name,
+          );
+
+          // Clear cache to force reload with new name
+          this.cache.invalidate(playlistId);
+
+          // Emit playlist update event to notify UI
+          this.emit("playlist-updated", {
+            playlistId,
+            updates: { name: ftrackPlaylist.name },
+          });
+
+          nameUpdated = true;
+          console.log(
+            `[PlaylistStore] Local playlist name updated to match ftrack: "${ftrackPlaylist.name}"`,
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `[PlaylistStore] Failed to check playlist name in ftrack:`,
+          error,
+        );
+        // Continue with version refresh even if name check fails
       }
 
       // Fetch fresh versions from ftrack
@@ -679,13 +765,14 @@ export class PlaylistStore extends SimpleEventEmitter {
       this.cache.invalidate(playlistId);
 
       console.log(
-        `[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersionIds.length}`,
+        `[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersionIds.length}${nameUpdated ? " (name updated)" : ""}`,
       );
 
       this.emit("playlist-refreshed", {
         playlistId,
         addedCount: addedVersions.length,
         removedCount: removedVersionIds.length,
+        nameUpdated,
       });
 
       return {
@@ -801,20 +888,28 @@ export class PlaylistStore extends SimpleEventEmitter {
    * @param type The playlist type to check within
    * @returns Error message if name exists, null if available
    */
-  async validatePlaylistName(name: string, projectId: string, type: "reviewsession" | "list"): Promise<string | null> {
+  async validatePlaylistName(
+    name: string,
+    projectId: string,
+    type: "reviewsession" | "list",
+  ): Promise<string | null> {
     if (!name.trim() || !projectId) {
       return null;
     }
 
     try {
-      const existingPlaylist = await this.repository.findByNameProjectAndType(name.trim(), projectId, type);
+      const existingPlaylist = await this.repository.findByNameProjectAndType(
+        name.trim(),
+        projectId,
+        type,
+      );
       if (existingPlaylist) {
-        return "A playlist with this name already exists";
+        return `A ${type} named "${name}" already exists.`;
       }
-      return null;
+      return null; // No conflict
     } catch (error) {
       console.error("[PlaylistStore] Failed to validate playlist name:", error);
-      throw error;
+      return "Failed to validate playlist name";
     }
   }
 
@@ -1221,6 +1316,41 @@ export class PlaylistStore extends SimpleEventEmitter {
 
     console.log("[PlaylistStore] Destroyed");
   }
+
+  // =================== DEBUG UTILITIES ===================
+
+  /**
+   * Debug method to check current database state for a playlist
+   */
+  async debugPlaylistState(playlistId: string): Promise<any> {
+    console.debug(`🔍 [Debug] Checking state for playlist: ${playlistId}`);
+
+    try {
+      // Check database
+      const dbEntity = await this.repository.getPlaylist(playlistId);
+      console.debug(`🔍 [Debug] Database entity:`, dbEntity);
+
+      // Check cache
+      const cachedPlaylist = this.cache.getPlaylist(playlistId);
+      console.debug(`🔍 [Debug] Cached playlist:`, cachedPlaylist);
+
+      // Check UI store
+      const { playlists } = (
+        await import("../playlistsStore")
+      ).usePlaylistsStore.getState();
+      const uiPlaylist = playlists.find((p) => p.id === playlistId);
+      console.debug(`🔍 [Debug] UI store playlist:`, uiPlaylist);
+
+      return {
+        database: dbEntity,
+        cache: cachedPlaylist,
+        uiStore: uiPlaylist,
+      };
+    } catch (error) {
+      console.error(`🔍 [Debug] Failed to check playlist state:`, error);
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  }
 }
 
 // Export singleton instance for backward compatibility
@@ -1231,3 +1361,9 @@ export { PlaylistRepository, PlaylistCache, PlaylistSync, DraftManager };
 
 // Export types
 export * from "./types";
+
+// Expose debug utilities globally in development
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  (window as any).debugPlaylistState =
+    playlistStore.debugPlaylistState.bind(playlistStore);
+}
