@@ -1134,10 +1134,11 @@ export class FtrackService {
         version,
         asset.name,
         asset.parent.project_id,
-        thumbnail.id,
-        thumbnail.name,
-        thumbnail.component_locations,
-        date
+        date,
+        user.id,
+        user.username,
+        user.first_name,
+        user.last_name
       from AssetVersion 
       where ${whereClause}
       order by date desc
@@ -1163,16 +1164,22 @@ export class FtrackService {
 
       const versions =
         limitedData?.map((version) => {
-          let thumbnailId = null;
-          if (version.thumbnail && version.thumbnail.id) {
-            thumbnailId = version.thumbnail.id;
+          // Build user object if user data exists
+          let user = undefined;
+          if (version.user && version.user.id) {
+            user = {
+              id: version.user.id,
+              username: version.user.username,
+              firstName: version.user.first_name,
+              lastName: version.user.last_name,
+            };
           }
 
           return {
             id: version.id,
             name: version.asset.name,
             version: version.version,
-            thumbnailId,
+            user,
             createdAt: version.date || new Date().toISOString(),
             updatedAt: version.date || new Date().toISOString(),
             // CRITICAL FIX: Search results should NOT be marked as manually added by default

@@ -107,22 +107,26 @@ export interface FtrackSettings {
  * @property id Unique identifier of the asset version.
  * @property name Descriptive name of the asset version.
  * @property version Numeric bump for version sequence.
- * @property thumbnailUrl Optional URL to a preview thumbnail image.
  * @property reviewSessionObjectId Optional ID linking to a review session.
  * @property createdAt ISO timestamp creation date.
  * @property updatedAt ISO timestamp last modification date.
  * @property manuallyAdded Flag indicating if version was added manually.
+ * @property user Optional user information for who created this version.
  */
 export interface AssetVersion {
   id: string;
   name: string;
   version: number;
-  thumbnailUrl?: string;
-  thumbnailId?: string;
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
   manuallyAdded?: boolean;
+  user?: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 /**

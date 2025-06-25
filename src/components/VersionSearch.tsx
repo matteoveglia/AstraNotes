@@ -432,17 +432,13 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                     }
                     className="w-full h-full"
                   >
-                    {version.thumbnailUrl && (
-                      <img
-                        src={version.thumbnailUrl}
-                        alt={version.name}
-                        className="w-full h-16 object-cover mb-1"
-                      />
-                    )}
                     <div className="font-medium truncate max-w-[90%]">
                       {version.name}
                     </div>
-                    <div className="text-zinc-500">v{version.version}</div>
+                    <div className="text-zinc-500">
+                      v{version.version}
+                      {version.user ? ` - ${version.user.firstName}` : ""}
+                    </div>
                   </div>
                 </motion.div>
               );
