@@ -794,6 +794,30 @@ export class PlaylistStore extends SimpleEventEmitter {
     );
   }
 
+  /**
+   * Validates if a playlist name is available within a project and type
+   * @param name The playlist name to validate
+   * @param projectId The project ID to check within
+   * @param type The playlist type to check within
+   * @returns Error message if name exists, null if available
+   */
+  async validatePlaylistName(name: string, projectId: string, type: "reviewsession" | "list"): Promise<string | null> {
+    if (!name.trim() || !projectId) {
+      return null;
+    }
+
+    try {
+      const existingPlaylist = await this.repository.findByNameProjectAndType(name.trim(), projectId, type);
+      if (existingPlaylist) {
+        return "A playlist with this name already exists";
+      }
+      return null;
+    } catch (error) {
+      console.error("[PlaylistStore] Failed to validate playlist name:", error);
+      throw error;
+    }
+  }
+
   // =================== CONVERSION METHODS ===================
 
   private entityToPlaylist(

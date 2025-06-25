@@ -38,6 +38,7 @@ interface PlaylistCreationState {
   ) => Promise<Playlist>;
   syncPlaylist: (playlistId: string) => Promise<string>;
   fetchCategories: (projectId: string) => Promise<void>;
+  validatePlaylistName: (name: string, projectId: string, type: "reviewsession" | "list") => Promise<string | null>;
   clearErrors: () => void;
   resetSyncState: () => void;
   resetStore: () => void;
@@ -141,6 +142,15 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>(
       } catch (error) {
         console.error("Failed to fetch categories:", error);
         set({ categoriesLoading: false });
+      }
+    },
+
+    validatePlaylistName: async (name: string, projectId: string, type: "reviewsession" | "list"): Promise<string | null> => {
+      try {
+        return await playlistStore.validatePlaylistName(name, projectId, type);
+      } catch (error) {
+        console.error("Failed to validate playlist name:", error);
+        return "Failed to validate playlist name";
       }
     },
 

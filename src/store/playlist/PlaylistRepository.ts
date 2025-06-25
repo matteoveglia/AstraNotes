@@ -95,6 +95,28 @@ export class PlaylistRepository implements PlaylistOperations {
     return records.map((record) => this.recordToEntity(record));
   }
 
+  async findByNameAndProject(name: string, projectId: string): Promise<PlaylistEntity | null> {
+    const record = await db.playlists
+      .where("projectId")
+      .equals(projectId)
+      .and(playlist => playlist.name === name)
+      .first();
+
+    if (!record) return null;
+    return this.recordToEntity(record);
+  }
+
+  async findByNameProjectAndType(name: string, projectId: string, type: "reviewsession" | "list"): Promise<PlaylistEntity | null> {
+    const record = await db.playlists
+      .where("projectId")
+      .equals(projectId)
+      .and(playlist => playlist.name === name && playlist.type === type)
+      .first();
+
+    if (!record) return null;
+    return this.recordToEntity(record);
+  }
+
   // =================== VERSION OPERATIONS ===================
 
   async getPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {

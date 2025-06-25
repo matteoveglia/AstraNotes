@@ -9,7 +9,7 @@
  * - Loading states and error handling
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePlaylistCreationStore } from "@/store/playlistCreationStore";
+import { useProjectStore } from "@/store/projectStore";
+import { useDebounce } from "@/hooks/useDebounce";
 import { CreatePlaylistRequest, Playlist, AssetVersion } from "@/types";
 import { Loader2, AlertCircle } from "lucide-react";
 
@@ -53,12 +55,17 @@ interface FormErrors {
   categoryId?: string;
 }
 
+interface ValidationState {
+  isValidating: boolean;
+  nameError: string | null;
+}
+
 export function CreatePlaylistDialog({
   isOpen,
   onClose,
   onSuccess,
   preSelectedVersions = [],
-  projectId = "", // TODO: Get from app context
+  projectId,
 }: CreatePlaylistDialogProps) {
   console.log("CreatePlaylistDialog render:", {
     isOpen,
@@ -66,6 +73,10 @@ export function CreatePlaylistDialog({
     projectId,
     versions: preSelectedVersions.map((v) => ({ id: v.id, name: v.name })),
   });
+  
+  const { selectedProjectId } = useProjectStore();
+  const currentProjectId = projectId || selectedProjectId || "";
+  
   const {
     isCreating,
     createError,
@@ -73,6 +84,7 @@ export function CreatePlaylistDialog({
     categoriesLoading,
     createPlaylist,
     fetchCategories,
+    validatePlaylistName,
     clearErrors,
   } = usePlaylistCreationStore();
 
@@ -84,21 +96,59 @@ export function CreatePlaylistDialog({
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [validation, setValidation] = useState<ValidationState>({
+    isValidating: false,
+    nameError: null,
+  });
+
+  // Debounce the name for validation
+  const debouncedName = useDebounce(formData.name, 300);
 
   // Fetch categories when dialog opens and type is list
   useEffect(() => {
-    if (isOpen && formData.type === "list" && projectId) {
-      fetchCategories(projectId);
+    if (isOpen && formData.type === "list" && currentProjectId) {
+      fetchCategories(currentProjectId);
     }
-  }, [isOpen, formData.type, projectId, fetchCategories]);
+  }, [isOpen, formData.type, currentProjectId, fetchCategories]);
 
   // Clear errors when dialog opens
   useEffect(() => {
     if (isOpen) {
       clearErrors();
       setErrors({});
+      setValidation({ isValidating: false, nameError: null });
     }
   }, [isOpen, clearErrors]);
+
+  // Validate playlist name when debounced name or type changes
+  useEffect(() => {
+    const validateName = async () => {
+      // Clear validation when name is empty or dialog closed
+      if (!debouncedName.trim() || !currentProjectId || !isOpen) {
+        setValidation({ isValidating: false, nameError: null });
+        setErrors(prev => ({ ...prev, name: undefined }));
+        return;
+      }
+
+      setValidation({ isValidating: true, nameError: null });
+      
+      try {
+        const nameError = await validatePlaylistName(debouncedName.trim(), currentProjectId, formData.type);
+        setValidation({ isValidating: false, nameError });
+        
+        // Update form errors to integrate with existing validation
+        setErrors(prev => ({
+          ...prev,
+          name: nameError || undefined,
+        }));
+      } catch (error) {
+        console.debug("Name validation failed:", error);
+        setValidation({ isValidating: false, nameError: "Validation failed" });
+      }
+    };
+
+    validateName();
+  }, [debouncedName, currentProjectId, formData.type, isOpen, validatePlaylistName]);
 
   // Update category selection when type changes
   useEffect(() => {
@@ -113,6 +163,8 @@ export function CreatePlaylistDialog({
 
     if (!formData.name.trim()) {
       newErrors.name = "Playlist name is required";
+    } else if (validation.nameError) {
+      newErrors.name = validation.nameError;
     }
 
     if (formData.type === "list" && !formData.categoryId) {
@@ -120,8 +172,13 @@ export function CreatePlaylistDialog({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 && !validation.isValidating;
   };
+
+  // Memoize button disabled state to prevent flashing
+  const isSubmitDisabled = useMemo(() => {
+    return isCreating || validation.isValidating || !!validation.nameError || !formData.name.trim() || (formData.type === "list" && !formData.categoryId);
+  }, [isCreating, validation.isValidating, validation.nameError, formData.name, formData.type, formData.categoryId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,10 +188,10 @@ export function CreatePlaylistDialog({
     }
 
     try {
-      const request: CreatePlaylistRequest = {
+      const         request: CreatePlaylistRequest = {
         name: formData.name.trim(),
         type: formData.type,
-        projectId,
+        projectId: currentProjectId,
         description: formData.description.trim() || undefined,
         categoryId: formData.type === "list" ? formData.categoryId : undefined,
         categoryName:
@@ -179,6 +236,7 @@ export function CreatePlaylistDialog({
       description: "",
     });
     setErrors({});
+    setValidation({ isValidating: false, nameError: null });
     clearErrors();
     onClose();
   };
@@ -198,15 +256,22 @@ export function CreatePlaylistDialog({
             <Label htmlFor="name" className="text-sm font-medium">
               Name *
             </Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              placeholder="Enter playlist name"
-              className={errors.name ? "border-red-500" : ""}
-            />
+            <div className="relative">
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Enter playlist name"
+                className={errors.name ? "border-red-500" : ""}
+              />
+              {validation.isValidating && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
             {errors.name && (
               <p className="text-sm text-red-500 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
@@ -354,7 +419,7 @@ export function CreatePlaylistDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating}>
+            <Button type="submit" disabled={isSubmitDisabled}>
               {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Playlist
             </Button>
