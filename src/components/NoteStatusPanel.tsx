@@ -203,7 +203,7 @@ export function NoteStatusPanel({
       >
         <motion.div
           className={cn(
-            "absolute -right-34 top-full mt-2 z-50 bg-background rounded-lg shadow-lg border p-4 min-w-[250px]",
+            "absolute -right-34 top-full mt-2 z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-600 p-4 min-w-[250px]",
             className,
           )}
           style={{ transform: "translateX(50%)" }}
@@ -229,7 +229,7 @@ export function NoteStatusPanel({
           </div>
           <div className="space-y-4">
             {isLoading && (
-              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-50">
+              <div className="absolute inset-0 bg-white/80 dark:bg-zinc-800/80 flex items-center justify-center z-50 rounded-lg">
                 <Loader2
                   className="h-6 w-6 animate-spin"
                   data-testid="loader"

@@ -26,6 +26,7 @@ interface VersionGridProps {
   ) => void;
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
+  onRemoveVersion?: (versionId: string) => void;
 }
 
 const gridVariants = {
@@ -71,6 +72,7 @@ interface VersionGridItemProps {
   ) => void;
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
+  onRemoveVersion?: (versionId: string) => void;
 }
 const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
   ({
@@ -85,6 +87,7 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
     onSaveNote,
     onClearNote,
     onToggleSelection,
+    onRemoveVersion,
   }) => {
     const handleSave = useCallback(
       (content: string, labelId: string, attachmentsArg?: Attachment[]) =>
@@ -98,6 +101,10 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
     const handleToggle = useCallback(
       () => onToggleSelection(version.id),
       [onToggleSelection],
+    );
+    const handleRemove = useCallback(
+      () => onRemoveVersion?.(version.id),
+      [onRemoveVersion, version.id],
     );
 
     return (
@@ -122,6 +129,7 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
           onSave={handleSave}
           onClear={handleClear}
           onSelectToggle={handleToggle}
+          onRemove={handleRemove}
           manuallyAdded={version.manuallyAdded}
           assetVersionId={version.id}
           position={position}
@@ -142,6 +150,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
   onSaveNote,
   onClearNote,
   onToggleSelection,
+  onRemoveVersion,
 }) => {
   // Memoize handlers to keep stable references for VersionGridItem
   const memoizedOnSaveNote = useCallback(
@@ -160,6 +169,10 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
   const memoizedOnToggleSelection = useCallback(
     (versionId: string) => onToggleSelection(versionId),
     [onToggleSelection],
+  );
+  const memoizedOnRemoveVersion = useCallback(
+    (versionId: string) => onRemoveVersion?.(versionId),
+    [onRemoveVersion],
   );
 
   if (!versions.length) {
@@ -192,6 +205,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
           onSaveNote={memoizedOnSaveNote}
           onClearNote={memoizedOnClearNote}
           onToggleSelection={memoizedOnToggleSelection}
+          onRemoveVersion={memoizedOnRemoveVersion}
         />
       ))}
     </motion.div>

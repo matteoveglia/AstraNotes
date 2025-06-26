@@ -405,7 +405,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       {showAttachments && (
         <motion.div
           ref={dropdownRef}
-          className="absolute z-50 bg-background border border-border rounded-md shadow-lg p-3 mt-2 w-72"
+          className="absolute z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-xl p-3 mt-2 w-72"
           initial={{ opacity: 0, scale: 0.95, y: 0 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 0 }}
@@ -435,7 +435,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
                 attachments.map((attachment) => (
                   <div
                     key={attachment.id}
-                    className="flex items-center justify-between border border-border rounded- p-2"
+                    className="flex items-center justify-between border border-zinc-200 dark:border-zinc-600 rounded-md p-2 bg-zinc-50 dark:bg-zinc-700"
                   >
                     <div className="flex items-center space-x-2">
                       <img

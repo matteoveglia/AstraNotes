@@ -1138,7 +1138,8 @@ export class FtrackService {
         user.id,
         user.username,
         user.first_name,
-        user.last_name
+        user.last_name,
+        thumbnail.id
       from AssetVersion 
       where ${whereClause}
       order by date desc
@@ -1182,6 +1183,7 @@ export class FtrackService {
             user,
             createdAt: version.date || new Date().toISOString(),
             updatedAt: version.date || new Date().toISOString(),
+            thumbnailId: version.thumbnail?.id,
             // CRITICAL FIX: Search results should NOT be marked as manually added by default
             // They only become manuallyAdded when user explicitly adds them to a playlist
             manuallyAdded: false,

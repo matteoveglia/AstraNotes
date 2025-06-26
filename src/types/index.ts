@@ -110,6 +110,7 @@ export interface FtrackSettings {
  * @property reviewSessionObjectId Optional ID linking to a review session.
  * @property createdAt ISO timestamp creation date.
  * @property updatedAt ISO timestamp last modification date.
+ * @property thumbnailId Optional thumbnail component ID for loading images.
  * @property manuallyAdded Flag indicating if version was added manually.
  * @property user Optional user information for who created this version.
  */
@@ -120,6 +121,7 @@ export interface AssetVersion {
   reviewSessionObjectId?: string;
   createdAt: string;
   updatedAt: string;
+  thumbnailId?: string;
   manuallyAdded?: boolean;
   user?: {
     id: string;

@@ -29,7 +29,7 @@ export const SearchPanel: React.FC<SearchPanelProps> = ({
   onPlaylistCreated,
 }) => {
   return (
-    <div className="p-4 border-t bg-background shadow-md">
+    <div className="p-3 border-t bg-background shadow-md">
       <div className="space-y-4">
         <VersionSearch
           onVersionSelect={onVersionSelect}

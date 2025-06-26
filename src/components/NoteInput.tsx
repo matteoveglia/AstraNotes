@@ -13,7 +13,7 @@ import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink } from "lucide-react";
+import { Loader2, Workflow, ExternalLink, X } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackService } from "@/services/ftrack";
@@ -41,6 +41,7 @@ export interface NoteInputProps {
   ) => void;
   onClear: () => void;
   onSelectToggle: () => void;
+  onRemove?: () => void;
   assetVersionId: string;
 }
 
@@ -58,6 +59,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   onSave,
   onClear,
   onSelectToggle,
+  onRemove,
   assetVersionId,
 }) => {
   const [content, setContent] = useState(initialContent);
@@ -513,7 +515,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
         ref={componentRef}
         className={cn(
           "flex gap-4 p-4 bg-background rounded-lg border dark:border-zinc-700 relative",
-          manuallyAdded && "border-purple-500 border-2",
+          manuallyAdded && "border-purple-500 dark:border-purple-600 border-2",
           isDraggingOver &&
             status !== "published" &&
             "bg-blue-100 border-2 border-dashed border-blue-300",
@@ -574,16 +576,29 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 </span>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center space-x-1 hover:bg-purple-100"
-              onClick={handleOpenInFtrack}
-              title="Open in ftrack"
-            >
-              <ExternalLink className="h-4 w-4" />
-              <span>Open in ftrack</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center space-x-1 hover:bg-purple-100 dark:hover:bg-purple-900"
+                onClick={handleOpenInFtrack}
+                title="ftrack"
+              >
+                <ExternalLink className="h-4 w-4" />
+                <span>ftrack</span>
+              </Button>
+              {manuallyAdded && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center hover:bg-red-100 text-red-600 hover:text-red-700"
+                  onClick={onRemove}
+                  title="Remove this version"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3">

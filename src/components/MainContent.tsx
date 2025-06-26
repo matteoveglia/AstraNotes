@@ -329,21 +329,41 @@ export const MainContent: React.FC<MainContentProps> = ({
     isInitializing,
   ]);
 
-  const handleClearAdded = async () => {
+  // Unified function to handle removing versions from playlist
+  const handleRemoveVersions = async (
+    versionIds: string[] | 'all-manually-added'
+  ) => {
     if (!activePlaylist.id) return;
 
     try {
-      // Clear manually added versions from the database
-      await playlistStore.clearAddedVersions(activePlaylist.id);
+      let versionsToRemove: string[];
+      
+      if (versionIds === 'all-manually-added') {
+        // Get all manually added version IDs
+        versionsToRemove = activePlaylist.versions
+          ?.filter((v) => v.manuallyAdded)
+          .map((v) => v.id) || [];
+      } else {
+        versionsToRemove = versionIds;
+      }
 
-      // Keep only non-manually added versions in the UI
-      const updatedVersions =
-        activePlaylist.versions?.filter((v) => !v.manuallyAdded) || [];
+      if (versionsToRemove.length === 0) return;
+
+      // Remove versions from the database
+      for (const versionId of versionsToRemove) {
+        await playlistStore.removeVersionFromPlaylist(activePlaylist.id, versionId);
+      }
+
+      // Update the UI by filtering out removed versions
+      const updatedVersions = activePlaylist.versions?.filter(
+        (v) => !versionsToRemove.includes(v.id)
+      ) || [];
+      
       const updatedPlaylist = {
         ...activePlaylist,
         versions: updatedVersions,
-        // Also clear the addedVersions array in the local state
-        addedVersions: [],
+        // Clear addedVersions array if we removed all manually added
+        ...(versionIds === 'all-manually-added' && { addedVersions: [] }),
       };
 
       // Update the playlist in the store
@@ -354,23 +374,20 @@ export const MainContent: React.FC<MainContentProps> = ({
       // Update the local state as well to ensure immediate UI update
       setActivePlaylist(updatedPlaylist);
 
-      // Clear any note drafts for the removed versions
-      const removedVersionIds =
-        activePlaylist.versions
-          ?.filter((v) => v.manuallyAdded)
-          .map((v) => v.id) || [];
-
-      if (removedVersionIds.length > 0) {
-        // The note management is now handled by the useNoteManagement hook
-        // We need to clear the notes for each removed version
-        for (const versionId of removedVersionIds) {
-          await clearNoteDraft(versionId);
-        }
+      // Clear note drafts for all removed versions
+      for (const versionId of versionsToRemove) {
+        await clearNoteDraft(versionId);
       }
+      
+      console.log(`Successfully removed ${versionsToRemove.length} version(s) from playlist`);
     } catch (error) {
-      console.error("Failed to clear added versions:", error);
+      console.error("Failed to remove versions:", error);
     }
   };
+
+  // Wrapper functions for backwards compatibility and clarity
+  const handleClearAdded = () => handleRemoveVersions('all-manually-added');
+  const handleRemoveVersion = (versionId: string) => handleRemoveVersions([versionId]);
 
   const handleClearAll = () => {
     console.log("handleClearAll called:", {
@@ -1045,6 +1062,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             onSaveNote={saveNoteDraft}
             onClearNote={clearNoteDraft}
             onToggleSelection={toggleVersionSelection}
+            onRemoveVersion={handleRemoveVersion}
           />
         )}
       </CardContent>

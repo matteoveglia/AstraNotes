@@ -253,7 +253,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", duration: 1 }}
     >
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div className="flex gap-2">
           <Input
             placeholder={
@@ -381,7 +381,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         )}
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-zinc-500">
+          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-zinc-500 dark:text-zinc-400">
             Loading...
           </div>
         ) : results.length > 0 ? (
@@ -401,11 +401,11 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
               return (
                 <motion.div
                   key={version.id}
-                  className={`border rounded p-1.5 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 text-xs relative group ${
+                  className={`border border-zinc-200 dark:border-zinc-700 rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors ${
                     isInPlaylist
-                      ? "opacity-50 bg-zinc-100 cursor-not-allowed"
+                      ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
                       : ""
-                  } ${isSelected ? "border-blue-500 bg-blue-50 dark:bg-blue-950" : ""}`}
+                  } ${isSelected ? "border-purple-600 dark:border-purple-400" : ""}`}
                   variants={itemVariants}
                 >
                   {/* Checkbox for multi-select, visible on hover or when selected */}
@@ -432,10 +432,10 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                     }
                     className="w-full h-full"
                   >
-                    <div className="font-medium truncate max-w-[90%]">
+                    <div className="font-medium truncate max-w-[90%] text-zinc-900 dark:text-zinc-200">
                       {version.name}
                     </div>
-                    <div className="text-zinc-500">
+                    <div className="text-zinc-500 dark:text-zinc-400">
                       v{version.version}
                       {version.user ? ` - ${version.user.firstName}` : ""}
                     </div>
@@ -445,7 +445,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
             })}
           </motion.div>
         ) : debouncedSearchTerm ? (
-          <div className="text-center py-2 text-sm text-zinc-500">
+          <div className="text-center py-2 text-sm text-zinc-500 dark:text-zinc-400">
             {isMultiVersionSearch
               ? `No results found for ${debouncedSearchTerm.split(",").length} searched version(s)`
               : "No results found"}
