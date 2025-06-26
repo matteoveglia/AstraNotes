@@ -37,6 +37,7 @@ import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { VersionFilter } from "@/features/versions/components/VersionFilter";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
+import { PublishProgressModal } from "./PublishProgressModal";
 import {
   Tooltip,
   TooltipContent,
@@ -248,6 +249,11 @@ export const MainContent: React.FC<MainContentProps> = ({
     setAllLabels,
     getDraftCount,
     clearAllSelections,
+    // Progress modal related
+    showPublishModal,
+    versionsToPublish,
+    publishNotesSequentially,
+    closePublishModal,
   } = useNoteManagement(activePlaylist);
 
   const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
@@ -331,18 +337,19 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Unified function to handle removing versions from playlist
   const handleRemoveVersions = async (
-    versionIds: string[] | 'all-manually-added'
+    versionIds: string[] | "all-manually-added",
   ) => {
     if (!activePlaylist.id) return;
 
     try {
       let versionsToRemove: string[];
-      
-      if (versionIds === 'all-manually-added') {
+
+      if (versionIds === "all-manually-added") {
         // Get all manually added version IDs
-        versionsToRemove = activePlaylist.versions
-          ?.filter((v) => v.manuallyAdded)
-          .map((v) => v.id) || [];
+        versionsToRemove =
+          activePlaylist.versions
+            ?.filter((v) => v.manuallyAdded)
+            .map((v) => v.id) || [];
       } else {
         versionsToRemove = versionIds;
       }
@@ -351,19 +358,23 @@ export const MainContent: React.FC<MainContentProps> = ({
 
       // Remove versions from the database
       for (const versionId of versionsToRemove) {
-        await playlistStore.removeVersionFromPlaylist(activePlaylist.id, versionId);
+        await playlistStore.removeVersionFromPlaylist(
+          activePlaylist.id,
+          versionId,
+        );
       }
 
       // Update the UI by filtering out removed versions
-      const updatedVersions = activePlaylist.versions?.filter(
-        (v) => !versionsToRemove.includes(v.id)
-      ) || [];
-      
+      const updatedVersions =
+        activePlaylist.versions?.filter(
+          (v) => !versionsToRemove.includes(v.id),
+        ) || [];
+
       const updatedPlaylist = {
         ...activePlaylist,
         versions: updatedVersions,
         // Clear addedVersions array if we removed all manually added
-        ...(versionIds === 'all-manually-added' && { addedVersions: [] }),
+        ...(versionIds === "all-manually-added" && { addedVersions: [] }),
       };
 
       // Update the playlist in the store
@@ -378,16 +389,19 @@ export const MainContent: React.FC<MainContentProps> = ({
       for (const versionId of versionsToRemove) {
         await clearNoteDraft(versionId);
       }
-      
-      console.log(`Successfully removed ${versionsToRemove.length} version(s) from playlist`);
+
+      console.log(
+        `Successfully removed ${versionsToRemove.length} version(s) from playlist`,
+      );
     } catch (error) {
       console.error("Failed to remove versions:", error);
     }
   };
 
   // Wrapper functions for backwards compatibility and clarity
-  const handleClearAdded = () => handleRemoveVersions('all-manually-added');
-  const handleRemoveVersion = (versionId: string) => handleRemoveVersions([versionId]);
+  const handleClearAdded = () => handleRemoveVersions("all-manually-added");
+  const handleRemoveVersion = (versionId: string) =>
+    handleRemoveVersions([versionId]);
 
   const handleClearAll = () => {
     console.log("handleClearAll called:", {
@@ -1080,6 +1094,14 @@ export const MainContent: React.FC<MainContentProps> = ({
           onPlaylistCreated={handlePlaylistCreated}
         />
       )}
+
+      {/* Progress Modal */}
+      <PublishProgressModal
+        isOpen={showPublishModal}
+        onClose={closePublishModal}
+        versionsToPublish={versionsToPublish}
+        onPublish={publishNotesSequentially}
+      />
     </Card>
   );
 };

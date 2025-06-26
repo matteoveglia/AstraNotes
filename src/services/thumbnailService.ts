@@ -12,7 +12,9 @@ import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
 const thumbnailCache = new Map<string, string>();
 
 // External update callback for integrating with global cache
-let globalCacheUpdateCallback: ((versionId: string, url: string) => void) | null = null;
+let globalCacheUpdateCallback:
+  | ((versionId: string, url: string) => void)
+  | null = null;
 
 interface ThumbnailOptions {
   size?: number;
@@ -22,7 +24,9 @@ interface ThumbnailOptions {
  * Sets a callback to update external global caches when thumbnails are loaded
  * This allows integration with the useThumbnailLoading global cache
  */
-export function setGlobalCacheUpdateCallback(callback: ((versionId: string, url: string) => void) | null): void {
+export function setGlobalCacheUpdateCallback(
+  callback: ((versionId: string, url: string) => void) | null,
+): void {
   globalCacheUpdateCallback = callback;
 }
 
@@ -31,13 +35,18 @@ export function setGlobalCacheUpdateCallback(callback: ((versionId: string, url:
  */
 export function createCacheIntegration() {
   // Import and setup the callback to update the global cache
-  import("@/features/versions/hooks/useThumbnailLoading").then(module => {
-    setGlobalCacheUpdateCallback((versionId: string, url: string) => {
-      module.updateGlobalThumbnailCache({ [versionId]: url });
+  import("@/features/versions/hooks/useThumbnailLoading")
+    .then((module) => {
+      setGlobalCacheUpdateCallback((versionId: string, url: string) => {
+        module.updateGlobalThumbnailCache({ [versionId]: url });
+      });
+    })
+    .catch((error) => {
+      console.debug(
+        "[ThumbnailService] Could not setup cache integration:",
+        error,
+      );
     });
-  }).catch(error => {
-    console.debug("[ThumbnailService] Could not setup cache integration:", error);
-  });
 }
 
 /**
@@ -68,12 +77,12 @@ export async function fetchThumbnail(
   if (thumbnailCache.has(cacheKey)) {
     //console.debug('[ThumbnailService] Using cached thumbnail for', componentId);
     const cachedUrl = thumbnailCache.get(cacheKey) || null;
-    
+
     // Update global cache if we have the versionId
     if (cachedUrl && versionId && globalCacheUpdateCallback) {
       globalCacheUpdateCallback(versionId, cachedUrl);
     }
-    
+
     return cachedUrl;
   }
 
@@ -134,13 +143,15 @@ export async function forceRefreshThumbnail(
   versionId?: string,
 ): Promise<string | null> {
   if (!componentId) {
-    console.debug("[ThumbnailService] No component ID provided for force refresh");
+    console.debug(
+      "[ThumbnailService] No component ID provided for force refresh",
+    );
     return null;
   }
 
   const { size } = useThumbnailSettingsStore.getState();
   const cacheKey = `${componentId}-${size || "default"}`;
-  
+
   // Remove from cache first to force refresh
   if (thumbnailCache.has(cacheKey)) {
     const oldUrl = thumbnailCache.get(cacheKey);

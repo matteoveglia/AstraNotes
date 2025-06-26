@@ -71,14 +71,14 @@ export function NoteStatusPanel({
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom;
         const panelHeight = 200; // Approximate panel height
-        
+
         setShouldOpenUpward(spaceBelow < panelHeight && rect.top > panelHeight);
       }
     };
 
     checkPosition();
-    window.addEventListener('resize', checkPosition);
-    return () => window.removeEventListener('resize', checkPosition);
+    window.addEventListener("resize", checkPosition);
+    return () => window.removeEventListener("resize", checkPosition);
   }, []);
 
   // Helper to get cache key

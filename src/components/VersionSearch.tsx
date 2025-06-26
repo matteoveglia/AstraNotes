@@ -405,7 +405,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                     isInPlaylist
                       ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
                       : ""
-                  } ${isSelected ? "border-purple-600 dark:border-purple-400" : ""}`}
+                  } ${isSelected ? "border-purple-700 dark:border-purple-500" : ""}`}
                   variants={itemVariants}
                 >
                   {/* Checkbox for multi-select, visible on hover or when selected */}

@@ -42,8 +42,6 @@ interface PlaylistMenuProps {
   onClearAllSelections: () => void;
 }
 
-
-
 export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   onClearAllNotes,
   onSetAllLabels,
@@ -173,7 +171,9 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
       <ThumbnailReloadModal
         isOpen={thumbnailModalOpen}
         onClose={() => setThumbnailModalOpen(false)}
-        playlist={playlists.find((p) => p.id === activePlaylistId) as any || null}
+        playlist={
+          (playlists.find((p) => p.id === activePlaylistId) as any) || null
+        }
       />
 
       <AlertDialog open={clearAlertOpen} onOpenChange={setClearAlertOpen}>

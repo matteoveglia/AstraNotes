@@ -111,6 +111,7 @@ export interface FtrackSettings {
  * @property createdAt ISO timestamp creation date.
  * @property updatedAt ISO timestamp last modification date.
  * @property thumbnailId Optional thumbnail component ID for loading images.
+ * @property thumbnailUrl Optional runtime blob URL for the thumbnail image.
  * @property manuallyAdded Flag indicating if version was added manually.
  * @property user Optional user information for who created this version.
  */
@@ -122,6 +123,7 @@ export interface AssetVersion {
   createdAt: string;
   updatedAt: string;
   thumbnailId?: string;
+  thumbnailUrl?: string;
   manuallyAdded?: boolean;
   user?: {
     id: string;

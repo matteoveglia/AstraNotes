@@ -44,7 +44,9 @@ export function VersionDetailsPanel({
   onClose,
   className,
 }: VersionDetailsPanelProps) {
-  const [versionDetails, setVersionDetails] = useState<VersionDetails | null>(null);
+  const [versionDetails, setVersionDetails] = useState<VersionDetails | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [shouldOpenUpward, setShouldOpenUpward] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -58,14 +60,14 @@ export function VersionDetailsPanel({
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom;
         const panelHeight = 320; // Approximate panel height
-        
+
         setShouldOpenUpward(spaceBelow < panelHeight && rect.top > panelHeight);
       }
     };
 
     checkPosition();
-    window.addEventListener('resize', checkPosition);
-    return () => window.removeEventListener('resize', checkPosition);
+    window.addEventListener("resize", checkPosition);
+    return () => window.removeEventListener("resize", checkPosition);
   }, []);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export function VersionDetailsPanel({
 
     const fetchVersionDetails = async () => {
       if (!assetVersionId) return;
-      
+
       setIsLoading(true);
       try {
         // Check cache first
@@ -87,7 +89,7 @@ export function VersionDetailsPanel({
 
         // Fetch from ftrack
         const details = await ftrackService.fetchVersionDetails(assetVersionId);
-        
+
         if (!cancelled) {
           setVersionDetails(details);
           // Cache the result
@@ -138,7 +140,7 @@ export function VersionDetailsPanel({
           className={cn(
             "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
             shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
-            className
+            className,
           )}
         >
           <div className="flex items-center justify-between mb-2">
@@ -190,8 +192,6 @@ export function VersionDetailsPanel({
                 </div>
               )}
 
-
-
               {versionDetails.publishedBy && (
                 <div>
                   <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -238,4 +238,4 @@ export function VersionDetailsPanel({
       </DismissableLayer>
     </div>
   );
-} 
+}

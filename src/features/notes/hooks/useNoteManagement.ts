@@ -32,6 +32,10 @@ export function useNoteManagement(playlist: Playlist) {
     useState<number>(0);
   const [publishingErrors, setPublishingErrors] = useState<string[]>([]);
 
+  // Progress modal state
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [versionsToPublish, setVersionsToPublish] = useState<string[]>([]);
+
   // Setup hooks
   const toast = useToast();
   const { publishWithNotifications } = useApiWithNotifications();
@@ -839,6 +843,182 @@ export function useNoteManagement(playlist: Playlist) {
     }
   };
 
+  // Sequential publishing function for progress modal
+  const publishNotesSequentially = async (
+    versionIds: string[],
+    onProgress: (
+      current: number,
+      total: number,
+      versionId: string,
+      step: string,
+    ) => void,
+  ): Promise<{ success: string[]; failed: string[] }> => {
+    const success: string[] = [];
+    const failed: string[] = [];
+    const total = versionIds.length;
+
+    // Sort version IDs based on their order in the playlist
+    const orderedVersionIds = versionIds.sort((a, b) => {
+      const indexA = playlist.versions?.findIndex((v) => v.id === a) ?? -1;
+      const indexB = playlist.versions?.findIndex((v) => v.id === b) ?? -1;
+      return indexA - indexB;
+    });
+
+    for (let i = 0; i < orderedVersionIds.length; i++) {
+      const versionId = orderedVersionIds[i];
+      const version = playlist.versions?.find((v) => v.id === versionId);
+      const versionDisplay = version
+        ? `${version.name} v${version.version}`
+        : versionId;
+
+      try {
+        // Skip if already published
+        if (noteStatuses[versionId] === "published") {
+          console.debug(
+            `[useNoteManagement] Skipping already published note ${versionId}`,
+          );
+          success.push(versionId);
+          onProgress(i + 1, total, versionDisplay, "Already published");
+          continue;
+        }
+
+        if (!version) {
+          console.error(`[useNoteManagement] Version ${versionId} not found`);
+          failed.push(versionId);
+          onProgress(i + 1, total, versionDisplay, "Version not found");
+          continue;
+        }
+
+        const content = noteDrafts[versionId] || "";
+        const attachments = noteAttachments[versionId] || [];
+
+        // Skip if content is empty and no attachments
+        if (!content.trim() && attachments.length === 0) {
+          console.debug(
+            `[useNoteManagement] Skipping empty note for version ${versionId}`,
+          );
+          success.push(versionId);
+          onProgress(i + 1, total, versionDisplay, "Skipped (empty)");
+          continue;
+        }
+
+        const labelId = noteLabelIds[versionId] || "";
+
+        // Update progress to show we're publishing this note
+        onProgress(i, total, versionDisplay, "Publishing note...");
+
+        console.debug(
+          `[useNoteManagement] Publishing note for ${versionId} (${versionDisplay}) with ${attachments.length} attachments`,
+        );
+
+        const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
+          versionId,
+          content,
+          labelId,
+          attachments,
+        );
+
+        if (noteId) {
+          console.debug(
+            `[useNoteManagement] Published note ${versionId} with id ${noteId}`,
+          );
+
+          // Update the status in the database
+          await playlistStore.saveNoteStatus(
+            versionId,
+            playlist.id,
+            "published",
+            content,
+            labelId,
+          );
+
+          // Update in memory
+          setNoteStatuses((prev) => ({
+            ...prev,
+            [versionId]: "published",
+          }));
+
+          success.push(versionId);
+          onProgress(i + 1, total, versionDisplay, "Published successfully");
+        } else {
+          console.error(
+            `[useNoteManagement] Failed to publish note ${versionId}`,
+          );
+          failed.push(versionId);
+          onProgress(i + 1, total, versionDisplay, "Failed to publish");
+        }
+      } catch (error) {
+        console.error(
+          `[useNoteManagement] Error publishing note ${versionId}:`,
+          error,
+        );
+        failed.push(versionId);
+        onProgress(i + 1, total, versionDisplay, "Error occurred");
+      }
+    }
+
+    return { success, failed };
+  };
+
+  // Updated publish selected notes to use modal
+  const publishSelectedNotesWithModal = async () => {
+    if (selectedVersions.length === 0) {
+      toast.showError("Select at least one draft note to publish");
+      return;
+    }
+
+    // Filter out already published and empty notes
+    const filteredVersions = selectedVersions.filter((versionId) => {
+      const status = noteStatuses[versionId];
+      const content = noteDrafts[versionId] || "";
+      const attachments = noteAttachments[versionId] || [];
+
+      return (
+        status !== "published" &&
+        (content.trim() !== "" || attachments.length > 0)
+      );
+    });
+
+    if (filteredVersions.length === 0) {
+      toast.showError("No publishable notes selected");
+      return;
+    }
+
+    setVersionsToPublish(filteredVersions);
+    setShowPublishModal(true);
+  };
+
+  // Updated publish all notes to use modal
+  const publishAllNotesWithModal = async () => {
+    // Filter notes that have content or attachments and are not already published
+    const versionsToPublish = Object.entries(noteDrafts)
+      .filter(([versionId, content]) => {
+        const attachments = noteAttachments[versionId] || [];
+        return (
+          ((content && content.trim() !== "") || attachments.length > 0) &&
+          noteStatuses[versionId] !== "published"
+        );
+      })
+      .map(([versionId]) => versionId);
+
+    if (versionsToPublish.length === 0) {
+      toast.showError("No draft notes to publish");
+      return;
+    }
+
+    setVersionsToPublish(versionsToPublish);
+    setShowPublishModal(true);
+  };
+
+  // Close modal and cleanup
+  const closePublishModal = () => {
+    setShowPublishModal(false);
+    setVersionsToPublish([]);
+
+    // Clear selection after successful publish (if there were no failures)
+    setSelectedVersions([]);
+  };
+
   // Clear all notes
   const clearAllNotes = async () => {
     try {
@@ -1093,12 +1273,17 @@ export function useNoteManagement(playlist: Playlist) {
     saveNoteDraft: stableSaveNoteDraft,
     clearNoteDraft: stableClearNoteDraft,
     toggleVersionSelection: stableToggleVersionSelection,
-    publishSelectedNotes,
-    publishAllNotes,
+    publishSelectedNotes: publishSelectedNotesWithModal,
+    publishAllNotes: publishAllNotesWithModal,
     clearAllNotes,
     setAllLabels,
     isUserInteracting,
     getDraftCount,
     clearAllSelections,
+    // Progress modal related
+    showPublishModal,
+    versionsToPublish,
+    publishNotesSequentially,
+    closePublishModal,
   };
 }

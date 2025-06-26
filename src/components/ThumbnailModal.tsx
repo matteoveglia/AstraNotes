@@ -47,7 +47,9 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
   );
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const [currentThumbnailUrl, setCurrentThumbnailUrl] = useState<string | null>(initialThumbnailUrl);
+  const [currentThumbnailUrl, setCurrentThumbnailUrl] = useState<string | null>(
+    initialThumbnailUrl,
+  );
   const [isRefreshingThumbnail, setIsRefreshingThumbnail] = useState(false);
 
   // Update thumbnail URL when prop changes
@@ -85,13 +87,25 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
 
   const refreshThumbnailIfNeeded = async () => {
     // If we have a thumbnailId but the current URL seems to be a broken blob URL, refresh it
-    if (thumbnailId && currentThumbnailUrl && currentThumbnailUrl.startsWith('blob:')) {
+    if (
+      thumbnailId &&
+      currentThumbnailUrl &&
+      currentThumbnailUrl.startsWith("blob:")
+    ) {
       setIsRefreshingThumbnail(true);
       try {
         const session = await ftrackService.getSession();
-        const freshUrl = await fetchThumbnail(thumbnailId, session, { size: 512 }, versionId);
+        const freshUrl = await fetchThumbnail(
+          thumbnailId,
+          session,
+          { size: 512 },
+          versionId,
+        );
         if (freshUrl && freshUrl !== currentThumbnailUrl) {
-          console.debug("[ThumbnailModal] Refreshed thumbnail URL for version", versionId);
+          console.debug(
+            "[ThumbnailModal] Refreshed thumbnail URL for version",
+            versionId,
+          );
           setCurrentThumbnailUrl(freshUrl);
         }
       } catch (error) {

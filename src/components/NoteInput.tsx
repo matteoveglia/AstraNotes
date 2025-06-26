@@ -76,7 +76,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
-  const [isVersionDetailsPanelOpen, setIsVersionDetailsPanelOpen] = useState(false);
+  const [isVersionDetailsPanelOpen, setIsVersionDetailsPanelOpen] =
+    useState(false);
   const { settings } = useSettings();
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 

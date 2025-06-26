@@ -55,7 +55,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom;
         const panelHeight = 300; // Approximate panel height with padding
-        
+
         // Only open upward if there's insufficient space below AND sufficient space above
         const shouldOpen = spaceBelow < panelHeight && rect.top > panelHeight;
         setShouldOpenUpward(shouldOpen);
@@ -422,83 +422,83 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 
         {/* Attachment Dropdown Content */}
         {showAttachments && (
-        <motion.div
-          ref={dropdownRef}
-          className={cn(
-            "absolute left-0 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-xl p-3 w-72",
-            shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2"
-          )}
-          initial={{ opacity: 0, scale: 0.95, y: 0 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 0 }}
-          transition={{ type: "spring", duration: 0.25 }}
-        >
-          <div className="flex flex-col space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold">Attachments</h3>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAttachments(false)}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+          <motion.div
+            ref={dropdownRef}
+            className={cn(
+              "absolute left-0 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-xl p-3 w-72",
+              shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
+            )}
+            initial={{ opacity: 0, scale: 0.95, y: 0 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 0 }}
+            transition={{ type: "spring", duration: 0.25 }}
+          >
+            <div className="flex flex-col space-y-2">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-semibold">Attachments</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAttachments(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
 
-            {/* Attachment List */}
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {attachments.length === 0 ? (
-                <div className="text-xs text-muted-foreground py-2">
-                  Drop images or click to add
-                </div>
-              ) : (
-                attachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="flex items-center justify-between border border-zinc-200 dark:border-zinc-600 rounded-md p-2 bg-zinc-50 dark:bg-zinc-700"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <img
-                        src={attachment.previewUrl}
-                        alt={attachment.name}
-                        className="h-8 w-8 object-cover rounded-sm"
-                      />
-                      <span className="text-xs truncate max-w-[150px]">
-                        {attachment.name}
-                      </span>
-                    </div>
-                    {!disabled && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRemoveAttachment(attachment.id)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
+              {/* Attachment List */}
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {attachments.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2">
+                    Drop images or click to add
                   </div>
-                ))
+                ) : (
+                  attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between border border-zinc-200 dark:border-zinc-600 rounded-md p-2 bg-zinc-50 dark:bg-zinc-700"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <img
+                          src={attachment.previewUrl}
+                          alt={attachment.name}
+                          className="h-8 w-8 object-cover rounded-sm"
+                        />
+                        <span className="text-xs truncate max-w-[150px]">
+                          {attachment.name}
+                        </span>
+                      </div>
+                      {!disabled && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onRemoveAttachment(attachment.id)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add Attachment Button */}
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAttachmentClick}
+                  className="w-full"
+                >
+                  Add Attachment
+                </Button>
               )}
             </div>
-
-            {/* Add Attachment Button */}
-            {!disabled && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAttachmentClick}
-                className="w-full"
-              >
-                Add Attachment
-              </Button>
-            )}
-          </div>
-        </motion.div>
+          </motion.div>
         )}
       </div>
     </div>

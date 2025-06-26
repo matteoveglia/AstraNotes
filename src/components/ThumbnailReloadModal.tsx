@@ -6,11 +6,20 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { ftrackService } from "../services/ftrack";
-import { forceRefreshThumbnail, createCacheIntegration } from "../services/thumbnailService";
+import {
+  forceRefreshThumbnail,
+  createCacheIntegration,
+} from "../services/thumbnailService";
 import { clearThumbnailsFromGlobalCache } from "../features/versions/hooks/useThumbnailLoading";
 import { useToast } from "./ui/toast";
 import type { Playlist } from "../types";
@@ -21,12 +30,7 @@ interface ThumbnailReloadModalProps {
   playlist: Playlist | null;
 }
 
-type ReloadStep = 
-  | "setup"
-  | "clearing"
-  | "connecting"
-  | "loading"
-  | "complete";
+type ReloadStep = "setup" | "clearing" | "connecting" | "loading" | "complete";
 
 type ReloadState = "loading" | "success" | "error";
 
@@ -35,7 +39,7 @@ const STEP_DESCRIPTIONS = {
   clearing: "Clearing cached thumbnails...",
   connecting: "Connecting to ftrack...",
   loading: "Loading fresh thumbnails...",
-  complete: "Thumbnails reloaded successfully!"
+  complete: "Thumbnails reloaded successfully!",
 } as const;
 
 export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
@@ -56,7 +60,7 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
       setCurrentStep("setup");
       setState("loading");
       setError(null);
-      
+
       if (playlist) {
         startReload();
       }
@@ -74,54 +78,65 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
     try {
       // Step 1: Setup cache integration (0-20%)
       updateProgress("setup", 20);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       createCacheIntegration();
 
       // Step 2: Clear cached thumbnails (20-40%)
       updateProgress("clearing", 40);
-      const versionsWithThumbnails = playlist.versions?.filter((v: any) => v.thumbnailId) || [];
+      const versionsWithThumbnails =
+        playlist.versions?.filter((v: any) => v.thumbnailId) || [];
       const versionIds = versionsWithThumbnails.map((v: any) => v.id);
       clearThumbnailsFromGlobalCache(versionIds);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 3: Connect to ftrack (40-60%)
       updateProgress("connecting", 60);
       const session = await ftrackService.getSession();
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 4: Load fresh thumbnails (60-90%)
       updateProgress("loading", 60);
       const totalThumbnails = versionsWithThumbnails.length;
-      
+
       for (let i = 0; i < versionsWithThumbnails.length; i++) {
         const version = versionsWithThumbnails[i];
         if ((version as any).thumbnailId) {
           try {
-            await forceRefreshThumbnail((version as any).thumbnailId, session, { size: 512 }, (version as any).id);
-            const stepProgress = 60 + Math.round((i + 1) / totalThumbnails * 30);
+            await forceRefreshThumbnail(
+              (version as any).thumbnailId,
+              session,
+              { size: 512 },
+              (version as any).id,
+            );
+            const stepProgress =
+              60 + Math.round(((i + 1) / totalThumbnails) * 30);
             setProgress(stepProgress);
           } catch (error) {
-            console.debug(`[ThumbnailReload] Failed to reload thumbnail for ${(version as any).id}:`, error);
+            console.debug(
+              `[ThumbnailReload] Failed to reload thumbnail for ${(version as any).id}:`,
+              error,
+            );
           }
         }
       }
 
       // Step 5: Complete (90-100%)
       updateProgress("complete", 100);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       setState("success");
       toast.showToast("Thumbnails reloaded successfully", "success");
-      
+
       // Auto-close after 2 seconds
       setTimeout(() => {
         onClose();
       }, 2000);
-
     } catch (error) {
       console.error("[ThumbnailReload] Failed to reload thumbnails:", error);
       setState("error");
-      setError(error instanceof Error ? error.message : "Failed to reload thumbnails");
+      setError(
+        error instanceof Error ? error.message : "Failed to reload thumbnails",
+      );
       toast.showToast("Failed to reload thumbnails", "error");
     }
   };
@@ -176,8 +191,8 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
   const canClose = state !== "loading";
 
   return (
-    <Dialog 
-      open={isOpen} 
+    <Dialog
+      open={isOpen}
       onOpenChange={(open) => {
         // Only allow closing if not loading
         if (!open && canClose) {
@@ -185,7 +200,7 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
         }
       }}
     >
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-md"
         // Disable close button when loading
         onPointerDownOutside={(e) => {
@@ -213,12 +228,10 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
             Reload Thumbnails
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="flex items-start">
-            <div className="flex items-center h-6">
-              {getStatusIcon()}
-            </div>
+            <div className="flex items-center h-6">{getStatusIcon()}</div>
             <div className="flex-1">
               <div className={`font-medium ${getStatusColor()}`}>
                 {getStatusText()}
@@ -240,7 +253,7 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
               <span className="text-muted-foreground">{progress}%</span>
             </div>
             <div className="w-full bg-secondary rounded-full h-2">
-              <div 
+              <div
                 className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
@@ -260,14 +273,10 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button onClick={handleRetry}>
-                Retry
-              </Button>
+              <Button onClick={handleRetry}>Retry</Button>
             </div>
           ) : state === "success" ? (
-            <Button onClick={onClose}>
-              Close
-            </Button>
+            <Button onClick={onClose}>Close</Button>
           ) : (
             <Button variant="outline" onClick={onClose} disabled={!canClose}>
               Cancel
@@ -277,4 +286,4 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

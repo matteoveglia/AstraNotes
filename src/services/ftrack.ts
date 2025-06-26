@@ -2231,14 +2231,14 @@ export class FtrackService {
       log(`Version details fetched:`, versionData);
 
       // Format published by name
-      const publishedBy = versionData.user 
-        ? `${versionData.user.first_name || ''} ${versionData.user.last_name || ''}`.trim() 
-          || versionData.user.username
+      const publishedBy = versionData.user
+        ? `${versionData.user.first_name || ""} ${versionData.user.last_name || ""}`.trim() ||
+          versionData.user.username
         : undefined;
 
       return {
         id: versionData.id,
-        assetName: versionData.asset?.name || 'Unknown Asset',
+        assetName: versionData.asset?.name || "Unknown Asset",
         versionNumber: versionData.version || 1,
         description: versionData.comment || undefined,
         assetType: versionData.asset?.type?.name || undefined,

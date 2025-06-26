@@ -20,9 +20,12 @@ type LoadingStatus = "idle" | "loading" | "loaded" | "error";
  * @param versionIds Array of version IDs to clear from cache
  */
 export function clearThumbnailsFromGlobalCache(versionIds: string[]): void {
-  console.debug("[useThumbnailLoading] Clearing thumbnails from global cache:", versionIds);
-  
-  versionIds.forEach(versionId => {
+  console.debug(
+    "[useThumbnailLoading] Clearing thumbnails from global cache:",
+    versionIds,
+  );
+
+  versionIds.forEach((versionId) => {
     const existingUrl = globalThumbnailCache[versionId];
     if (existingUrl) {
       // Revoke the old blob URL to prevent memory leaks
@@ -40,8 +43,14 @@ export function clearThumbnailsFromGlobalCache(versionIds: string[]): void {
  * Updates the global cache with new thumbnail URLs
  * @param thumbnailMap Map of version ID to thumbnail URL
  */
-export function updateGlobalThumbnailCache(thumbnailMap: Record<string, string>): void {
-  console.debug("[useThumbnailLoading] Updating global cache with", Object.keys(thumbnailMap).length, "thumbnails");
+export function updateGlobalThumbnailCache(
+  thumbnailMap: Record<string, string>,
+): void {
+  console.debug(
+    "[useThumbnailLoading] Updating global cache with",
+    Object.keys(thumbnailMap).length,
+    "thumbnails",
+  );
   Object.assign(globalThumbnailCache, thumbnailMap);
 }
 
