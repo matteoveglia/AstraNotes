@@ -2,6 +2,7 @@
  * @fileoverview thumbnailService.ts
  * Service for fetching and caching thumbnails from ftrack.
  * Handles CORS issues by using Tauri's HTTP plugin.
+ * Includes Suspense-compatible promise-based fetching.
  */
 
 import { fetch } from "@tauri-apps/plugin-http";
@@ -10,6 +11,9 @@ import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
 
 // Cache for thumbnail blob URLs (by thumbnailId)
 const thumbnailCache = new Map<string, string>();
+
+// Suspense-compatible promise cache
+const thumbnailPromiseCache = new Map<string, Promise<string | null>>();
 
 // External update callback for integrating with global cache
 let globalCacheUpdateCallback:
@@ -47,6 +51,99 @@ export function createCacheIntegration() {
         error,
       );
     });
+}
+
+/**
+ * Creates a Suspense-compatible thumbnail fetcher
+ * Throws a promise if the thumbnail is still loading, returns the URL when ready
+ * @param componentId The component ID of the thumbnail
+ * @param options Optional thumbnail options
+ * @returns The thumbnail URL (throws a promise if still loading)
+ */
+export function getThumbnailSuspense(
+  componentId: string | null | undefined,
+  options: ThumbnailOptions = {},
+): string | null {
+  if (!componentId) {
+    return null;
+  }
+
+  const { size } = useThumbnailSettingsStore.getState();
+  const cacheKey = `${componentId}-${size || "default"}`;
+
+  // If we have it in cache, return immediately
+  if (thumbnailCache.has(cacheKey)) {
+    return thumbnailCache.get(cacheKey) || null;
+  }
+
+  // If we have a promise in flight, throw it (Suspense will catch it)
+  if (thumbnailPromiseCache.has(cacheKey)) {
+    throw thumbnailPromiseCache.get(cacheKey);
+  }
+
+  // Create and cache the promise (session will be fetched internally)
+  const promise = fetchThumbnailPromise(componentId, options);
+  thumbnailPromiseCache.set(cacheKey, promise);
+
+  // Handle the promise resolution
+  promise
+    .then((url) => {
+      // Remove from promise cache and add to regular cache
+      thumbnailPromiseCache.delete(cacheKey);
+      if (url) {
+        thumbnailCache.set(cacheKey, url);
+      }
+    })
+    .catch((error) => {
+      // Remove from promise cache on error
+      thumbnailPromiseCache.delete(cacheKey);
+      console.error(`[ThumbnailService] Failed to fetch thumbnail: ${error}`);
+    });
+
+  // Throw the promise for Suspense
+  throw promise;
+}
+
+/**
+ * Internal promise-based thumbnail fetcher
+ */
+async function fetchThumbnailPromise(
+  componentId: string,
+  options: ThumbnailOptions = {},
+): Promise<string | null> {
+  try {
+    const { size } = useThumbnailSettingsStore.getState();
+    
+    // Get ftrack session
+    const { ftrackService } = await import("@/services/ftrack");
+    const session = await ftrackService.getSession();
+    
+    // Generate the thumbnail URL using the ftrack API
+    const thumbnailUrl = session.thumbnailUrl(componentId, { size: size || options.size });
+
+    // Use Tauri HTTP plugin to fetch the thumbnail (bypassing CORS)
+    const response = await fetch(thumbnailUrl);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch thumbnail: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    // Get the binary data
+    const binaryData = await response.arrayBuffer();
+
+    // Convert binary data to a Blob
+    const blob = new Blob([binaryData], { type: "image/jpeg" });
+
+    // Create a blob URL
+    const blobUrl = URL.createObjectURL(blob);
+
+    return blobUrl;
+  } catch (error) {
+    console.error("[ThumbnailSuspense] Failed to fetch thumbnail:", { componentId, error });
+    return null;
+  }
 }
 
 /**

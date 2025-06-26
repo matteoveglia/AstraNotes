@@ -12,7 +12,6 @@ import { Attachment } from "@/components/NoteAttachments";
 
 interface VersionGridProps {
   versions: AssetVersion[];
-  thumbnails: Record<string, string>;
   noteStatuses: Record<string, NoteStatus>;
   selectedVersions: string[];
   noteDrafts: Record<string, string>;
@@ -27,6 +26,8 @@ interface VersionGridProps {
   onClearNote: (versionId: string) => void;
   onToggleSelection: (versionId: string) => void;
   onRemoveVersion?: (versionId: string) => void;
+  // Legacy prop for backward compatibility (deprecated with Suspense)
+  thumbnails?: Record<string, string>;
 }
 
 const gridVariants = {
@@ -142,7 +143,6 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
 
 export const VersionGrid: React.FC<VersionGridProps> = ({
   versions,
-  thumbnails,
   noteStatuses,
   selectedVersions,
   noteDrafts,
@@ -152,6 +152,8 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
   onClearNote,
   onToggleSelection,
   onRemoveVersion,
+  // Legacy prop for backward compatibility
+  thumbnails = {},
 }) => {
   // Memoize handlers to keep stable references for VersionGridItem
   const memoizedOnSaveNote = useCallback(

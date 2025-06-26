@@ -9,13 +9,12 @@ import { NoteInput } from "@/components/NoteInput";
 import { AssetVersion, NoteStatus } from "@/types";
 import { motion } from "motion/react";
 import { ThumbnailPreview } from "@/features/versions/components/ThumbnailPreview";
+import { ThumbnailSuspense } from "@/components/ui/ThumbnailSuspense";
 import { Attachment } from "@/components/NoteAttachments";
 
 interface VersionItemProps {
   version: AssetVersion;
   isSelected: boolean;
-  thumbnailUrl?: string;
-  thumbnailLoading?: boolean;
   draftContent: string;
   labelId: string;
   noteStatus: NoteStatus;
@@ -27,6 +26,9 @@ interface VersionItemProps {
   ) => void;
   onNoteClear: () => void;
   initialAttachments?: Attachment[];
+  // Legacy props for backward compatibility (deprecated with Suspense)
+  thumbnailUrl?: string;
+  thumbnailLoading?: boolean;
 }
 
 const itemVariants = {
@@ -43,8 +45,6 @@ const itemVariants = {
 export const VersionItem: React.FC<VersionItemProps> = ({
   version,
   isSelected,
-  thumbnailUrl,
-  thumbnailLoading = false,
   draftContent,
   labelId,
   noteStatus,
@@ -52,6 +52,9 @@ export const VersionItem: React.FC<VersionItemProps> = ({
   onNoteChange,
   onNoteClear,
   initialAttachments = [],
+  // Legacy props for backward compatibility
+  thumbnailUrl,
+  thumbnailLoading = false,
 }) => {
   const [localAttachments, setLocalAttachments] =
     useState<Attachment[]>(initialAttachments);
@@ -81,10 +84,10 @@ export const VersionItem: React.FC<VersionItemProps> = ({
       <Card className="h-full">
         <CardContent className="p-4 flex flex-col md:flex-row gap-4">
           <div className="flex-none w-full md:w-48">
-            <ThumbnailPreview
-              url={thumbnailUrl}
+            <ThumbnailSuspense
+              thumbnailId={version.thumbnailId}
               alt={`Thumbnail for ${version.name}`}
-              isLoading={thumbnailLoading}
+              className="w-full aspect-video rounded-md cursor-pointer"
               onClick={onSelect}
             />
             <div className="mt-2 text-sm">
@@ -101,7 +104,7 @@ export const VersionItem: React.FC<VersionItemProps> = ({
             <NoteInput
               versionName={version.name}
               versionNumber={version.version.toString()}
-              thumbnailUrl={thumbnailUrl}
+              thumbnailUrl={thumbnailUrl} // Legacy fallback, will be replaced by Suspense thumbnail
               thumbnailId={version.thumbnailId}
               initialContent={draftContent}
               initialLabelId={labelId}

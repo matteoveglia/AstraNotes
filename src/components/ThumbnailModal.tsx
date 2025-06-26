@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import { motion, AnimatePresence } from "motion/react";
+import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 
 interface ThumbnailModalProps {
   isOpen: boolean;
@@ -157,7 +158,8 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
     }
   };
 
-  if (!currentThumbnailUrl && !showVideo) return null;
+  // Show modal if we have a thumbnailId or if we're showing video
+  if (!thumbnailId && !showVideo) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -266,7 +268,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
               </motion.div>
             )}
 
-            {!showVideo && !videoError && currentThumbnailUrl && (
+            {!showVideo && !videoError && thumbnailId && (
               <motion.div
                 key="thumbnail"
                 initial={{ opacity: 0, x: -20 }}
@@ -280,11 +282,15 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
                   </div>
                 )}
-                <img
-                  src={currentThumbnailUrl}
+                <ThumbnailSuspense
+                  thumbnailId={thumbnailId}
                   alt={`${versionName} - v${versionNumber}`}
                   className="max-h-[70vh] max-w-full object-contain"
-                  onError={handleThumbnailError}
+                  fallback={
+                    <div className="flex items-center justify-center min-h-[400px]">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-current" />
+                    </div>
+                  }
                 />
               </motion.div>
             )}

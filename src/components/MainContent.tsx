@@ -29,7 +29,8 @@ import { open } from "@tauri-apps/plugin-shell";
 // Import custom hooks
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
 import { useNoteManagement } from "@/features/notes/hooks/useNoteManagement";
-import { useThumbnailLoading } from "@/features/versions/hooks/useThumbnailLoading";
+// Removed useThumbnailLoading import - now using Suspense-based thumbnails
+// import { useThumbnailLoading } from "@/features/versions/hooks/useThumbnailLoading";
 import { useLabelStore } from "../store/labelStore";
 
 // Import components
@@ -263,7 +264,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     closePublishModal,
   } = useNoteManagement(activePlaylist);
 
-  const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
+  // Removed useThumbnailLoading - now using Suspense-based thumbnails
+  // const { thumbnails } = useThumbnailLoading(activePlaylist.versions || []);
 
   // Fetch labels when component mounts
   useEffect(() => {
@@ -1080,7 +1082,6 @@ export const MainContent: React.FC<MainContentProps> = ({
         ) : (
           <VersionGrid
             versions={filteredVersions}
-            thumbnails={thumbnails}
             noteStatuses={noteStatuses}
             selectedVersions={selectedVersions}
             noteDrafts={noteDrafts}
