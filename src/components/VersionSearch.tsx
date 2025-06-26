@@ -401,11 +401,15 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
               return (
                 <motion.div
                   key={version.id}
-                  className={`border border-zinc-200 dark:border-zinc-700 rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors ${
+                  className={`border rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors ${
                     isInPlaylist
                       ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
                       : ""
-                  } ${isSelected ? "border-purple-700 dark:border-purple-500" : ""}`}
+                  } ${
+                    isSelected 
+                      ? "border-purple-500 dark:border-purple-500" 
+                      : "border-zinc-200 dark:border-zinc-700"
+                  }`}
                   variants={itemVariants}
                 >
                   {/* Checkbox for multi-select, visible on hover or when selected */}
