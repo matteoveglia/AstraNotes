@@ -20,7 +20,7 @@ import {
   forceRefreshThumbnail,
   createCacheIntegration,
 } from "../services/thumbnailService";
-import { clearThumbnailsFromGlobalCache } from "../features/versions/hooks/useThumbnailLoading";
+// Removed clearThumbnailsFromGlobalCache - now using Suspense-based thumbnails
 import { useToast } from "./ui/toast";
 import type { Playlist } from "../types";
 
@@ -81,12 +81,11 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
       await new Promise((resolve) => setTimeout(resolve, 300));
       createCacheIntegration();
 
-      // Step 2: Clear cached thumbnails (20-40%)
+      // Step 2: Clear cached thumbnails (20-40%) - No longer needed with Suspense
       updateProgress("clearing", 40);
       const versionsWithThumbnails =
         playlist.versions?.filter((v: any) => v.thumbnailId) || [];
-      const versionIds = versionsWithThumbnails.map((v: any) => v.id);
-      clearThumbnailsFromGlobalCache(versionIds);
+      // Cache clearing not needed with Suspense-based thumbnails
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 3: Connect to ftrack (40-60%)

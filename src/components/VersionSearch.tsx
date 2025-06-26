@@ -5,13 +5,12 @@
  * clear functionality, loading states, and disabling of versions already in playlist.
  */
 
-import React, { useState, useCallback, useEffect, useDeferredValue } from "react";
+import React, { useState, useDeferredValue } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { AssetVersion, Playlist } from "@/types";
-import { ftrackService } from "../services/ftrack";
-import { useProjectStore } from "../store/projectStore";
 import { Checkbox } from "./ui/checkbox";
+import { VersionSearchResults } from "./VersionSearchResults";
 import { motion } from "motion/react";
 import {
   Tooltip,
@@ -41,14 +40,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   onPlaylistCreated,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState<AssetVersion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [isMultiVersionSearch, setIsMultiVersionSearch] = useState(false);
-
-  // PROJECT FILTERING FIX: Get selected project ID for search filtering
-  const { selectedProjectId } = useProjectStore();
 
   // Create a Set of current version IDs for efficient lookup
   const currentVersionIds = new Set(currentVersions.map((v) => v.id));
@@ -94,61 +88,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     }
   };
 
-  const handleSearch = useCallback(async () => {
-    // Use deferredSearchTerm for the actual search to avoid blocking user input
-    if (!deferredSearchTerm) {
-      setResults([]);
-      setIsMultiVersionSearch(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Check if this is a comma-separated multi-version search
-      if (deferredSearchTerm.includes(",")) {
-        setIsMultiVersionSearch(true);
-        const versionTerms = deferredSearchTerm
-          .split(",")
-          .map((term) => term.trim())
-          .filter((term) => term.length > 0);
-
-        // Search for each version term individually with project filtering
-        const searchPromises = versionTerms.map((term) =>
-          ftrackService.searchVersions({
-            searchTerm: term,
-            projectId: selectedProjectId,
-          }),
-        );
-
-        const searchResults = await Promise.all(searchPromises);
-
-        // Combine and deduplicate results
-        const combinedResults = searchResults.flat();
-        const uniqueResults = combinedResults.filter(
-          (version, index, self) =>
-            index === self.findIndex((v) => v.id === version.id),
-        );
-
-        setResults(uniqueResults);
-      } else {
-        // Regular single search with project filtering
-        setIsMultiVersionSearch(false);
-        const versions = await ftrackService.searchVersions({
-          searchTerm: deferredSearchTerm,
-          projectId: selectedProjectId,
-        });
-        setResults(versions);
-      }
-    } catch (error) {
-      console.debug("Search failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [deferredSearchTerm, selectedProjectId]);
-
-  useEffect(() => {
-    handleSearch();
-  }, [handleSearch]);
+  // Search logic is now handled by VersionSearchResults component with Suspense
 
   const handleClearVersions = () => {
     onClearAdded();
@@ -206,7 +146,6 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         // Normal mode - select single version and reset search
         onVersionSelect(version);
         setSearchTerm("");
-        setResults([]);
       }
     }
   };
@@ -217,7 +156,6 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
       setSelectedVersions([]);
       setIsMultiSelectMode(false);
       setSearchTerm("");
-      setResults([]);
     }
   };
 
@@ -226,29 +164,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     setIsMultiSelectMode(false);
   };
 
-  const gridVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.04,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-    exit: {
-      opacity: 0,
-      scale: 0.8,
-      transition: { duration: 0.2 },
-    },
-    transition: {
-      type: "spring",
-      duration: 0.6,
-    },
-  };
+  // Animation variants moved to VersionSearchResults component
 
   return (
     <motion.div
@@ -383,81 +299,13 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
           </motion.div>
         )}
 
-        {isLoading ? (
-          <div className="flex items-center justify-center h-[300px] text-center py-2 text-lg text-zinc-500 dark:text-zinc-400">
-            Loading...
-          </div>
-        ) : results.length > 0 ? (
-          <motion.div
-            className="grid grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[300px] overflow-y-auto"
-            variants={gridVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {results.map((version) => {
-              // Check if this version is already in the playlist
-              const isInPlaylist = currentVersionIds.has(version.id);
-              const isSelected = selectedVersions.some(
-                (v) => v.id === version.id,
-              );
-
-              return (
-                <motion.div
-                  key={version.id}
-                  className={`border rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors ${
-                    isInPlaylist
-                      ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
-                      : ""
-                  } ${
-                    isSelected
-                      ? "border-purple-500 dark:border-purple-500"
-                      : "border-zinc-200 dark:border-zinc-700"
-                  }`}
-                  variants={itemVariants}
-                >
-                  {/* Checkbox for multi-select, visible on hover or when selected */}
-                  {!isInPlaylist && (
-                    <div
-                      className={`absolute top-1/2 -translate-y-1/2 right-2 z-10 ${
-                        isSelected || isMultiSelectMode
-                          ? "opacity-100"
-                          : "opacity-0 group-hover:opacity-100"
-                      } transition-opacity`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleVersionClick(version, true);
-                      }}
-                    >
-                      <Checkbox checked={isSelected} />
-                    </div>
-                  )}
-
-                  {/* Version content */}
-                  <div
-                    onClick={() =>
-                      !isInPlaylist && handleVersionClick(version, false)
-                    }
-                    className="w-full h-full"
-                  >
-                    <div className="font-medium truncate max-w-[90%] text-zinc-900 dark:text-zinc-200">
-                      {version.name}
-                    </div>
-                    <div className="text-zinc-500 dark:text-zinc-400">
-                      v{version.version}
-                      {version.user ? ` - ${version.user.firstName}` : ""}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        ) : deferredSearchTerm ? (
-          <div className="text-center py-2 text-sm text-zinc-500 dark:text-zinc-400">
-            {isMultiVersionSearch
-              ? `No results found for ${deferredSearchTerm.split(",").length} searched version(s)`
-              : "No results found"}
-          </div>
-        ) : null}
+        <VersionSearchResults
+          searchTerm={deferredSearchTerm}
+          selectedVersions={selectedVersions}
+          currentVersionIds={currentVersionIds}
+          isMultiSelectMode={isMultiSelectMode}
+          onVersionClick={handleVersionClick}
+        />
       </div>
     </motion.div>
   );

@@ -26,7 +26,7 @@ interface ThumbnailOptions {
 
 /**
  * Sets a callback to update external global caches when thumbnails are loaded
- * This allows integration with the useThumbnailLoading global cache
+ * This allows integration with external global caches (legacy)
  */
 export function setGlobalCacheUpdateCallback(
   callback: ((versionId: string, url: string) => void) | null,
@@ -35,22 +35,12 @@ export function setGlobalCacheUpdateCallback(
 }
 
 /**
- * Creates a cache integration bridge with useThumbnailLoading
+ * Creates a cache integration bridge (legacy function - no longer needed with Suspense)
+ * @deprecated Use ThumbnailSuspense component instead
  */
 export function createCacheIntegration() {
-  // Import and setup the callback to update the global cache
-  import("@/features/versions/hooks/useThumbnailLoading")
-    .then((module) => {
-      setGlobalCacheUpdateCallback((versionId: string, url: string) => {
-        module.updateGlobalThumbnailCache({ [versionId]: url });
-      });
-    })
-    .catch((error) => {
-      console.debug(
-        "[ThumbnailService] Could not setup cache integration:",
-        error,
-      );
-    });
+  // No longer needed with Suspense-based thumbnail loading
+  console.debug("[ThumbnailService] Cache integration not needed with Suspense");
 }
 
 /**
