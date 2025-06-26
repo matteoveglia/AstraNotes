@@ -9,7 +9,7 @@
  * - Loading states and error handling
  */
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePlaylistCreationStore } from "@/store/playlistCreationStore";
 import { useProjectStore } from "@/store/projectStore";
-import { useDebounce } from "@/hooks/useDebounce";
 import { CreatePlaylistRequest, Playlist, AssetVersion } from "@/types";
 import { Loader2, AlertCircle } from "lucide-react";
 
@@ -101,8 +100,9 @@ export function CreatePlaylistDialog({
     nameError: null,
   });
 
-  // Debounce the name for validation
-  const debouncedName = useDebounce(formData.name, 300);
+  // Use useDeferredValue for non-urgent validation operations
+  // This allows immediate input response while deferring expensive validation
+  const deferredName = useDeferredValue(formData.name);
 
   // Fetch categories when dialog opens and type is list
   useEffect(() => {
@@ -120,11 +120,11 @@ export function CreatePlaylistDialog({
     }
   }, [isOpen, clearErrors]);
 
-  // Validate playlist name when debounced name or type changes
+  // Validate playlist name when deferred name or type changes
   useEffect(() => {
     const validateName = async () => {
       // Clear validation when name is empty or dialog closed
-      if (!debouncedName.trim() || !currentProjectId || !isOpen) {
+      if (!deferredName.trim() || !currentProjectId || !isOpen) {
         setValidation({ isValidating: false, nameError: null });
         setErrors((prev) => ({ ...prev, name: undefined }));
         return;
@@ -134,7 +134,7 @@ export function CreatePlaylistDialog({
 
       try {
         const nameError = await validatePlaylistName(
-          debouncedName.trim(),
+          deferredName.trim(),
           currentProjectId,
           formData.type,
         );
@@ -153,7 +153,7 @@ export function CreatePlaylistDialog({
 
     validateName();
   }, [
-    debouncedName,
+    deferredName,
     currentProjectId,
     formData.type,
     isOpen,

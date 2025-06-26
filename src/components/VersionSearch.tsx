@@ -1,14 +1,13 @@
 /**
  * @fileoverview VersionSearch.tsx
  * Search component for version discovery and addition with multi-select capability.
- * Features debounced search, thumbnails, version selection (single or multiple),
+ * Features immediate input response with deferred search, thumbnails, version selection (single or multiple),
  * clear functionality, loading states, and disabling of versions already in playlist.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useDeferredValue } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useDebounce } from "../hooks/useDebounce";
 import { AssetVersion, Playlist } from "@/types";
 import { ftrackService } from "../services/ftrack";
 import { useProjectStore } from "../store/projectStore";
@@ -54,7 +53,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   // Create a Set of current version IDs for efficient lookup
   const currentVersionIds = new Set(currentVersions.map((v) => v.id));
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  // Use useDeferredValue for non-urgent search operations
+  // This allows immediate input response while deferring expensive search operations
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   // Function to detect if the search term contains multiple version names
   const detectMultipleVersions = (term: string): boolean => {
@@ -85,6 +86,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
       ? normalizeMultiVersionSearch(newSearchTerm)
       : newSearchTerm;
 
+    // Set search term immediately for responsive input
     setSearchTerm(normalizedTerm);
 
     if (normalizedTerm === "") {
@@ -93,7 +95,8 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
   };
 
   const handleSearch = useCallback(async () => {
-    if (!debouncedSearchTerm) {
+    // Use deferredSearchTerm for the actual search to avoid blocking user input
+    if (!deferredSearchTerm) {
       setResults([]);
       setIsMultiVersionSearch(false);
       return;
@@ -102,9 +105,9 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
     setIsLoading(true);
     try {
       // Check if this is a comma-separated multi-version search
-      if (debouncedSearchTerm.includes(",")) {
+      if (deferredSearchTerm.includes(",")) {
         setIsMultiVersionSearch(true);
-        const versionTerms = debouncedSearchTerm
+        const versionTerms = deferredSearchTerm
           .split(",")
           .map((term) => term.trim())
           .filter((term) => term.length > 0);
@@ -131,17 +134,17 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
         // Regular single search with project filtering
         setIsMultiVersionSearch(false);
         const versions = await ftrackService.searchVersions({
-          searchTerm: debouncedSearchTerm,
+          searchTerm: deferredSearchTerm,
           projectId: selectedProjectId,
         });
         setResults(versions);
       }
     } catch (error) {
-      console.error("Search failed:", error);
+      console.debug("Search failed:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearchTerm, selectedProjectId]);
+  }, [deferredSearchTerm, selectedProjectId]);
 
   useEffect(() => {
     handleSearch();
@@ -375,7 +378,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
             className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400"
           >
             <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
-            Multi-version search: {debouncedSearchTerm.split(",").length}{" "}
+            Multi-version search: {deferredSearchTerm.split(",").length}{" "}
             version(s) being searched
           </motion.div>
         )}
@@ -448,10 +451,10 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
               );
             })}
           </motion.div>
-        ) : debouncedSearchTerm ? (
+        ) : deferredSearchTerm ? (
           <div className="text-center py-2 text-sm text-zinc-500 dark:text-zinc-400">
             {isMultiVersionSearch
-              ? `No results found for ${debouncedSearchTerm.split(",").length} searched version(s)`
+              ? `No results found for ${deferredSearchTerm.split(",").length} searched version(s)`
               : "No results found"}
           </div>
         ) : null}

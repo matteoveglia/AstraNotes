@@ -1,9 +1,10 @@
 /**
  * @fileoverview VersionList.tsx
- * Component for displaying a list of versions with animations and filtering.
+ * Component for displaying a list of versions with animations and immediate search response.
+ * Uses deferred values for non-urgent filtering operations.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useDeferredValue } from "react";
 import { AssetVersion, NoteStatus } from "@/types";
 import { VersionItem } from "./VersionItem";
 import { motion } from "motion/react";
@@ -59,18 +60,22 @@ export const VersionList: React.FC<VersionListProps> = ({
   onNoteClear,
   searchQuery = "",
 }) => {
-  // Filter versions based on search query if provided
-  const filteredVersions = useMemo(() => {
-    if (!searchQuery) return versions;
+  // Use useDeferredValue for non-urgent filtering operations
+  // This allows immediate input response while deferring expensive filtering
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    const query = searchQuery.toLowerCase();
+  // Filter versions based on deferred search query to avoid blocking user input
+  const filteredVersions = useMemo(() => {
+    if (!deferredSearchQuery) return versions;
+
+    const query = deferredSearchQuery.toLowerCase();
     return versions.filter(
       (version) =>
         version.name.toLowerCase().includes(query) ||
         version.id.toLowerCase().includes(query) ||
         (version.version && version.version.toString().includes(query)),
     );
-  }, [versions, searchQuery]);
+  }, [versions, deferredSearchQuery]);
 
   // Sort versions by name and version number
   const sortedVersions = useMemo(() => {

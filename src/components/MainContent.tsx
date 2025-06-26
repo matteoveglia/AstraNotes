@@ -13,6 +13,7 @@ import React, {
   useMemo,
   useRef,
   useCallback,
+  useDeferredValue,
 } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -63,6 +64,11 @@ export const MainContent: React.FC<MainContentProps> = ({
   // Filter state
   const [selectedStatuses, setSelectedStatuses] = useState<NoteStatus[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+
+  // Use useDeferredValue for non-urgent filtering operations
+  // This allows immediate filter selection response while deferring expensive filtering
+  const deferredSelectedStatuses = useDeferredValue(selectedStatuses);
+  const deferredSelectedLabels = useDeferredValue(selectedLabels);
 
   // Ref for cleanup tracking
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -565,17 +571,9 @@ export const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
-  // Memoize sorted versions to prevent unnecessary re-renders
-  const sortedVersions = useMemo(() => {
-    console.log("[MainContent] Computing sortedVersions:", {
-      isInitializing,
-      playlistId: activePlaylist.id,
-      versionsCount: activePlaylist.versions?.length || 0,
-      versions:
-        activePlaylist.versions
-          ?.slice(0, 3)
-          .map((v) => ({ id: v.id, name: v.name })) || [],
-    });
+  // Memoized filtered and sorted versions - using deferred values to avoid blocking UI
+  const filteredVersions = useMemo(() => {
+    console.log("[MainContent] Computing filtered versions");
 
     if (isInitializing) {
       console.log("[MainContent] Still initializing, returning empty array");
@@ -588,13 +586,13 @@ export const MainContent: React.FC<MainContentProps> = ({
       filteredVersions.length,
     );
 
-    // Apply status filter
-    if (selectedStatuses.length > 0) {
+    // Apply status filter with deferred values
+    if (deferredSelectedStatuses.length > 0) {
       filteredVersions = filteredVersions.filter((version) => {
         const status = noteStatuses[version.id] || "empty";
 
         // Check if any selected status matches
-        for (const selectedStatus of selectedStatuses) {
+        for (const selectedStatus of deferredSelectedStatuses) {
           if (selectedStatus === "reviewed") {
             // Handle "reviewed" as "Selected" - check if version is in selectedVersions
             if (selectedVersions.includes(version.id)) {
@@ -612,11 +610,11 @@ export const MainContent: React.FC<MainContentProps> = ({
       });
     }
 
-    // Apply label filter
-    if (selectedLabels.length > 0) {
+    // Apply label filter with deferred values
+    if (deferredSelectedLabels.length > 0) {
       filteredVersions = filteredVersions.filter((version) => {
         const labelId = noteLabelIds[version.id];
-        return labelId && selectedLabels.includes(labelId);
+        return labelId && deferredSelectedLabels.includes(labelId);
       });
     }
 
@@ -635,8 +633,8 @@ export const MainContent: React.FC<MainContentProps> = ({
   }, [
     activePlaylist.versions,
     isInitializing,
-    selectedStatuses,
-    selectedLabels,
+    deferredSelectedStatuses,
+    deferredSelectedLabels,
     noteStatuses,
     noteLabelIds,
     selectedVersions,
@@ -953,8 +951,8 @@ export const MainContent: React.FC<MainContentProps> = ({
                 "Initializing playlist..."
               ) : (
                 <>
-                  {sortedVersions.length} Version
-                  {sortedVersions.length !== 1 ? "s" : ""}
+                  {filteredVersions.length} Version
+                  {filteredVersions.length !== 1 ? "s" : ""}
                   {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
                     ` (${activePlaylist.versions?.length || 0} total)`}
                   {activePlaylist.isLocalOnly && (
@@ -1066,7 +1064,7 @@ export const MainContent: React.FC<MainContentProps> = ({
           </div>
         ) : (
           <VersionGrid
-            versions={sortedVersions}
+            versions={filteredVersions}
             thumbnails={thumbnails}
             noteStatuses={noteStatuses}
             selectedVersions={selectedVersions}
