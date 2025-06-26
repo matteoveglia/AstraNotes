@@ -2195,6 +2195,61 @@ export class FtrackService {
       };
     }
   }
+
+  /**
+   * Fetches detailed version information for display in the version details panel
+   */
+  async fetchVersionDetails(assetVersionId: string): Promise<{
+    id: string;
+    assetName: string;
+    versionNumber: number;
+    description?: string;
+    assetType?: string;
+    publishedBy?: string;
+    publishedAt?: string;
+  }> {
+    try {
+      const session = await this.ensureSession();
+
+      // Query for comprehensive version details including related entities
+      const query = `
+        select id, version, comment, date, 
+               asset.name, asset.type.name,
+               user.first_name, user.last_name, user.username
+        from AssetVersion 
+        where id is "${assetVersionId}"
+      `;
+
+      log(`Fetching version details for: ${assetVersionId}`);
+      const result = await session.query(query);
+
+      if (!result?.data || result.data.length === 0) {
+        throw new Error(`AssetVersion with ID ${assetVersionId} not found`);
+      }
+
+      const versionData = result.data[0];
+      log(`Version details fetched:`, versionData);
+
+      // Format published by name
+      const publishedBy = versionData.user 
+        ? `${versionData.user.first_name || ''} ${versionData.user.last_name || ''}`.trim() 
+          || versionData.user.username
+        : undefined;
+
+      return {
+        id: versionData.id,
+        assetName: versionData.asset?.name || 'Unknown Asset',
+        versionNumber: versionData.version || 1,
+        description: versionData.comment || undefined,
+        assetType: versionData.asset?.type?.name || undefined,
+        publishedBy,
+        publishedAt: versionData.date || undefined,
+      };
+    } catch (error) {
+      log("Failed to fetch version details:", error);
+      throw error;
+    }
+  }
 }
 
 export const ftrackService = new FtrackService();

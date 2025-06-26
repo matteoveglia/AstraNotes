@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { VideoPlayer } from "./VideoPlayer";
 import { videoService } from "../services/videoService";
+import { ftrackService } from "../services/ftrack";
+import { fetchThumbnail } from "../services/thumbnailService";
 import { Play, Image, AlertCircle } from "lucide-react";
 import {
   Tooltip,
@@ -25,16 +27,18 @@ interface ThumbnailModalProps {
   thumbnailUrl: string | null;
   versionName: string;
   versionNumber: string;
-  versionId: string; // NEW: Add versionId for video fetching
+  versionId: string;
+  thumbnailId?: string; // NEW: Add thumbnailId for refreshing
 }
 
 export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
   isOpen,
   onClose,
-  thumbnailUrl,
+  thumbnailUrl: initialThumbnailUrl,
   versionName,
   versionNumber,
   versionId,
+  thumbnailId,
 }) => {
   const [showVideo, setShowVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -43,11 +47,19 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
   );
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [currentThumbnailUrl, setCurrentThumbnailUrl] = useState<string | null>(initialThumbnailUrl);
+  const [isRefreshingThumbnail, setIsRefreshingThumbnail] = useState(false);
 
-  // Check video availability when modal opens
+  // Update thumbnail URL when prop changes
+  useEffect(() => {
+    setCurrentThumbnailUrl(initialThumbnailUrl);
+  }, [initialThumbnailUrl]);
+
+  // Check video availability and refresh thumbnail when modal opens
   useEffect(() => {
     if (isOpen && versionId) {
       checkVideoAvailability();
+      refreshThumbnailIfNeeded();
     }
   }, [isOpen, versionId]);
 
@@ -57,6 +69,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
       setShowVideo(false);
       setVideoUrl(null);
       setVideoError(null);
+      setIsRefreshingThumbnail(false);
     }
   }, [isOpen]);
 
@@ -67,6 +80,25 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
     } catch (error) {
       console.error("Failed to check video availability:", error);
       setIsVideoAvailable(false);
+    }
+  };
+
+  const refreshThumbnailIfNeeded = async () => {
+    // If we have a thumbnailId but the current URL seems to be a broken blob URL, refresh it
+    if (thumbnailId && currentThumbnailUrl && currentThumbnailUrl.startsWith('blob:')) {
+      setIsRefreshingThumbnail(true);
+      try {
+        const session = await ftrackService.getSession();
+        const freshUrl = await fetchThumbnail(thumbnailId, session, { size: 512 }, versionId);
+        if (freshUrl && freshUrl !== currentThumbnailUrl) {
+          console.debug("[ThumbnailModal] Refreshed thumbnail URL for version", versionId);
+          setCurrentThumbnailUrl(freshUrl);
+        }
+      } catch (error) {
+        console.debug("[ThumbnailModal] Failed to refresh thumbnail:", error);
+      } finally {
+        setIsRefreshingThumbnail(false);
+      }
     }
   };
 
@@ -104,7 +136,14 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
     setShowVideo(false);
   };
 
-  if (!thumbnailUrl && !showVideo) return null;
+  const handleThumbnailError = () => {
+    // If thumbnail fails to load, try to refresh it
+    if (thumbnailId && !isRefreshingThumbnail) {
+      refreshThumbnailIfNeeded();
+    }
+  };
+
+  if (!currentThumbnailUrl && !showVideo) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -213,17 +252,27 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
               </motion.div>
             )}
 
-            {!showVideo && !videoError && thumbnailUrl && (
-              <motion.img
+            {!showVideo && !videoError && currentThumbnailUrl && (
+              <motion.div
                 key="thumbnail"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.4, ease: "easeInOut" }}
-                src={thumbnailUrl}
-                alt={`${versionName} - v${versionNumber}`}
-                className="max-h-[70vh] max-w-full object-contain"
-              />
+                className="relative"
+              >
+                {isRefreshingThumbnail && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+                  </div>
+                )}
+                <img
+                  src={currentThumbnailUrl}
+                  alt={`${versionName} - v${versionNumber}`}
+                  className="max-h-[70vh] max-w-full object-contain"
+                  onError={handleThumbnailError}
+                />
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

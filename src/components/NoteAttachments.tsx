@@ -41,10 +41,30 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
+  const [shouldOpenUpward, setShouldOpenUpward] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const toast = useToast();
+
+  // Check if panel should open upward to avoid overflow
+  useEffect(() => {
+    if (showAttachments && buttonRef.current) {
+      const checkPosition = () => {
+        const rect = buttonRef.current!.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const panelHeight = 300; // Approximate panel height with padding
+        
+        // Only open upward if there's insufficient space below AND sufficient space above
+        const shouldOpen = spaceBelow < panelHeight && rect.top > panelHeight;
+        setShouldOpenUpward(shouldOpen);
+      };
+
+      // Use requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(checkPosition);
+    }
+  }, [showAttachments]);
 
   // Add click outside listener
   useEffect(() => {
@@ -370,7 +390,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       onDrop={handleDrop}
       onPaste={handlePaste}
     >
-      <div className="flex items-center space-x-2">
+      <div className="relative flex items-center">
         <Button
           ref={buttonRef}
           type="button"
@@ -399,13 +419,15 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
           onChange={(e) => handleFileSelection(e.target.files)}
           disabled={disabled}
         />
-      </div>
 
-      {/* Attachment Dropdown Content */}
-      {showAttachments && (
+        {/* Attachment Dropdown Content */}
+        {showAttachments && (
         <motion.div
           ref={dropdownRef}
-          className="absolute z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-xl p-3 mt-2 w-72"
+          className={cn(
+            "absolute left-0 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-xl p-3 w-72",
+            shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2"
+          )}
           initial={{ opacity: 0, scale: 0.95, y: 0 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 0 }}
@@ -477,7 +499,8 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
             )}
           </div>
         </motion.div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

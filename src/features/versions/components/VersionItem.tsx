@@ -101,6 +101,8 @@ export const VersionItem: React.FC<VersionItemProps> = ({
             <NoteInput
               versionName={version.name}
               versionNumber={version.version.toString()}
+              thumbnailUrl={thumbnailUrl}
+              thumbnailId={version.thumbnailId}
               initialContent={draftContent}
               initialLabelId={labelId}
               initialAttachments={localAttachments}

@@ -2,12 +2,12 @@
  * @fileoverview PlaylistMenu.tsx
  * Dropdown menu for playlist-wide operations.
  * Includes CSV export, batch note operations, label management,
- * note clearing, and accessibility features.
+ * note clearing, thumbnail reloading, and accessibility features.
  * @component
  */
 
 import React, { useState, useEffect } from "react";
-import { Menu, Download } from "lucide-react";
+import { Menu, Download, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,8 +29,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import { ThumbnailReloadModal } from "./ThumbnailReloadModal";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "../store/playlistsStore";
+import { playlistStore } from "../store/playlist";
 import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
 
@@ -39,6 +41,8 @@ interface PlaylistMenuProps {
   onSetAllLabels: (labelId: string) => void;
   onClearAllSelections: () => void;
 }
+
+
 
 export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   onClearAllNotes,
@@ -53,6 +57,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     }>
   >([]);
   const [clearAlertOpen, setClearAlertOpen] = useState(false);
+  const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
   const toast = useToast();
 
   const { playlists, activePlaylistId } = usePlaylistsStore();
@@ -108,6 +113,10 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     toast.showToast("All notes have been cleared", "success");
   };
 
+  const handleReloadThumbnails = () => {
+    setThumbnailModalOpen(true);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -123,6 +132,14 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           >
             <Download className="h-4 w-4" />
             Export Notes to CSV
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleReloadThumbnails}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reload Thumbnails
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleClearAllNotes}>
@@ -152,6 +169,12 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ThumbnailReloadModal
+        isOpen={thumbnailModalOpen}
+        onClose={() => setThumbnailModalOpen(false)}
+        playlist={playlists.find((p) => p.id === activePlaylistId) as any || null}
+      />
 
       <AlertDialog open={clearAlertOpen} onOpenChange={setClearAlertOpen}>
         <AlertDialogContent>

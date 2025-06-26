@@ -15,6 +15,43 @@ const globalThumbnailCache: Record<string, string> = {};
 
 type LoadingStatus = "idle" | "loading" | "loaded" | "error";
 
+/**
+ * Clears specific thumbnails from the global cache
+ * @param versionIds Array of version IDs to clear from cache
+ */
+export function clearThumbnailsFromGlobalCache(versionIds: string[]): void {
+  console.debug("[useThumbnailLoading] Clearing thumbnails from global cache:", versionIds);
+  
+  versionIds.forEach(versionId => {
+    const existingUrl = globalThumbnailCache[versionId];
+    if (existingUrl) {
+      // Revoke the old blob URL to prevent memory leaks
+      try {
+        URL.revokeObjectURL(existingUrl);
+      } catch (error) {
+        console.debug("[useThumbnailLoading] Error revoking blob URL:", error);
+      }
+      delete globalThumbnailCache[versionId];
+    }
+  });
+}
+
+/**
+ * Updates the global cache with new thumbnail URLs
+ * @param thumbnailMap Map of version ID to thumbnail URL
+ */
+export function updateGlobalThumbnailCache(thumbnailMap: Record<string, string>): void {
+  console.debug("[useThumbnailLoading] Updating global cache with", Object.keys(thumbnailMap).length, "thumbnails");
+  Object.assign(globalThumbnailCache, thumbnailMap);
+}
+
+/**
+ * Gets the current size of the global thumbnail cache
+ */
+export function getGlobalCacheSize(): number {
+  return Object.keys(globalThumbnailCache).length;
+}
+
 export function useThumbnailLoading(versions: AssetVersion[]) {
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [loadingStatus, setLoadingStatus] = useState<

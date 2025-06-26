@@ -13,7 +13,7 @@ import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink, X } from "lucide-react";
+import { Loader2, Workflow, ExternalLink, X, Info } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackService } from "@/services/ftrack";
@@ -22,11 +22,13 @@ import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
 import { NoteAttachments, Attachment } from "./NoteAttachments";
 import { NoteStatusPanel } from "./NoteStatusPanel";
+import { VersionDetailsPanel } from "./VersionDetailsPanel";
 
 export interface NoteInputProps {
   versionName: string;
   versionNumber: string;
   thumbnailUrl?: string;
+  thumbnailId?: string; // NEW: Add thumbnailId for modal refresh capability
   status: NoteStatus;
   selected: boolean;
   initialContent?: string;
@@ -49,6 +51,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   versionName,
   versionNumber,
   thumbnailUrl,
+  thumbnailId,
   status,
   selected,
   initialContent = "",
@@ -73,6 +76,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const dragCountRef = useRef(0);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
+  const [isVersionDetailsPanelOpen, setIsVersionDetailsPanelOpen] = useState(false);
   const { settings } = useSettings();
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 
@@ -485,6 +489,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setIsStatusPanelOpen((open) => !open);
   };
 
+  const handleVersionDetailsPanelToggle = () => {
+    setIsVersionDetailsPanelOpen((open) => !open);
+  };
+
   // Fetch projectId for this asset version
   useEffect(() => {
     ftrackService
@@ -577,15 +585,32 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center hover:bg-blue-100 dark:hover:bg-blue-900"
+                  onClick={handleVersionDetailsPanelToggle}
+                  title="Version Details"
+                >
+                  <Info className="h-4 w-4" />
+                </Button>
+                {isVersionDetailsPanelOpen && (
+                  <VersionDetailsPanel
+                    assetVersionId={assetVersionId}
+                    onClose={() => setIsVersionDetailsPanelOpen(false)}
+                    className=""
+                  />
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex items-center space-x-1 hover:bg-purple-100 dark:hover:bg-purple-900"
+                className="flex items-center hover:bg-purple-100 dark:hover:bg-purple-900"
                 onClick={handleOpenInFtrack}
-                title="ftrack"
+                title="Open in ftrack"
               >
                 <ExternalLink className="h-4 w-4" />
-                <span>ftrack</span>
               </Button>
               {manuallyAdded && (
                 <Button
@@ -693,6 +718,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             versionName={versionName}
             versionNumber={versionNumber}
             versionId={assetVersionId}
+            thumbnailId={thumbnailId}
           />
         )}
       </div>

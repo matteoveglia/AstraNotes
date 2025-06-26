@@ -56,11 +56,30 @@ export function NoteStatusPanel({
   const [versionStatuses, setVersionStatuses] = useState<Status[]>([]);
   const [parentStatuses, setParentStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldOpenUpward, setShouldOpenUpward] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   // Track open state for each select individually
   const [isVersionSelectOpen, setIsVersionSelectOpen] = useState(false);
   const [isParentSelectOpen, setIsParentSelectOpen] = useState(false);
   const { showSuccess, showError } = useToast();
+
+  // Check if panel should open upward to avoid overflow
+  useEffect(() => {
+    const checkPosition = () => {
+      if (panelRef.current) {
+        const rect = panelRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const panelHeight = 200; // Approximate panel height
+        
+        setShouldOpenUpward(spaceBelow < panelHeight && rect.top > panelHeight);
+      }
+    };
+
+    checkPosition();
+    window.addEventListener('resize', checkPosition);
+    return () => window.removeEventListener('resize', checkPosition);
+  }, []);
 
   // Helper to get cache key
   const getCacheKey = (assetVersionId: string, parentId?: string) => {
@@ -203,7 +222,8 @@ export function NoteStatusPanel({
       >
         <motion.div
           className={cn(
-            "absolute -right-34 top-full mt-2 z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-600 p-4 min-w-[250px]",
+            "absolute -right-34 z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-600 p-4 min-w-[250px]",
+            shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
             className,
           )}
           style={{ transform: "translateX(50%)" }}

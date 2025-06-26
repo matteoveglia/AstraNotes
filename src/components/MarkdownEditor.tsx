@@ -468,7 +468,7 @@ export const MarkdownEditor = forwardRef<
         {!disabled && (
           <div
             className={cn(
-              "flex items-center gap-1 p-1 border-b-0 rounded-t-md transition-all duration-200",
+              "flex items-center gap-1 p-1 border-b-0 rounded-t-md transition-all duration-100",
               showToolbar
                 ? "bg-zinc-50 dark:bg-zinc-800 opacity-100"
                 : "bg-zinc-50 dark:bg-zinc-800 opacity-30",

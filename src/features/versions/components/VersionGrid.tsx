@@ -121,6 +121,7 @@ const VersionGridItem: React.FC<VersionGridItemProps> = React.memo(
           versionName={version.name}
           versionNumber={version.version.toString()}
           thumbnailUrl={thumbnailUrl}
+          thumbnailId={version.thumbnailId}
           status={noteStatus}
           selected={selected}
           initialContent={draftContent}
