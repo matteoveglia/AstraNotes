@@ -1170,49 +1170,88 @@ export function useNoteManagement(playlist: Playlist) {
 
       // If there are selected drafts, apply to those only
       // Otherwise, apply to all drafts
-      const versionIdsToUpdate =
+      const candidateVersionIds =
         selectedDraftVersionIds.length > 0
           ? selectedDraftVersionIds
           : Object.entries(noteStatuses)
               .filter(([, status]) => status === "draft")
               .map(([versionId]) => versionId);
 
-      if (versionIdsToUpdate.length === 0) {
+      if (candidateVersionIds.length === 0) {
         toast.showError("No draft notes to apply label to");
         return;
       }
 
-      // Apply the label to all selected versions
-      const updatePromises = versionIdsToUpdate.map((versionId) => {
-        // Get existing draft content
-        const content = noteDrafts[versionId] || "";
-
-        // Save with new label
-        return playlistStore.saveDraft(
-          versionId,
-          playlist.id,
-          content,
-          labelId,
-        );
-      });
-
-      // Wait for all updates to complete
-      await Promise.all(updatePromises);
-
-      // Update in memory
-      const newLabelIds = { ...noteLabelIds };
-      versionIdsToUpdate.forEach((versionId) => {
-        newLabelIds[versionId] = labelId;
-      });
-
-      setNoteLabelIds(newLabelIds);
-
-      const selectionMode =
-        selectedDraftVersionIds.length > 0 ? "selected" : "all draft";
-
-      toast.showSuccess(
-        `Applied label to ${versionIdsToUpdate.length} note${versionIdsToUpdate.length > 1 ? "s" : ""} (${selectionMode})`,
+      // Filter to only include versions that actually exist in the current playlist
+      // This prevents errors when trying to update versions that don't exist in the repository
+      const playlistVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
+      const versionIdsToUpdate = candidateVersionIds.filter(versionId => 
+        playlistVersionIds.has(versionId)
       );
+
+      if (versionIdsToUpdate.length === 0) {
+        toast.showError("No valid draft notes found in current playlist");
+        return;
+      }
+
+      // Apply the label to all valid versions with individual error handling
+      const updateResults = await Promise.allSettled(
+        versionIdsToUpdate.map(async (versionId) => {
+          try {
+            // Get existing draft content
+            const content = noteDrafts[versionId] || "";
+
+            // Save with new label
+            await playlistStore.saveDraft(
+              playlist.id,
+              versionId,
+              content,
+              labelId,
+            );
+            return { versionId, success: true };
+          } catch (error) {
+            console.warn(`[useNoteManagement] Failed to set label for version ${versionId}:`, error);
+            return { versionId, success: false, error };
+          }
+        })
+      );
+
+      // Count successful updates and collect failures
+      const successfulUpdates = updateResults
+        .filter((result): result is PromiseFulfilledResult<{ versionId: string; success: true }> => 
+          result.status === 'fulfilled' && result.value.success
+        )
+        .map(result => result.value.versionId);
+
+      const failedUpdates = updateResults
+        .filter((result): result is PromiseFulfilledResult<{ versionId: string; success: false; error: any }> | PromiseRejectedResult => 
+          result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)
+        )
+        .length;
+
+      // Update in memory for successful updates only
+      if (successfulUpdates.length > 0) {
+        const newLabelIds = { ...noteLabelIds };
+        successfulUpdates.forEach((versionId) => {
+          newLabelIds[versionId] = labelId;
+        });
+        setNoteLabelIds(newLabelIds);
+      }
+
+      const selectionMode = selectedDraftVersionIds.length > 0 ? "selected" : "all draft";
+
+      // Show appropriate success/error message
+      if (failedUpdates === 0) {
+        toast.showSuccess(
+          `Applied label to ${successfulUpdates.length} note${successfulUpdates.length > 1 ? "s" : ""} (${selectionMode})`,
+        );
+      } else if (successfulUpdates.length > 0) {
+        toast.showWarning(
+          `Applied label to ${successfulUpdates.length} notes, ${failedUpdates} failed (${selectionMode})`,
+        );
+      } else {
+        toast.showError("Failed to apply labels to any notes");
+      }
     } catch (error) {
       console.error("Failed to set labels for notes:", error);
       toast.showError("Failed to apply labels");

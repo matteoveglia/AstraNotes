@@ -16,7 +16,7 @@ import {
   NoteStatus,
   CreatePlaylistRequest,
 } from "@/types";
-import { FtrackService } from "../services/ftrack";
+import { ftrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
 
@@ -83,7 +83,7 @@ export class PlaylistStore {
   private isPolling = false;
   private currentPlaylistId: string | null = null;
   private activePollingIds: Set<string> = new Set();
-  private ftrackService: FtrackService;
+  private ftrackService = ftrackService;
   private pollingCallback:
     | ((
         added: number,
@@ -103,9 +103,7 @@ export class PlaylistStore {
   // NEW: Feature flag for consolidated queries
   private useConsolidatedQueries = true;
 
-  constructor(ftrackService: FtrackService) {
-    this.ftrackService = ftrackService;
-
+  constructor() {
     // Set up periodic cleanup for recently processed changes to prevent memory leaks
     setInterval(() => {
       this.cleanupExpiredProcessedChanges();
