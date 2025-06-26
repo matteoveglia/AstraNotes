@@ -268,9 +268,22 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       // Find playlists that would be deleted (exist in DB but not in ftrack)
       const ftrackPlaylistIds = new Set(fetchedPlaylists.map((fp) => fp.id));
       const orphanedPlaylists = databasePlaylists.filter((dbPlaylist) => {
-        return (
-          dbPlaylist.ftrackId && !ftrackPlaylistIds.has(dbPlaylist.ftrackId)
-        );
+        // Skip local-only playlists (no ftrackId) - they're never orphaned
+        if (!dbPlaylist.ftrackId) {
+          return false;
+        }
+
+        // Skip playlists from other projects - they're not orphaned, just filtered
+        if (
+          selectedProjectId &&
+          dbPlaylist.projectId &&
+          dbPlaylist.projectId !== selectedProjectId
+        ) {
+          return false;
+        }
+
+        // Only consider orphaned if it was synced to current project but no longer exists there
+        return !ftrackPlaylistIds.has(dbPlaylist.ftrackId);
       });
 
       setPlaylistsToDelete(
