@@ -2095,4 +2095,4 @@ export class PlaylistStore {
   }
 }
 
-export const playlistStore = new PlaylistStore(new FtrackService());
+export const playlistStore = new PlaylistStore();
