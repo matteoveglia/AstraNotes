@@ -2,9 +2,10 @@
  * @fileoverview useNoteManagement.ts
  * Custom hook for managing note drafts, statuses, labels, and attachments.
  * Handles saving, clearing, and publishing notes with attachments.
+ * Uses React Concurrent Mode features for responsive UI during heavy operations.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { Playlist, NoteStatus } from "@/types";
 import { playlistStore } from "@/store/playlist";
 import { db, type NoteAttachment } from "@/store/db";
@@ -35,6 +36,9 @@ export function useNoteManagement(playlist: Playlist) {
   // Progress modal state
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [versionsToPublish, setVersionsToPublish] = useState<string[]>([]);
+
+  // Add useTransition for non-urgent state updates
+  const [isPending, startTransition] = useTransition();
 
   // Setup hooks
   const toast = useToast();
@@ -522,17 +526,26 @@ export function useNoteManagement(playlist: Playlist) {
     await playlistStore.clearAttachments(versionId, playlist.id);
   };
 
-  // Toggle version selection
+  // Toggle version selection with startTransition for responsive UI
   const toggleVersionSelection = (versionId: string) => {
-    setSelectedVersions((prev) =>
-      prev.includes(versionId)
-        ? prev.filter((id) => id !== versionId)
-        : [...prev, versionId],
-    );
+    // Update UI immediately for instant feedback
+    const isCurrentlySelected = selectedVersions.includes(versionId);
+    
+    startTransition(() => {
+      // Non-urgent: Update the selection state
+      setSelectedVersions((prev) =>
+        prev.includes(versionId)
+          ? prev.filter((id) => id !== versionId)
+          : [...prev, versionId],
+      );
+    });
   };
 
   const clearAllSelections = () => {
-    setSelectedVersions([]);
+    startTransition(() => {
+      // Non-urgent: Clear all selections
+      setSelectedVersions([]);
+    });
   };
 
   // Publish selected notes
@@ -624,11 +637,13 @@ export function useNoteManagement(playlist: Playlist) {
                 labelId, // Pass the actual label ID
               );
 
-              // Update in memory
-              setNoteStatuses((prev) => ({
-                ...prev,
-                [versionId]: "published",
-              }));
+              // Update in memory with startTransition for responsiveness
+              startTransition(() => {
+                setNoteStatuses((prev) => ({
+                  ...prev,
+                  [versionId]: "published",
+                }));
+              });
 
               successVersions.push({ versionId });
             } else {
@@ -665,8 +680,10 @@ export function useNoteManagement(playlist: Playlist) {
       } else {
         console.debug(`[useNoteManagement] All notes published successfully`);
 
-        // Clear selection after successful publish
-        setSelectedVersions([]);
+        // Clear selection after successful publish with startTransition
+        startTransition(() => {
+          setSelectedVersions([]);
+        });
       }
     } catch (error) {
       console.error("[useNoteManagement] Error in publish flow:", error);
@@ -1328,6 +1345,9 @@ export function useNoteManagement(playlist: Playlist) {
     progress,
     publishedVersionsCount,
     publishingErrors,
+    showPublishModal,
+    versionsToPublish,
+    isPending,
     saveNoteDraft: stableSaveNoteDraft,
     clearNoteDraft: stableClearNoteDraft,
     toggleVersionSelection: stableToggleVersionSelection,
@@ -1338,10 +1358,6 @@ export function useNoteManagement(playlist: Playlist) {
     isUserInteracting,
     getDraftCount,
     clearAllSelections,
-    // Progress modal related
-    showPublishModal,
-    versionsToPublish,
-    publishNotesSequentially,
     closePublishModal,
   };
 }

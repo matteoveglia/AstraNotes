@@ -14,6 +14,7 @@ import React, {
   useRef,
   useCallback,
   useDeferredValue,
+  useTransition,
 } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -37,7 +38,6 @@ import { PublishingControls } from "@/features/notes/components/PublishingContro
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
-import { PublishProgressModal } from "./PublishProgressModal";
 import {
   Tooltip,
   TooltipContent,
@@ -69,6 +69,9 @@ export const MainContent: React.FC<MainContentProps> = ({
   // This allows immediate filter selection response while deferring expensive filtering
   const deferredSelectedStatuses = useDeferredValue(selectedStatuses);
   const deferredSelectedLabels = useDeferredValue(selectedLabels);
+
+  // Add useTransition for heavy operations
+  const [isPending, startTransition] = useTransition();
 
   // Ref for cleanup tracking
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -239,25 +242,24 @@ export const MainContent: React.FC<MainContentProps> = ({
   } = usePlaylistModifications(activePlaylist, onPlaylistUpdate);
 
   const {
-    selectedVersions,
-    noteStatuses,
     noteDrafts,
+    noteStatuses,
     noteLabelIds,
     noteAttachments,
+    selectedVersions,
     isPublishing,
+    publishSelectedNotes,
+    publishAllNotes,
     saveNoteDraft,
     clearNoteDraft,
     toggleVersionSelection,
-    publishSelectedNotes,
-    publishAllNotes,
+    clearAllSelections,
     clearAllNotes,
     setAllLabels,
     getDraftCount,
-    clearAllSelections,
     // Progress modal related
     showPublishModal,
     versionsToPublish,
-    publishNotesSequentially,
     closePublishModal,
   } = useNoteManagement(activePlaylist);
 
@@ -471,24 +473,27 @@ export const MainContent: React.FC<MainContentProps> = ({
         versionWithFlag,
       );
 
-      // Then update the UI
-      const updatedVersions = [
-        ...(activePlaylist.versions || []),
-        versionWithFlag,
-      ];
+      // Use startTransition for non-urgent UI updates
+      startTransition(() => {
+        // Then update the UI
+        const updatedVersions = [
+          ...(activePlaylist.versions || []),
+          versionWithFlag,
+        ];
 
-      const updatedPlaylist = {
-        ...activePlaylist,
-        versions: updatedVersions,
-      };
+        const updatedPlaylist = {
+          ...activePlaylist,
+          versions: updatedVersions,
+        };
 
-      // Update the playlist in the store
-      if (onPlaylistUpdate) {
-        onPlaylistUpdate(updatedPlaylist);
-      }
+        // Update the playlist in the store
+        if (onPlaylistUpdate) {
+          onPlaylistUpdate(updatedPlaylist);
+        }
 
-      // Update the local state as well
-      setActivePlaylist(updatedPlaylist);
+        // Update the local state as well
+        setActivePlaylist(updatedPlaylist);
+      });
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
     }
@@ -541,26 +546,28 @@ export const MainContent: React.FC<MainContentProps> = ({
         }
       }
 
-      // If we added any versions, update the UI
+      // If we added any versions, update the UI with startTransition
       if (addedCount > 0) {
-        // Then update the UI
-        const updatedVersions = [
-          ...(activePlaylist.versions || []),
-          ...newVersions,
-        ];
+        startTransition(() => {
+          // Then update the UI
+          const updatedVersions = [
+            ...(activePlaylist.versions || []),
+            ...newVersions,
+          ];
 
-        const updatedPlaylist = {
-          ...activePlaylist,
-          versions: updatedVersions,
-        };
+          const updatedPlaylist = {
+            ...activePlaylist,
+            versions: updatedVersions,
+          };
 
-        // Update the playlist in the store
-        if (onPlaylistUpdate) {
-          onPlaylistUpdate(updatedPlaylist);
-        }
+          // Update the playlist in the store
+          if (onPlaylistUpdate) {
+            onPlaylistUpdate(updatedPlaylist);
+          }
 
-        // Update the local state as well
-        setActivePlaylist(updatedPlaylist);
+          // Update the local state as well
+          setActivePlaylist(updatedPlaylist);
+        });
 
         console.log(
           `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
@@ -641,8 +648,10 @@ export const MainContent: React.FC<MainContentProps> = ({
   ]);
 
   const handleClearFilters = () => {
-    setSelectedStatuses([]);
-    setSelectedLabels([]);
+    startTransition(() => {
+      setSelectedStatuses([]);
+      setSelectedLabels([]);
+    });
   };
 
   // Handler to open playlist in ftrack
@@ -927,6 +936,12 @@ export const MainContent: React.FC<MainContentProps> = ({
                     (Loading...)
                   </span>
                 )}
+                {isPending && !isInitializing && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground flex items-center gap-1">
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                    Updating...
+                  </span>
+                )}
               </CardTitle>
               <AnimatePresence>
                 {isPlaylistTitleHovered &&
@@ -1092,14 +1107,6 @@ export const MainContent: React.FC<MainContentProps> = ({
           onPlaylistCreated={handlePlaylistCreated}
         />
       )}
-
-      {/* Progress Modal */}
-      <PublishProgressModal
-        isOpen={showPublishModal}
-        onClose={closePublishModal}
-        versionsToPublish={versionsToPublish}
-        onPublish={publishNotesSequentially}
-      />
     </Card>
   );
 };
