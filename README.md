@@ -19,12 +19,12 @@ AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack
 - 🌙 **Dark Mode**
 
 ## Roadmap
-- **Project Selection:** Allow users to quickly switch between ftrack projects.
-- ✅ **Playlist Creation & Sync:** Create new playlists, sync to ftrack, and generate playlists from quick notes (completed).
 - **User Mentions:** Support @-mentioning users within notes.
 - **Multiple Notes per Version:** Allow adding new notes to versions that already have published notes.
 - **Related Versions:** Feature to display related versions (from the same shot), including their shot and version status.
-- ✅ **Open Playlist in Ftrack:** Provide a direct link/button to open the current playlist in ftrack (completed).
+- ✅ **Open Playlist in Ftrack:** Provide a direct link/button to open the current playlist in ftrack (completed, v0.8.0).
+- ✅ **Project Selection:** Allow users to quickly switch between ftrack projects (completed, v0.10.0).
+- ✅ **Playlist Creation & Sync:** Create new playlists, sync to ftrack, and generate playlists from quick notes (completed, v0.10.0).
 
 ## Installation
 
@@ -71,15 +71,15 @@ AstraNotes logs can be exported from the Settings panel for troubleshooting. Cli
 
 AstraNotes has been scanned with VirusTotal to ensure it's free from malware and other security threats.
 
-You can view the scan results here, for release v0.7.0.
+You can view the scan results here, for release v0.10.0.
 
 #### Windows
-- **File Hash**: 70d17e96e37e2bc73a9ab715e226597f20bcabfc790076bc3b8747b98876955c
-- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/70d17e96e37e2bc73a9ab715e226597f20bcabfc790076bc3b8747b98876955c?nocache=1)
+- **File Hash**: 5a3f775c6ea3f0e79dc403e29e998d85ae86eb4ec28793282aceb7f563144fc5
+- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/5a3f775c6ea3f0e79dc403e29e998d85ae86eb4ec28793282aceb7f563144fc5/detection)
 
 #### macOS
-- **File Hash**: d7fc36e47eb78ca1a53e16c5d07b98402cb6ad82c767600b903e0aa9f1eac7fb
-- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/d7fc36e47eb78ca1a53e16c5d07b98402cb6ad82c767600b903e0aa9f1eac7fb/detection)
+- **File Hash**: 58bc687900dbc581562768af720735bd504eda1c12142c5e132f269648fd7308
+- **Scan Results**: [View on VirusTotal](https://www.virustotal.com/gui/file/58bc687900dbc581562768af720735bd504eda1c12142c5e132f269648fd7308/detection)
 
 We are committed to providing a secure application and regularly scan our releases to ensure your safety.
 
