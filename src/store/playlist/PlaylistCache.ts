@@ -4,12 +4,7 @@
  * Handles cache invalidation and memory optimization for stable UUID architecture.
  */
 
-import {
-  PlaylistEntity,
-  VersionEntity,
-  CacheOperations,
-  CacheConfig,
-} from "./types";
+import { VersionEntity, CacheOperations, CacheConfig } from "./types";
 import { Playlist } from "@/types";
 
 interface CacheEntry<T> {

@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { VersionSearch } from "@/components/VersionSearch";
-import { storyMocks } from "../../../.storybook/mocks";
 import { AssetVersion } from "@/types";
 import React, { useEffect } from "react";
 

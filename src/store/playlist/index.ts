@@ -42,7 +42,7 @@ import { PlaylistCache } from "./PlaylistCache";
 import { PlaylistSync } from "./PlaylistSync";
 import { DraftManager } from "./DraftManager";
 import { FtrackService } from "@/services/ftrack";
-import { PlaylistEntity, VersionEntity, PlaylistEvent } from "./types";
+import { PlaylistEntity, VersionEntity } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 
 export class PlaylistStore extends SimpleEventEmitter {

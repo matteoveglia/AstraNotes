@@ -406,8 +406,8 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
                       ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
                       : ""
                   } ${
-                    isSelected 
-                      ? "border-purple-500 dark:border-purple-500" 
+                    isSelected
+                      ? "border-purple-500 dark:border-purple-500"
                       : "border-zinc-200 dark:border-zinc-700"
                   }`}
                   variants={itemVariants}

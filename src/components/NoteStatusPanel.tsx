@@ -59,8 +59,8 @@ export function NoteStatusPanel({
   const [shouldOpenUpward, setShouldOpenUpward] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   // Track open state for each select individually
-  const [isVersionSelectOpen, setIsVersionSelectOpen] = useState(false);
-  const [isParentSelectOpen, setIsParentSelectOpen] = useState(false);
+  const [_isVersionSelectOpen, setIsVersionSelectOpen] = useState(false);
+  const [_isParentSelectOpen, setIsParentSelectOpen] = useState(false);
   const { showSuccess, showError } = useToast();
 
   // Check if panel should open upward to avoid overflow

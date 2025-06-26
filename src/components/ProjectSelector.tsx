@@ -15,9 +15,8 @@ import {
 } from "./ui/select";
 import { useProjectStore } from "../store/projectStore";
 import { GlowEffect } from "./ui/glow-effect";
-import { Folder, AlertCircle, X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -41,10 +40,8 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     selectedProjectId,
     isLoading,
     error,
-    hasValidatedSelectedProject,
     setSelectedProject,
     loadProjects,
-    validateSelectedProject,
   } = useProjectStore();
 
   // Load projects on mount (validation happens automatically in loadProjects)

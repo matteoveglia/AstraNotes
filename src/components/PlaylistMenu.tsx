@@ -32,7 +32,6 @@ import {
 import { ThumbnailReloadModal } from "./ThumbnailReloadModal";
 import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "../store/playlistsStore";
-import { playlistStore } from "../store/playlist";
 import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
 

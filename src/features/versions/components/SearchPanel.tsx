@@ -6,7 +6,6 @@
 
 import React from "react";
 import { VersionSearch } from "@/components/VersionSearch";
-import { QuickNotesToPlaylistButton } from "@/features/notes/components/QuickNotesToPlaylistButton";
 import { AssetVersion, Playlist } from "@/types";
 
 interface SearchPanelProps {

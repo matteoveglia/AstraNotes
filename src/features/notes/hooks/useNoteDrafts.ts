@@ -9,7 +9,6 @@ import { playlistStore } from "@/store/playlist";
 import { db } from "@/store/db";
 import { NoteStatus } from "@/types";
 import Dexie from "dexie";
-import type { CachedVersion } from "@/store/db";
 
 export function useNoteDrafts(playlistId: string) {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});

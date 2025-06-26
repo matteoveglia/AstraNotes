@@ -1609,24 +1609,26 @@ export class FtrackService {
     allSchemaStatuses: any[];
   }> {
     const session = await this.getSession();
-    
+
     console.debug("[FtrackService] Fetching shared status data...");
-    
+
     // Fetch all core data in parallel to minimize API calls
     const [
       statusResult,
-      objectTypeResult, 
+      objectTypeResult,
       workflowSchemaResult,
       projectSchemasResult,
       schemaResult,
-      schemaStatusResult
+      schemaStatusResult,
     ] = await Promise.all([
-      session.query("select id, name, color from Status"),
+      session.query("select id, name, color, sort from Status order by sort"),
       session.query("select id, name from ObjectType"),
-      session.query("select id, name, statuses.id, statuses.name, statuses.color from WorkflowSchema"),
+      session.query(
+        "select id, name, statuses.id, statuses.name, statuses.color, statuses.sort from WorkflowSchema",
+      ),
       session.query("select id, name from ProjectSchema"),
       session.query("select id, project_schema_id, object_type_id from Schema"),
-      session.query("select schema_id, status_id from SchemaStatus")
+      session.query("select schema_id, status_id from SchemaStatus"),
     ]);
 
     const sharedData = {
@@ -1639,7 +1641,7 @@ export class FtrackService {
       allWorkflowSchemas: workflowSchemaResult.data,
       allProjectSchemas: projectSchemasResult.data,
       allSchemas: schemaResult.data,
-      allSchemaStatuses: schemaStatusResult.data
+      allSchemaStatuses: schemaStatusResult.data,
     };
 
     console.debug("[FtrackService] Shared status data fetched:", {
@@ -1648,7 +1650,7 @@ export class FtrackService {
       workflowSchemas: sharedData.allWorkflowSchemas.length,
       projectSchemas: sharedData.allProjectSchemas.length,
       schemas: sharedData.allSchemas.length,
-      schemaStatuses: sharedData.allSchemaStatuses.length
+      schemaStatuses: sharedData.allSchemaStatuses.length,
     });
 
     return sharedData;
@@ -1665,29 +1667,38 @@ export class FtrackService {
     try {
       // Fetch shared data once
       const sharedData = await this.fetchSharedStatusData();
-      
+
       // Build schema mapping (required) and legacy mapping (optional for backwards compatibility)
       const results = await Promise.allSettled([
         this.buildSchemaStatusMapping(sharedData),
-        this.buildStatusMapping(sharedData) // This may fail due to ftrack API limitations, but it's not critical
+        this.buildStatusMapping(sharedData), // This may fail due to ftrack API limitations, but it's not critical
       ]);
-      
+
       // Check schema mapping result (critical)
       const schemaResult = results[0];
-      if (schemaResult.status === 'rejected') {
-        console.error("[FtrackService] Failed to build schema status mapping:", schemaResult.reason);
+      if (schemaResult.status === "rejected") {
+        console.error(
+          "[FtrackService] Failed to build schema status mapping:",
+          schemaResult.reason,
+        );
         throw schemaResult.reason;
       }
-      
+
       // Check legacy mapping result (non-critical)
       const legacyResult = results[1];
-      if (legacyResult.status === 'rejected') {
-        console.warn("[FtrackService] Legacy status mapping failed (non-critical):", legacyResult.reason);
+      if (legacyResult.status === "rejected") {
+        console.warn(
+          "[FtrackService] Legacy status mapping failed (non-critical):",
+          legacyResult.reason,
+        );
       }
-      
+
       console.debug("[FtrackService] Status mappings initialization complete");
     } catch (error) {
-      console.error("[FtrackService] Failed to initialize critical status mappings:", error);
+      console.error(
+        "[FtrackService] Failed to initialize critical status mappings:",
+        error,
+      );
       throw error;
     }
   }
@@ -1702,7 +1713,7 @@ export class FtrackService {
   }): Promise<void> {
     try {
       const session = await this.getSession();
-      
+
       // Store shared data
       this.allStatuses = sharedData.allStatuses;
       this.allObjectTypes = sharedData.allObjectTypes;
@@ -1710,17 +1721,23 @@ export class FtrackService {
 
       // Get current project schema ID for overrides
       const userResult = await session.query(
-        `select project.project_schema_id from User where username is "${this.settings?.apiUser}"`
+        `select project.project_schema_id from User where username is "${this.settings?.apiUser}"`,
       );
       const schemaId = userResult.data[0]?.project?.project_schema_id;
       if (!schemaId) {
-        console.debug("[StatusMapping] Could not determine current project schema id");
+        console.debug(
+          "[StatusMapping] Could not determine current project schema id",
+        );
         return;
       }
 
       const [overrideResult, schemaResult] = await Promise.all([
-        session.query(`select type_id, workflow_schema_id from ProjectSchemaOverride where project_schema_id is "${schemaId}"`),
-        session.query(`select asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema where id is "${schemaId}"`)
+        session.query(
+          `select type_id, workflow_schema_id from ProjectSchemaOverride where project_schema_id is "${schemaId}"`,
+        ),
+        session.query(
+          `select asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema where id is "${schemaId}"`,
+        ),
       ]);
 
       this.allOverrides = overrideResult.data;
@@ -1730,9 +1747,11 @@ export class FtrackService {
       this.statusMapping = {};
       for (const objType of this.allObjectTypes) {
         let workflowSchemaId: string | null = null;
-        
+
         // Check for override
-        const override = this.allOverrides.find((ov: any) => ov.type_id === objType.id);
+        const override = this.allOverrides.find(
+          (ov: any) => ov.type_id === objType.id,
+        );
         if (override) {
           workflowSchemaId = override.workflow_schema_id;
         } else {
@@ -1745,23 +1764,29 @@ export class FtrackService {
         }
 
         // Find statuses for this workflow schema
-        const workflowSchema = this.allWorkflowSchemas.find((ws: any) => ws.id === workflowSchemaId);
-        const statuses = workflowSchema?.statuses?.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-        })) || [];
+        const workflowSchema = this.allWorkflowSchemas.find(
+          (ws: any) => ws.id === workflowSchemaId,
+        );
+        const statuses =
+          workflowSchema?.statuses?.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+          })) || [];
 
         this.statusMapping[objType.name] = {
           workflowSchemaId: workflowSchemaId || "",
           statuses,
         };
       }
-      
+
       this.statusMappingReady = true;
       console.debug("[StatusMapping] Legacy mapping complete");
     } catch (error) {
-      console.warn("[StatusMapping] Failed to build legacy status mapping (non-critical):", error);
+      console.warn(
+        "[StatusMapping] Failed to build legacy status mapping (non-critical):",
+        error,
+      );
       this.statusMappingReady = false;
       // Don't throw - this mapping is not critical for core functionality
     }
@@ -1778,37 +1803,52 @@ export class FtrackService {
     allSchemaStatuses: any[];
   }): Promise<void> {
     try {
-      const { allStatuses, allObjectTypes, allProjectSchemas, allSchemas, allSchemaStatuses } = sharedData;
+      const {
+        allStatuses,
+        allObjectTypes,
+        allProjectSchemas,
+        allSchemas,
+        allSchemaStatuses,
+      } = sharedData;
 
       // Build mapping
       this.schemaStatusMapping = {};
       for (const projectSchema of allProjectSchemas) {
         const schemaId = projectSchema.id;
         this.schemaStatusMapping[schemaId] = {};
-        
+
         // Find all Schema rows for this ProjectSchema
-        const schemasForProject = allSchemas.filter((sc: any) => sc.project_schema_id === schemaId);
-        
+        const schemasForProject = allSchemas.filter(
+          (sc: any) => sc.project_schema_id === schemaId,
+        );
+
         for (const schema of schemasForProject) {
-          const objectType = allObjectTypes.find((ot: any) => ot.id === schema.object_type_id);
+          const objectType = allObjectTypes.find(
+            (ot: any) => ot.id === schema.object_type_id,
+          );
           if (!objectType) continue;
-          
+
           // Find all SchemaStatus rows for this Schema
-          const schemaStatuses = allSchemaStatuses.filter((ss: any) => ss.schema_id === schema.id);
-          
+          const schemaStatuses = allSchemaStatuses.filter(
+            (ss: any) => ss.schema_id === schema.id,
+          );
+
           // Map to Status objects
           const statuses = schemaStatuses
             .map((ss: any) => allStatuses.find((st) => st.id === ss.status_id))
             .filter(Boolean) as Status[];
-            
+
           this.schemaStatusMapping[schemaId][objectType.name] = statuses;
         }
       }
-      
+
       this.schemaStatusMappingReady = true;
       console.debug("[SchemaStatusMapping] Schema mapping complete");
     } catch (error) {
-      console.error("[SchemaStatusMapping] Failed to build schema status mapping:", error);
+      console.error(
+        "[SchemaStatusMapping] Failed to build schema status mapping:",
+        error,
+      );
       this.schemaStatusMappingReady = false;
       throw error;
     }
@@ -1820,9 +1860,11 @@ export class FtrackService {
    */
   async getApplicableStatusesForType(entityType: string): Promise<Status[]> {
     await this.ensureStatusMappingsInitialized();
-    
+
     if (!this.statusMappingReady) {
-      console.debug("[StatusMapping] Legacy mapping not available, returning empty");
+      console.debug(
+        "[StatusMapping] Legacy mapping not available, returning empty",
+      );
       return [];
     }
     const entry = this.statusMapping[entityType];
@@ -1830,11 +1872,14 @@ export class FtrackService {
       console.debug(`[StatusMapping] No mapping for entityType: ${entityType}`);
       return [];
     }
-    console.debug(`[StatusMapping] Returning statuses for ${entityType}:`, entry.statuses);
+    console.debug(
+      `[StatusMapping] Returning statuses for ${entityType}:`,
+      entry.statuses,
+    );
     return entry.statuses;
   }
 
-  // This method is now replaced by buildSchemaStatusMapping() 
+  // This method is now replaced by buildSchemaStatusMapping()
   // and called via ensureStatusMappingsInitialized()
 
   /**
@@ -1846,7 +1891,7 @@ export class FtrackService {
     entityId: string,
   ): Promise<Status[]> {
     await this.ensureStatusMappingsInitialized();
-    
+
     if (!this.schemaStatusMappingReady) {
       console.debug("[SchemaStatusMapping] Mapping not ready, returning empty");
       return [];
@@ -1859,7 +1904,9 @@ export class FtrackService {
       );
       const entityData = entityQuery.data[0];
       if (!entityData) {
-        console.debug(`[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`);
+        console.debug(
+          `[SchemaStatusMapping] Entity not found: ${entityType} ${entityId}`,
+        );
         return [];
       }
       const projectSchemaId = entityData.project?.project_schema_id;
@@ -1892,6 +1939,7 @@ export class FtrackService {
             id: s.id,
             name: s.name,
             color: s.color,
+            sort: s.sort,
           })) || [];
         log(
           `[SchemaStatusMapping] AssetVersion workflow schema ${workflowSchemaId} statuses:`,

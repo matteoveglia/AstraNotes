@@ -42,7 +42,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const { isConnected } = useConnectionStatus();
   const { settings } = useSettings();
-  const { shouldShowNotification, shouldHighlightNotification, updateVersion } =
+  const { shouldShowNotification, shouldHighlightNotification } =
     useUpdateStore();
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);

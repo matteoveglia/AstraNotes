@@ -40,12 +40,7 @@ class SimpleEventEmitter {
 import { PlaylistRepository } from "./PlaylistRepository";
 import { PlaylistCache } from "./PlaylistCache";
 import { FtrackService } from "@/services/ftrack";
-import {
-  PlaylistEntity,
-  SyncOperations,
-  PlaylistEvent,
-  SyncProgress,
-} from "./types";
+import { PlaylistEntity, SyncOperations, PlaylistEvent } from "./types";
 import { CreatePlaylistRequest } from "@/types";
 
 export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {

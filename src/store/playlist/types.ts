@@ -10,8 +10,6 @@
  * - Backward compatibility with existing interfaces
  */
 
-import { AssetVersion, Note, Playlist, CreatePlaylistRequest } from "@/types";
-
 // Core playlist entity with stable UUID architecture
 export interface PlaylistEntity {
   id: string; // STABLE UUID - never changes

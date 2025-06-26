@@ -54,7 +54,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const { settings, setSettings } = useSettings();
   const { labels, fetchLabels } = useLabelStore();
   const { size, setSize } = useThumbnailSettingsStore();
-  const { setActivePlaylist } = usePlaylistsStore();
   const { isConnected, testConnection } = useConnectionStatus();
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

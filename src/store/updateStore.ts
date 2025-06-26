@@ -6,7 +6,6 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { db } from "./db";
 
 export interface UpdateState {
   updateAvailable: boolean;

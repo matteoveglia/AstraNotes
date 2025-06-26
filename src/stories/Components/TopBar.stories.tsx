@@ -1,9 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { TopBar } from "@/components/TopBar";
-import { storyMocks } from "../../../.storybook/mocks";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import React from "react";
 
 // Define the window interfaces for our mocks
 declare global {

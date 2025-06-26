@@ -5,9 +5,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Playlist, NoteStatus, AssetVersion } from "@/types";
+import { Playlist, NoteStatus } from "@/types";
 import { playlistStore } from "@/store/playlist";
-import { db, type CachedVersion, type NoteAttachment } from "@/store/db";
+import { db, type NoteAttachment } from "@/store/db";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
@@ -24,7 +24,7 @@ export function useNoteManagement(playlist: Playlist) {
   const [noteAttachments, setNoteAttachments] = useState<
     Record<string, Attachment[]>
   >({});
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  const [_selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [lastPublishTime, setLastPublishTime] = useState<Date | null>(null);
   const [progress, setProgress] = useState<number>(0);
@@ -1184,9 +1184,11 @@ export function useNoteManagement(playlist: Playlist) {
 
       // Filter to only include versions that actually exist in the current playlist
       // This prevents errors when trying to update versions that don't exist in the repository
-      const playlistVersionIds = new Set(playlist.versions?.map(v => v.id) || []);
-      const versionIdsToUpdate = candidateVersionIds.filter(versionId => 
-        playlistVersionIds.has(versionId)
+      const playlistVersionIds = new Set(
+        playlist.versions?.map((v) => v.id) || [],
+      );
+      const versionIdsToUpdate = candidateVersionIds.filter((versionId) =>
+        playlistVersionIds.has(versionId),
       );
 
       if (versionIdsToUpdate.length === 0) {
@@ -1210,24 +1212,40 @@ export function useNoteManagement(playlist: Playlist) {
             );
             return { versionId, success: true };
           } catch (error) {
-            console.warn(`[useNoteManagement] Failed to set label for version ${versionId}:`, error);
+            console.warn(
+              `[useNoteManagement] Failed to set label for version ${versionId}:`,
+              error,
+            );
             return { versionId, success: false, error };
           }
-        })
+        }),
       );
 
       // Count successful updates and collect failures
       const successfulUpdates = updateResults
-        .filter((result): result is PromiseFulfilledResult<{ versionId: string; success: true }> => 
-          result.status === 'fulfilled' && result.value.success
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<{
+            versionId: string;
+            success: true;
+          }> => result.status === "fulfilled" && result.value.success,
         )
-        .map(result => result.value.versionId);
+        .map((result) => result.value.versionId);
 
-      const failedUpdates = updateResults
-        .filter((result): result is PromiseFulfilledResult<{ versionId: string; success: false; error: any }> | PromiseRejectedResult => 
-          result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)
-        )
-        .length;
+      const failedUpdates = updateResults.filter(
+        (
+          result,
+        ): result is
+          | PromiseFulfilledResult<{
+              versionId: string;
+              success: false;
+              error: any;
+            }>
+          | PromiseRejectedResult =>
+          result.status === "rejected" ||
+          (result.status === "fulfilled" && !result.value.success),
+      ).length;
 
       // Update in memory for successful updates only
       if (successfulUpdates.length > 0) {
@@ -1238,7 +1256,8 @@ export function useNoteManagement(playlist: Playlist) {
         setNoteLabelIds(newLabelIds);
       }
 
-      const selectionMode = selectedDraftVersionIds.length > 0 ? "selected" : "all draft";
+      const selectionMode =
+        selectedDraftVersionIds.length > 0 ? "selected" : "all draft";
 
       // Show appropriate success/error message
       if (failedUpdates === 0) {

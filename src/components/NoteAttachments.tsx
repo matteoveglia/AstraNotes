@@ -39,7 +39,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   onRemoveAttachment,
   disabled = false,
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
+  const [_isDragging, setIsDragging] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [shouldOpenUpward, setShouldOpenUpward] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,8 +193,8 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       if (selected) {
         // Process the selected files
         const newAttachments: Attachment[] = [];
-        const oversizedFiles: string[] = [];
-        const largeFiles: string[] = [];
+        const _oversizedFiles: string[] = [];
+        const _largeFiles: string[] = [];
 
         if (Array.isArray(selected)) {
           // Handle multiple file selection

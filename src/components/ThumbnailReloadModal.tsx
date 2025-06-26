@@ -14,7 +14,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { ftrackService } from "../services/ftrack";
 import {
   forceRefreshThumbnail,

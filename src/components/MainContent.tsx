@@ -35,7 +35,6 @@ import { ModificationsBanner } from "@/features/versions/components/Modification
 import { PublishingControls } from "@/features/notes/components/PublishingControls";
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
-import { VersionFilter } from "@/features/versions/components/VersionFilter";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
 import { PublishProgressModal } from "./PublishProgressModal";
 import {
@@ -284,7 +283,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       try {
         await playlistStore.startPolling(
           activePlaylist.id,
-          (added, removed, addedVersions, removedVersions, freshVersions) => {
+          (added, removed) => {
             console.debug(
               `[MainContent] Polling detected changes: +${added}, -${removed}`,
             );
@@ -403,6 +402,7 @@ export const MainContent: React.FC<MainContentProps> = ({
   const handleRemoveVersion = (versionId: string) =>
     handleRemoveVersions([versionId]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleClearAll = () => {
     console.log("handleClearAll called:", {
       isQuickNotes: activePlaylist.isQuickNotes,
