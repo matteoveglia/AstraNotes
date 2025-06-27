@@ -929,7 +929,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               onMouseEnter={() => setIsPlaylistTitleHovered(true)}
               onMouseLeave={() => setIsPlaylistTitleHovered(false)}
             >
-              <CardTitle className="text-xl">
+              <CardTitle className="text-xl select-text">
                 {activePlaylist.name}
                 {isInitializing && (
                   <span className="ml-2 text-sm font-normal text-muted-foreground">
@@ -954,7 +954,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                       exit={{ opacity: 0, x: -10, scale: 1 }}
                       transition={{ duration: 0.1, ease: "easeOut" }}
                       onClick={handleOpenPlaylistInFtrack}
-                      className="cursor-pointer"
+                      className="cursor-pointer select-none"
                     >
                       <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                     </motion.div>

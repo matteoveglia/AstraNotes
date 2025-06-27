@@ -257,12 +257,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       result = processCode(result);
     }
 
-    return result;
-  };
+          return result;
+    };
 
-  return (
-    <div className={cn("prose prose-sm max-w-none", className)}>
-      {parseMarkdown(content)}
-    </div>
-  );
+    return (
+      <div className={cn("prose prose-sm max-w-none select-text", className)}>
+        {parseMarkdown(content)}
+      </div>
+    );
 };

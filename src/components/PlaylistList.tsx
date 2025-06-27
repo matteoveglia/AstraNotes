@@ -120,7 +120,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4 select-none">
         <div className="text-sm text-zinc-500">Loading playlists...</div>
       </div>
     );
@@ -128,7 +128,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4 select-none">
         <div className="text-sm text-red-500">{error}</div>
       </div>
     );
@@ -136,7 +136,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
 
   if (categories.length === 0) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4 select-none">
         <div className="text-sm text-zinc-500">No playlists found</div>
       </div>
     );
@@ -159,10 +159,10 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
             </Button>
 
             <div className="flex-1 text-center">
-              <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 select-none">
                 {currentCategory?.name}
               </h3>
-              <div className="flex justify-center gap-1 mt-1">
+              <div className="flex justify-center gap-1 mt-1 select-none">
                 {categories.map((_, index) => {
                   // Check if this category contains the active playlist
                   const containsActivePlaylist =

@@ -166,7 +166,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
       <DialogContent className="max-w-5xl w-full">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
-            <span>
+            <span className="select-text">
               {versionName} - v{versionNumber}
             </span>
 

@@ -87,7 +87,7 @@ function SearchResults({
         return (
           <motion.div
             key={version.id}
-            className={`border rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors ${
+            className={`border rounded p-1.5 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs relative group transition-colors select-none ${
               isInPlaylist
                 ? "opacity-50 bg-zinc-100 dark:bg-zinc-700 cursor-not-allowed"
                 : ""

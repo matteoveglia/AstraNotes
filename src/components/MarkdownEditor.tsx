@@ -553,7 +553,7 @@ export const MarkdownEditor = forwardRef<
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={cn(
-            "resize-none transition-all duration-200",
+            "resize-none transition-all duration-200 select-text",
             !disabled && "rounded-t-none",
             disabled
               ? "overflow-y-auto pointer-events-auto cursor-default"

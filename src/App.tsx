@@ -241,6 +241,10 @@ const App: React.FC = () => {
         if (activePlaylistId) {
           loadedVersionsRef.current[activePlaylistId] = true;
         }
+        // Clear loading state for local playlists to allow immediate content rendering
+        setLoadingVersions(false);
+        // Force re-render by updating state to ensure the component knows the playlist is ready
+        setLocalPlaylists([...playlists]);
         return;
       }
 
@@ -787,7 +791,7 @@ const App: React.FC = () => {
     <ToastProvider>
       <SyncConflictManager />
       <ErrorBoundary>
-        <div className="h-screen flex flex-col">
+        <div className="h-screen flex flex-col select-none">
           <TopBar
             onLoadPlaylists={async () => {
               // CRITICAL FIX: Get current project ID for manual reload

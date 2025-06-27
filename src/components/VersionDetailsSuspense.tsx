@@ -71,7 +71,7 @@ function VersionDetailsContent({
           <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Asset Name
           </label>
-          <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1">
+          <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text">
             {versionDetails.assetName}
           </p>
         </div>
@@ -80,7 +80,7 @@ function VersionDetailsContent({
           <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Version Number
           </label>
-          <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1">
+          <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text">
             v{versionDetails.versionNumber}
           </p>
         </div>
@@ -90,7 +90,7 @@ function VersionDetailsContent({
             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Asset Type
             </label>
-            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1">
+            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text">
               {versionDetails.assetType}
             </p>
           </div>
@@ -101,7 +101,7 @@ function VersionDetailsContent({
             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Published By
             </label>
-            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1">
+            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text">
               {versionDetails.publishedBy}
             </p>
           </div>
@@ -112,7 +112,7 @@ function VersionDetailsContent({
             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
               Published At
             </label>
-            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1">
+            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text">
               {new Date(versionDetails.publishedAt).toLocaleString()}
             </p>
           </div>
@@ -124,7 +124,7 @@ function VersionDetailsContent({
               Description
             </label>
             <div className="mt-1 max-h-24 overflow-y-auto">
-              <p className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap">
+              <p className="text-sm text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap select-text">
                 {versionDetails.description}
               </p>
             </div>

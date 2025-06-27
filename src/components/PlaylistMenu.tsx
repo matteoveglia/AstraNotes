@@ -153,7 +153,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
                 <DropdownMenuItem
                   key={label.id}
                   onClick={() => onSetAllLabels(label.id)}
-                  className="truncate mb-1 last:mb-0 cursor-pointer relative py-2 px-3 rounded-sm flex items-center"
+                  className="truncate mb-1 last:mb-0 cursor-pointer relative py-2 px-3 rounded-sm flex items-center select-none"
                   style={{
                     backgroundColor: label.color || "white",
                     color: getContrastColor(label.color),

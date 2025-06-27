@@ -95,7 +95,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     <motion.div
       key={playlist.id}
       className={cn(
-        "p-2 rounded cursor-pointer mb-1 flex items-start justify-between gap-2",
+        "p-2 rounded cursor-pointer mb-1 flex items-start justify-between gap-2 select-none",
         isActive
           ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
           : "hover:bg-zinc-100 dark:hover:bg-zinc-800",
@@ -106,7 +106,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       onContextMenu={handleContextMenu}
       variants={itemVariants}
     >
-      <span className="break-words whitespace-normal flex-1 min-w-0">
+      <span className="break-words whitespace-normal flex-1 min-w-0 select-none">
         {playlist.title}
       </span>
       <div className="flex-shrink-0 flex items-center">
@@ -174,13 +174,29 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     );
     const lists = nonQuickNotesPlaylists.filter((p) => p.type === "list");
 
-    // Add review sessions as a category if any exist (preserve original order)
+    // Add review sessions as a category if any exist (sort by created_at, newest first)
     if (reviewSessions.length > 0) {
+      const sortedReviewSessions = reviewSessions.sort((a, b) => {
+        // If one is removed and the other isn't, put removed ones last
+        if (a.status === "removed" && b.status !== "removed") return 1;
+        if (b.status === "removed" && a.status !== "removed") return -1;
+
+        // Sort by created_at (newest first)
+        const dateA = (a as any).created_at || "";
+        const dateB = (b as any).created_at || "";
+
+        if (!dateA && !dateB) return a.name.localeCompare(b.name);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
       categories.push({
         id: "review-sessions",
         name: "Review Sessions",
         type: "reviewsessions",
-        playlists: reviewSessions,
+        playlists: sortedReviewSessions,
       });
     }
 
@@ -211,14 +227,31 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     for (const [categoryId, categoryLists] of sortedCategoryEntries) {
       const categoryName = categoryLists[0]?.categoryName || "Uncategorized";
 
-      // Sort playlists within each category by name, but put "removed" ones at the end
+      // Sort playlists within each category by date, but put "removed" ones at the end
       const sortedPlaylists = categoryLists.sort((a, b) => {
         // If one is removed and the other isn't, put removed ones last
         if (a.status === "removed" && b.status !== "removed") return 1;
         if (b.status === "removed" && a.status !== "removed") return -1;
 
-        // Otherwise sort by name
-        return a.name.localeCompare(b.name);
+        // Otherwise sort by date (newest first)
+        const getDateValue = (playlist: PlaylistWithStatus): string => {
+          if (playlist.type === "reviewsession") {
+            return (playlist as any).created_at || "";
+          } else {
+            return (playlist as any).date || "";
+          }
+        };
+
+        const dateA = getDateValue(a);
+        const dateB = getDateValue(b);
+
+        // If dates are missing, fall back to name sorting
+        if (!dateA && !dateB) return a.name.localeCompare(b.name);
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+
+        // Sort by date (newest first)
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
       });
 
       categories.push({
@@ -626,27 +659,32 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           )}
 
           {/* Scrollable playlists section */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <motion.div
-              className="flex-1 flex flex-col min-h-0 pr-2"
-              variants={gridVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <PlaylistList
-                categories={categories}
-                loading={loading}
-                error={error}
-                onSelect={(playlist) => onPlaylistSelect(playlist.id)}
-                activePlaylistId={
-                  // If Quick Notes is active, don't show any carousel playlist as selected
-                  activePlaylist === QUICK_NOTES_ID ||
-                  activePlaylist === "quick-notes"
-                    ? null
-                    : activePlaylist
-                }
-              />
-            </motion.div>
+          <div className="flex-1 flex flex-col min-h-0 relative">
+            <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative">
+              <motion.div
+                className="h-full"
+                variants={gridVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                <PlaylistList
+                  categories={categories}
+                  loading={loading}
+                  error={error}
+                  onSelect={(playlist) => onPlaylistSelect(playlist.id)}
+                  activePlaylistId={
+                    // If Quick Notes is active, don't show any carousel playlist as selected
+                    activePlaylist === QUICK_NOTES_ID ||
+                    activePlaylist === "quick-notes"
+                      ? null
+                      : activePlaylist
+                  }
+                />
+              </motion.div>
+              
+              {/* Subtle fade to hint at scrollability - positioned above the footer */}
+              <div className="absolute bottom-8 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+            </div>
           </div>
         </>
       )}
