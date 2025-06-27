@@ -291,7 +291,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
           </Toast>
         ))}
 
-        <ToastPrimitive.Viewport className="fixed bottom-0 right-0 flex flex-col p-6 gap-2 w-[390px] max-w-[100vw] m-0 list-none z-[9999]" />
+        <ToastPrimitive.Viewport className="fixed bottom-0 right-0 flex flex-col p-6 gap-2 w-[390px] max-w-screen m-0 list-none z-9999" />
       </ToastPrimitive.Provider>
     </ToastContext.Provider>
   );

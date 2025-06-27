@@ -223,7 +223,7 @@ export const VersionFilter: React.FC<VersionFilterProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-3 h-3 rounded-sm flex-shrink-0"
+                      className="w-3 h-3 rounded-sm shrink-0"
                       style={{ backgroundColor: label.color }}
                     />
                     <span className="truncate">{label.name}</span>

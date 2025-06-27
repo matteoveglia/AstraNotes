@@ -242,7 +242,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       />
 
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
         </div>
       )}
@@ -253,7 +253,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           showControls ? "opacity-100" : "opacity-0 pointer-events-none", // Added pointer-events-none when hidden
         )}
       >
-        <div className="absolute top-4 right-4 text-white text-opacity-80 text-sm bg-black bg-opacity-40 rounded px-2 font-mono">
+        <div className="absolute top-4 right-4 text-white/80 text-sm bg-black/40 rounded px-2 font-mono">
           {duration > 0 && (
             <div className="text-right">
               <div className="text-[0.725rem]">
@@ -286,11 +286,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           // Disable button if loading to prevent interaction issues?
           disabled={isLoading}
         >
-          <div className="bg-black bg-opacity-50 rounded-full p-3 group-hover:bg-opacity-70 transition-all">
+          <div className="bg-black/50 rounded-full p-4 group-hover:bg-black/70 transition-all">
             {isPlaying ? (
               <Pause className="w-8 h-8 text-white" />
             ) : (
-              <Play className="w-8 h-8 text-white ml-1" />
+              <Play className="w-8 h-8 text-white pl-1" />
             )}
           </div>
         </button>
@@ -302,7 +302,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="flex-1 relative">
               <div
                 ref={timelineRef}
-                className="h-3 bg-white bg-opacity-30 rounded cursor-pointer relative select-none"
+                className="h-3 bg-white/30 rounded cursor-pointer relative select-none"
                 onMouseDown={handleTimelineMouseDown} // From useTimelineScrubbing
               >
                 <div
@@ -320,7 +320,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
               {isDragging && (
                 <div
-                  className="absolute -top-8 bg-black bg-opacity-75 text-white text-xs rounded px-2 py-1 pointer-events-none whitespace-nowrap"
+                  className="absolute -top-8 bg-black/75 text-white text-xs rounded px-2 py-1 pointer-events-none whitespace-nowrap"
                   style={{
                     left: `${progressPercent}%`,
                     transform: "translateX(-50%)",
@@ -339,7 +339,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Keyboard hints - consider making visibility tied to showControls or always visible on hover of parent */}
-      <div className="absolute top-4 left-4 text-white text-xs bg-black bg-opacity-50 rounded px-2 py-1 opacity-0 focus-within:opacity-100 group-hover:opacity-100 peer-focus:opacity-100 hover:opacity-100 transition-opacity whitespace-nowrap">
+      <div className="absolute top-4 left-4 text-white text-xs bg-black/50 rounded px-2 py-1 opacity-0 focus-within:opacity-100 group-hover:opacity-100 peer-focus:opacity-100 hover:opacity-100 transition-opacity whitespace-nowrap">
         <div className="font-semibold mb-1">Controls:</div>
         <div>← → Frame navigation</div>
         <div>Space = Play/Pause</div>

@@ -83,7 +83,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />

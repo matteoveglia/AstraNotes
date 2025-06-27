@@ -246,7 +246,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                     <div className="flex items-center gap-1">
                       {playlist.isLocalOnly && (
                         <span
-                          className="text-orange-500 text-xs flex-shrink-0"
+                          className="text-orange-500 text-xs shrink-0"
                           title="Local only - not synced to ftrack"
                         >
                           ●
@@ -255,7 +255,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                       {playlist.type === "list" && !playlist.isLocalOnly && (
                         <span
                           className={cn(
-                            "text-xs flex-shrink-0",
+                            "text-xs shrink-0",
                             playlist.isOpen ? "text-green-700" : "opacity-70",
                           )}
                         >
@@ -279,7 +279,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
 
       {/* Pinned Footer */}
       {currentCategory && (
-        <div className="border-t pt-2 mt-2 flex-shrink-0">
+        <div className="border-t pt-2 mt-2 shrink-0">
           <div className="text-xs text-zinc-400 text-center">
             {currentCategory.type === "reviewsessions"
               ? "Review Sessions"

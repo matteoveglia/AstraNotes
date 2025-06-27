@@ -1,6 +1,7 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -15,7 +16,7 @@ export default defineConfig({
 
     sourcemap: true
   },
-  plugins: [react(), sentryVitePlugin({
+  plugins: [react(), tailwindcss(), sentryVitePlugin({
     org: "astra-lumen-images-inc",
     project: "astranotes-react",
     authToken: process.env.SENTRY_AUTH_TOKEN,

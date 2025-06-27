@@ -517,7 +517,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     <div className="relative">
       {/* Position indicator in top left corner */}
       {position && (
-        <div className="absolute -top-3 -left-3 z-10 flex items-center justify-center w-6 h-6 bg-zinc-100 shadow dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm font-semibold rounded-full">
+        <div className="absolute -top-3 -left-3 z-10 flex items-center justify-center w-6 h-6 bg-zinc-100 shadow-sm dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-sm font-semibold rounded-full">
           {position}
         </div>
       )}
@@ -545,7 +545,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
         <div
           className={cn(
-            "flex-shrink-0 w-32 min-h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
+            "shrink-0 w-32 min-h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
             thumbnailId ? "cursor-pointer" : "cursor-default",
           )}
           onClick={openThumbnailModal}

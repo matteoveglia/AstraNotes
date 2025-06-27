@@ -110,7 +110,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       <span className="break-words whitespace-normal flex-1 min-w-0 select-none">
         {playlist.title}
       </span>
-      <div className="flex-shrink-0 flex items-center">
+      <div className="shrink-0 flex items-center">
         {playlist.status === "removed" && (
           <MinusCircle className="h-4 w-4 text-red-500" />
         )}
@@ -605,7 +605,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
   return (
     <div className="w-72 border-r p-4 relative flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="text-lg font-bold">Playlists</h2>
         <div className="flex items-center gap-1">
           <Button
@@ -639,7 +639,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         <>
           {/* Quick Notes section - fixed at the top */}
           {quickNotesPlaylist && (
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Button
                 variant={
                   activePlaylist === quickNotesPlaylist.id
