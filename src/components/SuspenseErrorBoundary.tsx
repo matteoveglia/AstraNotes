@@ -43,7 +43,9 @@ export class SuspenseErrorBoundary extends Component<
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<SuspenseErrorBoundaryState> {
+  static getDerivedStateFromError(
+    error: Error,
+  ): Partial<SuspenseErrorBoundaryState> {
     return {
       hasError: true,
       error,
@@ -53,12 +55,12 @@ export class SuspenseErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     const { onError, componentName } = this.props;
-    
+
     // Enhanced error logging with component context
     console.error(
       `[SuspenseErrorBoundary${componentName ? ` - ${componentName}` : ""}] Error caught:`,
       error,
-      errorInfo
+      errorInfo,
     );
 
     // Store error info for debugging
@@ -91,17 +93,21 @@ export class SuspenseErrorBoundary extends Component<
     // Auto-reset error after successful re-render if children changed
     if (this.state.hasError && prevProps.children !== this.props.children) {
       console.debug(
-        `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Auto-resetting error after content change`
+        `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Auto-resetting error after content change`,
       );
       this.resetError();
     }
 
     // Performance monitoring
-    if (this.props.enablePerformanceMonitoring && this.performanceStartTime > 0) {
+    if (
+      this.props.enablePerformanceMonitoring &&
+      this.performanceStartTime > 0
+    ) {
       const renderTime = performance.now() - this.performanceStartTime;
-      if (renderTime > 100) { // Log slow renders
+      if (renderTime > 100) {
+        // Log slow renders
         console.debug(
-          `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Slow render detected: ${renderTime.toFixed(2)}ms`
+          `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Slow render detected: ${renderTime.toFixed(2)}ms`,
         );
       }
     }
@@ -110,20 +116,20 @@ export class SuspenseErrorBoundary extends Component<
   resetError = (): void => {
     const now = Date.now();
     const timeSinceLastError = now - this.state.lastErrorTime;
-    
+
     // Prevent rapid retries (minimum 1 second between attempts)
     if (timeSinceLastError < 1000) {
       console.warn(
-        `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Retry attempted too quickly, ignoring`
+        `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Retry attempted too quickly, ignoring`,
       );
       return;
     }
 
     console.debug(
-      `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Resetting error (retry ${this.state.retryCount + 1})`
+      `[SuspenseErrorBoundary${this.props.componentName ? ` - ${this.props.componentName}` : ""}] Resetting error (retry ${this.state.retryCount + 1})`,
     );
 
-    this.setState(prevState => ({
+    this.setState((prevState) => ({
       hasError: false,
       error: null,
       errorInfo: null,
@@ -152,7 +158,8 @@ export class SuspenseErrorBoundary extends Component<
       }
 
       // Default enhanced fallback UI
-      const isNetworkError = error.message.includes("fetch") || error.message.includes("network");
+      const isNetworkError =
+        error.message.includes("fetch") || error.message.includes("network");
       const isTimeoutError = error.message.includes("timeout");
       const tooManyRetries = retryCount >= 3;
 
@@ -162,18 +169,28 @@ export class SuspenseErrorBoundary extends Component<
             <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="text-base font-medium text-red-800 dark:text-red-200 mb-2">
-                {componentName ? `${componentName} Error` : "Something went wrong"}
+                {componentName
+                  ? `${componentName} Error`
+                  : "Something went wrong"}
               </h3>
-              
+
               <div className="text-sm text-red-700 dark:text-red-300 mb-3">
                 {isNetworkError && (
-                  <p>Network connection issue. Please check your internet connection.</p>
+                  <p>
+                    Network connection issue. Please check your internet
+                    connection.
+                  </p>
                 )}
                 {isTimeoutError && (
-                  <p>Request timed out. The service might be temporarily unavailable.</p>
+                  <p>
+                    Request timed out. The service might be temporarily
+                    unavailable.
+                  </p>
                 )}
                 {!isNetworkError && !isTimeoutError && (
-                  <p>An unexpected error occurred while loading this content.</p>
+                  <p>
+                    An unexpected error occurred while loading this content.
+                  </p>
                 )}
               </div>
 
@@ -194,7 +211,7 @@ export class SuspenseErrorBoundary extends Component<
                   <RefreshCw className="h-4 w-4 mr-1" />
                   {tooManyRetries ? "Max retries reached" : "Try again"}
                 </Button>
-                
+
                 {process.env.NODE_ENV === "development" && (
                   <details className="mt-2">
                     <summary className="text-xs text-red-600 dark:text-red-400 cursor-pointer">
@@ -202,7 +219,8 @@ export class SuspenseErrorBoundary extends Component<
                     </summary>
                     <pre className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 text-xs rounded overflow-auto max-h-32">
                       {error.message}
-                      {errorInfo && `\n\nComponent Stack:\n${errorInfo.componentStack}`}
+                      {errorInfo &&
+                        `\n\nComponent Stack:\n${errorInfo.componentStack}`}
                     </pre>
                   </details>
                 )}
@@ -227,4 +245,4 @@ export function useSuspenseErrorContext() {
       console.error(`[SuspenseError${context ? ` - ${context}` : ""}]:`, error);
     },
   };
-} 
+}

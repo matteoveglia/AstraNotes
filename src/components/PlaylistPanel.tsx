@@ -681,7 +681,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                   }
                 />
               </motion.div>
-              
+
               {/* Subtle fade to hint at scrollability - positioned above the footer */}
               <div className="absolute bottom-8 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none" />
             </div>

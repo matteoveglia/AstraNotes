@@ -530,7 +530,7 @@ export function useNoteManagement(playlist: Playlist) {
   const toggleVersionSelection = (versionId: string) => {
     // Update UI immediately for instant feedback
     const isCurrentlySelected = selectedVersions.includes(versionId);
-    
+
     startTransition(() => {
       // Non-urgent: Update the selection state
       setSelectedVersions((prev) =>

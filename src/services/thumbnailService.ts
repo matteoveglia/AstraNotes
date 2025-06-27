@@ -40,7 +40,9 @@ export function setGlobalCacheUpdateCallback(
  */
 export function createCacheIntegration() {
   // No longer needed with Suspense-based thumbnail loading
-  console.debug("[ThumbnailService] Cache integration not needed with Suspense");
+  console.debug(
+    "[ThumbnailService] Cache integration not needed with Suspense",
+  );
 }
 
 /**
@@ -103,13 +105,15 @@ async function fetchThumbnailPromise(
 ): Promise<string | null> {
   try {
     const { size } = useThumbnailSettingsStore.getState();
-    
+
     // Get ftrack session
     const { ftrackService } = await import("@/services/ftrack");
     const session = await ftrackService.getSession();
-    
+
     // Generate the thumbnail URL using the ftrack API
-    const thumbnailUrl = session.thumbnailUrl(componentId, { size: size || options.size });
+    const thumbnailUrl = session.thumbnailUrl(componentId, {
+      size: size || options.size,
+    });
 
     // Use Tauri HTTP plugin to fetch the thumbnail (bypassing CORS)
     const response = await fetch(thumbnailUrl);
@@ -131,7 +135,10 @@ async function fetchThumbnailPromise(
 
     return blobUrl;
   } catch (error) {
-    console.error("[ThumbnailSuspense] Failed to fetch thumbnail:", { componentId, error });
+    console.error("[ThumbnailSuspense] Failed to fetch thumbnail:", {
+      componentId,
+      error,
+    });
     return null;
   }
 }

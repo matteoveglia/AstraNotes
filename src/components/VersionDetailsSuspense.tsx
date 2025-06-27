@@ -182,16 +182,18 @@ function VersionDetailsLoading({
 /**
  * Suspense-wrapped version details component
  */
-export const VersionDetailsSuspense: React.FC<VersionDetailsContentProps> = (props) => {
+export const VersionDetailsSuspense: React.FC<VersionDetailsContentProps> = (
+  props,
+) => {
   // Don't render anything if no asset version ID
   if (!props.assetVersionId) {
     return null;
   }
 
   return (
-    <Suspense 
+    <Suspense
       fallback={
-        <VersionDetailsLoading 
+        <VersionDetailsLoading
           shouldOpenUpward={props.shouldOpenUpward}
           onClose={props.onClose}
           className={props.className}
@@ -201,4 +203,4 @@ export const VersionDetailsSuspense: React.FC<VersionDetailsContentProps> = (pro
       <VersionDetailsContent {...props} />
     </Suspense>
   );
-}; 
+};

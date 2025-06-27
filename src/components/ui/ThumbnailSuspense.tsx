@@ -19,7 +19,12 @@ interface ThumbnailImageProps {
 /**
  * Internal component that uses Suspense-compatible thumbnail fetching
  */
-function ThumbnailImage({ thumbnailId, alt, className, onClick }: ThumbnailImageProps) {
+function ThumbnailImage({
+  thumbnailId,
+  alt,
+  className,
+  onClick,
+}: ThumbnailImageProps) {
   // This will throw a promise if the thumbnail is loading (Suspense will catch it)
   // Note: We need to handle the session asynchronously within the getThumbnailSuspense
   const thumbnailUrl = getThumbnailSuspense(thumbnailId);
@@ -29,7 +34,7 @@ function ThumbnailImage({ thumbnailId, alt, className, onClick }: ThumbnailImage
       <div
         className={cn(
           "flex items-center justify-center bg-muted text-muted-foreground text-xs",
-          className
+          className,
         )}
         onClick={onClick}
       >
@@ -57,7 +62,7 @@ function ThumbnailSkeleton({ className }: { className?: string }) {
     <div
       className={cn(
         "bg-muted animate-pulse flex items-center justify-center text-xs text-muted-foreground",
-        className
+        className,
       )}
     >
       Loading...
@@ -89,7 +94,7 @@ export const ThumbnailSuspense: React.FC<ThumbnailSuspenseProps> = ({
       <div
         className={cn(
           "flex items-center justify-center bg-muted text-muted-foreground text-xs",
-          className
+          className,
         )}
         onClick={onClick}
       >
@@ -100,9 +105,7 @@ export const ThumbnailSuspense: React.FC<ThumbnailSuspenseProps> = ({
 
   return (
     <Suspense
-      fallback={
-        fallback || <ThumbnailSkeleton className={className} />
-      }
+      fallback={fallback || <ThumbnailSkeleton className={className} />}
     >
       <ThumbnailImage
         thumbnailId={thumbnailId}
@@ -112,4 +115,4 @@ export const ThumbnailSuspense: React.FC<ThumbnailSuspenseProps> = ({
       />
     </Suspense>
   );
-}; 
+};

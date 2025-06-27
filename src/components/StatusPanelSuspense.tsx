@@ -6,7 +6,10 @@
 
 import React, { Suspense, useState } from "react";
 import { motion } from "motion/react";
-import { fetchStatusPanelDataSuspense, updateEntityStatusSuspense } from "@/services/statusPanelService";
+import {
+  fetchStatusPanelDataSuspense,
+  updateEntityStatusSuspense,
+} from "@/services/statusPanelService";
 import {
   Select,
   SelectContent,
@@ -42,8 +45,9 @@ function StatusPanelContent({
   className,
 }: StatusPanelContentProps) {
   // This will throw a promise if fetch is loading (Suspense will catch it)
-  const { currentStatuses, versionStatuses, parentStatuses } = fetchStatusPanelDataSuspense(assetVersionId);
-  
+  const { currentStatuses, versionStatuses, parentStatuses } =
+    fetchStatusPanelDataSuspense(assetVersionId);
+
   const { showSuccess, showError } = useToast();
 
   const handleStatusChange = async (
@@ -52,14 +56,22 @@ function StatusPanelContent({
   ) => {
     try {
       if (type === "version") {
-        await updateEntityStatusSuspense("AssetVersion", currentStatuses.versionId, statusId);
+        await updateEntityStatusSuspense(
+          "AssetVersion",
+          currentStatuses.versionId,
+          statusId,
+        );
         showSuccess("Version status updated");
       } else if (
         type === "parent" &&
         currentStatuses.parentId &&
         currentStatuses.parentType
       ) {
-        await updateEntityStatusSuspense(currentStatuses.parentType, currentStatuses.parentId, statusId);
+        await updateEntityStatusSuspense(
+          currentStatuses.parentType,
+          currentStatuses.parentId,
+          statusId,
+        );
         showSuccess("Shot status updated");
       }
     } catch (error) {
@@ -210,16 +222,18 @@ function StatusPanelLoading({
 /**
  * Suspense-wrapped status panel component
  */
-export const StatusPanelSuspense: React.FC<StatusPanelContentProps> = (props) => {
+export const StatusPanelSuspense: React.FC<StatusPanelContentProps> = (
+  props,
+) => {
   // Don't render anything if no asset version ID
   if (!props.assetVersionId) {
     return null;
   }
 
   return (
-    <Suspense 
+    <Suspense
       fallback={
-        <StatusPanelLoading 
+        <StatusPanelLoading
           shouldOpenUpward={props.shouldOpenUpward}
           onClose={props.onClose}
           className={props.className}
@@ -229,4 +243,4 @@ export const StatusPanelSuspense: React.FC<StatusPanelContentProps> = (props) =>
       <StatusPanelContent {...props} />
     </Suspense>
   );
-}; 
+};

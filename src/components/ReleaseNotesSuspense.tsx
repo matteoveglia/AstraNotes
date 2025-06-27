@@ -110,10 +110,10 @@ function ReleaseNotesLoading() {
 /**
  * Error fallback for release notes
  */
-function ReleaseNotesError({ 
-  onRetry, 
-  error 
-}: { 
+function ReleaseNotesError({
+  onRetry,
+  error,
+}: {
   onRetry?: () => void;
   error?: Error;
 }) {
@@ -122,7 +122,8 @@ function ReleaseNotesError({
       <div className="text-muted-foreground">
         <h3 className="font-medium mb-2">Failed to load release notes</h3>
         <p className="text-sm">
-          {error?.message || "Please check your internet connection or try again later."}
+          {error?.message ||
+            "Please check your internet connection or try again later."}
         </p>
       </div>
       {onRetry && (
@@ -137,10 +138,12 @@ function ReleaseNotesError({
 /**
  * Suspense-wrapped release notes component
  */
-export const ReleaseNotesSuspense: React.FC<ReleaseNotesContentProps> = (props) => {
+export const ReleaseNotesSuspense: React.FC<ReleaseNotesContentProps> = (
+  props,
+) => {
   return (
     <Suspense fallback={<ReleaseNotesLoading />}>
       <ReleaseNotesContent {...props} />
     </Suspense>
   );
-}; 
+};

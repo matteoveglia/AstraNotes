@@ -31,7 +31,7 @@ function SearchResults({
   onVersionClick,
 }: SearchResultsProps) {
   const { selectedProjectId } = useProjectStore();
-  
+
   // This will throw a promise if search is loading (Suspense will catch it)
   const results = searchVersionsSuspense({
     searchTerm,
@@ -117,9 +117,7 @@ function SearchResults({
 
             {/* Version content */}
             <div
-              onClick={() =>
-                !isInPlaylist && onVersionClick(version, false)
-              }
+              onClick={() => !isInPlaylist && onVersionClick(version, false)}
               className="w-full h-full"
             >
               <div className="font-medium truncate max-w-[90%] text-zinc-900 dark:text-zinc-200">
@@ -162,4 +160,4 @@ export const VersionSearchResults: React.FC<SearchResultsProps> = (props) => {
       <SearchResults {...props} />
     </Suspense>
   );
-}; 
+};

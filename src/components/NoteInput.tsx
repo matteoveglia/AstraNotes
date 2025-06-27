@@ -579,7 +579,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <h3 className="font-semibold truncate select-text">{versionName}</h3>
+                <h3 className="font-semibold truncate select-text">
+                  {versionName}
+                </h3>
                 <span className="font-medium text-base text-zinc-500 select-text">
                   - v{versionNumber}
                 </span>

@@ -12,8 +12,8 @@ import { ftrackService } from "@/services/ftrack";
 interface Modifications {
   added: number;
   removed: number;
-  addedVersions?: string[];
-  removedVersions?: string[];
+  addedVersions?: AssetVersion[];
+  removedVersions?: AssetVersion[];
 }
 
 export function usePlaylistModifications(
@@ -34,31 +34,110 @@ export function usePlaylistModifications(
     // Don't poll for Quick Notes playlist
     if (playlist.isQuickNotes) return;
 
-    console.debug(
-      `[usePlaylistModifications] Starting polling for playlist ${playlist.id}`,
-    );
-    playlistStore.startPolling(
-      playlist.id,
-      (added, removed, addedVersions, removedVersions, freshVersions) => {
-        if (added > 0 || removed > 0) {
+    // Listen for auto-refresh events instead of manually starting polling
+    const handleAutoRefreshCompleted = (data: any) => {
+      if (data.playlistId === playlist.id && data.result.success) {
+        const { addedCount, removedCount, addedVersions, removedVersions } =
+          data.result;
+        if (addedCount > 0 || removedCount > 0) {
           setModifications({
-            added,
-            removed,
-            addedVersions,
-            removedVersions,
+            added: addedCount,
+            removed: removedCount,
+            addedVersions: addedVersions || [],
+            removedVersions: removedVersions || [],
           });
-          // Store the fresh versions but don't apply them yet
-          setPendingVersions(freshVersions || null);
+
+          // Reconstruct pending versions for the Update Playlist button
+          // This includes current playlist versions minus removed ones plus added ones
+          const currentVersions = playlist.versions || [];
+          const removedVersionIds = new Set(
+            (removedVersions || []).map((v: AssetVersion) => v.id),
+          );
+          const addedVersionIds = new Set(
+            (addedVersions || []).map((v: AssetVersion) => v.id),
+          );
+
+          // Start with current versions, remove the ones that were removed
+          const survivingVersions = currentVersions.filter(
+            (v) => !removedVersionIds.has(v.id),
+          );
+
+          // Add the new versions
+          const allVersions = [...survivingVersions, ...(addedVersions || [])];
+
+          setPendingVersions(allVersions);
+
+          console.debug(
+            `[usePlaylistModifications] Auto-refresh completed with changes: +${addedCount} -${removedCount}`,
+            { pendingVersionsCount: allVersions.length },
+          );
         }
-      },
+      }
+    };
+
+    const handleAutoRefreshFailed = (data: any) => {
+      if (data.playlistId === playlist.id) {
+        console.error(
+          `[usePlaylistModifications] Auto-refresh failed for ${playlist.id}:`,
+          data.error,
+        );
+      }
+    };
+
+    // Listen for playlist refresh events (from manual or auto refresh)
+    const handlePlaylistRefreshed = (data: any) => {
+      if (data.playlistId === playlist.id) {
+        const { addedCount, removedCount, addedVersions, removedVersions } =
+          data;
+        if (addedCount > 0 || removedCount > 0) {
+          setModifications({
+            added: addedCount,
+            removed: removedCount,
+            addedVersions: addedVersions || [],
+            removedVersions: removedVersions || [],
+          });
+
+          // Reconstruct pending versions for the Update Playlist button
+          const currentVersions = playlist.versions || [];
+          const removedVersionIds = new Set(
+            (removedVersions || []).map((v: AssetVersion) => v.id),
+          );
+
+          // Start with current versions, remove the ones that were removed
+          const survivingVersions = currentVersions.filter(
+            (v) => !removedVersionIds.has(v.id),
+          );
+
+          // Add the new versions
+          const allVersions = [...survivingVersions, ...(addedVersions || [])];
+
+          setPendingVersions(allVersions);
+
+          console.debug(
+            `[usePlaylistModifications] Playlist refreshed with changes: +${addedCount} -${removedCount}`,
+            { pendingVersionsCount: allVersions.length },
+          );
+        }
+      }
+    };
+
+    console.debug(
+      `[usePlaylistModifications] Setting up event listeners for playlist ${playlist.id}`,
     );
 
-    // Stop polling when component unmounts or playlist changes
+    // Set up event listeners
+    playlistStore.on("auto-refresh-completed", handleAutoRefreshCompleted);
+    playlistStore.on("auto-refresh-failed", handleAutoRefreshFailed);
+    playlistStore.on("playlist-refreshed", handlePlaylistRefreshed);
+
+    // Cleanup event listeners
     return () => {
       console.debug(
-        `[usePlaylistModifications] Stopping polling for playlist ${playlist.id}`,
+        `[usePlaylistModifications] Cleaning up event listeners for playlist ${playlist.id}`,
       );
-      playlistStore.stopPolling();
+      playlistStore.off("auto-refresh-completed", handleAutoRefreshCompleted);
+      playlistStore.off("auto-refresh-failed", handleAutoRefreshFailed);
+      playlistStore.off("playlist-refreshed", handlePlaylistRefreshed);
     };
   }, [playlist.id, playlist.isQuickNotes]);
 
@@ -84,18 +163,18 @@ export function usePlaylistModifications(
         console.debug(
           `[usePlaylistModifications] Marking ${modifications.removedVersions.length} versions as removed in database`,
         );
-        for (const removedVersionId of modifications.removedVersions) {
+        for (const removedVersion of modifications.removedVersions) {
           try {
             await playlistStore.removeVersionFromPlaylist(
               playlist.id,
-              removedVersionId,
+              removedVersion.id,
             );
             console.debug(
-              `[usePlaylistModifications] Marked version ${removedVersionId} as removed`,
+              `[usePlaylistModifications] Marked version ${removedVersion.id} as removed`,
             );
           } catch (error) {
             console.error(
-              `[usePlaylistModifications] Failed to mark version ${removedVersionId} as removed:`,
+              `[usePlaylistModifications] Failed to mark version ${removedVersion.id} as removed:`,
               error,
             );
           }
@@ -237,16 +316,14 @@ export function usePlaylistModifications(
       );
 
       // Only count versions as added if they're not manually added
-      const addedVersions = freshVersions
-        .filter(
-          (v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id),
-        )
-        .map((v) => v.id);
+      const addedVersions = freshVersions.filter(
+        (v) => !currentVersionIds.has(v.id) && !manualVersionIds.has(v.id),
+      );
 
       // Only count versions as removed if they're not manually added
-      const removedVersions = currentVersions
-        .filter((v) => !v.manuallyAdded && !freshVersionsMap.has(v.id))
-        .map((v) => v.id);
+      const removedVersions = currentVersions.filter(
+        (v) => !v.manuallyAdded && !freshVersionsMap.has(v.id),
+      );
 
       if (addedVersions.length > 0 || removedVersions.length > 0) {
         setModifications({

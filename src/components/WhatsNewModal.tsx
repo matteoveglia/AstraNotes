@@ -97,7 +97,9 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
             fallback={(error, resetError) => (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center max-w-md">
-                  <h3 className="font-medium mb-2">Failed to load release notes</h3>
+                  <h3 className="font-medium mb-2">
+                    Failed to load release notes
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {error.message || "An unexpected error occurred"}
                   </p>
@@ -108,8 +110,8 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
               </div>
             )}
           >
-            <ReleaseNotesSuspense 
-              appVersion={appVersion} 
+            <ReleaseNotesSuspense
+              appVersion={appVersion}
               onRetry={handleRetry}
             />
           </ErrorBoundary>

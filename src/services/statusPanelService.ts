@@ -50,7 +50,9 @@ function createCacheKey(assetVersionId: string, parentId?: string): string {
  * Suspense-compatible status panel data fetch function
  * Throws a promise if the fetch is still in progress, returns data when ready
  */
-export function fetchStatusPanelDataSuspense(assetVersionId: string): StatusPanelResult {
+export function fetchStatusPanelDataSuspense(
+  assetVersionId: string,
+): StatusPanelResult {
   if (!assetVersionId) {
     throw new Error("Asset version ID is required");
   }
@@ -58,12 +60,12 @@ export function fetchStatusPanelDataSuspense(assetVersionId: string): StatusPane
   // First, we need to fetch the basic status data to determine the cache key
   // This is a bit tricky with Suspense because we need the parentId for the cache key
   // We'll use assetVersionId as the primary key and handle parentId internally
-  
+
   // Check cache with TTL
   const primaryCacheKey = assetVersionId;
   const cached = statusPanelCache.get(primaryCacheKey);
   const timestamp = timestampCache.get(primaryCacheKey);
-  
+
   if (cached && timestamp && Date.now() - timestamp < CACHE_TTL) {
     return cached;
   }
@@ -89,7 +91,10 @@ export function fetchStatusPanelDataSuspense(assetVersionId: string): StatusPane
     .catch((error) => {
       // Clean up promise cache on error
       statusPanelPromiseCache.delete(primaryCacheKey);
-      console.error(`[StatusPanelService] Fetch failed for ${assetVersionId}:`, error);
+      console.error(
+        `[StatusPanelService] Fetch failed for ${assetVersionId}:`,
+        error,
+      );
     });
 
   // Throw promise for Suspense to catch
@@ -99,11 +104,14 @@ export function fetchStatusPanelDataSuspense(assetVersionId: string): StatusPane
 /**
  * Performs the actual fetch operation
  */
-async function performFetch(assetVersionId: string): Promise<StatusPanelResult> {
+async function performFetch(
+  assetVersionId: string,
+): Promise<StatusPanelResult> {
   try {
     // Fetch current status data first
-    const currentStatuses = await ftrackService.fetchStatusPanelData(assetVersionId);
-    
+    const currentStatuses =
+      await ftrackService.fetchStatusPanelData(assetVersionId);
+
     // Fetch applicable statuses for version and parent
     const [versionStatuses, parentStatuses] = await Promise.all([
       ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
@@ -121,7 +129,10 @@ async function performFetch(assetVersionId: string): Promise<StatusPanelResult> 
       parentStatuses,
     };
   } catch (error) {
-    console.error(`[StatusPanelService] Fetch operation failed for ${assetVersionId}:`, error);
+    console.error(
+      `[StatusPanelService] Fetch operation failed for ${assetVersionId}:`,
+      error,
+    );
     throw error;
   }
 }
@@ -136,7 +147,7 @@ export async function updateEntityStatusSuspense(
 ): Promise<void> {
   try {
     await ftrackService.updateEntityStatus(entityType, entityId, statusId);
-    
+
     // Invalidate cache for all related entries
     // Since we don't know which assetVersionId this relates to, we'll clear all
     // In a more sophisticated implementation, we could maintain reverse lookup maps
@@ -168,4 +179,4 @@ export function clearStatusPanelCache(assetVersionId?: string): void {
  */
 export function getStatusPanelCacheSize(): number {
   return statusPanelCache.size;
-} 
+}

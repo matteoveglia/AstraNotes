@@ -56,6 +56,12 @@ export class PlaylistStore extends SimpleEventEmitter {
   );
   private drafts = new DraftManager(this.repository);
 
+  // Auto-refresh/polling state
+  private autoRefreshInterval: NodeJS.Timeout | null = null;
+  private isAutoRefreshing = false;
+  private currentAutoRefreshPlaylistId: string | null = null;
+  private static readonly AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+
   // Singleton initialization tracking
   private initializationPromises = new Map<string, Promise<void>>();
 
@@ -604,10 +610,12 @@ export class PlaylistStore extends SimpleEventEmitter {
     success: boolean;
     addedCount?: number;
     removedCount?: number;
+    addedVersions?: AssetVersion[];
+    removedVersions?: AssetVersion[];
     error?: string;
   }> {
     try {
-      console.log(`[PlaylistStore] Refreshing playlist: ${playlistId}`);
+      console.debug(`[PlaylistStore] Refreshing playlist: ${playlistId}`);
 
       // Get playlist entity to access ftrackId
       const entity = await this.repository.getPlaylist(playlistId);
@@ -642,7 +650,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
         // Check if name differs and update if necessary
         if (ftrackPlaylist && ftrackPlaylist.name !== entity.name) {
-          console.log(
+          console.debug(
             `[PlaylistStore] Playlist name changed in ftrack: "${entity.name}" -> "${ftrackPlaylist.name}"`,
           );
 
@@ -662,7 +670,7 @@ export class PlaylistStore extends SimpleEventEmitter {
           });
 
           nameUpdated = true;
-          console.log(
+          console.debug(
             `[PlaylistStore] Local playlist name updated to match ftrack: "${ftrackPlaylist.name}"`,
           );
         }
@@ -681,7 +689,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // CRITICAL FIX: If playlist returns empty and ftrack service logs "Playlist not found", remove entire playlist
       if (freshVersions.length === 0) {
-        console.log(
+        console.debug(
           `[PlaylistStore] Playlist ${entity.ftrackId} returned no versions - checking if it was deleted from ftrack`,
         );
 
@@ -694,7 +702,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
         // If playlist had ftrack versions before but now returns empty, it was likely deleted
         if (nonManualVersions.length > 0) {
-          console.log(
+          console.debug(
             `🗑️  [CLEANUP] Playlist ${entity.name} (ftrackId: ${entity.ftrackId}) appears to be deleted from ftrack - removing from database`,
           );
 
@@ -702,7 +710,7 @@ export class PlaylistStore extends SimpleEventEmitter {
             // Remove entire playlist from database
             await this.deletePlaylist(playlistId);
 
-            console.log(
+            console.debug(
               `✅ [CLEANUP] Successfully removed deleted playlist from database: ${entity.name}`,
             );
             this.emit("playlist-deleted", {
@@ -714,6 +722,8 @@ export class PlaylistStore extends SimpleEventEmitter {
               success: true,
               addedCount: 0,
               removedCount: 0,
+              addedVersions: [],
+              removedVersions: [],
               error:
                 "Playlist was deleted from ftrack and removed from database",
             };
@@ -744,41 +754,58 @@ export class PlaylistStore extends SimpleEventEmitter {
       );
 
       // CRITICAL FIX: Only remove ftrack versions, preserve manually added versions
-      const removedVersionIds = Array.from(currentVersionIds).filter((id) => {
-        const currentVersion = currentVersions.find((v) => v.id === id);
-        // Only remove if it's not in fresh versions AND it's not manually added
-        return !freshVersionIds.has(id) && !currentVersion?.manuallyAdded;
-      });
+      // Get currently active (non-removed) versions that are not in fresh versions
+      const removedVersionEntities = currentVersions.filter(
+        (currentVersion) => {
+          // Only consider versions that are currently active (not already removed)
+          if (currentVersion.isRemoved) return false;
+          // Only remove if it's not in fresh versions AND it's not manually added
+          return (
+            !freshVersionIds.has(currentVersion.id) &&
+            !currentVersion.manuallyAdded
+          );
+        },
+      );
+
+      // Convert removed entities to AssetVersion format for consistency
+      const removedVersions = removedVersionEntities.map((entity) =>
+        this.entityToAssetVersion(entity),
+      );
 
       // Apply changes to database
       if (addedVersions.length > 0) {
         await this.addVersionsToPlaylist(playlistId, addedVersions);
       }
 
-      if (removedVersionIds.length > 0) {
-        for (const versionId of removedVersionIds) {
-          await this.removeVersionFromPlaylist(playlistId, versionId);
+      if (removedVersionEntities.length > 0) {
+        for (const versionEntity of removedVersionEntities) {
+          await this.removeVersionFromPlaylist(playlistId, versionEntity.id);
         }
       }
 
       // Clear cache to force reload
       this.cache.invalidate(playlistId);
 
-      console.log(
-        `[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersionIds.length}${nameUpdated ? " (name updated)" : ""}`,
+      console.debug(
+        `[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""}`,
       );
 
+      // Emit detailed refresh event with version data
       this.emit("playlist-refreshed", {
         playlistId,
         addedCount: addedVersions.length,
-        removedCount: removedVersionIds.length,
+        removedCount: removedVersions.length,
+        addedVersions,
+        removedVersions,
         nameUpdated,
       });
 
       return {
         success: true,
         addedCount: addedVersions.length,
-        removedCount: removedVersionIds.length,
+        removedCount: removedVersions.length,
+        addedVersions,
+        removedVersions,
       };
     } catch (error) {
       console.error(
@@ -1005,23 +1032,205 @@ export class PlaylistStore extends SimpleEventEmitter {
     };
   }
 
-  // =================== BACKWARD COMPATIBILITY METHODS ===================
+  // =================== AUTO-REFRESH OPERATIONS ===================
 
   /**
-   * @deprecated Use event listeners instead of polling
-   * Minimal stub for backward compatibility
+   * Starts auto-refresh polling for a playlist
+   * Integrates with settings store and prevents race conditions
    */
-  stopPolling(): void {
-    // Silent stub - polling not needed in event-driven architecture
+  async startAutoRefresh(
+    playlistId: string,
+    callback?: (result: {
+      success: boolean;
+      addedCount?: number;
+      removedCount?: number;
+      addedVersions?: AssetVersion[];
+      removedVersions?: AssetVersion[];
+      error?: string;
+    }) => void,
+  ): Promise<void> {
+    try {
+      console.debug(
+        `[PlaylistStore] Starting auto-refresh for playlist: ${playlistId}`,
+      );
+
+      // Check if auto-refresh is enabled in settings
+      const { useSettings } = await import("../settingsStore");
+      const { settings } = useSettings.getState();
+
+      if (!settings.autoRefreshEnabled) {
+        console.debug(
+          `[PlaylistStore] Auto-refresh disabled in settings, not starting`,
+        );
+        return;
+      }
+
+      // Don't auto-refresh Quick Notes playlist
+      if (playlistId === "quick-notes") {
+        console.debug(
+          `[PlaylistStore] Skipping auto-refresh for Quick Notes playlist`,
+        );
+        return;
+      }
+
+      // Get playlist entity to verify it can be refreshed
+      const entity = await this.repository.getPlaylist(playlistId);
+      if (!entity || !entity.ftrackId) {
+        console.debug(
+          `[PlaylistStore] Cannot auto-refresh local-only playlist: ${playlistId}`,
+        );
+        return;
+      }
+
+      // If we're already auto-refreshing this playlist, don't start another instance
+      if (
+        this.currentAutoRefreshPlaylistId === playlistId &&
+        this.autoRefreshInterval
+      ) {
+        console.debug(
+          `[PlaylistStore] Already auto-refreshing playlist: ${playlistId}`,
+        );
+        return;
+      }
+
+      // Stop any existing auto-refresh for different playlist
+      if (this.currentAutoRefreshPlaylistId !== playlistId) {
+        this.stopAutoRefresh();
+      }
+
+      this.currentAutoRefreshPlaylistId = playlistId;
+
+      // Set up periodic refresh
+      this.autoRefreshInterval = setInterval(async () => {
+        // Double-check settings and playlist haven't changed
+        const currentSettings = useSettings.getState().settings;
+        if (
+          !currentSettings.autoRefreshEnabled ||
+          this.currentAutoRefreshPlaylistId !== playlistId
+        ) {
+          this.stopAutoRefresh();
+          return;
+        }
+
+        // Prevent overlapping refresh calls
+        if (this.isAutoRefreshing) {
+          console.debug(
+            `[PlaylistStore] Auto-refresh already in progress for: ${playlistId}`,
+          );
+          return;
+        }
+
+        this.isAutoRefreshing = true;
+
+        try {
+          console.debug(
+            `[PlaylistStore] Auto-refreshing playlist: ${playlistId}`,
+          );
+          const result = await this.refreshPlaylist(playlistId);
+
+          // Emit auto-refresh specific event with version data
+          this.emit("auto-refresh-completed", {
+            playlistId,
+            result,
+          });
+
+          // Call callback if provided
+          if (callback) {
+            callback(result);
+          }
+
+          // Log changes if any
+          if (result.success && (result.addedCount || result.removedCount)) {
+            console.debug(
+              `[PlaylistStore] Auto-refresh found changes for ${playlistId}: +${result.addedCount || 0} -${result.removedCount || 0}`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            `[PlaylistStore] Auto-refresh failed for ${playlistId}:`,
+            error,
+          );
+
+          const errorResult = {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+
+          this.emit("auto-refresh-failed", {
+            playlistId,
+            error: errorResult.error,
+          });
+
+          if (callback) {
+            callback(errorResult);
+          }
+        } finally {
+          this.isAutoRefreshing = false;
+        }
+      }, PlaylistStore.AUTO_REFRESH_INTERVAL);
+
+      console.debug(
+        `[PlaylistStore] Auto-refresh started for playlist: ${playlistId}`,
+      );
+    } catch (error) {
+      console.error(
+        `[PlaylistStore] Failed to start auto-refresh for ${playlistId}:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   /**
-   * @deprecated Use event listeners instead of polling
-   * Minimal stub for backward compatibility
+   * Stops auto-refresh polling
+   */
+  stopAutoRefresh(): void {
+    if (this.autoRefreshInterval) {
+      console.debug(
+        `[PlaylistStore] Stopping auto-refresh for playlist: ${this.currentAutoRefreshPlaylistId}`,
+      );
+      clearInterval(this.autoRefreshInterval);
+      this.autoRefreshInterval = null;
+    }
+
+    this.isAutoRefreshing = false;
+    this.currentAutoRefreshPlaylistId = null;
+
+    console.debug(`[PlaylistStore] Auto-refresh stopped`);
+  }
+
+  /**
+   * Checks if auto-refresh is currently active
+   */
+  isAutoRefreshActive(): boolean {
+    return this.autoRefreshInterval !== null;
+  }
+
+  /**
+   * Gets the currently auto-refreshing playlist ID
+   */
+  getCurrentAutoRefreshPlaylistId(): string | null {
+    return this.currentAutoRefreshPlaylistId;
+  }
+
+  // =================== LEGACY COMPATIBILITY ===================
+
+  /**
+   * @deprecated Use startAutoRefresh instead of polling
+   */
+  stopPolling(): void {
+    console.debug(
+      "[PlaylistStore] stopPolling called - redirecting to stopAutoRefresh",
+    );
+    this.stopAutoRefresh();
+  }
+
+  /**
+   * @deprecated Use startAutoRefresh instead of polling
    */
   async startPolling(
-    _playlistId: string,
-    _callback?: (
+    playlistId: string,
+    callback?: (
       added: any,
       removed: any,
       addedVersions: any,
@@ -1029,8 +1238,34 @@ export class PlaylistStore extends SimpleEventEmitter {
       freshVersions: any,
     ) => void,
   ): Promise<void> {
-    // Silent stub - polling not needed in event-driven architecture
+    console.debug(
+      "[PlaylistStore] startPolling called - redirecting to startAutoRefresh",
+    );
+
+    // Convert old callback format to new format
+    const newCallback = callback
+      ? (result: {
+          success: boolean;
+          addedCount?: number;
+          removedCount?: number;
+          error?: string;
+        }) => {
+          if (result.success) {
+            callback(
+              result.addedCount || 0,
+              result.removedCount || 0,
+              [],
+              [],
+              [],
+            );
+          }
+        }
+      : undefined;
+
+    await this.startAutoRefresh(playlistId, newCallback);
   }
+
+  // =================== BACKWARD COMPATIBILITY METHODS ===================
 
   /**
    * @deprecated Use addVersionsToPlaylist() with array instead
@@ -1066,7 +1301,7 @@ export class PlaylistStore extends SimpleEventEmitter {
           labelId: labelIdStr,
           lastModified: Date.now(),
         });
-        console.log(
+        console.debug(
           `[PlaylistStore] Updated note status to PUBLISHED for version ${versionId}`,
         );
       } else {
@@ -1146,7 +1381,7 @@ export class PlaylistStore extends SimpleEventEmitter {
    */
   async clearAddedVersions(playlistId: string): Promise<void> {
     try {
-      console.log(
+      console.debug(
         `[PlaylistStore] Clearing manually added versions from playlist: ${playlistId}`,
       );
 
@@ -1154,7 +1389,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       const allVersions = await this.repository.getPlaylistVersions(playlistId);
       const manuallyAddedVersions = allVersions.filter((v) => v.manuallyAdded);
 
-      console.log(
+      console.debug(
         `[PlaylistStore] Found ${manuallyAddedVersions.length} manually added versions to remove`,
       );
 
@@ -1168,7 +1403,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       // Clear cache to force reload
       this.cache.invalidate(playlistId);
 
-      console.log(
+      console.debug(
         `[PlaylistStore] Cleared ${manuallyAddedVersions.length} manually added versions from playlist: ${playlistId}`,
       );
       this.emit("versions-cleared", {
@@ -1200,7 +1435,7 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Legacy method for backward compatibility
    */
   async updatePlaylistAndRestartPolling(
-    _playlistId: string,
+    playlistId: string,
     _callback?: (
       added: any,
       removed: any,
@@ -1209,7 +1444,9 @@ export class PlaylistStore extends SimpleEventEmitter {
       freshVersions: any,
     ) => void,
   ): Promise<void> {
-    // Event listeners handle updates automatically
+    // Stop current auto-refresh and restart it for the specified playlist
+    this.stopAutoRefresh();
+    await this.startAutoRefresh(playlistId);
   }
 
   /**
@@ -1223,7 +1460,7 @@ export class PlaylistStore extends SimpleEventEmitter {
     // Check if initialization is already in progress
     const existingPromise = this.initializationPromises.get(playlistId);
     if (existingPromise) {
-      console.log(
+      console.debug(
         `[PlaylistStore] Initialization already in progress for ${playlistId}, waiting...`,
       );
       return existingPromise;
@@ -1251,14 +1488,14 @@ export class PlaylistStore extends SimpleEventEmitter {
     playlistId: string,
     playlistEntity: PlaylistEntity,
   ): Promise<void> {
-    console.log(`[PlaylistStore] Initializing playlist: ${playlistId}`);
+    console.debug(`[PlaylistStore] Initializing playlist: ${playlistId}`);
 
     try {
       // First check if it already exists
       const existing = await this.repository.getPlaylist(playlistId);
 
       if (existing) {
-        console.log(
+        console.debug(
           `[PlaylistStore] Playlist ${playlistId} already exists in database`,
         );
         return;
@@ -1266,11 +1503,13 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // Try to create it
       await this.repository.createPlaylist(playlistEntity);
-      console.log(`[PlaylistStore] Created playlist ${playlistId} in database`);
+      console.debug(
+        `[PlaylistStore] Created playlist ${playlistId} in database`,
+      );
     } catch (error: any) {
       if (error.name === "ConstraintError") {
         // Another call succeeded - this is fine
-        console.log(
+        console.debug(
           `[PlaylistStore] Playlist ${playlistId} was created by concurrent call`,
         );
       } else {
@@ -1310,11 +1549,15 @@ export class PlaylistStore extends SimpleEventEmitter {
    * Destroys the store and cleans up resources
    */
   destroy(): void {
+    console.debug(
+      "[PlaylistStore] Destroying store and cleaning up auto-refresh",
+    );
+    this.stopAutoRefresh();
     this.sync.destroy();
     this.cache.destroy();
     this.removeAllListeners();
 
-    console.log("[PlaylistStore] Destroyed");
+    console.debug("[PlaylistStore] Destroyed");
   }
 
   // =================== DEBUG UTILITIES ===================

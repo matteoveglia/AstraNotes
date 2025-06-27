@@ -276,41 +276,43 @@ export const MainContent: React.FC<MainContentProps> = ({
     if (activePlaylist.isQuickNotes || isInitializing) return;
 
     if (!settings.autoRefreshEnabled) {
-      playlistStore.stopPolling();
+      playlistStore.stopAutoRefresh();
       return;
     }
 
-    // Only start polling after initialization is complete
-    const startPollingWithDelay = async () => {
+    // Only start auto-refresh after initialization is complete
+    const startAutoRefreshWithDelay = async () => {
       // Small delay to ensure initialization is complete
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       console.debug(
-        `[MainContent] Starting polling for playlist ${activePlaylist.id}`,
+        `[MainContent] Starting auto-refresh for playlist ${activePlaylist.id}`,
       );
       try {
-        await playlistStore.startPolling(
-          activePlaylist.id,
-          (added, removed) => {
+        await playlistStore.startAutoRefresh(activePlaylist.id, (result) => {
+          if (result.success && (result.addedCount || result.removedCount)) {
             console.debug(
-              `[MainContent] Polling detected changes: +${added}, -${removed}`,
+              `[MainContent] Auto-refresh detected changes: +${result.addedCount || 0}, -${result.removedCount || 0}`,
             );
-            // Changes are handled by the usePlaylistModifications hook
-          },
-        );
+            // Changes are handled by the playlist-refreshed event listener
+          }
+          if (!result.success && result.error) {
+            console.error(`[MainContent] Auto-refresh error:`, result.error);
+          }
+        });
       } catch (error) {
-        console.error(`[MainContent] Failed to start polling:`, error);
+        console.error(`[MainContent] Failed to start auto-refresh:`, error);
       }
     };
 
-    startPollingWithDelay();
+    startAutoRefreshWithDelay();
 
-    // Stop polling when dependencies change
+    // Stop auto-refresh when dependencies change
     return () => {
       console.debug(
-        `[MainContent] Stopping polling for playlist ${activePlaylist.id}`,
+        `[MainContent] Stopping auto-refresh for playlist ${activePlaylist.id}`,
       );
-      playlistStore.stopPolling();
+      playlistStore.stopAutoRefresh();
     };
   }, [
     activePlaylist.id,
@@ -1000,12 +1002,12 @@ export const MainContent: React.FC<MainContentProps> = ({
               isUpdating={isRefreshing}
               addedVersions={
                 pendingVersions?.filter((v) =>
-                  modifications.addedVersions?.includes(v.id),
+                  modifications.addedVersions?.some((av) => av.id === v.id),
                 ) || []
               }
               removedVersions={
                 activePlaylist.versions?.filter((v) =>
-                  modifications.removedVersions?.includes(v.id),
+                  modifications.removedVersions?.some((rv) => rv.id === v.id),
                 ) || []
               }
             />

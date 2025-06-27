@@ -33,7 +33,9 @@ const timestampCache = new Map<string, number>();
  * Suspense-compatible version details fetch function
  * Throws a promise if the fetch is still in progress, returns details when ready
  */
-export function fetchVersionDetailsSuspense(assetVersionId: string): VersionDetails {
+export function fetchVersionDetailsSuspense(
+  assetVersionId: string,
+): VersionDetails {
   if (!assetVersionId) {
     throw new Error("Asset version ID is required");
   }
@@ -41,13 +43,13 @@ export function fetchVersionDetailsSuspense(assetVersionId: string): VersionDeta
   // Check cache with TTL
   const cached = detailsCache.get(assetVersionId);
   const timestamp = timestampCache.get(assetVersionId);
-  
+
   if (cached && timestamp && Date.now() - timestamp < CACHE_TTL) {
-    suspensePerformanceMonitor.recordCacheHit('VersionDetails', assetVersionId);
+    suspensePerformanceMonitor.recordCacheHit("VersionDetails", assetVersionId);
     return cached;
   }
-  
-  suspensePerformanceMonitor.recordCacheMiss('VersionDetails', assetVersionId);
+
+  suspensePerformanceMonitor.recordCacheMiss("VersionDetails", assetVersionId);
 
   // If fetch is in progress, throw the promise for Suspense
   if (detailsPromiseCache.has(assetVersionId)) {
@@ -65,12 +67,17 @@ export function fetchVersionDetailsSuspense(assetVersionId: string): VersionDeta
       detailsCache.set(assetVersionId, details);
       timestampCache.set(assetVersionId, Date.now());
       detailsPromiseCache.delete(assetVersionId);
-      console.debug(`[VersionDetailsService] Cached details for ${assetVersionId}`);
+      console.debug(
+        `[VersionDetailsService] Cached details for ${assetVersionId}`,
+      );
     })
     .catch((error) => {
       // Clean up promise cache on error
       detailsPromiseCache.delete(assetVersionId);
-      console.error(`[VersionDetailsService] Fetch failed for ${assetVersionId}:`, error);
+      console.error(
+        `[VersionDetailsService] Fetch failed for ${assetVersionId}:`,
+        error,
+      );
     });
 
   // Throw promise for Suspense to catch
@@ -81,16 +88,22 @@ export function fetchVersionDetailsSuspense(assetVersionId: string): VersionDeta
  * Performs the actual fetch operation
  */
 async function performFetch(assetVersionId: string): Promise<VersionDetails> {
-  const endOperation = suspensePerformanceMonitor.startOperation('VersionDetails', 'fetch');
-  
+  const endOperation = suspensePerformanceMonitor.startOperation(
+    "VersionDetails",
+    "fetch",
+  );
+
   try {
     const result = await ftrackService.fetchVersionDetails(assetVersionId);
     endOperation(); // Record successful fetch time
     return result;
   } catch (error) {
     endOperation(); // Record failed fetch time
-    suspensePerformanceMonitor.recordError('VersionDetails', error as Error);
-    console.error(`[VersionDetailsService] Fetch operation failed for ${assetVersionId}:`, error);
+    suspensePerformanceMonitor.recordError("VersionDetails", error as Error);
+    console.error(
+      `[VersionDetailsService] Fetch operation failed for ${assetVersionId}:`,
+      error,
+    );
     throw error;
   }
 }
@@ -116,4 +129,4 @@ export function clearVersionDetailsCache(assetVersionId?: string): void {
  */
 export function getVersionDetailsCacheSize(): number {
   return detailsCache.size;
-} 
+}

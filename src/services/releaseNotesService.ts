@@ -24,8 +24,14 @@ let lastFetchedAt: number | null = null;
  */
 export function fetchReleaseDataSuspense(): GitHubRelease {
   // Check cache with TTL
-  if (cachedRelease && lastFetchedAt && Date.now() - lastFetchedAt < CACHE_TTL) {
-    console.debug("[ReleaseNotesService] Using fresh cached GitHub release data");
+  if (
+    cachedRelease &&
+    lastFetchedAt &&
+    Date.now() - lastFetchedAt < CACHE_TTL
+  ) {
+    console.debug(
+      "[ReleaseNotesService] Using fresh cached GitHub release data",
+    );
     return cachedRelease;
   }
 
@@ -50,13 +56,15 @@ export function fetchReleaseDataSuspense(): GitHubRelease {
       // Clean up promise cache on error
       releasePromise = null;
       console.error("[ReleaseNotesService] Fetch failed:", error);
-      
+
       // If we have stale cached data, use it as fallback
       if (cachedRelease) {
-        console.warn("[ReleaseNotesService] Using stale cached data due to fetch error");
+        console.warn(
+          "[ReleaseNotesService] Using stale cached data due to fetch error",
+        );
         return cachedRelease;
       }
-      
+
       // Re-throw the error if no cached data available
       throw error;
     });
@@ -85,7 +93,9 @@ export function refreshReleaseData(): void {
   cachedRelease = null;
   lastFetchedAt = null;
   releasePromise = null;
-  console.debug("[ReleaseNotesService] Cache cleared, next fetch will be fresh");
+  console.debug(
+    "[ReleaseNotesService] Cache cleared, next fetch will be fresh",
+  );
 }
 
 /**
@@ -106,5 +116,9 @@ export function getCacheAge(): number | null {
  * Check if cache is fresh (within TTL)
  */
 export function isCacheFresh(): boolean {
-  return !!(cachedRelease && lastFetchedAt && Date.now() - lastFetchedAt < CACHE_TTL);
-} 
+  return !!(
+    cachedRelease &&
+    lastFetchedAt &&
+    Date.now() - lastFetchedAt < CACHE_TTL
+  );
+}

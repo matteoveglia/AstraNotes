@@ -6,7 +6,7 @@
 
 interface PerformanceMetric {
   componentName: string;
-  operationType: 'fetch' | 'cache_hit' | 'cache_miss' | 'error';
+  operationType: "fetch" | "cache_hit" | "cache_miss" | "error";
   duration: number;
   timestamp: number;
   metadata?: Record<string, any>;
@@ -32,12 +32,12 @@ interface ComponentPerformanceData {
 class SuspensePerformanceMonitor {
   private metrics: PerformanceMetric[] = [];
   private readonly MAX_METRICS = 1000; // Keep last 1000 metrics
-  private readonly DEBUG_MODE = process.env.NODE_ENV === 'development';
+  private readonly DEBUG_MODE = process.env.NODE_ENV === "development";
 
   /**
    * Records a performance metric for a Suspense component
    */
-  recordMetric(metric: Omit<PerformanceMetric, 'timestamp'>): void {
+  recordMetric(metric: Omit<PerformanceMetric, "timestamp">): void {
     const timestampedMetric: PerformanceMetric = {
       ...metric,
       timestamp: Date.now(),
@@ -59,14 +59,21 @@ class SuspensePerformanceMonitor {
   /**
    * Records the start of a Suspense operation
    */
-  startOperation(componentName: string, operationType: 'fetch' | 'cache_lookup'): () => void {
+  startOperation(
+    componentName: string,
+    operationType: "fetch" | "cache_lookup",
+  ): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const duration = performance.now() - startTime;
-      const metricType = operationType === 'fetch' ? 'fetch' : 
-                        operationType === 'cache_lookup' ? 'cache_hit' : 'cache_miss';
-      
+      const metricType =
+        operationType === "fetch"
+          ? "fetch"
+          : operationType === "cache_lookup"
+            ? "cache_hit"
+            : "cache_miss";
+
       this.recordMetric({
         componentName,
         operationType: metricType,
@@ -81,7 +88,7 @@ class SuspensePerformanceMonitor {
   recordCacheHit(componentName: string, cacheKey?: string): void {
     this.recordMetric({
       componentName,
-      operationType: 'cache_hit',
+      operationType: "cache_hit",
       duration: 0, // Cache hits are essentially instant
       metadata: { cacheKey },
     });
@@ -93,7 +100,7 @@ class SuspensePerformanceMonitor {
   recordCacheMiss(componentName: string, cacheKey?: string): void {
     this.recordMetric({
       componentName,
-      operationType: 'cache_miss',
+      operationType: "cache_miss",
       duration: 0,
       metadata: { cacheKey },
     });
@@ -105,9 +112,9 @@ class SuspensePerformanceMonitor {
   recordError(componentName: string, error: Error): void {
     this.recordMetric({
       componentName,
-      operationType: 'error',
+      operationType: "error",
       duration: 0,
-      metadata: { 
+      metadata: {
         errorMessage: error.message,
         errorType: error.constructor.name,
       },
@@ -118,17 +125,30 @@ class SuspensePerformanceMonitor {
    * Gets performance data for a specific component
    */
   getComponentPerformance(componentName: string): ComponentPerformanceData {
-    const componentMetrics = this.metrics.filter(m => m.componentName === componentName);
-    const fetchMetrics = componentMetrics.filter(m => m.operationType === 'fetch');
-    const cacheHits = componentMetrics.filter(m => m.operationType === 'cache_hit').length;
-    const cacheMisses = componentMetrics.filter(m => m.operationType === 'cache_miss').length;
-    const errors = componentMetrics.filter(m => m.operationType === 'error').length;
+    const componentMetrics = this.metrics.filter(
+      (m) => m.componentName === componentName,
+    );
+    const fetchMetrics = componentMetrics.filter(
+      (m) => m.operationType === "fetch",
+    );
+    const cacheHits = componentMetrics.filter(
+      (m) => m.operationType === "cache_hit",
+    ).length;
+    const cacheMisses = componentMetrics.filter(
+      (m) => m.operationType === "cache_miss",
+    ).length;
+    const errors = componentMetrics.filter(
+      (m) => m.operationType === "error",
+    ).length;
 
     const totalCacheRequests = cacheHits + cacheMisses;
-    const loadTimes = fetchMetrics.map(m => m.duration);
+    const loadTimes = fetchMetrics.map((m) => m.duration);
 
     return {
-      averageLoadTime: loadTimes.length > 0 ? loadTimes.reduce((a, b) => a + b, 0) / loadTimes.length : 0,
+      averageLoadTime:
+        loadTimes.length > 0
+          ? loadTimes.reduce((a, b) => a + b, 0) / loadTimes.length
+          : 0,
       fastestLoad: loadTimes.length > 0 ? Math.min(...loadTimes) : 0,
       slowestLoad: loadTimes.length > 0 ? Math.max(...loadTimes) : 0,
       totalLoads: fetchMetrics.length,
@@ -136,9 +156,13 @@ class SuspensePerformanceMonitor {
         hits: cacheHits,
         misses: cacheMisses,
         totalRequests: totalCacheRequests,
-        hitRate: totalCacheRequests > 0 ? (cacheHits / totalCacheRequests) * 100 : 0,
+        hitRate:
+          totalCacheRequests > 0 ? (cacheHits / totalCacheRequests) * 100 : 0,
       },
-      errorRate: componentMetrics.length > 0 ? (errors / componentMetrics.length) * 100 : 0,
+      errorRate:
+        componentMetrics.length > 0
+          ? (errors / componentMetrics.length) * 100
+          : 0,
       recentMetrics: componentMetrics.slice(-10), // Last 10 metrics
     };
   }
@@ -147,7 +171,7 @@ class SuspensePerformanceMonitor {
    * Gets all component names that have been monitored
    */
   getMonitoredComponents(): string[] {
-    const componentNames = new Set(this.metrics.map(m => m.componentName));
+    const componentNames = new Set(this.metrics.map((m) => m.componentName));
     return Array.from(componentNames).sort();
   }
 
@@ -158,7 +182,7 @@ class SuspensePerformanceMonitor {
     const components = this.getMonitoredComponents();
     const summary: Record<string, ComponentPerformanceData> = {};
 
-    components.forEach(componentName => {
+    components.forEach((componentName) => {
       summary[componentName] = this.getComponentPerformance(componentName);
     });
 
@@ -172,28 +196,31 @@ class SuspensePerformanceMonitor {
     if (!this.DEBUG_MODE) return;
 
     const summary = this.getOverallSummary();
-    console.group('🚀 Suspense Performance Summary');
-    
+    console.group("🚀 Suspense Performance Summary");
+
     Object.entries(summary).forEach(([componentName, data]) => {
       console.group(`📊 ${componentName}`);
       console.log(`Average Load Time: ${data.averageLoadTime.toFixed(2)}ms`);
       console.log(`Cache Hit Rate: ${data.cacheMetrics.hitRate.toFixed(1)}%`);
       console.log(`Total Loads: ${data.totalLoads}`);
       console.log(`Error Rate: ${data.errorRate.toFixed(1)}%`);
-      
+
       if (data.averageLoadTime > 1000) {
-        console.warn('⚠️ Slow average load time detected');
+        console.warn("⚠️ Slow average load time detected");
       }
-      if (data.cacheMetrics.hitRate < 50 && data.cacheMetrics.totalRequests > 5) {
-        console.warn('⚠️ Low cache hit rate detected');
+      if (
+        data.cacheMetrics.hitRate < 50 &&
+        data.cacheMetrics.totalRequests > 5
+      ) {
+        console.warn("⚠️ Low cache hit rate detected");
       }
       if (data.errorRate > 10) {
-        console.warn('⚠️ High error rate detected');
+        console.warn("⚠️ High error rate detected");
       }
-      
+
       console.groupEnd();
     });
-    
+
     console.groupEnd();
   }
 
@@ -204,17 +231,17 @@ class SuspensePerformanceMonitor {
     const { componentName, operationType, duration } = metric;
 
     // Log slow operations
-    if (operationType === 'fetch' && duration > 2000) {
+    if (operationType === "fetch" && duration > 2000) {
       console.warn(
-        `🐌 Slow Suspense operation: ${componentName} took ${duration.toFixed(2)}ms`
+        `🐌 Slow Suspense operation: ${componentName} took ${duration.toFixed(2)}ms`,
       );
     }
 
     // Log errors
-    if (operationType === 'error') {
+    if (operationType === "error") {
       console.error(
         `❌ Suspense error in ${componentName}:`,
-        metric.metadata?.errorMessage
+        metric.metadata?.errorMessage,
       );
     }
 
@@ -224,7 +251,7 @@ class SuspensePerformanceMonitor {
       const hitRate = componentData.cacheMetrics.hitRate;
       if (hitRate < 30) {
         console.warn(
-          `📉 Low cache hit rate for ${componentName}: ${hitRate.toFixed(1)}%`
+          `📉 Low cache hit rate for ${componentName}: ${hitRate.toFixed(1)}%`,
         );
       }
     }
@@ -253,19 +280,19 @@ export const suspensePerformanceMonitor = new SuspensePerformanceMonitor();
  */
 export function useSuspensePerformanceMonitoring(componentName: string) {
   return {
-    startOperation: (operationType: 'fetch' | 'cache_lookup') => 
+    startOperation: (operationType: "fetch" | "cache_lookup") =>
       suspensePerformanceMonitor.startOperation(componentName, operationType),
-    
-    recordCacheHit: (cacheKey?: string) => 
+
+    recordCacheHit: (cacheKey?: string) =>
       suspensePerformanceMonitor.recordCacheHit(componentName, cacheKey),
-    
-    recordCacheMiss: (cacheKey?: string) => 
+
+    recordCacheMiss: (cacheKey?: string) =>
       suspensePerformanceMonitor.recordCacheMiss(componentName, cacheKey),
-    
-    recordError: (error: Error) => 
+
+    recordError: (error: Error) =>
       suspensePerformanceMonitor.recordError(componentName, error),
-    
-    getPerformanceData: () => 
+
+    getPerformanceData: () =>
       suspensePerformanceMonitor.getComponentPerformance(componentName),
   };
 }
@@ -273,11 +300,12 @@ export function useSuspensePerformanceMonitoring(componentName: string) {
 /**
  * Utility to expose performance data globally for debugging
  */
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   (window as any).suspensePerformance = {
     getSummary: () => suspensePerformanceMonitor.getOverallSummary(),
     logSummary: () => suspensePerformanceMonitor.logPerformanceSummary(),
-    getComponentData: (name: string) => suspensePerformanceMonitor.getComponentPerformance(name),
+    getComponentData: (name: string) =>
+      suspensePerformanceMonitor.getComponentPerformance(name),
     exportMetrics: () => suspensePerformanceMonitor.exportMetrics(),
   };
-} 
+}

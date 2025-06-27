@@ -22,7 +22,7 @@ interface SearchParams {
  * Creates a cache key for search parameters
  */
 function createCacheKey(params: SearchParams): string {
-  return `${params.searchTerm}:${params.projectId || 'all'}`;
+  return `${params.searchTerm}:${params.projectId || "all"}`;
 }
 
 /**
@@ -31,7 +31,7 @@ function createCacheKey(params: SearchParams): string {
  */
 export function searchVersionsSuspense(params: SearchParams): AssetVersion[] {
   const { searchTerm, projectId } = params;
-  
+
   if (!searchTerm.trim()) {
     return [];
   }
@@ -117,7 +117,10 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
 /**
  * Clears the search cache for a specific query or all queries
  */
-export function clearSearchCache(searchTerm?: string, projectId?: string): void {
+export function clearSearchCache(
+  searchTerm?: string,
+  projectId?: string,
+): void {
   if (searchTerm !== undefined) {
     const cacheKey = createCacheKey({ searchTerm, projectId });
     searchCache.delete(cacheKey);
@@ -134,4 +137,4 @@ export function clearSearchCache(searchTerm?: string, projectId?: string): void 
  */
 export function getSearchCacheSize(): number {
   return searchCache.size;
-} 
+}
