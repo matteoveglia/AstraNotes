@@ -8,6 +8,7 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { Session } from "@ftrack/api";
 import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
+import { ftrackService } from "@/services/ftrack";
 
 // Cache for thumbnail blob URLs (by thumbnailId)
 const thumbnailCache = new Map<string, string>();
@@ -107,7 +108,6 @@ async function fetchThumbnailPromise(
     const { size } = useThumbnailSettingsStore.getState();
 
     // Get ftrack session
-    const { ftrackService } = await import("@/services/ftrack");
     const session = await ftrackService.getSession();
 
     // Generate the thumbnail URL using the ftrack API

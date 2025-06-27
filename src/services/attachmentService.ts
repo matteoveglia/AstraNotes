@@ -4,7 +4,8 @@
  */
 
 import { Session, SERVER_LOCATION_ID } from "@ftrack/api";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { fetch } from "@tauri-apps/plugin-http";
+import * as fs from "@tauri-apps/plugin-fs";
 import { v4 as uuidv4 } from "uuid";
 
 export interface Attachment {
@@ -37,9 +38,6 @@ interface UploadMetadataResponse {
  */
 async function getFileFromPath(filePath: string): Promise<File> {
   try {
-    // Import the Tauri filesystem plugin
-    const fs = await import("@tauri-apps/plugin-fs");
-
     // Read the file
     const fileData = await fs.readFile(filePath);
 
@@ -428,7 +426,7 @@ export class AttachmentService {
         formData.append("file", fileBlob, fileName);
 
         // Make the upload request using Tauri HTTP plugin
-        const uploadResponse = await tauriFetch(uploadUrl, {
+        const uploadResponse = await fetch(uploadUrl, {
           method: "POST",
           headers: authHeaders,
           body: formData,
@@ -472,7 +470,7 @@ export class AttachmentService {
           formData.append("file", fileBlob, fileName);
 
           // Make the upload request using Tauri HTTP plugin
-          const uploadResponse = await tauriFetch(fileUploadUrl, {
+          const uploadResponse = await fetch(fileUploadUrl, {
             method: "POST",
             headers: authHeaders,
             body: formData,
@@ -499,7 +497,7 @@ export class AttachmentService {
             console.log("Trying signed URL upload with Tauri HTTP plugin");
 
             // Get a signed URL for the component
-            const signedUrlResponse = await tauriFetch(
+            const signedUrlResponse = await fetch(
               `${baseUrl}/component/${component.id}/get-signed-url`,
               {
                 method: "GET",
@@ -555,7 +553,7 @@ export class AttachmentService {
                 }
 
                 // Upload part using Tauri HTTP plugin
-                const partResponse = await tauriFetch(partUrl, {
+                const partResponse = await fetch(partUrl, {
                   method: "PUT",
                   body: partData,
                 });
@@ -590,7 +588,7 @@ export class AttachmentService {
               // Complete multipart upload
               console.log("Completing multipart upload...");
 
-              const completeResponse = await tauriFetch(
+              const completeResponse = await fetch(
                 `${baseUrl}/component/${component.id}/complete-multipart-upload`,
                 {
                   method: "POST",
@@ -618,7 +616,7 @@ export class AttachmentService {
               console.log("Using direct signed URL upload");
 
               // Upload file using Tauri HTTP plugin
-              const uploadResponse = await tauriFetch(signedUrlResult.url, {
+              const uploadResponse = await fetch(signedUrlResult.url, {
                 method: "PUT",
                 headers: signedUrlResult.headers || {},
                 body: fileUint8Array,
@@ -633,7 +631,7 @@ export class AttachmentService {
               console.log("Successfully uploaded file to signed URL");
 
               // Process the component
-              const processResponse = await tauriFetch(
+              const processResponse = await fetch(
                 `${baseUrl}/component/${component.id}/process`,
                 {
                   method: "POST",
@@ -1418,7 +1416,7 @@ export class AttachmentService {
         const blob = new Blob([fileUint8Array], { type: fileType });
         formData.append("file", blob, fileName);
 
-        const uploadResponse = await tauriFetch(uploadUrl, {
+        const uploadResponse = await fetch(uploadUrl, {
           method: "POST",
           headers: apiHeaders,
           body: formData,
@@ -1453,7 +1451,7 @@ export class AttachmentService {
           const blob = new Blob([fileUint8Array], { type: fileType });
           formData.append("file", blob, fileName);
 
-          const uploadResponse = await tauriFetch(fileUrl, {
+          const uploadResponse = await fetch(fileUrl, {
             method: "POST",
             headers: apiHeaders,
             body: formData,
@@ -1490,7 +1488,7 @@ export class AttachmentService {
             const blob = new Blob([fileUint8Array], { type: fileType });
             formData.append("file", blob, fileName);
 
-            const uploadResponse = await tauriFetch(addUrl, {
+            const uploadResponse = await fetch(addUrl, {
               method: "POST",
               headers: apiHeaders,
               body: formData,

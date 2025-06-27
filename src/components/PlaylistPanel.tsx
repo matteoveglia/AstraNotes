@@ -35,6 +35,7 @@ import { showContextMenu } from "@/utils/menu";
 import { PlaylistList } from "./PlaylistList";
 import { PlaylistPanelEmptyState } from "./EmptyStates";
 import { CreatePlaylistDialog } from "@/features/playlists/components/CreatePlaylistDialog";
+import { db } from "@/store/db";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -288,7 +289,6 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     // Check what playlists would be deleted BEFORE showing confirmation
     try {
       // Get current database playlists
-      const { db } = await import("@/store/db");
       const databasePlaylists = await db.playlists.toArray();
 
       // Get current ftrack playlists

@@ -19,6 +19,8 @@ import {
 import { ftrackService } from "../services/ftrack";
 import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
+import Dexie from "dexie";
+import * as fs from "@tauri-apps/plugin-fs";
 
 const DEBUG = true;
 function log(...args: any[]): void {
@@ -529,8 +531,6 @@ export class PlaylistStore {
             // Try to get file size if we're in Tauri environment
             if (isTauri) {
               try {
-                // Dynamically import the fs module
-                const fs = await import("@tauri-apps/plugin-fs");
                 // Get metadata to determine file size
                 const fileMetadata = await fs.stat(filePath);
                 fileSize = fileMetadata.size || 0;

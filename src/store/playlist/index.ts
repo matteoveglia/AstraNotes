@@ -44,6 +44,8 @@ import { DraftManager } from "./DraftManager";
 import { FtrackService } from "@/services/ftrack";
 import { PlaylistEntity, VersionEntity } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
+import { usePlaylistsStore } from "../playlistsStore";
+import { useSettings } from "../settingsStore";
 
 export class PlaylistStore extends SimpleEventEmitter {
   private repository = new PlaylistRepository();
@@ -179,9 +181,7 @@ export class PlaylistStore extends SimpleEventEmitter {
     }
 
     // CRITICAL FIX: If not found in database, check UI store and create database entry if needed
-    const { playlists } = (
-      await import("../playlistsStore")
-    ).usePlaylistsStore.getState();
+    const { playlists } = usePlaylistsStore.getState();
     const uiPlaylist = playlists.find((p) => p.id === id);
 
     if (uiPlaylist) {
@@ -450,9 +450,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
     if (!playlist) {
       // Check if playlist exists in UI store but not database
-      const { playlists } = (
-        await import("../playlistsStore")
-      ).usePlaylistsStore.getState();
+      const { playlists } = usePlaylistsStore.getState();
       const uiPlaylist = playlists.find((p) => p.id === playlistId);
 
       if (uiPlaylist) {
@@ -1055,7 +1053,6 @@ export class PlaylistStore extends SimpleEventEmitter {
       );
 
       // Check if auto-refresh is enabled in settings
-      const { useSettings } = await import("../settingsStore");
       const { settings } = useSettings.getState();
 
       if (!settings.autoRefreshEnabled) {
@@ -1578,9 +1575,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       console.debug(`🔍 [Debug] Cached playlist:`, cachedPlaylist);
 
       // Check UI store
-      const { playlists } = (
-        await import("../playlistsStore")
-      ).usePlaylistsStore.getState();
+      const { playlists } = usePlaylistsStore.getState();
       const uiPlaylist = playlists.find((p) => p.id === playlistId);
       console.debug(`🔍 [Debug] UI store playlist:`, uiPlaylist);
 

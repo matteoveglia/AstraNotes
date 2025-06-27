@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "@/components/ui/toast";
 import { motion } from "motion/react";
+import * as fs from "@tauri-apps/plugin-fs";
 
 // TypeScript declaration for Tauri
 declare global {
@@ -287,8 +288,6 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
   ) => {
     try {
       // Check if we can access Tauri file system API
-      const fs = await import("@tauri-apps/plugin-fs");
-
       try {
         // Get file metadata for size information
         const fileInfo = await fs.stat(filePath);
