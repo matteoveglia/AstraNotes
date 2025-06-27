@@ -49,13 +49,16 @@ function StatusPanelContent({
     fetchStatusPanelDataSuspense(assetVersionId);
 
   const { showSuccess, showError } = useToast();
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
   const handleStatusChange = async (
     statusId: string,
     type: "version" | "parent",
   ) => {
+    setIsUpdating(true);
     try {
       if (type === "version") {
+        // Optimistic update happens in the service layer
         await updateEntityStatusSuspense(
           "AssetVersion",
           currentStatuses.versionId,
@@ -67,6 +70,7 @@ function StatusPanelContent({
         currentStatuses.parentId &&
         currentStatuses.parentType
       ) {
+        // Optimistic update happens in the service layer
         await updateEntityStatusSuspense(
           currentStatuses.parentType,
           currentStatuses.parentId,
@@ -77,16 +81,18 @@ function StatusPanelContent({
     } catch (error) {
       console.error("Error updating status:", error);
       showError("Failed to update status");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
+      initial={false} // Disable initial animation to prevent re-animation on updates
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
-      key="status-panel-content" // Stable key prevents re-animation
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      key={`status-panel-${assetVersionId}`} // Stable key tied to asset version
       className={cn(
         "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
         shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
@@ -94,9 +100,14 @@ function StatusPanelContent({
       )}
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
-          Update Status
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
+            Update Status
+          </h3>
+          {isUpdating && (
+            <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />
+          )}
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -116,6 +127,7 @@ function StatusPanelContent({
           <Select
             value={currentStatuses.versionStatusId}
             onValueChange={(value) => handleStatusChange(value, "version")}
+            disabled={isUpdating}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select status" />
@@ -147,6 +159,7 @@ function StatusPanelContent({
             <Select
               value={currentStatuses.parentStatusId}
               onValueChange={(value) => handleStatusChange(value, "parent")}
+              disabled={isUpdating}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select status" />
@@ -188,10 +201,10 @@ function StatusPanelLoading({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
+      initial={false} // Disable initial animation for loading state
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      key="status-panel-loading" // Stable key for loading state
+      transition={{ duration: 0.1 }}
+      key="status-panel-loading"
       className={cn(
         "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
         shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",

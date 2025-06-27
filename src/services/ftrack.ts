@@ -85,17 +85,7 @@ export class FtrackService {
   private currentUserId: string | null = null;
 
   // --- New status mapping logic ---
-  private statusMapping: {
-    [objectType: string]: {
-      workflowSchemaId: string;
-      statuses: Status[];
-    };
-  } = {};
-  private allStatuses: Status[] = [];
-  private allObjectTypes: any[] = [];
-  private allWorkflowSchemas: any[] = [];
-  private allOverrides: any[] = [];
-  private statusMappingReady = false;
+  // Schema-based status mapping data
 
   // --- ProjectSchema/ObjectType/Status mapping logic ---
   /**
@@ -107,6 +97,9 @@ export class FtrackService {
     };
   } = {};
   private schemaStatusMappingReady = false;
+
+  // Workflow schemas data for AssetVersion special handling
+  private allWorkflowSchemas: any[] = [];
 
   constructor() {
     const savedSettings = localStorage.getItem("ftrackSettings");
@@ -1668,30 +1661,11 @@ export class FtrackService {
       // Fetch shared data once
       const sharedData = await this.fetchSharedStatusData();
 
-      // Build schema mapping (required) and legacy mapping (optional for backwards compatibility)
-      const results = await Promise.allSettled([
-        this.buildSchemaStatusMapping(sharedData),
-        this.buildStatusMapping(sharedData), // This may fail due to ftrack API limitations, but it's not critical
-      ]);
-
-      // Check schema mapping result (critical)
-      const schemaResult = results[0];
-      if (schemaResult.status === "rejected") {
-        console.error(
-          "[FtrackService] Failed to build schema status mapping:",
-          schemaResult.reason,
-        );
-        throw schemaResult.reason;
-      }
-
-      // Check legacy mapping result (non-critical)
-      const legacyResult = results[1];
-      if (legacyResult.status === "rejected") {
-        console.warn(
-          "[FtrackService] Legacy status mapping failed (non-critical):",
-          legacyResult.reason,
-        );
-      }
+      // Build schema mapping (required)
+      await this.buildSchemaStatusMapping({
+        ...sharedData,
+        allWorkflowSchemas: sharedData.allWorkflowSchemas,
+      });
 
       console.debug("[FtrackService] Status mappings initialization complete");
     } catch (error) {
@@ -1704,95 +1678,6 @@ export class FtrackService {
   }
 
   /**
-   * Build the legacy status mapping using shared data
-   */
-  private async buildStatusMapping(sharedData: {
-    allStatuses: Status[];
-    allObjectTypes: any[];
-    allWorkflowSchemas: any[];
-  }): Promise<void> {
-    try {
-      const session = await this.getSession();
-
-      // Store shared data
-      this.allStatuses = sharedData.allStatuses;
-      this.allObjectTypes = sharedData.allObjectTypes;
-      this.allWorkflowSchemas = sharedData.allWorkflowSchemas;
-
-      // Get current project schema ID for overrides
-      const userResult = await session.query(
-        `select project.project_schema_id from User where username is "${this.settings?.apiUser}"`,
-      );
-      const schemaId = userResult.data[0]?.project?.project_schema_id;
-      if (!schemaId) {
-        console.debug(
-          "[StatusMapping] Could not determine current project schema id",
-        );
-        return;
-      }
-
-      const [overrideResult, schemaResult] = await Promise.all([
-        session.query(
-          `select type_id, workflow_schema_id from ProjectSchemaOverride where project_schema_id is "${schemaId}"`,
-        ),
-        session.query(
-          `select asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema where id is "${schemaId}"`,
-        ),
-      ]);
-
-      this.allOverrides = overrideResult.data;
-      const schema = schemaResult.data[0];
-
-      // Build mapping for each object type
-      this.statusMapping = {};
-      for (const objType of this.allObjectTypes) {
-        let workflowSchemaId: string | null = null;
-
-        // Check for override
-        const override = this.allOverrides.find(
-          (ov: any) => ov.type_id === objType.id,
-        );
-        if (override) {
-          workflowSchemaId = override.workflow_schema_id;
-        } else {
-          // Use default
-          if (objType.name === "AssetVersion") {
-            workflowSchemaId = schema.asset_version_workflow_schema_id;
-          } else {
-            workflowSchemaId = schema.task_workflow_schema_id;
-          }
-        }
-
-        // Find statuses for this workflow schema
-        const workflowSchema = this.allWorkflowSchemas.find(
-          (ws: any) => ws.id === workflowSchemaId,
-        );
-        const statuses =
-          workflowSchema?.statuses?.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            color: s.color,
-          })) || [];
-
-        this.statusMapping[objType.name] = {
-          workflowSchemaId: workflowSchemaId || "",
-          statuses,
-        };
-      }
-
-      this.statusMappingReady = true;
-      console.debug("[StatusMapping] Legacy mapping complete");
-    } catch (error) {
-      console.warn(
-        "[StatusMapping] Failed to build legacy status mapping (non-critical):",
-        error,
-      );
-      this.statusMappingReady = false;
-      // Don't throw - this mapping is not critical for core functionality
-    }
-  }
-
-  /**
    * Build the schema status mapping using shared data
    */
   private async buildSchemaStatusMapping(sharedData: {
@@ -1801,6 +1686,7 @@ export class FtrackService {
     allProjectSchemas: any[];
     allSchemas: any[];
     allSchemaStatuses: any[];
+    allWorkflowSchemas: any[];
   }): Promise<void> {
     try {
       const {
@@ -1809,7 +1695,11 @@ export class FtrackService {
         allProjectSchemas,
         allSchemas,
         allSchemaStatuses,
+        allWorkflowSchemas,
       } = sharedData;
+
+      // Store workflow schemas for AssetVersion special handling
+      this.allWorkflowSchemas = allWorkflowSchemas;
 
       // Build mapping
       this.schemaStatusMapping = {};
@@ -1853,34 +1743,6 @@ export class FtrackService {
       throw error;
     }
   }
-
-  /**
-   * Get applicable statuses for an entity type using the pre-fetched mapping
-   * Note: This uses the legacy mapping system which may not be available due to ftrack API limitations
-   */
-  async getApplicableStatusesForType(entityType: string): Promise<Status[]> {
-    await this.ensureStatusMappingsInitialized();
-
-    if (!this.statusMappingReady) {
-      console.debug(
-        "[StatusMapping] Legacy mapping not available, returning empty",
-      );
-      return [];
-    }
-    const entry = this.statusMapping[entityType];
-    if (!entry) {
-      console.debug(`[StatusMapping] No mapping for entityType: ${entityType}`);
-      return [];
-    }
-    console.debug(
-      `[StatusMapping] Returning statuses for ${entityType}:`,
-      entry.statuses,
-    );
-    return entry.statuses;
-  }
-
-  // This method is now replaced by buildSchemaStatusMapping()
-  // and called via ensureStatusMappingsInitialized()
 
   /**
    * Get valid statuses for an entity (by id and type) using the schema mapping.

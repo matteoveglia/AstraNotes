@@ -39,11 +39,26 @@ const CACHE_TTL = 30 * 1000;
 // Timestamp cache for TTL management
 const timestampCache = new Map<string, number>();
 
+// Reverse lookup: entity ID -> set of cache keys that depend on it
+const entityToCacheKeys = new Map<string, Set<string>>();
+
 /**
  * Creates a cache key for the status panel data
  */
 function createCacheKey(assetVersionId: string, parentId?: string): string {
   return `${assetVersionId}:${parentId || "none"}`;
+}
+
+/**
+ * Registers a cache key as dependent on specific entity IDs
+ */
+function registerCacheDependency(cacheKey: string, entityIds: string[]): void {
+  for (const entityId of entityIds) {
+    if (!entityToCacheKeys.has(entityId)) {
+      entityToCacheKeys.set(entityId, new Set());
+    }
+    entityToCacheKeys.get(entityId)!.add(cacheKey);
+  }
 }
 
 /**
@@ -86,6 +101,14 @@ export function fetchStatusPanelDataSuspense(
       statusPanelCache.set(primaryCacheKey, result);
       timestampCache.set(primaryCacheKey, Date.now());
       statusPanelPromiseCache.delete(primaryCacheKey);
+
+      // Register cache dependencies for smart invalidation
+      const entityIds = [result.currentStatuses.versionId];
+      if (result.currentStatuses.parentId) {
+        entityIds.push(result.currentStatuses.parentId);
+      }
+      registerCacheDependency(primaryCacheKey, entityIds);
+
       console.debug(`[StatusPanelService] Cached data for ${assetVersionId}`);
     })
     .catch((error) => {
@@ -138,22 +161,65 @@ async function performFetch(
 }
 
 /**
- * Updates entity status and invalidates related cache
+ * Updates entity status with optimistic updates and smart cache invalidation
  */
 export async function updateEntityStatusSuspense(
   entityType: string,
   entityId: string,
   statusId: string,
 ): Promise<void> {
+  // Find all cache keys that depend on this entity
+  const affectedCacheKeys = entityToCacheKeys.get(entityId) || new Set();
+
+  // Store original cached data for rollback if needed
+  const originalCacheEntries = new Map<string, StatusPanelResult>();
+
   try {
+    // Apply optimistic updates to cache first (for immediate UI feedback)
+    for (const cacheKey of affectedCacheKeys) {
+      const cachedData = statusPanelCache.get(cacheKey);
+      if (cachedData) {
+        // Store original for potential rollback
+        originalCacheEntries.set(cacheKey, { ...cachedData });
+
+        // Apply optimistic update
+        const updatedData = { ...cachedData };
+        if (updatedData.currentStatuses.versionId === entityId) {
+          updatedData.currentStatuses.versionStatusId = statusId;
+        }
+        if (updatedData.currentStatuses.parentId === entityId) {
+          updatedData.currentStatuses.parentStatusId = statusId;
+        }
+
+        // Update cache with optimistic data
+        statusPanelCache.set(cacheKey, updatedData);
+      }
+    }
+
+    // Perform the actual server update
     await ftrackService.updateEntityStatus(entityType, entityId, statusId);
 
-    // Invalidate cache for all related entries
-    // Since we don't know which assetVersionId this relates to, we'll clear all
-    // In a more sophisticated implementation, we could maintain reverse lookup maps
-    clearStatusPanelCache();
+    // Server update succeeded - invalidate affected cache entries for fresh data
+    // but only the specific ones, not everything
+    for (const cacheKey of affectedCacheKeys) {
+      statusPanelCache.delete(cacheKey);
+      timestampCache.delete(cacheKey);
+      statusPanelPromiseCache.delete(cacheKey);
+    }
+
+    console.debug(
+      `[StatusPanelService] Status updated and cache invalidated for entity ${entityId}`,
+    );
   } catch (error) {
-    console.error(`[StatusPanelService] Status update failed:`, error);
+    // Server update failed - rollback optimistic updates
+    for (const [cacheKey, originalData] of originalCacheEntries) {
+      statusPanelCache.set(cacheKey, originalData);
+    }
+
+    console.error(
+      `[StatusPanelService] Status update failed, rolled back optimistic updates:`,
+      error,
+    );
     throw error;
   }
 }
@@ -166,11 +232,20 @@ export function clearStatusPanelCache(assetVersionId?: string): void {
     statusPanelCache.delete(assetVersionId);
     timestampCache.delete(assetVersionId);
     statusPanelPromiseCache.delete(assetVersionId);
+
+    // Clean up dependency tracking for this cache key
+    for (const [entityId, cacheKeys] of entityToCacheKeys.entries()) {
+      cacheKeys.delete(assetVersionId);
+      if (cacheKeys.size === 0) {
+        entityToCacheKeys.delete(entityId);
+      }
+    }
   } else {
     // Clear all cache
     statusPanelCache.clear();
     timestampCache.clear();
     statusPanelPromiseCache.clear();
+    entityToCacheKeys.clear();
   }
 }
 
