@@ -150,8 +150,8 @@ AstraNotes/
 ## Architecture Overview
 
 ### Frontend Stack
-- **React 18** with TypeScript for UI components
-- **Tailwind CSS** with shadcn/ui for styling and design system
+- **React 18** with TypeScript for UI components and Concurrent Mode patterns
+- **Tailwind CSS v4** with shadcn/ui for styling and design system
 - **Zustand** for UI state management
 - **Dexie** for IndexedDB database operations
 - **Vitest** + React Testing Library for testing

@@ -6,9 +6,10 @@ This document provides an overview of the custom hooks, services, backend logic,
 
 AstraNotes follows a modular architecture with clear separation of concerns:
 
-- **Frontend**: React with TypeScript, Tailwind CSS, and shadcn/ui components
+- **Frontend**: React 18 with TypeScript, Tailwind CSS v4, and shadcn/ui components
+- **Performance**: React Concurrent Mode with Suspense, useDeferredValue, and startTransition
 - **State Management**: Zustand for UI state, modular store architecture for business logic
-- **Database**: IndexedDB via Dexie for local data persistence
+- **Database**: IndexedDB via Dexie for local data persistence with stable UUID architecture
 - **Backend**: Tauri 2 for desktop integration and file system access
 - **Testing**: Vitest with React Testing Library, emphasis on integration testing
 - **External APIs**: ftrack integration via @ftrack/api
