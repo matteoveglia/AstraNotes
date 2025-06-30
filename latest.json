@@ -1,15 +1,15 @@
 {
-  "version": "0.10.0",
-  "notes": "Added Playlist Creation workflow. Improved flow for Playlist refreshing. Various UI and dark mode enhancements. Various major performance improvements.",
-  "pub_date": "2025-06-26T16:34:05.223Z",
+  "version": "0.11.0",
+  "notes": "Major UI performance improvements with more async concurrency. Reintroduced auto-polling for playlist updates. Small UI fixes.",
+  "pub_date": "2025-06-30T02:34:49.201Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.10.0/AstraNotes_0.10.0_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1L3lVWlgwZEpZaFFCd21XVGdvdFRkaXJHdVhmK1BMZm03cmFyV1ZwcStSR0J0Z1dSZXE2aHJMU3luWlp0c3hGSUQ5bVJxWmZSdWx3cHNhKytYMGJmd0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzUwOTU1NjQ1CWZpbGU6QXN0cmFOb3Rlc18wLjEwLjBfeDY0X2VuLVVTLm1zaQpnM2ZYQW5YanQrN0dhdWVrOXlybyt2WERoNUVDei9iekwvcjUrakxlL0kvNDE5bUZCd2c0ZHZWcUlXY0ZTRkUwTXRzZHdZZmFQdTg3dzV0eDM2TktDQT09Cg=="
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.11.0/AstraNotes_0.11.0_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzVtYVFUTSswc1J3dDZEKzRIbXBMYnNBdXRVZUdHV1lLR3dUMTBJS2NVd29tYm5Cc2ZCR0kzZ2s2LzEyTWU4dXE1NjA2UTZZYkpYSmRVbTJ2VHIwamc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzUxMjUwODg4CWZpbGU6QXN0cmFOb3Rlc18wLjExLjBfeDY0X2VuLVVTLm1zaQo1OTdFYjNzSlNvRU9yYVk5Vk1jODUrZzR3U0dQaUdndWpmTnlrak9zMGx3b1pHVkFFU2YycmtTREJFcWFBZGUvLzl6M0F2MGJHdWdXVmVQQ0hhejdDdz09Cg=="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.10.0/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzFCNmM1QU1EMnZkbU9IR3IwQ0lMYWQ2WFlOdUpKbytjUVpDYysyNE0wdUx0TmRnYVFLMHB6ZVN1bWRHM05PNlprTnRWMzg0L28wL1F2RzVwYkF2MFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzUwOTUwNzQ5CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6ClBoODU4djBLM1kxcU8yRlBjMkpEN2cyblc0S1V3WTJCb2YrRFkzbWZjaG0vYWg3R1g3NVJqcGR1VHFDZ3VpOW5JUUVmeWZqSnlEVUVGcndpRUtic0FRPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.11.0/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzRmU3J4OUVldlh6WGh0UC81bjVxT24valI5Zkszb2lyRjl5ZUdqZkp3S2tBa0QrbTlyMjBXdEd0cld3Zk1qSTdVUGlaeHhLcWVEalZRL0g0RWlXaVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzUxMjQ5NzE0CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CjFvdnFud00xMWxSV0hzSFpQRWhDTmpZczdQY1JsRW5PanVGTzdCRTFFL2UvajE1clkrT3RjVm1YdFlXVjY5VHI0SEFWSlNGYUQwWVI0M1p3OHovRkFBPT0K"
     }
   }
 }
