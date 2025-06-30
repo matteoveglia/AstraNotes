@@ -38,6 +38,7 @@ import { PublishingControls } from "@/features/notes/components/PublishingContro
 import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
+import { PublishProgressModal } from "./PublishProgressModal";
 import {
   Tooltip,
   TooltipContent,
@@ -250,6 +251,7 @@ export const MainContent: React.FC<MainContentProps> = ({
     isPublishing,
     publishSelectedNotes,
     publishAllNotes,
+    publishNotesSequentially,
     saveNoteDraft,
     clearNoteDraft,
     toggleVersionSelection,
@@ -1108,6 +1110,14 @@ export const MainContent: React.FC<MainContentProps> = ({
           onPlaylistCreated={handlePlaylistCreated}
         />
       )}
+
+      {/* Publish Progress Modal */}
+      <PublishProgressModal
+        isOpen={showPublishModal}
+        onClose={closePublishModal}
+        versionsToPublish={versionsToPublish}
+        onPublish={publishNotesSequentially}
+      />
     </Card>
   );
 };

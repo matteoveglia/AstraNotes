@@ -616,6 +616,7 @@ export function useNoteManagement(playlist: Playlist) {
             console.debug(
               `[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`,
             );
+
             const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
               versionId,
               content,
@@ -716,7 +717,7 @@ export function useNoteManagement(playlist: Playlist) {
         )
         .map(([versionId]) => ({ versionId }));
 
-      console.log(
+      console.debug(
         `Publishing ${versionsToPublish.length} notes with content or attachments`,
       );
 
@@ -764,7 +765,7 @@ export function useNoteManagement(playlist: Playlist) {
               continue;
             }
 
-            const labelId = noteLabelIds[versionId] || "";
+            const labelId = noteLabelIds[versionId] || undefined;
 
             // Track progress for this particular note
             const handleProgress = (
@@ -779,8 +780,9 @@ export function useNoteManagement(playlist: Playlist) {
 
             // Use the API-based component upload method with progress tracking
             console.debug(
-              `[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`,
+              `[useNoteManagement] Publishing ALL notes - version ${versionId} with ${attachments.length} attachments and labelId: "${labelId}"`,
             );
+
             const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
               versionId,
               content,
@@ -919,7 +921,7 @@ export function useNoteManagement(playlist: Playlist) {
           continue;
         }
 
-        const labelId = noteLabelIds[versionId] || "";
+        const labelId = noteLabelIds[versionId] || undefined;
 
         // Update progress to show we're publishing this note
         onProgress(i, total, versionDisplay, "Publishing note...");
@@ -1353,6 +1355,7 @@ export function useNoteManagement(playlist: Playlist) {
     toggleVersionSelection: stableToggleVersionSelection,
     publishSelectedNotes: publishSelectedNotesWithModal,
     publishAllNotes: publishAllNotesWithModal,
+    publishNotesSequentially,
     clearAllNotes,
     setAllLabels,
     isUserInteracting,

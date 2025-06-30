@@ -59,6 +59,7 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
       <Button
         size="sm"
         variant="outline"
+        className="relative z-10 hover:scale-103 transition-all duration-200 hover:shadow-lg"
         onClick={onPublishSelected}
         disabled={selectedCount === 0 || isPublishing}
       >
@@ -78,7 +79,7 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
           size="sm"
           onClick={onPublishAll}
           disabled={draftCount === 0 || isPublishing}
-          className="relative z-10"
+          className="relative z-10 hover:scale-102 transition-all duration-200 hover:shadow-lg"
         >
           Publish All Notes
         </Button>

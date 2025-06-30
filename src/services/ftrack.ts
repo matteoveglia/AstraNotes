@@ -661,8 +661,11 @@ export class FtrackService {
 
       const noteId = response.data.id;
 
-      // Link note to label if provided
-      if (labelId) {
+      // Link note to label if provided (check for truthy value, not empty string)
+      if (labelId && labelId.trim() !== "") {
+        console.debug(
+          `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+        );
         await session.create("NoteLabelLink", {
           note_id: noteId,
           label_id: labelId,
@@ -705,6 +708,10 @@ export class FtrackService {
         );
       }
 
+      console.debug(
+        `[FtrackService] Publishing note with ${attachments?.length || 0} attachments and label: ${labelId || "none"}`,
+      );
+
       // Process content for better markdown rendering in ftrack
       // Replace single newlines with double newlines
       const processedContent = content.replace(/\n/g, "\n\n");
@@ -725,8 +732,11 @@ export class FtrackService {
 
       const noteId = response.data.id;
 
-      // Link note to label if provided
-      if (labelId) {
+      // Link note to label if provided (check for truthy value, not empty string)
+      if (labelId && labelId.trim() !== "") {
+        console.debug(
+          `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+        );
         await session.create("NoteLabelLink", {
           note_id: noteId,
           label_id: labelId,
@@ -825,8 +835,11 @@ export class FtrackService {
 
         const noteId = result.noteId;
 
-        // Link note to label if provided
-        if (labelId) {
+        // Link note to label if provided (check for truthy value, not empty string)
+        if (labelId && labelId.trim() !== "") {
+          console.debug(
+            `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+          );
           await session.create("NoteLabelLink", {
             note_id: noteId,
             label_id: labelId,
@@ -874,8 +887,11 @@ export class FtrackService {
 
         const noteId = response.data.id;
 
-        // Link note to label if provided
-        if (labelId) {
+        // Link note to label if provided (check for truthy value, not empty string)
+        if (labelId && labelId.trim() !== "") {
+          console.debug(
+            `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+          );
           await session.create("NoteLabelLink", {
             note_id: noteId,
             label_id: labelId,
@@ -950,8 +966,11 @@ export class FtrackService {
 
         const noteId = result.noteId;
 
-        // Link note to label if provided
-        if (labelId) {
+        // Link note to label if provided (check for truthy value, not empty string)
+        if (labelId && labelId.trim() !== "") {
+          console.debug(
+            `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+          );
           await session.create("NoteLabelLink", {
             note_id: noteId,
             label_id: labelId,
@@ -986,8 +1005,11 @@ export class FtrackService {
 
         const noteId = response.data.id;
 
-        // Link note to label if provided
-        if (labelId) {
+        // Link note to label if provided (check for truthy value, not empty string)
+        if (labelId && labelId.trim() !== "") {
+          console.debug(
+            `[FtrackService] Linking note ${noteId} to label ${labelId}`,
+          );
           await session.create("NoteLabelLink", {
             note_id: noteId,
             label_id: labelId,

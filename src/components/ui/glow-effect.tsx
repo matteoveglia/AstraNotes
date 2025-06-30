@@ -121,7 +121,7 @@ export function GlowEffect({
       softest: "blur-xs",
       soft: "blur-sm",
       medium: "blur-md",
-      strong: "blur-lg", 
+      strong: "blur-lg",
       stronger: "blur-xl",
       strongest: "blur-2xl",
       none: "blur-none",
