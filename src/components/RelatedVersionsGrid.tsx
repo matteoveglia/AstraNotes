@@ -15,6 +15,10 @@ interface RelatedVersionsGridProps {
   versions: AssetVersion[];
   selectedVersionIds: Set<string>;
   onVersionToggle: (version: AssetVersion) => void;
+  versionDataCache?: {
+    details: Record<string, any>;
+    statuses: Record<string, any>;
+  };
   loading?: boolean;
   className?: string;
 }
@@ -23,6 +27,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   versions,
   selectedVersionIds,
   onVersionToggle,
+  versionDataCache,
   loading = false,
   className,
 }) => {
@@ -38,7 +43,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
     return (
       <div className={cn("space-y-4", className)}>
         {/* Grid skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
@@ -83,7 +88,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
       >
         <AnimatePresence mode="popLayout">
           {versions.map((version, index) => (
@@ -100,6 +105,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
                 isSelected={selectedVersionIds.has(version.id)}
                 onToggleSelection={handleVersionToggle}
                 onThumbnailClick={handleThumbnailClick}
+                versionDataCache={versionDataCache}
                 viewMode="grid"
               />
             </motion.div>

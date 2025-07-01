@@ -19,11 +19,15 @@ interface RelatedVersionsListProps {
   selectedVersionIds: Set<string>;
   onVersionToggle: (version: AssetVersion) => void;
   onSelectAll?: () => void;
+  versionDataCache?: {
+    details: Record<string, any>;
+    statuses: Record<string, any>;
+  };
   loading?: boolean;
   className?: string;
 }
 
-type SortField = 'name' | 'version' | 'updatedAt';
+type SortField = 'name' | 'version' | 'publishedBy' | 'updatedAt';
 type SortDirection = 'asc' | 'desc';
 
 export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
@@ -31,6 +35,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   selectedVersionIds,
   onVersionToggle,
   onSelectAll,
+  versionDataCache,
   loading = false,
   className,
 }) => {
@@ -70,6 +75,10 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
           aValue = a.version;
           bValue = b.version;
           break;
+        case 'publishedBy':
+          aValue = (a.user?.username || '').toLowerCase();
+          bValue = (b.user?.username || '').toLowerCase();
+          break;
         case 'updatedAt':
           aValue = new Date(a.updatedAt).getTime();
           bValue = new Date(b.updatedAt).getTime();
@@ -99,7 +108,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
     <Button
       variant="ghost"
       size="sm"
-      className={cn("h-auto p-2 justify-start font-medium text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100", className)}
+      className={cn("h-auto px-2 py-0 justify-start font-medium text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100", className)}
       onClick={() => handleSort(field)}
     >
       <span className="flex items-center gap-1">
@@ -118,7 +127,9 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             <div className="w-4 h-4 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-16 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="flex-1 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
+            <div className="w-20 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-24 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
+            <div className="w-32 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-32 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-24 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
           </div>
@@ -128,11 +139,12 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             <div key={index} className="flex items-center gap-4 p-3 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
               <div className="w-4 h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-16 h-12 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
-              <div className="flex-1 space-y-1">
+              <div className="flex-1">
                 <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse" />
-                <div className="h-2 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2 animate-pulse" />
               </div>
+              <div className="w-20 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-24 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+              <div className="w-32 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-32 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-24 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
             </div>
@@ -176,27 +188,31 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             />
           </div>
           
-          <div className="flex-shrink-0 w-16">
+          <div className="flex-shrink-0 w-16 flex items-center">
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Preview</span>
           </div>
           
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center">
             <SortableHeader field="name">Asset Name</SortableHeader>
           </div>
           
-          <div className="flex-shrink-0 w-24">
+          <div className="flex-shrink-0 w-20 flex items-center">
             <SortableHeader field="version">Version</SortableHeader>
           </div>
           
-          <div className="flex-shrink-0 w-24">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Status</span>
+          <div className="flex-shrink-0 w-24 flex items-center">
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Shot Status</span>
           </div>
           
-          <div className="flex-shrink-0 w-32">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Published By</span>
+          <div className="flex-shrink-0 w-32 flex items-center">
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Version Status</span>
           </div>
           
-          <div className="flex-shrink-0 w-24">
+          <div className="flex-shrink-0 w-32 flex items-center">
+            <SortableHeader field="publishedBy">Published By</SortableHeader>
+          </div>
+          
+          <div className="flex-shrink-0 w-24 flex items-center">
             <SortableHeader field="updatedAt">Date</SortableHeader>
           </div>
         </div>
@@ -216,6 +232,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
                 version={version}
                 isSelected={selectedVersionIds.has(version.id)}
                 onToggleSelection={onVersionToggle}
+                versionDataCache={versionDataCache}
                 viewMode="list"
               />
             </motion.div>

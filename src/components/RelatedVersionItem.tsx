@@ -5,7 +5,7 @@
  * @component
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { AssetVersion } from "@/types";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { ThumbnailModal } from "./ThumbnailModal";
@@ -21,6 +21,10 @@ interface RelatedVersionItemProps {
   isSelected: boolean;
   onToggleSelection: (version: AssetVersion) => void;
   onThumbnailClick?: (version: AssetVersion) => void;
+  versionDataCache?: {
+    details: Record<string, any>;
+    statuses: Record<string, any>;
+  };
   viewMode: 'grid' | 'list';
   className?: string;
 }
@@ -30,36 +34,16 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   isSelected,
   onToggleSelection,
   onThumbnailClick,
+  versionDataCache,
   viewMode,
   className,
 }) => {
   const [isThumbnailModalOpen, setIsThumbnailModalOpen] = useState(false);
-  const [versionDetails, setVersionDetails] = useState<VersionDetails | null>(null);
-  const [versionStatus, setVersionStatus] = useState<VersionStatus | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-
-  // Fetch version details and status when component mounts
-  useEffect(() => {
-    const fetchVersionData = async () => {
-      setIsLoadingDetails(true);
-      try {
-        // Fetch details and status in parallel
-        const [details, statuses] = await Promise.all([
-          relatedVersionsService.batchFetchVersionDetails([version.id]),
-          relatedVersionsService.batchFetchVersionStatuses([version.id]),
-        ]);
-
-        setVersionDetails(details[version.id] || null);
-        setVersionStatus(statuses[version.id] || null);
-      } catch (error) {
-        console.warn("[RelatedVersionItem] Failed to fetch version data:", error);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    };
-
-    fetchVersionData();
-  }, [version.id]);
+  
+  // Use cached data instead of fetching
+  const versionDetails = versionDataCache?.details[version.id] || null;
+  const versionStatus = versionDataCache?.statuses[version.id] || null;
+  const isLoadingDetails = !versionDataCache?.details[version.id] && !versionDataCache?.statuses[version.id];
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering item selection
@@ -85,7 +69,12 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString();
+      const date = new Date(dateString);
+      const day = date.getDate().toString().padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const year = date.getFullYear().toString().slice(-2);
+      return `${day} ${month} '${year}`;
     } catch {
       return dateString;
     }
@@ -132,14 +121,25 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
           />
         </div>
 
-        {/* Version Info */}
+        {/* Asset Name */}
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm truncate">{version.name}</div>
-          <div className="text-xs text-zinc-500">v{version.version}</div>
         </div>
 
-        {/* Status Info */}
+        {/* Version */}
+        <div className="flex-shrink-0 w-20">
+          <div className="text-sm text-zinc-600 dark:text-zinc-400">v{version.version}</div>
+        </div>
+
+        {/* Shot Status */}
         <div className="flex-shrink-0 w-24">
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">
+            Ready
+          </div>
+        </div>
+
+        {/* Version Status */}
+        <div className="flex-shrink-0 w-32">
           {isLoadingDetails ? (
             <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
@@ -170,6 +170,19 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
             </div>
           )}
         </div>
+
+        {/* Thumbnail Modal for List View */}
+        {version.thumbnailId && (
+          <ThumbnailModal
+            isOpen={isThumbnailModalOpen}
+            onClose={() => setIsThumbnailModalOpen(false)}
+            thumbnailUrl={version.thumbnailUrl || null}
+            versionName={version.name}
+            versionNumber={version.version.toString()}
+            versionId={version.id}
+            thumbnailId={version.thumbnailId}
+          />
+        )}
       </motion.div>
     );
   }
@@ -181,24 +194,24 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer",
-        isSelected && "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600",
+        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer m-1",
+        isSelected && "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600 ring-offset-2",
         className
       )}
       onClick={handleItemClick}
     >
-      {/* Selection Checkbox */}
-      <div data-checkbox className="absolute top-2 left-2 z-10">
+      {/* Selection Checkbox - better positioning */}
+      <div data-checkbox className="absolute top-3 right-3 z-10">
         <Checkbox
           checked={isSelected}
           onCheckedChange={handleCheckboxChange}
           aria-label={`Select ${version.name}`}
-          className="bg-white dark:bg-zinc-900 shadow-sm"
+          className="bg-white dark:bg-zinc-900 border-2"
         />
       </div>
 
       {/* Horizontal Layout: Thumbnail Left, Data Right */}
-      <div className="flex gap-3 mt-6">
+      <div className="flex gap-2">
         {/* Thumbnail - 120px width as per spec */}
         <div 
           data-thumbnail
@@ -208,7 +221,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
           <ThumbnailSuspense
             thumbnailId={version.thumbnailId}
             alt={version.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             fallback={
               <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
                 <BorderTrail

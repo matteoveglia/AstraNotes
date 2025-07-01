@@ -60,6 +60,15 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     totalItems: 0,
   });
   
+  // Centralized version data cache
+  const [versionDataCache, setVersionDataCache] = useState<{
+    details: Record<string, any>;
+    statuses: Record<string, any>;
+  }>({
+    details: {},
+    statuses: {},
+  });
+  
   // React 18 Concurrent features
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [isPending, startTransition] = useTransition();
@@ -84,9 +93,32 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       setSearchTerm("");
       setStatusFilter([]);
       setPagination(prev => ({ ...prev, currentPage: 1 }));
+      setVersionDataCache({ details: {}, statuses: {} });
       setError(null);
     }
   }, [isOpen]);
+
+  const batchFetchVersionData = async (versionIds: string[]) => {
+    try {
+      console.debug("[RelatedVersionsModal] Batch fetching version data for", versionIds.length, "versions");
+      
+      // Fetch details and statuses in parallel
+      const [details, statuses] = await Promise.all([
+        relatedVersionsService.batchFetchVersionDetails(versionIds),
+        relatedVersionsService.batchFetchVersionStatuses(versionIds),
+      ]);
+      
+      // Update cache
+      setVersionDataCache(prev => ({
+        details: { ...prev.details, ...details },
+        statuses: { ...prev.statuses, ...statuses },
+      }));
+      
+      console.debug("[RelatedVersionsModal] Cached version data for", Object.keys(details).length, "versions");
+    } catch (error) {
+      console.warn("[RelatedVersionsModal] Failed to batch fetch version data:", error);
+    }
+  };
 
   const fetchRelatedVersions = async () => {
     setLoading(true);
@@ -110,6 +142,11 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         totalItems: sortedVersions.length,
         currentPage: 1 
       }));
+      
+      // Batch fetch version details and statuses for all versions
+      if (sortedVersions.length > 0) {
+        batchFetchVersionData(sortedVersions.map(v => v.id));
+      }
       
       console.debug(`[RelatedVersionsModal] Found ${sortedVersions.length} related versions`);
     } catch (err) {
@@ -246,7 +283,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl w-full max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-none flex flex-col p-6">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Related Versions for Shot: {shotName}</span>
@@ -370,6 +407,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         versions={filteredAndPaginatedVersions.versions}
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
+                        versionDataCache={versionDataCache}
                         loading={false}
                       />
                     </motion.div>
@@ -386,6 +424,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
                         onSelectAll={handleSelectAll}
+                        versionDataCache={versionDataCache}
                         loading={false}
                       />
                     </motion.div>
@@ -418,8 +457,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 {filteredAndPaginatedVersions.totalPages > 1 ? (
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} 
-                      ({filteredAndPaginatedVersions.totalItems} total)
+                      Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} ({filteredAndPaginatedVersions.totalItems} total)
                     </span>
                     
                     <div className="flex items-center gap-1">
@@ -456,7 +494,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         </div>
 
         {/* Footer with actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-200 dark:border-zinc-700">
           <div className="flex items-center gap-2">
             {filteredAndPaginatedVersions.versions.length > 0 && (
               <Button
@@ -482,14 +520,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {selectedVersions.length > 0 && (
-              <Button
-                onClick={handleAddSelected}
-                className="flex items-center gap-2"
-              >
-                Add {selectedVersions.length} Selected Version{selectedVersions.length === 1 ? '' : 's'}
-              </Button>
-            )}
+            <Button
+              onClick={handleAddSelected}
+              disabled={selectedVersions.length === 0}
+              className="flex items-center gap-2"
+            >
+              Add {selectedVersions.length > 0 ? `${selectedVersions.length} ` : ''}Selected Version{selectedVersions.length === 1 ? '' : 's'} to Playlist
+            </Button>
             
             <Button variant="outline" onClick={onClose}>
               Close
