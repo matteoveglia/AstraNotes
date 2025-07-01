@@ -603,17 +603,17 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             </div>
             <div className="flex items-center gap-2">
               {/* Three-button group: Related | Info | ftrack */}
-              <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-purple-100 dark:hover:bg-purple-900"
-                  onClick={handleRelatedVersionsToggle}
-                  title="Related Versions"
-                >
-                  <Users className="h-4 w-4" />
-                </Button>
-                <div className="relative">
+              <div className="relative">
+                <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-purple-100 dark:hover:bg-purple-900"
+                    onClick={handleRelatedVersionsToggle}
+                    title="Related Versions"
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -623,23 +623,25 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   >
                     <Info className="h-4 w-4" />
                   </Button>
-                  {isVersionDetailsPanelOpen && (
-                    <VersionDetailsPanel
-                      assetVersionId={assetVersionId}
-                      onClose={() => setIsVersionDetailsPanelOpen(false)}
-                      className=""
-                    />
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
+                    onClick={handleOpenInFtrack}
+                    title="Open in ftrack"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
-                  onClick={handleOpenInFtrack}
-                  title="Open in ftrack"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
+                
+                {/* Version Details Panel - positioned outside button group to avoid clipping */}
+                {isVersionDetailsPanelOpen && (
+                  <VersionDetailsPanel
+                    assetVersionId={assetVersionId}
+                    onClose={() => setIsVersionDetailsPanelOpen(false)}
+                    className=""
+                  />
+                )}
               </div>
               
               {/* Remove button if manually added */}

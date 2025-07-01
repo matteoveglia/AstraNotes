@@ -10,10 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
 import { relatedVersionsService } from "@/services/relatedVersionsService";
-import { Grid, List, Search, Filter, Loader2 } from "lucide-react";
+import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
+import { RelatedVersionsList } from "./RelatedVersionsList";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -337,36 +340,111 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             </div>
           ) : (
             <>
-              {/* Versions content - placeholder for now */}
-              <div className="flex-1 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 mb-4">
-                <div className="text-center text-zinc-500 dark:text-zinc-400">
-                  <p className="mb-2">Found {filteredAndPaginatedVersions.totalItems} related versions</p>
-                  <p className="text-sm">
-                    {viewMode === 'grid' ? 'Grid' : 'List'} view will be implemented in Phase 2
-                  </p>
-                  <div className="mt-4 text-left">
-                    <h4 className="font-medium mb-2">Versions on current page:</h4>
-                    <ul className="space-y-1 text-sm">
-                      {filteredAndPaginatedVersions.versions.map(version => (
-                        <li key={version.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedAcrossPages.has(version.id)}
-                            onChange={() => handleVersionToggle(version)}
-                          />
-                          <span>{version.name} - v{version.version}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+              {/* Versions content */}
+              <div className="flex-1 min-h-0 overflow-auto">
+                <AnimatePresence mode="wait">
+                  {isPending ? (
+                    <motion.div
+                      key="pending"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.7 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-white/50 dark:bg-zinc-900/50 flex items-center justify-center z-10"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Switching view...</span>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                  
+                  {viewMode === 'grid' ? (
+                    <motion.div
+                      key="grid"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <RelatedVersionsGrid
+                        versions={filteredAndPaginatedVersions.versions}
+                        selectedVersionIds={selectedAcrossPages}
+                        onVersionToggle={handleVersionToggle}
+                        loading={false}
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="list"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <RelatedVersionsList
+                        versions={filteredAndPaginatedVersions.versions}
+                        selectedVersionIds={selectedAcrossPages}
+                        onVersionToggle={handleVersionToggle}
+                        onSelectAll={handleSelectAll}
+                        loading={false}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              {/* Pagination info */}
-              <div className="text-sm text-zinc-600 dark:text-zinc-400 text-center">
-                Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} 
-                ({filteredAndPaginatedVersions.totalItems} total versions)
-              </div>
+              {/* Pagination controls */}
+              {filteredAndPaginatedVersions.totalPages > 1 && (
+                <div className="flex items-center justify-between py-3 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                  {/* Page size selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
+                    <Select 
+                      value={pagination.pageSize.toString()} 
+                      onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
+                  </div>
+
+                  {/* Page info and navigation */}
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                      Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} 
+                      ({filteredAndPaginatedVersions.totalItems} total)
+                    </span>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage <= 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage >= filteredAndPaginatedVersions.totalPages}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -380,22 +458,21 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 size="sm"
                 onClick={handleSelectAll}
               >
-                {filteredAndPaginatedVersions.versions.every(v => selectedAcrossPages.has(v.id))
-                  ? "Deselect Page"
-                  : "Select Page"
-                }
+                                 {filteredAndPaginatedVersions.versions.every(v => selectedAcrossPages.has(v.id))
+                   ? "Deselect All"
+                   : "Select All"
+                 }
               </Button>
             )}
             
-            {selectedVersions.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearSelection}
-              >
-                Clear Selection ({selectedVersions.length})
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearSelection}
+              disabled={selectedVersions.length === 0}
+            >
+              Clear Selection {selectedVersions.length > 0 ? `(${selectedVersions.length})` : ''}
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">
