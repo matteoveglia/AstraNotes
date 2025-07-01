@@ -61,7 +61,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
     fetchVersionData();
   }, [version.id]);
 
-  const handleThumbnailClick = () => {
+  const handleThumbnailClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering item selection
     if (version.thumbnailId) {
       setIsThumbnailModalOpen(true);
     }
@@ -173,14 +174,14 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
     );
   }
 
-  // Grid view layout - card style
+  // Grid view layout - horizontal layout as per spec
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer",
+        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer",
         isSelected && "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600",
         className
       )}
@@ -196,61 +197,59 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
         />
       </div>
 
-      {/* Thumbnail */}
-      <div 
-        data-thumbnail
-        className="w-full h-32 bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden mb-3 cursor-pointer"
-        onClick={handleThumbnailClick}
-      >
-        <ThumbnailSuspense
-          thumbnailId={version.thumbnailId}
-          alt={version.name}
-          className="w-full h-full object-cover"
-          fallback={
-            <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
-              <BorderTrail
-                style={{
-                  boxShadow: "0px 0px 30px 15px rgb(255 255 255 / 30%), 0 0 50px 30px rgb(0 0 0 / 30%)",
-                }}
-                size={60}
-              />
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-            </div>
-          }
-        />
-      </div>
-
-      {/* Version Details */}
-      <div className="space-y-2">
-        {/* Asset Name and Version */}
-        <div>
-          <h3 className="font-medium text-sm truncate">{version.name}</h3>
-          <p className="text-xs text-zinc-500">v{version.version}</p>
+      {/* Horizontal Layout: Thumbnail Left, Data Right */}
+      <div className="flex gap-3 mt-6">
+        {/* Thumbnail - 120px width as per spec */}
+        <div 
+          data-thumbnail
+          className="flex-shrink-0 w-[120px] h-20 bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden cursor-pointer"
+          onClick={handleThumbnailClick}
+        >
+          <ThumbnailSuspense
+            thumbnailId={version.thumbnailId}
+            alt={version.name}
+            className="w-full h-full object-cover"
+            fallback={
+              <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
+                <BorderTrail
+                  style={{
+                    boxShadow: "0px 0px 20px 10px rgb(255 255 255 / 30%), 0 0 30px 20px rgb(0 0 0 / 30%)",
+                  }}
+                  size={40}
+                />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
+              </div>
+            }
+          />
         </div>
 
-        {/* Status */}
-        <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-zinc-400"></div>
-          <span className="text-xs text-zinc-600 dark:text-zinc-400">
-            {isLoadingDetails ? "Loading..." : (versionStatus?.name || "Unknown")}
-          </span>
-        </div>
-
-        {/* Published Info */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
-            <User className="w-3 h-3" />
-            <span className="truncate">
-              {isLoadingDetails ? "Loading..." : (versionDetails?.publishedBy || version.user?.username || "Unknown")}
-            </span>
+        {/* Version Data - Right side */}
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Asset Name and Version */}
+          <div>
+            <h3 className="font-medium text-sm truncate">{version.name} - v{version.version}</h3>
           </div>
-          <div className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
-            <Calendar className="w-3 h-3" />
-            <span>
-              {isLoadingDetails ? "Loading..." : (
-                versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)
-              )}
-            </span>
+
+          {/* Shot Status (placeholder) */}
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">
+            Shot Status: {isLoadingDetails ? "Loading..." : "Ready"}
+          </div>
+
+          {/* Version Status */}
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">
+            Version Status: {isLoadingDetails ? "Loading..." : (versionStatus?.name || "Unknown")}
+          </div>
+
+          {/* Published By */}
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
+            By: {isLoadingDetails ? "Loading..." : (versionDetails?.publishedBy || version.user?.username || "Unknown")}
+          </div>
+
+          {/* Published Date */}
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">
+            Date: {isLoadingDetails ? "Loading..." : (
+              versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)
+            )}
           </div>
         </div>
       </div>

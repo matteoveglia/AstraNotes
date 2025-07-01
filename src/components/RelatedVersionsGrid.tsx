@@ -93,7 +93,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2, delay: index * 0.02 }}
+              transition={{ duration: 0.15 }}
             >
               <RelatedVersionItem
                 version={version}

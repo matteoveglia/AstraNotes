@@ -393,29 +393,29 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 </AnimatePresence>
               </div>
 
-              {/* Pagination controls */}
-              {filteredAndPaginatedVersions.totalPages > 1 && (
-                <div className="flex items-center justify-between py-3 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                  {/* Page size selector */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
-                    <Select 
-                      value={pagination.pageSize.toString()} 
-                      onValueChange={(value) => handlePageSizeChange(parseInt(value))}
-                    >
-                      <SelectTrigger className="w-20 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="30">30</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
-                  </div>
+              {/* Pagination controls - always show page size selector */}
+              <div className="flex items-center justify-between py-3 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                {/* Page size selector - always visible */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
+                  <Select 
+                    value={pagination.pageSize.toString()} 
+                    onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
+                </div>
 
-                  {/* Page info and navigation */}
+                {/* Page info and navigation - only show when multiple pages */}
+                {filteredAndPaginatedVersions.totalPages > 1 ? (
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
                       Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} 
@@ -443,8 +443,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                       </Button>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="flex items-center">
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {filteredAndPaginatedVersions.totalItems} version{filteredAndPaginatedVersions.totalItems === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
