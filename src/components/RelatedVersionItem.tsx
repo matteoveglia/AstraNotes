@@ -14,7 +14,7 @@ import { Loader2, User, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { relatedVersionsService, VersionDetails, VersionStatus } from "@/services/relatedVersionsService";
+import { relatedVersionsService, VersionDetails, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 import { StatusSelector } from "./StatusSelector";
 
 interface RelatedVersionItemProps {
@@ -25,9 +25,12 @@ interface RelatedVersionItemProps {
   versionDataCache?: {
     details: Record<string, any>;
     statuses: Record<string, any>;
+    shotStatuses: Record<string, any>;
   };
   availableStatuses?: VersionStatus[];
+  availableShotStatuses?: ShotStatus[];
   onStatusUpdate?: (versionId: string, newStatusId: string) => void;
+  onShotStatusUpdate?: (versionId: string, newStatusId: string) => void;
   viewMode: 'grid' | 'list';
   className?: string;
 }
@@ -39,7 +42,9 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   onThumbnailClick,
   versionDataCache,
   availableStatuses = [],
+  availableShotStatuses = [],
   onStatusUpdate,
+  onShotStatusUpdate,
   viewMode,
   className,
 }) => {
@@ -48,6 +53,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   // Use cached data instead of fetching
   const versionDetails = versionDataCache?.details[version.id] || null;
   const versionStatus = versionDataCache?.statuses[version.id] || null;
+  const shotStatus = versionDataCache?.shotStatuses[version.id] || null;
   const isLoadingDetails = !versionDataCache?.details[version.id] && !versionDataCache?.statuses[version.id];
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
@@ -138,9 +144,16 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
         {/* Shot Status */}
         <div className="flex-shrink-0 w-24">
-          <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Ready
-          </div>
+          {isLoadingDetails ? (
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+          ) : (
+            <StatusSelector
+              versionId={version.id}
+              currentStatus={shotStatus}
+              availableStatuses={availableShotStatuses}
+              onStatusUpdate={onShotStatusUpdate}
+            />
+          )}
         </div>
 
         {/* Version Status */}
@@ -251,9 +264,16 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
             <h3 className="font-medium text-sm truncate">{version.name} - v{version.version}</h3>
           </div>
 
-          {/* Shot Status (placeholder) */}
+          {/* Shot Status */}
           <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Shot Status: {isLoadingDetails ? "Loading..." : "Ready"}
+            Shot Status: {isLoadingDetails ? "Loading..." : (
+              <StatusSelector
+                versionId={version.id}
+                currentStatus={shotStatus}
+                availableStatuses={availableShotStatuses}
+                onStatusUpdate={onShotStatusUpdate}
+              />
+            )}
           </div>
 
           {/* Version Status */}

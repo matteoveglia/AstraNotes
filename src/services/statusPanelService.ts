@@ -132,19 +132,33 @@ async function performFetch(
 ): Promise<StatusPanelResult> {
   try {
     // Fetch current status data first
-    const currentStatuses =
+    const statusPanelData =
       await ftrackService.fetchStatusPanelData(assetVersionId);
 
     // Fetch applicable statuses for version and parent
     const [versionStatuses, parentStatuses] = await Promise.all([
       ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
-      currentStatuses.parentId && currentStatuses.parentType
+      statusPanelData.parentId && statusPanelData.parentType
         ? ftrackService.getStatusesForEntity(
-            currentStatuses.parentType,
-            currentStatuses.parentId,
+            statusPanelData.parentType,
+            statusPanelData.parentId,
           )
         : Promise.resolve([]),
     ]);
+
+    // Convert the status IDs to status objects for the interface
+    const versionStatus = statusPanelData.versionStatusId 
+      ? versionStatuses.find(s => s.id === statusPanelData.versionStatusId) || null
+      : null;
+
+    const currentStatuses: StatusPanelData = {
+      versionId: statusPanelData.versionId,
+      versionStatus,
+      parentId: statusPanelData.parentId,
+      parentStatusId: statusPanelData.parentStatusId,
+      parentType: statusPanelData.parentType,
+      projectId: statusPanelData.projectId,
+    };
 
     return {
       currentStatuses,

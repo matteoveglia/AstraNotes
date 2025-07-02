@@ -33,7 +33,7 @@ interface Status {
 
 interface StatusPanelData {
   versionId: string;
-  versionStatus: Status | null;
+  versionStatusId?: string;
   taskId?: string;
   taskStatusId?: string;
   parentId?: string;
@@ -1558,42 +1558,36 @@ export class FtrackService {
     const session = await this.ensureSession();
     log("Fetching status panel data for asset version:", assetVersionId);
 
-    const select = [
-      "id",
-      "status.id",
-      "status.name",
-      "status.color",
-      "task.id",
-      "task.status.id",
-      "parent.id",
-      "parent.status.id",
-      "project.id",
-      "parent.object_type.name",
-    ].join(", ");
-
     try {
-      const response = await session.query(
-        `select ${select} from AssetVersion where id is "${assetVersionId}"`,
-      );
-      const version = response.data[0];
+      // Fetch the asset version and its parent shot with their status IDs
+      const query = `select 
+        id,
+        status_id,
+        asset.parent.id,
+        asset.parent.name,
+        asset.parent.status_id,
+        asset.parent.object_type.name,
+        asset.parent.project.id
+      from AssetVersion 
+      where id is "${assetVersionId}"`;
+
+      const result = await session.query(query);
+      const version = result.data[0];
 
       if (!version) {
-        throw new Error("Version not found");
+        throw new Error("Asset version not found");
       }
+
+      // Get the shot (parent) details
+      const parent = version.asset.parent;
 
       return {
         versionId: version.id,
-        versionStatus: version.status ? {
-          id: version.status.id,
-          name: version.status.name,
-          color: version.status.color,
-        } : null,
-        taskId: version.task?.id,
-        taskStatusId: version.task?.status?.id,
-        parentId: version.parent?.id,
-        parentStatusId: version.parent?.status?.id,
-        parentType: version.parent?.object_type?.name,
-        projectId: version.project.id,
+        versionStatusId: version.status_id,
+        parentId: parent.id,
+        parentStatusId: parent.status_id,
+        parentType: parent.object_type.name,
+        projectId: parent.project.id,
       };
     } catch (error) {
       safeConsoleError(

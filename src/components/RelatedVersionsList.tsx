@@ -13,7 +13,7 @@ import { ChevronUp, ChevronDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { VersionStatus } from "@/services/relatedVersionsService";
+import { VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 
 interface RelatedVersionsListProps {
   versions: AssetVersion[];
@@ -23,9 +23,12 @@ interface RelatedVersionsListProps {
   versionDataCache?: {
     details: Record<string, any>;
     statuses: Record<string, any>;
+    shotStatuses: Record<string, any>;
   };
   availableStatuses?: VersionStatus[];
+  availableShotStatuses?: ShotStatus[];
   onStatusUpdate?: (versionId: string, newStatusId: string) => void;
+  onShotStatusUpdate?: (versionId: string, newStatusId: string) => void;
   loading?: boolean;
   className?: string;
 }
@@ -40,7 +43,9 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   onSelectAll,
   versionDataCache,
   availableStatuses,
+  availableShotStatuses,
   onStatusUpdate,
+  onShotStatusUpdate,
   loading = false,
   className,
 }) => {
@@ -177,12 +182,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden"
-      >
+      <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
         {/* Table Header */}
         <div className="flex items-center gap-4 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
           <div className="flex-shrink-0">
@@ -223,29 +223,23 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
         </div>
 
         {/* Table Body */}
-        <AnimatePresence mode="popLayout">
+        <div>
           {sortedVersions.map((version, index) => (
-            <motion.div
+            <RelatedVersionItem
               key={version.id}
-              layout
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.15 }}
-            >
-              <RelatedVersionItem
-                version={version}
-                isSelected={selectedVersionIds.has(version.id)}
-                onToggleSelection={onVersionToggle}
-                versionDataCache={versionDataCache}
-                availableStatuses={availableStatuses}
-                onStatusUpdate={onStatusUpdate}
-                viewMode="list"
-              />
-            </motion.div>
+              version={version}
+              isSelected={selectedVersionIds.has(version.id)}
+              onToggleSelection={onVersionToggle}
+              versionDataCache={versionDataCache}
+              availableStatuses={availableStatuses}
+              availableShotStatuses={availableShotStatuses}
+              onStatusUpdate={onStatusUpdate}
+              onShotStatusUpdate={onShotStatusUpdate}
+              viewMode="list"
+            />
           ))}
-        </AnimatePresence>
-      </motion.div>
+        </div>
+      </div>
 
       {/* List summary */}
       <div className="text-center">

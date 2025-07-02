@@ -10,7 +10,7 @@ import { AssetVersion } from "@/types";
 import { RelatedVersionItem } from "./RelatedVersionItem";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { VersionStatus } from "@/services/relatedVersionsService";
+import { VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 
 interface RelatedVersionsGridProps {
   versions: AssetVersion[];
@@ -19,9 +19,12 @@ interface RelatedVersionsGridProps {
   versionDataCache?: {
     details: Record<string, any>;
     statuses: Record<string, any>;
+    shotStatuses: Record<string, any>;
   };
   availableStatuses?: VersionStatus[];
+  availableShotStatuses?: ShotStatus[];
   onStatusUpdate?: (versionId: string, newStatusId: string) => void;
+  onShotStatusUpdate?: (versionId: string, newStatusId: string) => void;
   loading?: boolean;
   className?: string;
 }
@@ -32,7 +35,9 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   onVersionToggle,
   versionDataCache,
   availableStatuses,
+  availableShotStatuses,
   onStatusUpdate,
+  onShotStatusUpdate,
   loading = false,
   className,
 }) => {
@@ -89,36 +94,23 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   return (
     <div className={cn("space-y-4", className)}>
       {/* Grid container */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
-      >
-        <AnimatePresence mode="popLayout">
-          {versions.map((version, index) => (
-            <motion.div
-              key={version.id}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.15 }}
-            >
-              <RelatedVersionItem
-                version={version}
-                isSelected={selectedVersionIds.has(version.id)}
-                onToggleSelection={handleVersionToggle}
-                onThumbnailClick={handleThumbnailClick}
-                versionDataCache={versionDataCache}
-                availableStatuses={availableStatuses}
-                onStatusUpdate={onStatusUpdate}
-                viewMode="grid"
-              />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        {versions.map((version, index) => (
+          <RelatedVersionItem
+            key={version.id}
+            version={version}
+            isSelected={selectedVersionIds.has(version.id)}
+            onToggleSelection={handleVersionToggle}
+            onThumbnailClick={handleThumbnailClick}
+            versionDataCache={versionDataCache}
+            availableStatuses={availableStatuses}
+            availableShotStatuses={availableShotStatuses}
+            onStatusUpdate={onStatusUpdate}
+            onShotStatusUpdate={onShotStatusUpdate}
+            viewMode="grid"
+          />
+        ))}
+      </div>
 
       {/* Grid summary */}
       <div className="text-center">

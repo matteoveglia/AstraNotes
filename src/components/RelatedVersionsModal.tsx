@@ -9,7 +9,7 @@ import React, { useState, useEffect, useMemo, useDeferredValue, useTransition } 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
-import { relatedVersionsService, VersionStatus } from "@/services/relatedVersionsService";
+import { relatedVersionsService, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "./ui/input";
 import {
@@ -61,6 +61,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<VersionStatus[]>([]);
+  const [availableShotStatuses, setAvailableShotStatuses] = useState<ShotStatus[]>([]);
   
   // Pagination state
   const [pagination, setPagination] = useState<PaginationState>({
@@ -73,9 +74,11 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   const [versionDataCache, setVersionDataCache] = useState<{
     details: Record<string, any>;
     statuses: Record<string, any>;
+    shotStatuses: Record<string, any>;
   }>({
     details: {},
     statuses: {},
+    shotStatuses: {},
   });
   
   // React 18 Concurrent features
@@ -103,15 +106,19 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       setSearchTerm("");
       setStatusFilter([]);
       setPagination(prev => ({ ...prev, currentPage: 1 }));
-      setVersionDataCache({ details: {}, statuses: {} });
+      setVersionDataCache({ details: {}, statuses: {}, shotStatuses: {} });
       setError(null);
     }
   }, [isOpen]);
 
   const fetchAvailableStatuses = async () => {
     try {
-      const statuses = await relatedVersionsService.fetchAllVersionStatuses();
-      setAvailableStatuses(statuses);
+      const [versionStatuses, shotStatuses] = await Promise.all([
+        relatedVersionsService.fetchAllVersionStatuses(),
+        relatedVersionsService.fetchAllShotStatuses(),
+      ]);
+      setAvailableStatuses(versionStatuses);
+      setAvailableShotStatuses(shotStatuses);
     } catch (error) {
       console.warn("[RelatedVersionsModal] Failed to fetch available statuses:", error);
     }
@@ -140,20 +147,51 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     }
   };
 
+  const handleShotStatusUpdate = async (versionId: string, newStatusId: string) => {
+    console.debug(`[RelatedVersionsModal] Updating shot status for version ${versionId} to ${newStatusId}`);
+    try {
+      // Get the parent entity information from status panel data
+      const statusData = await ftrackService.fetchStatusPanelData(versionId);
+      if (!statusData?.parentId || !statusData?.parentType) {
+        console.warn(`[RelatedVersionsModal] No parent entity found for version ${versionId}`);
+        return;
+      }
+
+      // Optimistic UI update
+      setVersionDataCache(prev => {
+        const newShotStatuses = { ...prev.shotStatuses };
+        const newStatus = availableShotStatuses.find(s => s.id === newStatusId);
+        if (newStatus) {
+          newShotStatuses[versionId] = newStatus;
+        }
+        return { ...prev, shotStatuses: newShotStatuses };
+      });
+      
+      // Call ftrack service to update the parent entity status
+      await ftrackService.updateEntityStatus(statusData.parentType, statusData.parentId, newStatusId);
+      console.debug(`[RelatedVersionsModal] Successfully updated shot status for version ${versionId}`);
+    } catch (error) {
+      console.error(`[RelatedVersionsModal] Failed to update shot status for version ${versionId}:`, error);
+      // Revert UI on failure (optional, could show toast instead)
+    }
+  };
+
   const batchFetchVersionData = async (versionIds: string[]) => {
     try {
       console.debug("[RelatedVersionsModal] Batch fetching version data for", versionIds.length, "versions");
       
-      // Fetch details and statuses in parallel
-      const [details, statuses] = await Promise.all([
+      // Fetch details, statuses, and shot statuses in parallel
+      const [details, statuses, shotStatuses] = await Promise.all([
         relatedVersionsService.batchFetchVersionDetails(versionIds),
         relatedVersionsService.batchFetchVersionStatuses(versionIds),
+        relatedVersionsService.batchFetchShotStatuses(versionIds),
       ]);
       
       // Update cache
       setVersionDataCache(prev => ({
         details: { ...prev.details, ...details },
         statuses: { ...prev.statuses, ...statuses },
+        shotStatuses: { ...prev.shotStatuses, ...shotStatuses },
       }));
       
       console.debug("[RelatedVersionsModal] Cached version data for", Object.keys(details).length, "versions");
@@ -466,49 +504,43 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           ) : (
             <>
               {/* Versions content */}
-              <div className="flex-1 min-h-0 overflow-auto">
+              <div className="flex-1 min-h-0 overflow-auto relative">
+                {/* Loading overlay outside of AnimatePresence */}
+                {isPending && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.7 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/50 dark:bg-zinc-900/50 flex items-center justify-center z-10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Switching view...</span>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <AnimatePresence mode="wait">
-                  {isPending ? (
-                    <motion.div
-                      key="pending"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 0.7 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-white/50 dark:bg-zinc-900/50 flex items-center justify-center z-10"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Switching view...</span>
-                      </div>
-                    </motion.div>
-                  ) : null}
-                  
-                  {viewMode === 'grid' ? (
-                    <motion.div
-                      key="grid"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                    >
+                  <motion.div
+                    key={viewMode}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {viewMode === 'grid' ? (
                       <RelatedVersionsGrid
                         versions={filteredAndPaginatedVersions.versions}
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
                         versionDataCache={versionDataCache}
                         availableStatuses={availableStatuses}
+                        availableShotStatuses={availableShotStatuses}
                         onStatusUpdate={handleStatusUpdate}
+                        onShotStatusUpdate={handleShotStatusUpdate}
                         loading={false}
                       />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="list"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                    >
+                    ) : (
                       <RelatedVersionsList
                         versions={filteredAndPaginatedVersions.versions}
                         selectedVersionIds={selectedAcrossPages}
@@ -516,77 +548,84 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         onSelectAll={handleSelectAll}
                         versionDataCache={versionDataCache}
                         availableStatuses={availableStatuses}
+                        availableShotStatuses={availableShotStatuses}
                         onStatusUpdate={handleStatusUpdate}
+                        onShotStatusUpdate={handleShotStatusUpdate}
                         loading={false}
                       />
-                    </motion.div>
-                  )}
+                    )}
+                  </motion.div>
                 </AnimatePresence>
               </div>
 
-              {/* Pagination controls - always show page size selector */}
-              <div className="flex items-center justify-between py-2 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                {/* Page size selector - always visible */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
-                  <Select 
-                    value={pagination.pageSize.toString()} 
-                    onValueChange={(value) => handlePageSizeChange(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-20 h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
-                </div>
-
-                {/* Page info and navigation - only show when multiple pages */}
-                {filteredAndPaginatedVersions.totalPages > 1 ? (
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} ({filteredAndPaginatedVersions.totalItems} total)
-                    </span>
-                    
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
-                        disabled={pagination.currentPage <= 1}
-                        className="h-8 w-8 p-0"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage >= filteredAndPaginatedVersions.totalPages}
-                        className="h-8 w-8 p-0"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {filteredAndPaginatedVersions.totalItems} version{filteredAndPaginatedVersions.totalItems === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                )}
-              </div>
             </>
           )}
         </div>
 
-        {/* Footer with actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
+        {/* Footer with pagination and actions */}
+        <div className="border-t border-zinc-200 dark:border-zinc-700">
+          {/* Pagination controls - always show page size selector */}
+          {filteredAndPaginatedVersions.versions.length > 0 && (
+            <div className="flex items-center justify-between py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
+              {/* Page size selector - always visible */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
+                <Select 
+                  value={pagination.pageSize.toString()} 
+                  onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                >
+                  <SelectTrigger className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
+              </div>
+
+              {/* Page info and navigation - only show when multiple pages */}
+              {filteredAndPaginatedVersions.totalPages > 1 ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} ({filteredAndPaginatedVersions.totalItems} total)
+                  </span>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      disabled={pagination.currentPage <= 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      disabled={pagination.currentPage >= filteredAndPaginatedVersions.totalPages}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {filteredAndPaginatedVersions.totalItems} version{filteredAndPaginatedVersions.totalItems === 1 ? '' : 's'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Footer actions */}
+          <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-2">
             {filteredAndPaginatedVersions.versions.length > 0 && (
               <Button
@@ -623,6 +662,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
+          </div>
           </div>
         </div>
       </DialogContent>

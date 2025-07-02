@@ -13,6 +13,12 @@ export interface VersionStatus {
   color?: string;
 }
 
+export interface ShotStatus {
+  id: string;
+  name: string;
+  color?: string;
+}
+
 export interface VersionDetails {
   id: string;
   assetName: string;
@@ -27,8 +33,10 @@ export interface RelatedVersionsService {
   extractShotName(versionName: string): string;
   fetchVersionsByShotName(shotName: string): Promise<AssetVersion[]>;
   batchFetchVersionStatuses(versionIds: string[]): Promise<Record<string, VersionStatus>>;
+  batchFetchShotStatuses(versionIds: string[]): Promise<Record<string, ShotStatus>>;
   batchFetchVersionDetails(versionIds: string[]): Promise<Record<string, VersionDetails>>;
   fetchAllVersionStatuses(): Promise<VersionStatus[]>;
+  fetchAllShotStatuses(): Promise<ShotStatus[]>;
 }
 
 class RelatedVersionsServiceImpl implements RelatedVersionsService {
@@ -130,14 +138,17 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
-          // This call now returns a detailed status object
+          // This call returns status IDs, we need to resolve them to status objects
           const statusData = await ftrackService.fetchStatusPanelData(versionId);
-          if (statusData && statusData.versionStatus) {
-            statuses[versionId] = {
-              id: statusData.versionStatus.id,
-              name: statusData.versionStatus.name,
-              color: statusData.versionStatus.color,
-            };
+          if (statusData && statusData.versionStatusId) {
+            // We need to fetch the actual status object using the status ID
+            // For now, we'll create a minimal status object
+            // TODO: Optimize by batch fetching all status objects
+            const allStatuses = await ftrackService.getStatusesForObjectType('AssetVersion');
+            const statusObj = allStatuses.find(s => s.id === statusData.versionStatusId);
+            if (statusObj) {
+              statuses[versionId] = statusObj;
+            }
           }
         } catch (error) {
           console.warn("[RelatedVersionsService] Failed to fetch status for version:", versionId, error);
@@ -153,6 +164,42 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
   }
 
   /**
+   * Batch fetch shot/parent status data for multiple versions
+   */
+  async batchFetchShotStatuses(versionIds: string[]): Promise<Record<string, ShotStatus>> {
+    console.debug("[RelatedVersionsService] Batch fetching shot statuses for", versionIds.length, "versions");
+    
+    try {
+      const statuses: Record<string, ShotStatus> = {};
+      
+      // For now, fetch statuses individually
+      // TODO: Optimize with true batch API calls when available
+      for (const versionId of versionIds) {
+        try {
+          // This call returns status IDs, we need to resolve them to status objects
+          const statusData = await ftrackService.fetchStatusPanelData(versionId);
+          if (statusData && statusData.parentStatusId && statusData.parentType) {
+            // Fetch the actual status object using the status ID and parent type
+            const allStatuses = await ftrackService.getStatusesForObjectType(statusData.parentType);
+            const statusObj = allStatuses.find(s => s.id === statusData.parentStatusId);
+            if (statusObj) {
+              statuses[versionId] = statusObj;
+            }
+          }
+        } catch (error) {
+          console.warn("[RelatedVersionsService] Failed to fetch shot status for version:", versionId, error);
+          // Continue with other versions
+        }
+      }
+      
+      return statuses;
+    } catch (error) {
+      console.error("[RelatedVersionsService] Failed to batch fetch shot statuses:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch all possible version statuses from ftrack
    */
   async fetchAllVersionStatuses(): Promise<VersionStatus[]> {
@@ -163,6 +210,20 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       return await ftrackService.getStatusesForObjectType('AssetVersion');
     } catch (error) {
       console.error("[RelatedVersionsService] Failed to fetch all version statuses:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all possible shot statuses from ftrack
+   */
+  async fetchAllShotStatuses(): Promise<ShotStatus[]> {
+    console.debug("[RelatedVersionsService] Fetching all shot statuses");
+    try {
+      // Get statuses for Shot object type
+      return await ftrackService.getStatusesForObjectType('Shot');
+    } catch (error) {
+      console.error("[RelatedVersionsService] Failed to fetch all shot statuses:", error);
       throw error;
     }
   }

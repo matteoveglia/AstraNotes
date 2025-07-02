@@ -163,7 +163,16 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-full">
+      <DialogContent 
+        className="max-w-5xl w-full"
+        onPointerDownOutside={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        onInteractOutside={(e) => {
+          e.stopPropagation();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
             <span className="select-text">
