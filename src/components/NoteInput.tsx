@@ -484,7 +484,11 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
-  const openThumbnailModal = () => {
+  const openThumbnailModal = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (thumbnailId) {
       setIsModalOpen(true);
     }

@@ -94,7 +94,6 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   useEffect(() => {
     if (isOpen && shotName) {
       fetchRelatedVersions();
-      fetchAvailableStatuses();
     }
   }, [isOpen, shotName]);
 
@@ -111,12 +110,33 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     }
   }, [isOpen]);
 
-  const fetchAvailableStatuses = async () => {
+  const fetchAvailableStatusesForVersions = async (versions: AssetVersion[]) => {
     try {
-      const [versionStatuses, shotStatuses] = await Promise.all([
-        relatedVersionsService.fetchAllVersionStatuses(),
-        relatedVersionsService.fetchAllShotStatuses(),
-      ]);
+      // We need at least one version to get statuses for that project
+      if (versions.length === 0) {
+        console.debug("[RelatedVersionsModal] No versions available, skipping status fetch");
+        return;
+      }
+
+      // Use the first version to get all available statuses for the project
+      const firstVersionId = versions[0].id;
+      
+      // For shot statuses, we need to get the parent entity from status panel data
+      const statusData = await ftrackService.fetchStatusPanelData(firstVersionId);
+      
+      const promises = [
+        relatedVersionsService.fetchAllVersionStatuses(firstVersionId),
+      ];
+      
+      // Only fetch shot statuses if we have parent info
+      if (statusData?.parentId && statusData?.parentType) {
+        promises.push(relatedVersionsService.fetchAllShotStatuses(statusData.parentId));
+      } else {
+        promises.push(Promise.resolve([]));
+      }
+      
+      const [versionStatuses, shotStatuses] = await Promise.all(promises);
+      
       setAvailableStatuses(versionStatuses);
       setAvailableShotStatuses(shotStatuses);
     } catch (error) {
@@ -225,7 +245,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       
       // Batch fetch version details and statuses for all versions
       if (sortedVersions.length > 0) {
-        batchFetchVersionData(sortedVersions.map(v => v.id));
+        await batchFetchVersionData(sortedVersions.map(v => v.id));
+        
+        // Fetch available statuses using the sorted versions
+        await fetchAvailableStatusesForVersions(sortedVersions);
       }
       
       console.debug(`[RelatedVersionsModal] Found ${sortedVersions.length} related versions`);
@@ -625,7 +648,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           )}
           
           {/* Footer actions */}
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between pt-3">
           <div className="flex items-center gap-2">
             {filteredAndPaginatedVersions.versions.length > 0 && (
               <Button
