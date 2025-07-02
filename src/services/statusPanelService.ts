@@ -14,7 +14,7 @@ interface Status {
 
 interface StatusPanelData {
   versionId: string;
-  versionStatusId: string;
+  versionStatus: Status | null;
   parentId?: string;
   parentStatusId?: string;
   parentType?: string;
@@ -185,7 +185,10 @@ export async function updateEntityStatusSuspense(
         // Apply optimistic update
         const updatedData = { ...cachedData };
         if (updatedData.currentStatuses.versionId === entityId) {
-          updatedData.currentStatuses.versionStatusId = statusId;
+          const newStatus = updatedData.versionStatuses.find(s => s.id === statusId);
+          if (newStatus) {
+            updatedData.currentStatuses.versionStatus = newStatus;
+          }
         }
         if (updatedData.currentStatuses.parentId === entityId) {
           updatedData.currentStatuses.parentStatusId = statusId;

@@ -125,7 +125,7 @@ function StatusPanelContent({
             Version Status
           </label>
           <Select
-            value={currentStatuses.versionStatusId}
+            value={currentStatuses.versionStatus?.id || ""}
             onValueChange={(value) => handleStatusChange(value, "version")}
             disabled={isUpdating}
           >

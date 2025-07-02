@@ -10,6 +10,7 @@ import { AssetVersion } from "@/types";
 import { RelatedVersionItem } from "./RelatedVersionItem";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { VersionStatus } from "@/services/relatedVersionsService";
 
 interface RelatedVersionsGridProps {
   versions: AssetVersion[];
@@ -19,6 +20,8 @@ interface RelatedVersionsGridProps {
     details: Record<string, any>;
     statuses: Record<string, any>;
   };
+  availableStatuses?: VersionStatus[];
+  onStatusUpdate?: (versionId: string, newStatusId: string) => void;
   loading?: boolean;
   className?: string;
 }
@@ -28,6 +31,8 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   selectedVersionIds,
   onVersionToggle,
   versionDataCache,
+  availableStatuses,
+  onStatusUpdate,
   loading = false,
   className,
 }) => {
@@ -106,6 +111,8 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
                 onToggleSelection={handleVersionToggle}
                 onThumbnailClick={handleThumbnailClick}
                 versionDataCache={versionDataCache}
+                availableStatuses={availableStatuses}
+                onStatusUpdate={onStatusUpdate}
                 viewMode="grid"
               />
             </motion.div>

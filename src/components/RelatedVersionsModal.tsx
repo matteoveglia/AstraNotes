@@ -9,14 +9,22 @@ import React, { useState, useEffect, useMemo, useDeferredValue, useTransition } 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
-import { relatedVersionsService } from "@/services/relatedVersionsService";
+import { relatedVersionsService, VersionStatus } from "@/services/relatedVersionsService";
 import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "./ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
 import { RelatedVersionsList } from "./RelatedVersionsList";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
+import { ftrackService } from "@/services/ftrack";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -52,6 +60,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [availableStatuses, setAvailableStatuses] = useState<VersionStatus[]>([]);
   
   // Pagination state
   const [pagination, setPagination] = useState<PaginationState>({
@@ -82,6 +91,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   useEffect(() => {
     if (isOpen && shotName) {
       fetchRelatedVersions();
+      fetchAvailableStatuses();
     }
   }, [isOpen, shotName]);
 
@@ -97,6 +107,38 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       setError(null);
     }
   }, [isOpen]);
+
+  const fetchAvailableStatuses = async () => {
+    try {
+      const statuses = await relatedVersionsService.fetchAllVersionStatuses();
+      setAvailableStatuses(statuses);
+    } catch (error) {
+      console.warn("[RelatedVersionsModal] Failed to fetch available statuses:", error);
+    }
+  };
+
+  const handleStatusUpdate = async (versionId: string, newStatusId: string) => {
+    console.debug(`[RelatedVersionsModal] Updating status for version ${versionId} to ${newStatusId}`);
+    try {
+      // Optimistic UI update
+      setVersionDataCache(prev => {
+        const newStatuses = { ...prev.statuses };
+        const newStatus = availableStatuses.find(s => s.id === newStatusId);
+        if (newStatuses[versionId] && newStatus) {
+          newStatuses[versionId] = newStatus;
+        }
+        return { ...prev, statuses: newStatuses };
+      });
+      
+      // Call ftrack service to update status
+      await ftrackService.updateEntityStatus("AssetVersion", versionId, newStatusId);
+      console.debug(`[RelatedVersionsModal] Successfully updated status for version ${versionId}`);
+    } catch (error) {
+      console.error(`[RelatedVersionsModal] Failed to update status for version ${versionId}:`, error);
+      // Revert UI on failure (optional, could show toast instead)
+      // For now, we'll leave the optimistic update
+    }
+  };
 
   const batchFetchVersionData = async (versionIds: string[]) => {
     try {
@@ -170,9 +212,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       );
     }
     
-    // Apply status filter (placeholder - will be implemented in later phases)
+    // Apply status filter
     if (statusFilter.length > 0) {
-      // TODO: Implement status filtering
+      filtered = filtered.filter(version => {
+        const versionStatus = versionDataCache.statuses[version.id];
+        return versionStatus && statusFilter.includes(versionStatus.id);
+      });
     }
     
     // Update total items for pagination
@@ -331,16 +376,59 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             />
           </div>
           
-          {/* Status filter placeholder */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-            disabled // Will be enabled in later phases
-          >
-            <Filter className="h-4 w-4" />
-            Filter by Status
-          </Button>
+          {/* Status filter dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                disabled={availableStatuses.length === 0}
+              >
+                <Filter className="h-4 w-4" />
+                <span>
+                  {statusFilter.length > 0
+                    ? `${statusFilter.length} Statuses Selected`
+                    : "Filter by Status"}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Filter by Version Status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {availableStatuses.map((status) => (
+                <DropdownMenuCheckboxItem
+                  key={status.id}
+                  checked={statusFilter.includes(status.id)}
+                  onCheckedChange={(checked) => {
+                    setStatusFilter((prev) =>
+                      checked
+                        ? [...prev, status.id]
+                        : prev.filter((id) => id !== status.id)
+                    );
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {status.color && (
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: status.color }}
+                      />
+                    )}
+                    <span>{status.name}</span>
+                  </div>
+                </DropdownMenuCheckboxItem>
+              ))}
+              {statusFilter.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setStatusFilter([])}>
+                    Clear Filters
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Content area */}
@@ -408,6 +496,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
                         versionDataCache={versionDataCache}
+                        availableStatuses={availableStatuses}
+                        onStatusUpdate={handleStatusUpdate}
                         loading={false}
                       />
                     </motion.div>
@@ -425,6 +515,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         onVersionToggle={handleVersionToggle}
                         onSelectAll={handleSelectAll}
                         versionDataCache={versionDataCache}
+                        availableStatuses={availableStatuses}
+                        onStatusUpdate={handleStatusUpdate}
                         loading={false}
                       />
                     </motion.div>
@@ -433,7 +525,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               </div>
 
               {/* Pagination controls - always show page size selector */}
-              <div className="flex items-center justify-between py-3 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="flex items-center justify-between py-2 px-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
                 {/* Page size selector - always visible */}
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
@@ -494,7 +586,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         </div>
 
         {/* Footer with actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-zinc-200 dark:border-zinc-700">
+        <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
           <div className="flex items-center gap-2">
             {filteredAndPaginatedVersions.versions.length > 0 && (
               <Button

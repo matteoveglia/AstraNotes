@@ -13,6 +13,7 @@ import { ChevronUp, ChevronDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { VersionStatus } from "@/services/relatedVersionsService";
 
 interface RelatedVersionsListProps {
   versions: AssetVersion[];
@@ -23,6 +24,8 @@ interface RelatedVersionsListProps {
     details: Record<string, any>;
     statuses: Record<string, any>;
   };
+  availableStatuses?: VersionStatus[];
+  onStatusUpdate?: (versionId: string, newStatusId: string) => void;
   loading?: boolean;
   className?: string;
 }
@@ -36,6 +39,8 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   onVersionToggle,
   onSelectAll,
   versionDataCache,
+  availableStatuses,
+  onStatusUpdate,
   loading = false,
   className,
 }) => {
@@ -233,6 +238,8 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
                 isSelected={selectedVersionIds.has(version.id)}
                 onToggleSelection={onVersionToggle}
                 versionDataCache={versionDataCache}
+                availableStatuses={availableStatuses}
+                onStatusUpdate={onStatusUpdate}
                 viewMode="list"
               />
             </motion.div>

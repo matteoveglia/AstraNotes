@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { relatedVersionsService, VersionDetails, VersionStatus } from "@/services/relatedVersionsService";
+import { StatusSelector } from "./StatusSelector";
 
 interface RelatedVersionItemProps {
   version: AssetVersion;
@@ -25,6 +26,8 @@ interface RelatedVersionItemProps {
     details: Record<string, any>;
     statuses: Record<string, any>;
   };
+  availableStatuses?: VersionStatus[];
+  onStatusUpdate?: (versionId: string, newStatusId: string) => void;
   viewMode: 'grid' | 'list';
   className?: string;
 }
@@ -35,6 +38,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   onToggleSelection,
   onThumbnailClick,
   versionDataCache,
+  availableStatuses = [],
+  onStatusUpdate,
   viewMode,
   className,
 }) => {
@@ -143,9 +148,12 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
           {isLoadingDetails ? (
             <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
-            <div className="text-xs text-zinc-600 dark:text-zinc-400">
-              {versionStatus?.name || "—"}
-            </div>
+            <StatusSelector
+              versionId={version.id}
+              currentStatus={versionStatus}
+              availableStatuses={availableStatuses}
+              onStatusUpdate={onStatusUpdate}
+            />
           )}
         </div>
 
@@ -250,7 +258,17 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
           {/* Version Status */}
           <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Version Status: {isLoadingDetails ? "Loading..." : (versionStatus?.name || "Unknown")}
+            Version Status:
+            {isLoadingDetails ? (
+              <span className="ml-1">Loading...</span>
+            ) : (
+              <StatusSelector
+                versionId={version.id}
+                currentStatus={versionStatus}
+                availableStatuses={availableStatuses}
+                onStatusUpdate={onStatusUpdate}
+              />
+            )}
           </div>
 
           {/* Published By */}

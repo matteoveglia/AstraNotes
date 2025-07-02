@@ -33,7 +33,7 @@ interface Status {
 
 interface StatusPanelData {
   versionId: string;
-  versionStatusId: string;
+  versionStatus: Status | null;
   taskId?: string;
   taskStatusId?: string;
   parentId?: string;
@@ -1555,42 +1555,51 @@ export class FtrackService {
    * Fetch all necessary data for the status panel
    */
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
+    const session = await this.ensureSession();
+    log("Fetching status panel data for asset version:", assetVersionId);
+
+    const select = [
+      "id",
+      "status.id",
+      "status.name",
+      "status.color",
+      "task.id",
+      "task.status.id",
+      "parent.id",
+      "parent.status.id",
+      "project.id",
+      "parent.object_type.name",
+    ].join(", ");
+
     try {
-      const session = await this.getSession();
-      if (!session) throw new Error("No active ftrack session");
-
-      // Fetch the asset version and its parent shot with their status IDs
-      const query = `select 
-        id,
-        status_id,
-        asset.parent.id,
-        asset.parent.name,
-        asset.parent.status_id,
-        asset.parent.object_type.name,
-        asset.parent.project.id
-      from AssetVersion 
-      where id is "${assetVersionId}"`;
-
-      const result = await session.query(query);
-      const version = result.data[0];
+      const response = await session.query(
+        `select ${select} from AssetVersion where id is "${assetVersionId}"`,
+      );
+      const version = response.data[0];
 
       if (!version) {
-        throw new Error("Asset version not found");
+        throw new Error("Version not found");
       }
-
-      // Get the shot (parent) details
-      const parent = version.asset.parent;
 
       return {
         versionId: version.id,
-        versionStatusId: version.status_id,
-        parentId: parent.id,
-        parentStatusId: parent.status_id,
-        parentType: parent.object_type.name,
-        projectId: parent.project.id,
+        versionStatus: version.status ? {
+          id: version.status.id,
+          name: version.status.name,
+          color: version.status.color,
+        } : null,
+        taskId: version.task?.id,
+        taskStatusId: version.task?.status?.id,
+        parentId: version.parent?.id,
+        parentStatusId: version.parent?.status?.id,
+        parentType: version.parent?.object_type?.name,
+        projectId: version.project.id,
       };
     } catch (error) {
-      console.error("Error fetching status panel data:", error);
+      safeConsoleError(
+        `[FtrackService] Failed to fetch status panel data for version ${assetVersionId}`,
+        error,
+      );
       throw error;
     }
   }
@@ -2199,6 +2208,25 @@ export class FtrackService {
       log("Failed to fetch version details:", error);
       throw error;
     }
+  }
+
+  async getStatusesForObjectType(objectTypeName: string): Promise<Status[]> {
+    await this.ensureStatusMappingsInitialized();
+    
+    // Find the object type id
+    const objectType = this.allWorkflowSchemas.find(
+      (ot) => ot.name === objectTypeName,
+    );
+    if (!objectType) {
+      console.warn(`[FtrackService] Object type "${objectTypeName}" not found.`);
+      return [];
+    }
+    
+    // In our simplified model, we assume all AssetVersion statuses are shared
+    // across all projects for now. We can refine this later if needed.
+    const assetVersionStatuses = this.schemaStatusMapping['__shared__']?.[objectType.id];
+    
+    return assetVersionStatuses || [];
   }
 }
 

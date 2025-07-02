@@ -28,6 +28,7 @@ export interface RelatedVersionsService {
   fetchVersionsByShotName(shotName: string): Promise<AssetVersion[]>;
   batchFetchVersionStatuses(versionIds: string[]): Promise<Record<string, VersionStatus>>;
   batchFetchVersionDetails(versionIds: string[]): Promise<Record<string, VersionDetails>>;
+  fetchAllVersionStatuses(): Promise<VersionStatus[]>;
 }
 
 class RelatedVersionsServiceImpl implements RelatedVersionsService {
@@ -129,13 +130,15 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
+          // This call now returns a detailed status object
           const statusData = await ftrackService.fetchStatusPanelData(versionId);
-          // We'll need to fetch the actual status details
-          // This is a placeholder - will be enhanced in later phases
-          statuses[versionId] = {
-            id: statusData.versionStatusId,
-            name: "Unknown", // Will be resolved with proper status lookup
-          };
+          if (statusData && statusData.versionStatus) {
+            statuses[versionId] = {
+              id: statusData.versionStatus.id,
+              name: statusData.versionStatus.name,
+              color: statusData.versionStatus.color,
+            };
+          }
         } catch (error) {
           console.warn("[RelatedVersionsService] Failed to fetch status for version:", versionId, error);
           // Continue with other versions
@@ -145,6 +148,21 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       return statuses;
     } catch (error) {
       console.error("[RelatedVersionsService] Failed to batch fetch version statuses:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch all possible version statuses from ftrack
+   */
+  async fetchAllVersionStatuses(): Promise<VersionStatus[]> {
+    console.debug("[RelatedVersionsService] Fetching all version statuses");
+    try {
+      // Assuming ftrackService has a method to get all available statuses
+      // for the "AssetVersion" object type.
+      return await ftrackService.getStatusesForObjectType('AssetVersion');
+    } catch (error) {
+      console.error("[RelatedVersionsService] Failed to fetch all version statuses:", error);
       throw error;
     }
   }
