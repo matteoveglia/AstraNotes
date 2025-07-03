@@ -41,6 +41,9 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   loading = false,
   className,
 }) => {
+  // Consistent grid layout classes
+  const gridClasses = "grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4";
+
   const handleVersionToggle = (version: AssetVersion) => {
     onVersionToggle(version);
   };
@@ -52,21 +55,43 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   if (loading) {
     return (
       <div className={cn("space-y-4", className)}>
-        {/* Grid skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        {/* Grid skeleton - updated to match new layout */}
+        <div className={gridClasses}>
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 animate-pulse"
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden animate-pulse min-w-[280px]"
             >
-              {/* Thumbnail skeleton */}
-              <div className="w-full h-32 bg-zinc-200 dark:bg-zinc-700 rounded mb-3" />
-              
-              {/* Content skeleton */}
-              <div className="space-y-2">
-                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4" />
-                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/2" />
-                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-2/3" />
+              {/* Header skeleton - matching new layout */}
+              <div className="p-3 pb-2">
+                <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 mb-1" />
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4" />
+              </div>
+
+              {/* Content skeleton - thumbnail | data columns */}
+              <div className="flex gap-3 p-3 pt-0">
+                {/* Thumbnail skeleton */}
+                <div className="flex-shrink-0 w-24 bg-zinc-200 dark:bg-zinc-700 rounded self-stretch" />
+                
+                {/* Data skeleton */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-8" />
+                    <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded flex-1" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-10 text-right" />
+                    <div className="h-5 bg-zinc-200 dark:bg-zinc-700 rounded flex-1" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-10 text-right" />
+                    <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded flex-1" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-10 text-right" />
+                    <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded flex-1" />
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -93,8 +118,8 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Grid container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+      {/* Grid container - updated for better responsive behavior with 280px minimum width */}
+      <div className={gridClasses}>
         {versions.map((version) => (
           <RelatedVersionItem
             key={version.id}

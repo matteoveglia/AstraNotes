@@ -227,99 +227,127 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
     );
   }
 
-  // Grid view layout - horizontal layout as per spec
+  // Grid view layout - improved styling to match NoteInput.tsx patterns
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 hover:shadow-md transition-all cursor-pointer m-1",
+        "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer",
+        "min-w-[280px]",
         isSelected && "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600 ring-offset-2",
         className
       )}
       onClick={handleItemClick}
     >
-      {/* Selection Checkbox - better positioning */}
+      {/* Selection Checkbox - positioned consistently */}
       <div data-checkbox className="absolute top-3 right-3 z-10">
         <Checkbox
           checked={isSelected}
           onCheckedChange={handleCheckboxChange}
           aria-label={`Select ${version.name}`}
-          className="bg-white dark:bg-zinc-900 border-2"
+          className="bg-white dark:bg-zinc-900 border-2 shadow-sm"
         />
       </div>
 
-      {/* Horizontal Layout: Thumbnail Left, Data Right */}
-      <div className="flex gap-2">
-        {/* Thumbnail - 120px width as per spec */}
+      {/* Header Section - Full width asset name and version */}
+      <div className="p-3 pb-2">
+        <div className="flex items-center font-medium text-sm truncate text-zinc-900 dark:text-zinc-100 pr-8">
+          <span className="truncate">{version.name}</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-1 flex items-center">- v{version.version}</span>
+        </div>
+      </div>
+
+      {/* Content Layout: Thumbnail | Data columns */}
+      <div className="flex gap-3 p-3 pt-0">
+        {/* Thumbnail Container - spans full height of content area */}
         <div 
           data-thumbnail
-          className="flex-shrink-0 w-[120px] h-20 bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden cursor-pointer"
+          className="flex-shrink-0 w-24 bg-zinc-100 dark:bg-zinc-800 rounded cursor-pointer flex items-center justify-center self-stretch"
           onClick={handleThumbnailClick}
         >
           <ThumbnailSuspense
             thumbnailId={version.thumbnailId}
             alt={version.name}
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain rounded"
             fallback={
-              <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
+              <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800 rounded">
                 <BorderTrail
                   style={{
                     boxShadow: "0px 0px 20px 10px rgb(255 255 255 / 30%), 0 0 30px 20px rgb(0 0 0 / 30%)",
                   }}
-                  size={40}
+                  size={30}
                 />
-                <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
+                <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />
               </div>
             }
           />
         </div>
 
-        {/* Version Data - Right side */}
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Asset Name and Version */}
-          <div>
-            <h3 className="font-medium text-sm truncate">{version.name} - v{version.version}</h3>
-          </div>
-
+        {/* Data Column - Status and Details */}
+        <div className="flex-1 min-w-0 space-y-2">
           {/* Shot Status */}
-          <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Shot Status: {isLoadingStatuses ? (
-              <div className="inline-block w-16 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
+              Shot:
+            </span>
+            {isLoadingStatuses ? (
+              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <StatusSelector
                 versionId={version.id}
                 currentStatus={shotStatus}
                 availableStatuses={availableShotStatuses}
                 onStatusUpdate={onShotStatusUpdate}
+                className="border h-6 border-zinc-200 dark:border-zinc-700 rounded-md text-xs min-w-0 flex-1"
               />
             )}
           </div>
 
           {/* Version Status */}
-          <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Version Status: {isLoadingStatuses ? (
-              <div className="inline-block w-16 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
+              Status:
+            </span>
+            {isLoadingStatuses ? (
+              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <StatusSelector
                 versionId={version.id}
                 currentStatus={versionStatus}
                 availableStatuses={availableStatuses}
                 onStatusUpdate={onStatusUpdate}
+                className="border h-6 border-zinc-200 dark:border-zinc-700 rounded-md text-xs min-w-0 flex-1"
               />
             )}
           </div>
 
           {/* Published By */}
-          <div className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
-            By: {isLoadingDetails ? "Loading..." : (versionDetails?.publishedBy || version.user?.username || "Unknown")}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
+              By:
+            </span>
+            {isLoadingDetails ? (
+              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
+            ) : (
+              <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate flex-1 min-w-0">
+                {versionDetails?.publishedBy || version.user?.username || "Unknown"}
+              </span>
+            )}
           </div>
 
           {/* Published Date */}
-          <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Date: {isLoadingDetails ? "Loading..." : (
-              versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
+              Date:
+            </span>
+            {isLoadingDetails ? (
+              <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
+            ) : (
+              <span className="text-xs text-zinc-700 dark:text-zinc-300 flex-1 min-w-0">
+                {versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)}
+              </span>
             )}
           </div>
         </div>
