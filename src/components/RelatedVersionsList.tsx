@@ -136,7 +136,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
     <Button
       variant="ghost"
       size="sm"
-      className={cn("h-auto px-2 py-0 justify-start font-medium text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100", className)}
+      className={cn("h-auto px-0 py-0 justify-start font-medium text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100", className)}
       onClick={() => handleSort(field)}
     >
       <span className="flex items-center gap-1">
@@ -216,7 +216,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             />
           </div>
           
-          <div className={cn(COL_WIDTH.preview, "flex items-center justify-center")}> 
+          <div className={cn(COL_WIDTH.preview, "flex items-center")}> 
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 select-none">Preview</span>
           </div>
           
