@@ -25,9 +25,9 @@ import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
 import { RelatedVersionsList } from "./RelatedVersionsList";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
 import { ftrackService } from "@/services/ftrack";
+import { useToast } from "./ui/toast";
 import { playlistStore } from "@/store/playlist";
 import { usePlaylistsStore } from "@/store/playlistsStore";
-import { useToast } from "./ui/toast";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -431,36 +431,25 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   };
 
   const handleAddSelected = async () => {
-    if (selectedVersions.length === 0) {
-      return;
-    }
-
-    const { activePlaylistId } = usePlaylistsStore.getState();
-
-    if (!activePlaylistId) {
-      toast.showError("No active playlist selected");
-      return;
-    }
+    if (selectedVersions.length === 0) return;
 
     try {
-      console.debug(`[RelatedVersionsModal] Adding ${selectedVersions.length} versions to playlist: ${activePlaylistId}`);
-      
-      await playlistStore.addVersionsToPlaylist(activePlaylistId, selectedVersions);
-      
-      toast.showSuccess(
-        `Successfully added ${selectedVersions.length} version${selectedVersions.length !== 1 ? 's' : ''} to playlist`
-      );
-      
-      // Also call the original callback for any additional handling
-      onVersionsSelect(selectedVersions);
-      
-      // Close modal after successful addition
+      // Flag versions as manually added
+      const versionsWithFlag = selectedVersions.map(v => ({ ...v, manuallyAdded: true }));
+      // Add to playlist via store (uses active playlist from store)
+      const { activePlaylistId } = usePlaylistsStore.getState();
+      if (!activePlaylistId) {
+        toast.showError("No active playlist selected");
+        return;
+      }
+      await playlistStore.addVersionsToPlaylist(activePlaylistId, versionsWithFlag);
+
+      onVersionsSelect(versionsWithFlag); // notify parent if needed
+      toast.showSuccess(`Added ${versionsWithFlag.length} version${versionsWithFlag.length===1?'':'s'} to playlist`);
       onClose();
     } catch (error) {
-      console.error("[RelatedVersionsModal] Failed to add versions to playlist:", error);
-      toast.showError(
-        error instanceof Error ? error.message : "Failed to add versions to playlist"
-      );
+      console.error(`[RelatedVersionsModal] Failed to add versions:`, error);
+      toast.showError("Failed to add versions to playlist");
     }
   };
 
