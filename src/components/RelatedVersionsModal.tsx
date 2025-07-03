@@ -276,19 +276,19 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     }
   };
 
-  // Filter and paginate versions
-  const filteredAndPaginatedVersions = useMemo(() => {
+  // Filter versions (without pagination)
+  const filteredVersions = useMemo(() => {
     let filtered = relatedVersions;
-    
+
     // Apply search filter
     if (deferredSearchTerm.trim()) {
       const searchLower = deferredSearchTerm.toLowerCase();
-      filtered = filtered.filter(version => 
+      filtered = filtered.filter(version =>
         version.name.toLowerCase().includes(searchLower) ||
-        `v${version.version}`.toLowerCase().includes(searchLower)
+        `v${String(version.version)}`.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Apply status filter
     if (statusFilter.length > 0) {
       filtered = filtered.filter(version => {
@@ -296,26 +296,31 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         return versionStatus && statusFilter.includes(versionStatus.id);
       });
     }
-    
-    // Update total items for pagination
-    const totalItems = filtered.length;
-    
-    // Apply pagination
+
+    return filtered;
+  }, [relatedVersions, deferredSearchTerm, statusFilter, versionDataCache.statuses]);
+
+  // Reset page to 1 when search or filter changes.
+  useEffect(() => {
+    if (pagination.currentPage !== 1) {
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+    }
+  // We specifically want to run this effect only when filters change,
+  // not when other pagination state like currentPage changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deferredSearchTerm, statusFilter]);
+
+  // Update total items when the filtered list changes
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, totalItems: filteredVersions.length }));
+  }, [filteredVersions]);
+  
+  // Paginate the filtered versions
+  const paginatedVersions = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.pageSize;
     const endIndex = startIndex + pagination.pageSize;
-    const paginated = filtered.slice(startIndex, endIndex);
-    
-    // Update pagination state if needed
-    if (totalItems !== pagination.totalItems) {
-      setPagination(prev => ({ ...prev, totalItems }));
-    }
-    
-    return {
-      versions: paginated,
-      totalItems,
-      totalPages: Math.ceil(totalItems / pagination.pageSize),
-    };
-  }, [relatedVersions, deferredSearchTerm, statusFilter, pagination.currentPage, pagination.pageSize, pagination.totalItems]);
+    return filteredVersions.slice(startIndex, endIndex);
+  }, [filteredVersions, pagination.currentPage, pagination.pageSize]);
 
   const handleViewModeChange = (newMode: ViewMode) => {
     startTransition(() => {
@@ -346,7 +351,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    const currentPageVersionIds = filteredAndPaginatedVersions.versions.map(v => v.id);
+    const currentPageVersionIds = paginatedVersions.map(v => v.id);
     const allSelected = currentPageVersionIds.every(id => selectedAcrossPages.has(id));
     
     if (allSelected) {
@@ -368,7 +373,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         return newSet;
       });
       
-      const newSelections = filteredAndPaginatedVersions.versions.filter(
+      const newSelections = paginatedVersions.filter(
         v => !selectedAcrossPages.has(v.id)
       );
       
@@ -537,7 +542,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 </Button>
               </div>
             </div>
-          ) : filteredAndPaginatedVersions.versions.length === 0 ? (
+          ) : paginatedVersions.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <p className="text-zinc-600 dark:text-zinc-400 mb-2">
@@ -579,28 +584,26 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   >
                     {viewMode === 'grid' ? (
                       <RelatedVersionsGrid
-                        versions={filteredAndPaginatedVersions.versions}
+                        versions={paginatedVersions}
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
-                        versionDataCache={versionDataCache}
-                        availableStatuses={availableStatuses}
-                        availableShotStatuses={availableShotStatuses}
                         onStatusUpdate={handleStatusUpdate}
                         onShotStatusUpdate={handleShotStatusUpdate}
-                        loading={false}
+                        availableStatuses={availableStatuses}
+                        availableShotStatuses={availableShotStatuses}
+                        versionDataCache={versionDataCache}
                       />
                     ) : (
                       <RelatedVersionsList
-                        versions={filteredAndPaginatedVersions.versions}
+                        versions={paginatedVersions}
                         selectedVersionIds={selectedAcrossPages}
                         onVersionToggle={handleVersionToggle}
-                        onSelectAll={handleSelectAll}
-                        versionDataCache={versionDataCache}
-                        availableStatuses={availableStatuses}
-                        availableShotStatuses={availableShotStatuses}
                         onStatusUpdate={handleStatusUpdate}
                         onShotStatusUpdate={handleShotStatusUpdate}
-                        loading={false}
+                        availableStatuses={availableStatuses}
+                        availableShotStatuses={availableShotStatuses}
+                        versionDataCache={versionDataCache}
+                        onSelectAll={handleSelectAll}
                       />
                     )}
                   </motion.div>
@@ -614,7 +617,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         {/* Footer with pagination and actions */}
         <div className="border-t border-zinc-200 dark:border-zinc-700">
           {/* Pagination controls - always show page size selector */}
-          {filteredAndPaginatedVersions.versions.length > 0 && (
+          {paginatedVersions.length > 0 && (
             <div className="flex items-center justify-between py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
               {/* Page size selector - always visible */}
               <div className="flex items-center gap-2">
@@ -636,10 +639,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               </div>
 
               {/* Page info and navigation - only show when multiple pages */}
-              {filteredAndPaginatedVersions.totalPages > 1 ? (
+              {Math.ceil(pagination.totalItems / pagination.pageSize) > 1 ? (
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Page {pagination.currentPage} of {filteredAndPaginatedVersions.totalPages} ({filteredAndPaginatedVersions.totalItems} total)
+                    Page {pagination.currentPage} of {Math.ceil(pagination.totalItems / pagination.pageSize)} ({pagination.totalItems} total)
                   </span>
                   
                   <div className="flex items-center gap-1">
@@ -656,7 +659,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage >= filteredAndPaginatedVersions.totalPages}
+                      disabled={pagination.currentPage >= Math.ceil(pagination.totalItems / pagination.pageSize)}
                       className="h-8 w-8 p-0"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -666,7 +669,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               ) : (
                 <div className="flex items-center">
                   <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {filteredAndPaginatedVersions.totalItems} version{filteredAndPaginatedVersions.totalItems === 1 ? '' : 's'}
+                    {pagination.totalItems} version{pagination.totalItems === 1 ? '' : 's'}
                   </span>
                 </div>
               )}
@@ -676,13 +679,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           {/* Footer actions */}
           <div className="flex items-center justify-between pt-3">
           <div className="flex items-center gap-2">
-            {filteredAndPaginatedVersions.versions.length > 0 && (
+            {paginatedVersions.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
               >
-                                 {filteredAndPaginatedVersions.versions.every(v => selectedAcrossPages.has(v.id))
+                                 {paginatedVersions.every(v => selectedAcrossPages.has(v.id))
                    ? "Deselect All"
                    : "Select All"
                  }
