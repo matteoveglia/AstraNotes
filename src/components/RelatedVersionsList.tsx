@@ -5,7 +5,7 @@
  * @component
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AssetVersion } from "@/types";
 import { RelatedVersionItem } from "./RelatedVersionItem";
 // Animation imports removed as per Phase 4.4 - no per-item animations
@@ -20,6 +20,7 @@ interface RelatedVersionsListProps {
   selectedVersionIds: Set<string>;
   onVersionToggle: (version: AssetVersion) => void;
   onSelectAll?: () => void;
+  onSortChange?: (field: SortField, direction: SortDirection) => void;
   versionDataCache?: {
     details: Record<string, any>;
     statuses: Record<string, any>;
@@ -41,6 +42,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   selectedVersionIds,
   onVersionToggle,
   onSelectAll,
+  onSortChange,
   versionDataCache,
   availableStatuses,
   availableShotStatuses,
@@ -54,10 +56,12 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      onSortChange?.(field, sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('desc');
+      setSortDirection('asc');
+      onSortChange?.(field, 'asc');
     }
   };
 
@@ -127,6 +131,11 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
       </span>
     </Button>
   );
+
+  // Notify parent of initial sort on mount & when dependencies change
+  useEffect(() => {
+    onSortChange?.(sortField, sortDirection);
+  }, [onSortChange, sortField, sortDirection]);
 
   if (loading) {
     return (

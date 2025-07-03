@@ -91,6 +91,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     return relatedVersionsService.extractShotName(currentVersionName);
   }, [currentVersionName]);
 
+  // Sort info coming from list view
+  const [sortInfo, setSortInfo] = useState<{ field: string; direction: 'asc' | 'desc' }>({
+    field: 'updatedAt',
+    direction: 'desc',
+  });
+
   // Fetch related versions when modal opens
   useEffect(() => {
     if (isOpen && shotName) {
@@ -325,9 +331,34 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   // Summary text for pagination toolbar (Phase 5.6)
   const summaryText = useMemo(() => {
     const visible = paginatedVersions.length;
+    const total = relatedVersions.length;
+
     const plural = (n: number) => (n === 1 ? "" : "s");
-    return `Showing ${visible} version${plural(visible)} • Sorted by updatedAt (desc)`;
-  }, [paginatedVersions.length]);
+
+    let countPart = `Showing ${visible}`;
+
+    if (total !== visible) {
+      countPart += ` of ${total}`;
+    }
+
+    countPart += ` version${plural(total)}`;
+
+    // Human readable sort label mapping
+    const sortLabels: Record<string, string> = {
+      updatedAt: 'Date',
+      name: 'Name',
+      version: 'Version',
+      publishedBy: 'Published By',
+    };
+    const dirLabels: Record<'asc' | 'desc', string> = {
+      asc: 'ascending',
+      desc: 'descending',
+    };
+
+    const sortText = `Sorted by ${sortLabels[sortInfo.field] || sortInfo.field} (${dirLabels[sortInfo.direction]})`;
+
+    return `${countPart} • ${sortText}`;
+  }, [paginatedVersions.length, relatedVersions.length, sortInfo]);
 
   const handleViewModeChange = (newMode: ViewMode) => {
     startTransition(() => {
@@ -581,7 +612,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   </motion.div>
                 )}
                 
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="sync">
                   <motion.div
                     key={viewMode}
                     initial={{ opacity: 0, y: 10 }}
@@ -611,6 +642,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         availableShotStatuses={availableShotStatuses}
                         versionDataCache={versionDataCache}
                         onSelectAll={handleSelectAll}
+                        onSortChange={(field: string, direction: 'asc' | 'desc') => setSortInfo({ field, direction })}
                       />
                     )}
                   </motion.div>
