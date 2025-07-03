@@ -49,6 +49,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   className,
 }) => {
   const [isThumbnailModalOpen, setIsThumbnailModalOpen] = useState(false);
+  const [isModalOperationInProgress, setIsModalOperationInProgress] = useState(false);
   
   // Use cached data instead of fetching
   const versionDetails = versionDataCache?.details[version.id] || null;
@@ -59,6 +60,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering item selection
+    e.preventDefault(); // Prevent any default behavior
+    setIsModalOperationInProgress(true);
     if (version.thumbnailId) {
       setIsThumbnailModalOpen(true);
     }
@@ -66,9 +69,9 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   };
 
   const handleItemClick = (e: React.MouseEvent) => {
-    // Don't trigger selection if clicking on thumbnail or checkbox
+    // Don't trigger selection if clicking on thumbnail or checkbox, or if modal operation is in progress
     const target = e.target as HTMLElement;
-    if (target.closest('[data-thumbnail]') || target.closest('[data-checkbox]')) {
+    if (target.closest('[data-thumbnail]') || target.closest('[data-checkbox]') || isModalOperationInProgress) {
       return;
     }
     
@@ -76,7 +79,22 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   };
 
   const handleCheckboxChange = (_checked: boolean) => {
+    if (isModalOperationInProgress) return;
     onToggleSelection(version);
+  };
+
+  const handleModalClose = () => {
+    // Set flag to prevent any selection during modal close
+    setIsModalOperationInProgress(true);
+    
+    // Use setTimeout to ensure modal close doesn't interfere with any potential parent events
+    setTimeout(() => {
+      setIsThumbnailModalOpen(false);
+      // Reset the flag after a brief delay to allow modal close to complete
+      setTimeout(() => {
+        setIsModalOperationInProgress(false);
+      }, 100);
+    }, 0);
   };
 
   const formatDate = (dateString: string) => {
@@ -197,7 +215,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
         {version.thumbnailId && (
           <ThumbnailModal
             isOpen={isThumbnailModalOpen}
-            onClose={() => setIsThumbnailModalOpen(false)}
+            onClose={handleModalClose}
             thumbnailUrl={version.thumbnailUrl || null}
             versionName={version.name}
             versionNumber={version.version.toString()}
@@ -311,7 +329,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
       {version.thumbnailId && (
         <ThumbnailModal
           isOpen={isThumbnailModalOpen}
-          onClose={() => setIsThumbnailModalOpen(false)}
+          onClose={handleModalClose}
           thumbnailUrl={version.thumbnailUrl || null}
           versionName={version.name}
           versionNumber={version.version.toString()}
