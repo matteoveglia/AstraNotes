@@ -8,7 +8,7 @@
 import React from "react";
 import { AssetVersion } from "@/types";
 import { RelatedVersionItem } from "./RelatedVersionItem";
-import { motion, AnimatePresence } from "motion/react";
+// Animation imports removed as per Phase 4.4 - no per-item animations
 import { cn } from "@/lib/utils";
 import { VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 
@@ -95,7 +95,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
     <div className={cn("space-y-4", className)}>
       {/* Grid container */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-        {versions.map((version, index) => (
+        {versions.map((version) => (
           <RelatedVersionItem
             key={version.id}
             version={version}

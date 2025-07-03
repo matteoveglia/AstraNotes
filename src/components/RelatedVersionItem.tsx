@@ -10,11 +10,11 @@ import { AssetVersion } from "@/types";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, User, Calendar } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
-import { relatedVersionsService, VersionDetails, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
+import { VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
 import { StatusSelector } from "./StatusSelector";
 
 interface RelatedVersionItemProps {
@@ -54,7 +54,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   const versionDetails = versionDataCache?.details[version.id] || null;
   const versionStatus = versionDataCache?.statuses[version.id] || null;
   const shotStatus = versionDataCache?.shotStatuses[version.id] || null;
-  const isLoadingDetails = !versionDataCache?.details[version.id] && !versionDataCache?.statuses[version.id];
+  const isLoadingDetails = !versionDataCache?.details[version.id];
+  const isLoadingStatuses = !versionDataCache?.statuses[version.id];
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering item selection
@@ -74,7 +75,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
     onToggleSelection(version);
   };
 
-  const handleCheckboxChange = (checked: boolean) => {
+  const handleCheckboxChange = (_checked: boolean) => {
     onToggleSelection(version);
   };
 
@@ -144,8 +145,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
         {/* Shot Status */}
         <div className="flex-shrink-0 w-24">
-          {isLoadingDetails ? (
-            <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+          {isLoadingStatuses ? (
+            <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
             <StatusSelector
               versionId={version.id}
@@ -158,8 +159,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
         {/* Version Status */}
         <div className="flex-shrink-0 w-32">
-          {isLoadingDetails ? (
-            <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+          {isLoadingStatuses ? (
+            <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
             <StatusSelector
               versionId={version.id}
@@ -266,7 +267,9 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
           {/* Shot Status */}
           <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Shot Status: {isLoadingDetails ? "Loading..." : (
+            Shot Status: {isLoadingStatuses ? (
+              <div className="inline-block w-16 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-1" />
+            ) : (
               <StatusSelector
                 versionId={version.id}
                 currentStatus={shotStatus}
@@ -278,9 +281,8 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
 
           {/* Version Status */}
           <div className="text-xs text-zinc-600 dark:text-zinc-400">
-            Version Status:
-            {isLoadingDetails ? (
-              <span className="ml-1">Loading...</span>
+            Version Status: {isLoadingStatuses ? (
+              <div className="inline-block w-16 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse ml-1" />
             ) : (
               <StatusSelector
                 versionId={version.id}

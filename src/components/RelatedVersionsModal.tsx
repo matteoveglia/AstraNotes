@@ -54,6 +54,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
   const [selectedAcrossPages, setSelectedAcrossPages] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [progressiveLoading, setProgressiveLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // View state
@@ -107,6 +108,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       setPagination(prev => ({ ...prev, currentPage: 1 }));
       setVersionDataCache({ details: {}, statuses: {}, shotStatuses: {} });
       setError(null);
+      setProgressiveLoading(false);
     }
   }, [isOpen]);
 
@@ -236,26 +238,40 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
       
+      // Show basic version data immediately
       setRelatedVersions(sortedVersions);
       setPagination(prev => ({ 
         ...prev, 
         totalItems: sortedVersions.length,
         currentPage: 1 
       }));
+      setLoading(false); // Stop blocking loader here
       
-      // Batch fetch version details and statuses for all versions
+      console.debug(`[RelatedVersionsModal] Showing ${sortedVersions.length} related versions with basic data`);
+      
+      // Start progressive loading for additional data
       if (sortedVersions.length > 0) {
-        await batchFetchVersionData(sortedVersions.map(v => v.id));
+        setProgressiveLoading(true);
         
-        // Fetch available statuses using the sorted versions
-        await fetchAvailableStatusesForVersions(sortedVersions);
+        try {
+          // Fetch available statuses first (needed for dropdowns)
+          await fetchAvailableStatusesForVersions(sortedVersions);
+          
+          // Then progressively load version details and statuses
+          await batchFetchVersionData(sortedVersions.map(v => v.id));
+          
+          console.debug("[RelatedVersionsModal] Progressive loading completed");
+        } catch (progressiveError) {
+          console.warn("[RelatedVersionsModal] Progressive loading failed:", progressiveError);
+          // Don't set error state - basic functionality still works
+        } finally {
+          setProgressiveLoading(false);
+        }
       }
       
-      console.debug(`[RelatedVersionsModal] Found ${sortedVersions.length} related versions`);
     } catch (err) {
       console.error("[RelatedVersionsModal] Failed to fetch related versions:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch related versions");
-    } finally {
       setLoading(false);
     }
   };
@@ -491,6 +507,16 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Progressive loading indicator */}
+        {progressiveLoading && (
+          <div className="flex items-center justify-center py-2 bg-blue-50 dark:bg-blue-900/20 border-y border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Loading additional data...</span>
+            </div>
+          </div>
+        )}
 
         {/* Content area */}
         <div className="flex-1 min-h-0 flex flex-col">

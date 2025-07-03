@@ -8,7 +8,7 @@
 import React, { useState } from "react";
 import { AssetVersion } from "@/types";
 import { RelatedVersionItem } from "./RelatedVersionItem";
-import { motion, AnimatePresence } from "motion/react";
+// Animation imports removed as per Phase 4.4 - no per-item animations
 import { ChevronUp, ChevronDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -224,7 +224,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
 
         {/* Table Body */}
         <div>
-          {sortedVersions.map((version, index) => (
+          {sortedVersions.map((version) => (
             <RelatedVersionItem
               key={version.id}
               version={version}
