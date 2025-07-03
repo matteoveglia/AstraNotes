@@ -130,6 +130,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
             checked={isSelected}
             onCheckedChange={handleCheckboxChange}
             aria-label={`Select ${version.name}`}
+            className="flex items-center justify-center h-4 w-4 rounded-sm border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white shadow-sm [&>svg]:h-3 [&>svg]:w-3"
           />
         </div>
 
@@ -247,7 +248,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
           checked={isSelected}
           onCheckedChange={handleCheckboxChange}
           aria-label={`Select ${version.name}`}
-          className="bg-white dark:bg-zinc-900 border-2 shadow-sm"
+          className="flex items-center justify-center h-4 w-4 rounded-sm border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white shadow-sm [&>svg]:h-3 [&>svg]:w-3"
         />
       </div>
 
