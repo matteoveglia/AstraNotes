@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
 import { relatedVersionsService, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
-import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight, CircleSlash, X } from "lucide-react";
 import { Input } from "./ui/input";
 import {
   Select,
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
 import { RelatedVersionsList } from "./RelatedVersionsList";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "./ui/toast";
 import { playlistStore } from "@/store/playlist";
@@ -465,6 +466,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     }));
   };
 
+  // Inverse-selection helper for the Version Status filter
+  const handleStatusInverse = () => {
+    const allStatusIds = availableStatuses.map((s) => s.id);
+    const unselected = allStatusIds.filter((id) => !statusFilter.includes(id));
+    setStatusFilter(unselected);
+  };
+
   // Don't render if not open
   if (!isOpen) return null;
 
@@ -530,14 +538,41 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 <Filter className="h-4 w-4" />
                 <span>
                   {statusFilter.length > 0
-                    ? `${statusFilter.length} Statuses Selected`
-                    : "Filter by Status"}
+                    ? `${statusFilter.length} Selected`
+                    : "Filter by Version Status"}
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by Version Status</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56 mt-1">
+              <TooltipProvider>
+                <div className="flex items-center justify-between px-2 py-1.5">
+                  <DropdownMenuLabel className="p-0">Filter by Version Status</DropdownMenuLabel>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn(
+                          "h-auto p-1 text-xs",
+                          statusFilter.length > 0
+                            ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        onClick={handleStatusInverse}
+                        disabled={availableStatuses.length === 0}
+                      >
+                        <CircleSlash className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Inverse selection</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+
               <DropdownMenuSeparator />
+
               {availableStatuses.map((status) => (
                 <DropdownMenuCheckboxItem
                   key={status.id}
@@ -561,11 +596,15 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   </div>
                 </DropdownMenuCheckboxItem>
               ))}
+
               {statusFilter.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setStatusFilter([])}>
-                    Clear Filters
+                  <DropdownMenuItem
+                    onClick={() => setStatusFilter([])}
+                    className="flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> Clear
                   </DropdownMenuItem>
                 </>
               )}

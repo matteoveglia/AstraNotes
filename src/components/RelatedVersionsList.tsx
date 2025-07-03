@@ -37,6 +37,20 @@ interface RelatedVersionsListProps {
 type SortField = 'name' | 'version' | 'publishedBy' | 'updatedAt';
 type SortDirection = 'asc' | 'desc';
 
+// Column width classes shared by both the table header and each list row. Keeping these as
+// constants guarantees that any future tweaks remain in sync and prevents subtle drift that
+// can occur if header / body cells diverge.
+const COL_WIDTH = {
+  checkbox: "flex-shrink-0", // checkbox keeps natural width
+  preview: "flex-shrink-0 w-16", // 64 px thumbnail preview
+  name: "flex-1 min-w-0", // grows to fill remaining space
+  version: "flex-shrink-0 w-20", // ~80 px
+  shotStatus: "flex-shrink-0 w-24", // ~96 px
+  versionStatus: "flex-shrink-0 w-32", // ~128 px
+  publishedBy: "flex-shrink-0 w-32", // ~128 px
+  date: "flex-shrink-0 w-24", // ~96 px
+} as const;
+
 export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   versions,
   selectedVersionIds,
@@ -202,31 +216,31 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             />
           </div>
           
-          <div className="flex-shrink-0 w-16 flex items-center">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Preview</span>
+          <div className={cn(COL_WIDTH.preview, "flex items-center justify-center")}> 
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 select-none">Preview</span>
           </div>
           
-          <div className="flex-1 min-w-0 flex items-center">
+          <div className={cn(COL_WIDTH.name, "flex items-center")}>            
             <SortableHeader field="name">Asset Name</SortableHeader>
           </div>
           
-          <div className="flex-shrink-0 w-20 flex items-center">
+          <div className={cn(COL_WIDTH.version, "flex items-center")}>            
             <SortableHeader field="version">Version</SortableHeader>
           </div>
           
-          <div className="flex-shrink-0 w-24 flex items-center">
+          <div className={cn(COL_WIDTH.shotStatus, "flex items-center")}>            
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Shot Status</span>
           </div>
           
-          <div className="flex-shrink-0 w-32 flex items-center">
+          <div className={cn(COL_WIDTH.versionStatus, "flex items-center")}>            
             <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Version Status</span>
           </div>
           
-          <div className="flex-shrink-0 w-32 flex items-center">
+          <div className={cn(COL_WIDTH.publishedBy, "flex items-center")}>            
             <SortableHeader field="publishedBy">Published By</SortableHeader>
           </div>
           
-          <div className="flex-shrink-0 w-24 flex items-center">
+          <div className={cn(COL_WIDTH.date, "flex items-center")}>            
             <SortableHeader field="updatedAt">Date</SortableHeader>
           </div>
         </div>
