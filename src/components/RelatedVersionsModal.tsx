@@ -25,6 +25,9 @@ import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
 import { RelatedVersionsList } from "./RelatedVersionsList";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
 import { ftrackService } from "@/services/ftrack";
+import { playlistStore } from "@/store/playlist";
+import { usePlaylistsStore } from "@/store/playlistsStore";
+import { useToast } from "./ui/toast";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -49,6 +52,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   currentVersionName,
   onVersionsSelect,
 }) => {
+  // Hooks must be called at the top level
+  const toast = useToast();
+  
   // Core state
   const [relatedVersions, setRelatedVersions] = useState<AssetVersion[]>([]);
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
@@ -424,10 +430,37 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     setSelectedAcrossPages(new Set());
   };
 
-  const handleAddSelected = () => {
-    if (selectedVersions.length > 0) {
+  const handleAddSelected = async () => {
+    if (selectedVersions.length === 0) {
+      return;
+    }
+
+    const { activePlaylistId } = usePlaylistsStore.getState();
+
+    if (!activePlaylistId) {
+      toast.showError("No active playlist selected");
+      return;
+    }
+
+    try {
+      console.debug(`[RelatedVersionsModal] Adding ${selectedVersions.length} versions to playlist: ${activePlaylistId}`);
+      
+      await playlistStore.addVersionsToPlaylist(activePlaylistId, selectedVersions);
+      
+      toast.showSuccess(
+        `Successfully added ${selectedVersions.length} version${selectedVersions.length !== 1 ? 's' : ''} to playlist`
+      );
+      
+      // Also call the original callback for any additional handling
       onVersionsSelect(selectedVersions);
+      
+      // Close modal after successful addition
       onClose();
+    } catch (error) {
+      console.error("[RelatedVersionsModal] Failed to add versions to playlist:", error);
+      toast.showError(
+        error instanceof Error ? error.message : "Failed to add versions to playlist"
+      );
     }
   };
 

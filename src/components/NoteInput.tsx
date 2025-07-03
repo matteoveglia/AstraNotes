@@ -507,10 +507,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   const handleRelatedVersionsSelect = (versions: AssetVersion[]) => {
-    // For now, just log the selected versions
-    // This will be connected to playlist addition logic in later phases
-    console.debug("[NoteInput] Selected related versions:", versions);
-    // TODO: Connect to playlist addition functionality
+    // The RelatedVersionsModal handles the actual playlist addition
+    // This callback is called after successful addition for any additional handling
+    console.debug(`[NoteInput] ${versions.length} related versions were added to playlist`);
   };
 
   // Fetch projectId for this asset version
