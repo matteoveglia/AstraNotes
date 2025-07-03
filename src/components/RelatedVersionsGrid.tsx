@@ -137,17 +137,14 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
         ))}
       </div>
 
-      {/* Grid summary */}
-      <div className="text-center">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Showing {versions.length} version{versions.length === 1 ? '' : 's'}
-          {selectedVersionIds.size > 0 && (
-            <span className="ml-2 text-blue-600 dark:text-blue-400">
-              • {selectedVersionIds.size} selected
-            </span>
-          )}
-        </p>
-      </div>
+      {/* Selection summary (no versions count, handled by modal footer) */}
+      {selectedVersionIds.size > 0 && (
+        <div className="text-center">
+          <p className="text-sm text-blue-600 dark:text-blue-400">
+            {selectedVersionIds.size} selected
+          </p>
+        </div>
+      )}
     </div>
   );
 }; 

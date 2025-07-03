@@ -322,6 +322,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     return filteredVersions.slice(startIndex, endIndex);
   }, [filteredVersions, pagination.currentPage, pagination.pageSize]);
 
+  // Summary text for pagination toolbar (Phase 5.6)
+  const summaryText = useMemo(() => {
+    const visible = paginatedVersions.length;
+    const plural = (n: number) => (n === 1 ? "" : "s");
+    return `Showing ${visible} version${plural(visible)} • Sorted by updatedAt (desc)`;
+  }, [paginatedVersions.length]);
+
   const handleViewModeChange = (newMode: ViewMode) => {
     startTransition(() => {
       setViewMode(newMode);
@@ -616,14 +623,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
         {/* Footer with pagination and actions */}
         <div className="border-t border-zinc-200 dark:border-zinc-700">
-          {/* Pagination controls - always show page size selector */}
           {paginatedVersions.length > 0 && (
-            <div className="flex items-center justify-between py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
-              {/* Page size selector - always visible */}
-              <div className="flex items-center gap-2">
+            <div className="flex items-center py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
+              {/* Left section – page size selector (always visible) */}
+              <div className="flex items-center gap-2 flex-1">
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
-                <Select 
-                  value={pagination.pageSize.toString()} 
+                <Select
+                  value={pagination.pageSize.toString()}
                   onValueChange={(value) => handlePageSizeChange(parseInt(value))}
                 >
                   <SelectTrigger className="w-20 h-8">
@@ -638,41 +644,43 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
               </div>
 
-              {/* Page info and navigation - only show when multiple pages */}
-              {Math.ceil(pagination.totalItems / pagination.pageSize) > 1 ? (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Page {pagination.currentPage} of {Math.ceil(pagination.totalItems / pagination.pageSize)} ({pagination.totalItems} total)
-                  </span>
-                  
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage <= 1}
-                      className="h-8 w-8 p-0"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage >= Math.ceil(pagination.totalItems / pagination.pageSize)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {pagination.totalItems} version{pagination.totalItems === 1 ? '' : 's'}
-                  </span>
-                </div>
-              )}
+              {/* Center section – version / filter summary (always visible) */}
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                  {summaryText}
+                </span>
+              </div>
+
+              {/* Right section – pagination info & controls (only if more than one page) */}
+              <div className="flex items-center gap-4 flex-1 justify-end">
+                {Math.ceil(pagination.totalItems / pagination.pageSize) > 1 && (
+                  <>
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                      Page {pagination.currentPage} of {Math.ceil(pagination.totalItems / pagination.pageSize)}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage <= 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage >= Math.ceil(pagination.totalItems / pagination.pageSize)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           
