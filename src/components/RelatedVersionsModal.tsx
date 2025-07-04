@@ -475,9 +475,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     setStatusFilter(unselected);
   };
 
-  // Don't render if not open
-  if (!isOpen) return null;
-
+  // Removed the early return so that the component remains mounted when closed.
+  // This allows Radix/shadcn exit animations (`animate-out`) to play, fixing the
+  // "modal lacks close animation" issue (Phase 5.11).
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-none flex flex-col p-6">
@@ -520,11 +520,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         <div className="flex gap-4 items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            {/* Match toolbar control height (h-8) for visual alignment – Phase 5.12 */}
             <Input
               placeholder="Search versions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="h-8 pl-10"
             />
           </div>
           

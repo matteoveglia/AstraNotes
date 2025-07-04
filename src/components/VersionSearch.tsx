@@ -182,7 +182,7 @@ export const VersionSearch: React.FC<VersionSearchProps> = ({
             }
             value={searchTerm}
             onChange={handleSearchTermChange}
-            className="flex-1"
+            className="flex-1 h-8"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
