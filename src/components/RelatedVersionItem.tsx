@@ -35,7 +35,7 @@ interface RelatedVersionItemProps {
   className?: string;
 }
 
-export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
+const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   version,
   isSelected,
   onToggleSelection,
@@ -115,12 +115,9 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   };
 
   if (viewMode === 'list') {
-    // List view layout - table row style
+    // List view layout - table row style (animations removed in Phase 6.5 for performance)
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
+      <div
         className={cn(
           "flex items-center gap-4 p-3 border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors",
           isSelected && "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700",
@@ -228,7 +225,7 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
             thumbnailId={version.thumbnailId}
           />
         )}
-      </motion.div>
+      </div>
     );
   }
 
@@ -373,3 +370,31 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
     </motion.div>
   );
 }; 
+
+// Memoized export to avoid unnecessary re-renders when unrelated props don't change (Phase 6.4)
+export const RelatedVersionItem = React.memo(
+  RelatedVersionItemComponent,
+  (prev, next) => {
+    // 1. Preserve referential equality for the same version row identified by id
+    if (prev.version.id !== next.version.id) return false;
+
+    // 2. Only re-render if the selection state for *this* row has changed
+    if (prev.isSelected !== next.isSelected) return false;
+
+    // 3. Re-render when cached data relevant to this row has changed
+    const prevDetails = prev.versionDataCache?.details?.[prev.version.id];
+    const nextDetails = next.versionDataCache?.details?.[next.version.id];
+    if (prevDetails !== nextDetails) return false;
+
+    const prevVerStatus = prev.versionDataCache?.statuses?.[prev.version.id];
+    const nextVerStatus = next.versionDataCache?.statuses?.[next.version.id];
+    if (prevVerStatus !== nextVerStatus) return false;
+
+    const prevShotStatus = prev.versionDataCache?.shotStatuses?.[prev.version.id];
+    const nextShotStatus = next.versionDataCache?.shotStatuses?.[next.version.id];
+    if (prevShotStatus !== nextShotStatus) return false;
+
+    // 4. No pertinent changes – skip render
+    return true;
+  }
+); 

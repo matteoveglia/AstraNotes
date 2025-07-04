@@ -531,7 +531,11 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   // "modal lacks close animation" issue (Phase 5.11).
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-none flex flex-col p-6">
+      <DialogContent
+        className="w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-none flex flex-col p-6"
+        /* Phase 6.5: Apply CSS containment to isolate internal layout & paint during window resize */
+        style={{ contain: "layout paint" }}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Related Versions for Shot: {shotName}</span>
