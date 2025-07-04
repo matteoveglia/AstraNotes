@@ -30,6 +30,9 @@ interface PlaylistsState {
   activePlaylistId: string | null;
   isLoading: boolean;
   error: string | null;
+  // PHASE-1 scaffolding – new state fields (unused until Phase 2)
+  openPlaylistIds: string[];
+  playlistStatus: Record<string, "idle" | "loading" | "loaded" | "error">;
   setPlaylists: (playlists: Playlist[]) => void;
   setActivePlaylist: (playlistId: string | null) => void;
   setLoading: (isLoading: boolean) => void;
@@ -40,6 +43,11 @@ interface PlaylistsState {
   updatePlaylist: (playlistId: string) => Promise<void>;
   cleanupLocalPlaylists: () => Promise<void>;
   debugLocalPlaylists: () => Promise<void>;
+  // PHASE-1 scaffolding – placeholder actions (unused until Phase 2)
+  fetchPlaylists: (projectId?: string | null) => Promise<void>;
+  fetchVersionsForPlaylist: (playlistId: string) => Promise<void>;
+  openPlaylist: (playlistId: string) => void;
+  closePlaylist: (playlistId: string) => void;
 }
 
 export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
@@ -47,6 +55,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   activePlaylistId: "quick-notes",
   isLoading: false,
   error: null,
+  // PHASE-1 scaffolding – initialize new state fields
+  openPlaylistIds: [],
+  playlistStatus: {},
 
   setPlaylists: (playlists) => {
     // Safety check: ensure playlists is an array
@@ -81,6 +92,20 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   setActivePlaylist: (playlistId) => set({ activePlaylistId: playlistId }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
+
+  // PHASE-1 scaffolding – placeholder actions (currently unused)
+  fetchPlaylists: async () => {
+    throw new Error("Not Implemented: fetchPlaylists (Phase 2)");
+  },
+  fetchVersionsForPlaylist: async () => {
+    throw new Error("Not Implemented: fetchVersionsForPlaylist (Phase 2)");
+  },
+  openPlaylist: () => {
+    throw new Error("Not Implemented: openPlaylist (Phase 2)");
+  },
+  closePlaylist: () => {
+    throw new Error("Not Implemented: closePlaylist (Phase 2)");
+  },
 
   loadPlaylists: async (projectId?: string | null) => {
     const { setLoading, setError, setPlaylists } = get();
