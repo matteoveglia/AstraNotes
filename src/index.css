@@ -241,3 +241,15 @@
     background-color: hsl(var(--muted-foreground) / 0.8);
   }
 }
+
+@layer utilities {
+  /* Custom deep drop shadow for modal dialogs */
+  .shadow-3xl {
+    box-shadow: 0 40px 70px -10px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Stronger shadow in dark mode for better contrast */
+  .dark .shadow-3xl {
+    box-shadow: 0 40px 70px -10px rgba(255, 255, 255, 0.2);
+  }
+}
