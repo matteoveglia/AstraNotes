@@ -52,7 +52,23 @@ interface PlaylistsState {
 }
 
 export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
-  // Note: project change subscription is registered after store creation to avoid typing issues
+  // Subscribe to project changes *inside* the create call so we have access to get()
+  useProjectStore.subscribe(
+    (state) => state.selectedProjectId,
+    (newProjectId, oldProjectId) => {
+      if (newProjectId && newProjectId !== oldProjectId) {
+        // Reset open playlists and status maps for new project context
+        set({
+          activePlaylistId: "quick-notes",
+          openPlaylistIds: ["quick-notes"],
+          playlistStatus: {},
+        });
+        get().fetchPlaylists(newProjectId).catch((e) => {
+          console.error("[PlaylistsStore] Failed to fetch playlists for project switch", e);
+        });
+      }
+    },
+  );
 
   return {
   playlists: [QUICK_NOTES_PLAYLIST],
@@ -788,32 +804,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
     }
   },
   };
-
 });
-
-// ---- Cross-store subscription (registered after store creation) ----
-useProjectStore.subscribe(
-  (state) => state.selectedProjectId,
-  (newProjectId, prevProjectId) => {
-    if (newProjectId && newProjectId !== prevProjectId) {
-      usePlaylistsStore.setState({
-        activePlaylistId: "quick-notes",
-        openPlaylistIds: ["quick-notes"],
-        playlistStatus: {},
-      });
-
-      usePlaylistsStore
-        .getState()
-        .fetchPlaylists(newProjectId)
-        .catch((e) => {
-          console.error(
-            "[PlaylistsStore] Failed to fetch playlists for project switch",
-            e,
-          );
-        });
-    }
-  },
-);
 
 // Make debugging functions available globally
 if (typeof window !== "undefined") {

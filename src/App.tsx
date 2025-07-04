@@ -33,6 +33,13 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const openPlaylistIds = usePlaylistsStore((s) => s.openPlaylistIds);
+  const playlistStatus = usePlaylistsStore((s) => s.playlistStatus);
+  const openPlaylist = usePlaylistsStore((s) => s.openPlaylist);
+  const closePlaylist = usePlaylistsStore((s) => s.closePlaylist);
+  const fetchVersionsForPlaylist = usePlaylistsStore(
+    (s) => s.fetchVersionsForPlaylist,
+  );
   const {
     playlists,
     activePlaylistId,
@@ -41,9 +48,6 @@ const App: React.FC = () => {
     loadPlaylists,
     setActivePlaylist,
     setPlaylists: setLocalPlaylists,
-    openPlaylist,
-    closePlaylist,
-    openPlaylistIds,
   } = usePlaylistsStore();
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   // fetchLabels & loadProjects are now handled inside useAppInitializer
@@ -140,7 +144,6 @@ const App: React.FC = () => {
       setLocalPlaylists,
       setStorePlaylists,
       openPlaylist,
-      activePlaylistId,
     ],
   );
 
@@ -383,11 +386,6 @@ const App: React.FC = () => {
     if (selectedProjectId && hasValidatedSelectedProject) {
       // Project selected - ensure Quick Notes is in open playlists if it exists
       if (quickNotesExists && !openPlaylistIds.includes("quick-notes")) {
-        openPlaylistIds.forEach((id) => {
-          if (id !== "quick-notes") {
-            closePlaylist(id);
-          }
-        });
         openPlaylist("quick-notes");
 
         // Set Quick Notes as active if no other playlist is active
@@ -405,11 +403,6 @@ const App: React.FC = () => {
           !openPlaylistIds.includes("quick-notes") ||
           openPlaylistIds.length > 1
         ) {
-          openPlaylistIds.forEach((id) => {
-            if (id !== "quick-notes") {
-              closePlaylist(id);
-            }
-          });
           openPlaylist("quick-notes");
         }
       }
@@ -422,16 +415,23 @@ const App: React.FC = () => {
     activePlaylistId,
     setActivePlaylist,
     openPlaylist,
-    closePlaylist,
   ]);
 
-  // ------------------ PLAYLIST SELECTION HANDLERS ------------------
+  // Ensure Quick Notes is open if nothing else is
+  useEffect(() => {
+    if (openPlaylistIds.length === 0) {
+      openPlaylist("quick-notes");
+    }
+  }, [openPlaylistIds, openPlaylist]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
     openPlaylist(playlistId);
     setActivePlaylist(playlistId);
-    if (playlistId !== "quick-notes") {
-      await usePlaylistsStore.getState().fetchVersionsForPlaylist(playlistId);
+    if (
+      playlistId !== "quick-notes" &&
+      playlistStatus[playlistId] === undefined
+    ) {
+      fetchVersionsForPlaylist(playlistId);
     }
   };
 
@@ -451,18 +451,15 @@ const App: React.FC = () => {
     if (playlistId === "quick-notes") return;
     closePlaylist(playlistId);
     if (activePlaylistId === playlistId) {
+      // Only switch to Quick Notes if it exists
       setActivePlaylist("quick-notes");
     }
   };
 
-  const closeAllExceptQuickNotes = () => {
-    openPlaylistIds.forEach((id) => {
-      if (id !== "quick-notes") closePlaylist(id);
-    });
-  };
-
   const handleCloseAll = () => {
-    closeAllExceptQuickNotes();
+    openPlaylistIds
+      .filter((id) => id !== "quick-notes")
+      .forEach((id) => closePlaylist(id));
     setActivePlaylist("quick-notes");
   };
 
@@ -500,18 +497,34 @@ const App: React.FC = () => {
     }
   };
 
+  // Auto-fetch versions for active playlist when needed
+  useEffect(() => {
+    if (
+      activePlaylistId &&
+      activePlaylistId !== "quick-notes" &&
+      playlistStatus[activePlaylistId] === undefined
+    ) {
+      fetchVersionsForPlaylist(activePlaylistId);
+    }
+  }, [activePlaylistId, playlistStatus, fetchVersionsForPlaylist]);
+
   // Get the active playlist data
   const activePlaylistData = Array.isArray(playlists)
     ? playlists.find((p) => p.id === activePlaylistId)
     : undefined;
 
+  // Derive open playlists list from store IDs
+  const openPlaylists = Array.isArray(playlists)
+    ? openPlaylistIds
+        .map((id) => playlists.find((p) => p.id === id))
+        .filter((p): p is Playlist => !!p)
+    : [];
+
   // Determine if we're ready to render the MainContent
   const isPlaylistReady =
     activePlaylistData &&
     (activePlaylistData.isQuickNotes ||
-      (activePlaylistId &&
-        loadedVersionsRef.current[activePlaylistId] &&
-        !loadingVersions));
+      playlistStatus[activePlaylistId ?? ""] !== "loading");
 
   const shouldShowContent =
     hasValidatedSelectedProject || selectedProjectId === null;
@@ -629,13 +642,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <OpenPlaylistsBar
-                playlists={openPlaylistIds
-                  .map((id) =>
-                    Array.isArray(playlists)
-                      ? playlists.find((p) => p.id === id)
-                      : undefined,
-                  )
-                  .filter((p): p is Playlist => p !== undefined)}
+                playlists={openPlaylists}
                 activePlaylist={activePlaylistId}
                 onPlaylistSelect={handlePlaylistSelect}
                 onPlaylistClose={handlePlaylistClose}
