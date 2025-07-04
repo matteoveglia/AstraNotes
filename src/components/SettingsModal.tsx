@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ftrackService } from "../services/ftrack";
+import { ftrackAuthService } from "../services/ftrack/FtrackAuthService";
 import { db } from "../store/db";
 import { playlistStore } from "../store/playlist";
 import { useSettings } from "../store/settingsStore";
@@ -80,10 +80,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       setIsLoading(true);
       // Update service settings
-      ftrackService.updateSettings(settings);
+      ftrackAuthService.updateSettings(settings);
 
       // Test connection with new settings and reload labels if successful
-      const connectionSuccess = await ftrackService.testConnection();
+      const connectionSuccess = await ftrackAuthService.testConnection();
       if (connectionSuccess) {
         // Reload labels with new credentials, preserving current selection
         await fetchLabels();
@@ -109,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     try {
       // Update service settings before testing
-      ftrackService.updateSettings(settings);
+      ftrackAuthService.updateSettings(settings);
       await testConnection();
       if (!isConnected) {
         setError("Failed to connect. Please check your credentials.");

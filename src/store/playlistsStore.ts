@@ -10,7 +10,7 @@
 
 import { create } from "zustand";
 import { Playlist } from "@/types";
-import { ftrackService } from "../services/ftrack";
+import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
 import { db } from "./db";
 import { useProjectStore } from "./projectStore";
 
@@ -239,8 +239,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         projectId,
       );
       const [reviewSessions, lists, databasePlaylists] = await Promise.all([
-        ftrackService.getPlaylists(projectId), // Review Sessions with project filter
-        ftrackService.getLists(projectId), // Lists with project filter
+        ftrackPlaylistService.getPlaylists(projectId), // Review Sessions with project filter
+        ftrackPlaylistService.getLists(projectId), // Lists with project filter
         // Load ALL playlists from the new modular store database
         db.playlists.toArray(),
       ]);
@@ -635,7 +635,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
     setError(null);
 
     try {
-      const fresh = await ftrackService.getPlaylists();
+      const fresh = await ftrackPlaylistService.getPlaylists();
       const freshPlaylist = fresh.find((p) => p.id === playlistId);
 
       if (!freshPlaylist) {

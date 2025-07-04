@@ -4,7 +4,7 @@
  * Provides better user experience with automatic loading coordination.
  */
 
-import { ftrackService } from "./ftrack";
+import { ftrackVersionService } from "./ftrack/FtrackVersionService";
 import type { AssetVersion } from "@/types";
 
 // Cache for search results
@@ -85,7 +85,7 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
 
       // Search for each version term individually
       const searchPromises = versionTerms.map((term) =>
-        ftrackService.searchVersions({
+        ftrackVersionService.searchVersions({
           searchTerm: term,
           projectId,
         }),
@@ -103,7 +103,7 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
       return uniqueResults;
     } else {
       // Regular single search
-      return await ftrackService.searchVersions({
+      return await ftrackVersionService.searchVersions({
         searchTerm,
         projectId,
       });
