@@ -1,3 +1,18 @@
+import { useEffect } from "react";
+import { useLabelStore } from "@/store/labelStore";
+import { useProjectStore } from "@/store/projectStore";
+
+/**
+ * Handles one-time application startup tasks such as
+ * loading the project list and label definitions.
+ */
 export function useAppInitializer(): void {
-  // Phase 1 scaffolding – implementation will come in Phase 2
+  const loadProjects = useProjectStore((state) => state.loadProjects);
+  const fetchLabels = useLabelStore((state) => state.fetchLabels);
+
+  useEffect(() => {
+    Promise.all([loadProjects(), fetchLabels()]).catch((error) => {
+      console.error("Failed to initialize app:", error);
+    });
+  }, [loadProjects, fetchLabels]);
 } 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { TopBar } from "./components/TopBar";
 import { PlaylistPanel } from "./components/PlaylistPanel";
 import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
@@ -8,51 +7,24 @@ import type { Playlist, AssetVersion } from "@/types";
 import { useWhatsNew } from "./hooks/useWhatsNew";
 import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
-import { useLabelStore } from "./store/labelStore";
 import { useProjectStore } from "./store/projectStore";
 import { playlistStore } from "./store/playlist";
 import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
-import { useThemeStore } from "./store/themeStore";
+import { useThemeManager } from "./hooks/useThemeManager";
+import { useAppInitializer } from "./hooks/useAppInitializer";
+import { useAppEventListeners } from "./hooks/useAppEventListeners";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
 import { SyncConflictManager } from "./features/playlists/components";
 
 const App: React.FC = () => {
-  const theme = useThemeStore((state) => state.theme);
+  // Initialise cross-cutting hooks (moved out of this component)
+  useThemeManager();
+  useAppInitializer();
   const { shouldShowModal, hideModal } = useWhatsNew();
 
-  // sync initial OS theme and subscribe to theme changes via Window API
-  useEffect(() => {
-    const win = getCurrentWindow();
-    // seed from current window theme
-    win
-      .theme()
-      .then((osTheme) => {
-        if (osTheme) useThemeStore.getState().setTheme(osTheme);
-      })
-      .catch(() => {});
-    // subscribe to changes
-    let unlisten: () => void;
-    win
-      .onThemeChanged(({ payload }) => {
-        useThemeStore.getState().setTheme(payload);
-      })
-      .then((fn) => {
-        unlisten = fn;
-      });
-    return () => unlisten?.();
-  }, []);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    // toggle Tailwind dark class
-    root.classList.toggle("dark", theme === "dark");
-    // update native window chrome
-    getCurrentWindow()
-      .setTheme(theme)
-      .catch(() => {});
-  }, [theme]);
+  // Theme effects have been moved to useThemeManager
 
   // Cleanup video cache on app unmount
   useEffect(() => {
@@ -72,9 +44,8 @@ const App: React.FC = () => {
     setPlaylists: setLocalPlaylists,
   } = usePlaylistsStore();
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
-  const { fetchLabels } = useLabelStore();
-  const { selectedProjectId, hasValidatedSelectedProject, loadProjects } =
-    useProjectStore();
+  // fetchLabels & loadProjects are now handled inside useAppInitializer
+  const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   // Store loaded versions to prevent reloading
@@ -82,15 +53,7 @@ const App: React.FC = () => {
     "quick-notes": true, // Quick Notes doesn't need versions
   });
 
-  useEffect(() => {
-    // Load projects and labels - playlists will be loaded when a project is selected
-    Promise.all([
-      loadProjects(), // Load projects first
-      fetchLabels(),
-    ]).catch((error) => {
-      console.error("Failed to initialize app:", error);
-    });
-  }, [loadProjects, fetchLabels]);
+  // App initialization side-effects have been moved to useAppInitializer
 
   // New function to load both review sessions and lists
   const loadPlaylistsWithLists = useCallback(
@@ -483,216 +446,17 @@ const App: React.FC = () => {
     });
   };
 
-  // Handle custom playlist selection events from child components
-  useEffect(() => {
-    const handlePlaylistSelectEvent = (event: CustomEvent) => {
-      const { playlistId } = event.detail;
-      console.log("Received playlist-select event:", playlistId);
-      handlePlaylistSelect(playlistId);
-    };
+  // Global event listeners moved to useAppEventListeners
 
-    window.addEventListener(
-      "playlist-select",
-      handlePlaylistSelectEvent as EventListener,
-    );
-    return () => {
-      window.removeEventListener(
-        "playlist-select",
-        handlePlaylistSelectEvent as EventListener,
-      );
-    };
-  }, [handlePlaylistSelect]);
-
-  // Handle playlist sync completion - playlist was converted in place, just reload to get updated state
-  useEffect(() => {
-    const handlePlaylistSynced = (event: CustomEvent) => {
-      const { playlistId, ftrackId, playlistName } = event.detail;
-      console.log("Playlist synced - converted in place:", {
-        playlistId,
-        ftrackId,
-        playlistName,
-      });
-
-      // CRITICAL FIX: Use direct state update with current playlists
-      const currentPlaylists = playlists;
-
-      // Safety check: ensure currentPlaylists is an array
-      if (!Array.isArray(currentPlaylists)) {
-        console.warn("currentPlaylists is not an array:", currentPlaylists);
-        // Force reload with proper state
-        setTimeout(() => {
-          // CRITICAL FIX: Get current project ID for reload
-          const currentProjectId = useProjectStore.getState().selectedProjectId;
-          loadPlaylistsWithLists(currentProjectId);
-        }, 100);
-        return;
-      }
-
-      const playlistIndex = currentPlaylists.findIndex(
-        (p: Playlist) => p && p.id === playlistId,
-      );
-
-      if (playlistIndex >= 0) {
-        const updatedPlaylists = [...currentPlaylists];
-        updatedPlaylists[playlistIndex] = {
-          ...updatedPlaylists[playlistIndex],
-          isLocalOnly: false,
-          ftrackSyncState: "synced" as const,
-          // CRITICAL FIX: Include ftrackId from sync event for refresh functionality
-          ftrackId: ftrackId,
-          // Clear manually added flags from versions to remove purple borders
-          versions:
-            updatedPlaylists[playlistIndex].versions?.map(
-              (v: AssetVersion) => ({
-                ...v,
-                manuallyAdded: false,
-              }),
-            ) || [],
-        };
-
-        console.log(
-          "Updated synced playlist in state without full reload - no remounting!",
-        );
-        setLocalPlaylists(updatedPlaylists);
-      } else {
-        console.warn(
-          "Synced playlist not found in current state, falling back to reload",
-        );
-        // Only reload if we can't find the playlist (shouldn't happen)
-        setTimeout(() => {
-          // CRITICAL FIX: Get current project ID for reload
-          const currentProjectId = useProjectStore.getState().selectedProjectId;
-          loadPlaylistsWithLists(currentProjectId);
-        }, 100);
-      }
-    };
-
-    window.addEventListener(
-      "playlist-synced",
-      handlePlaylistSynced as EventListener,
-    );
-    return () => {
-      window.removeEventListener(
-        "playlist-synced",
-        handlePlaylistSynced as EventListener,
-      );
-    };
-  }, [loadPlaylistsWithLists]);
-
-  // Handle playlist updates (like name changes) from PlaylistStore
-  useEffect(() => {
-    const handlePlaylistUpdate = (data: any) => {
-      const { playlistId, updates } = data;
-      console.debug("🔄 [App] Received playlist-updated event:", {
-        playlistId,
-        updates,
-      });
-
-      // Get current playlists and update them
-      const currentPlaylists = playlists;
-
-      // Safety check: ensure currentPlaylists is an array
-      if (!Array.isArray(currentPlaylists)) {
-        console.warn(
-          "🔄 [App] currentPlaylists is not an array:",
-          typeof currentPlaylists,
-          currentPlaylists,
-        );
-        return; // Don't proceed if playlists is invalid
-      }
-
-      console.debug(
-        "🔄 [App] Current playlists before update:",
-        currentPlaylists.map((p) => ({ id: p.id, name: p.name })),
-      );
-
-      const playlistIndex = currentPlaylists.findIndex(
-        (p: Playlist) => p && p.id === playlistId,
-      );
-
-      if (playlistIndex >= 0) {
-        const updatedPlaylists = [...currentPlaylists];
-        const oldPlaylist = updatedPlaylists[playlistIndex];
-        updatedPlaylists[playlistIndex] = {
-          ...updatedPlaylists[playlistIndex],
-          ...updates,
-        };
-
-        console.debug(
-          `🔄 [App] Updated playlist "${playlistId}" in UI state:`,
-          {
-            before: { name: oldPlaylist.name },
-            after: { name: updatedPlaylists[playlistIndex].name },
-            updates,
-          },
-        );
-        console.debug(
-          "🔄 [App] All playlists after update:",
-          updatedPlaylists.map((p) => ({ id: p.id, name: p.name })),
-        );
-
-        // Update the store with the new array
-        setLocalPlaylists(updatedPlaylists);
-      } else {
-        console.warn(
-          `🔄 [App] Playlist "${playlistId}" not found in current state for update`,
-        );
-        console.debug(
-          "🔄 [App] Available playlist IDs:",
-          currentPlaylists.map((p) => p.id),
-        );
-
-        // If the playlist is not found, it might be a newly created playlist that hasn't been loaded into UI yet
-        // Reload playlists to pick up any new playlists
-        console.debug(
-          "🔄 [App] Reloading playlists to pick up missing playlist",
-        );
-        const currentProjectId = useProjectStore.getState().selectedProjectId;
-        loadPlaylistsWithLists(currentProjectId)
-          .then(() => {
-            console.debug(
-              "🔄 [App] Playlists reloaded after missing playlist update",
-            );
-
-            // Reset the loaded versions flag for this playlist to force version reload
-            // This ensures that when the playlist status changes (e.g., from local to synced),
-            // the versions are reloaded to reflect changes like manuallyAdded flags
-            console.debug(
-              "🔄 [App] Resetting loaded versions flag for playlist:",
-              playlistId,
-            );
-            delete loadedVersionsRef.current[playlistId];
-
-            // If this playlist is currently active, the useEffect will automatically reload versions
-            // because loadedVersionsRef.current[playlistId] is now undefined
-
-            // Force a small state update to ensure React re-renders with the fresh playlist data
-            setTimeout(() => {
-              console.debug(
-                "🔄 [App] Triggering state refresh to ensure UI updates",
-              );
-              // This will trigger a re-render and the version loading effect
-              setLoadingVersions(false);
-            }, 100);
-          })
-          .catch((error) => {
-            console.error(
-              "🔄 [App] Failed to reload playlists after missing playlist update:",
-              error,
-            );
-          });
-      }
-    };
-
-    console.debug("🔄 [App] Setting up playlist-updated event listener");
-    // Listen for playlist updates from the modular store
-    playlistStore.on("playlist-updated", handlePlaylistUpdate);
-
-    return () => {
-      console.debug("🔄 [App] Removing playlist-updated event listener");
-      playlistStore.off("playlist-updated", handlePlaylistUpdate);
-    };
-  }, [setLocalPlaylists, loadPlaylistsWithLists]);
+  // After helper callbacks are defined, wire up global event listeners
+  useAppEventListeners({
+    handlePlaylistSelect,
+    playlists,
+    setLocalPlaylists,
+    loadedVersionsRef,
+    setLoadingVersions,
+    loadPlaylistsWithLists,
+  });
 
   const handlePlaylistClose = (playlistId: string) => {
     if (playlistId === "quick-notes") return;
