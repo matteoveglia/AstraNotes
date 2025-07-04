@@ -532,7 +532,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-none flex flex-col p-6"
+        /* Full-screen modal with 1.5rem padding on all sides but WITHOUT expensive translate centering.
+           Overriding Radix default classes by specifying explicit inset + translate-x/y-0 greatly reduces
+           style/paint work when the window resizes (Phase 6.5, pass 2). */
+        className="fixed inset-6 translate-x-0 translate-y-0 w-auto h-auto max-w-none flex flex-col p-6"
         /* Phase 6.5: Apply CSS containment to isolate internal layout & paint during window resize */
         style={{ contain: "layout paint" }}
       >

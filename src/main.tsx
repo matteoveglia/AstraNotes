@@ -12,10 +12,10 @@ initLogCapture();
 // Initialize update checker
 initializeUpdateChecker();
 
-import { scan } from "react-scan";
-scan({ // Enable for performance profiling
-  enabled: true,
-});
+// import { scan } from "react-scan";
+// scan({ // Enable for performance profiling
+//   enabled: true,
+// });
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
