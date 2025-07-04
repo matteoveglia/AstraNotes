@@ -167,10 +167,11 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
     </Button>
   );
 
-  // Notify parent of initial sort on mount & when dependencies change
+  // Notify parent when this component is controlling sort (i.e., sortInfo not provided)
   useEffect(() => {
+    if (sortInfo) return; // controlled externally – avoid feedback loop
     onSortChange?.(sortField, sortDirection);
-  }, [onSortChange, sortField, sortDirection]);
+  }, [onSortChange, sortField, sortDirection, sortInfo]);
 
   if (loading) {
     return (
@@ -254,7 +255,7 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
           </div>
           
           <div className={cn(COL_WIDTH.versionStatus, "flex items-center")}>            
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Version Status</span>
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 px-2">Version</span>
           </div>
           
           <div className={cn(COL_WIDTH.publishedBy, "flex items-center")}>            

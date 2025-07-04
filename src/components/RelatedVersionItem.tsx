@@ -56,7 +56,11 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   const versionStatus = versionDataCache?.statuses[version.id] || null;
   const shotStatus = versionDataCache?.shotStatuses[version.id] || null;
   const isLoadingDetails = !versionDataCache?.details[version.id];
-  const isLoadingStatuses = !versionDataCache?.statuses[version.id];
+  // Only stop loading when BOTH version and shot statuses are available (Phase 6.1 refinement)
+  const isLoadingStatuses = !(
+    versionDataCache?.statuses[version.id] &&
+    versionDataCache?.shotStatuses[version.id]
+  );
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering item selection
