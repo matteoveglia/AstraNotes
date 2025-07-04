@@ -32,11 +32,7 @@ interface VersionDetailsContentProps {
 /**
  * Internal component that uses Suspense-compatible fetch
  */
-function VersionDetailsContent({
-  assetVersionId,
-}: {
-  assetVersionId: string;
-}) {
+function VersionDetailsContent({ assetVersionId }: { assetVersionId: string }) {
   // This will throw a promise if fetch is loading (Suspense will catch it)
   const versionDetails = fetchVersionDetailsSuspense(assetVersionId);
 
@@ -94,10 +90,9 @@ function VersionDetailsContent({
           Published At
         </label>
         <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-1 select-text break-words">
-          {versionDetails.publishedAt 
+          {versionDetails.publishedAt
             ? new Date(versionDetails.publishedAt).toLocaleString()
-            : "—"
-          }
+            : "—"}
         </p>
       </div>
 

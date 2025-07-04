@@ -195,7 +195,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
-      <DialogContent 
+      <DialogContent
         className="max-w-5xl w-full"
         onPointerDownOutside={handleOutsideClick}
         onInteractOutside={handleInteractOutside}

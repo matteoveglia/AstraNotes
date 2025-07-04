@@ -2206,20 +2206,23 @@ export class FtrackService {
 
   async getStatusesForObjectType(objectTypeName: string): Promise<Status[]> {
     await this.ensureStatusMappingsInitialized();
-    
+
     // Find the object type id
     const objectType = this.allWorkflowSchemas.find(
       (ot) => ot.name === objectTypeName,
     );
     if (!objectType) {
-      console.warn(`[FtrackService] Object type "${objectTypeName}" not found.`);
+      console.warn(
+        `[FtrackService] Object type "${objectTypeName}" not found.`,
+      );
       return [];
     }
-    
+
     // In our simplified model, we assume all AssetVersion statuses are shared
     // across all projects for now. We can refine this later if needed.
-    const assetVersionStatuses = this.schemaStatusMapping['__shared__']?.[objectType.id];
-    
+    const assetVersionStatuses =
+      this.schemaStatusMapping["__shared__"]?.[objectType.id];
+
     return assetVersionStatuses || [];
   }
 }

@@ -42,7 +42,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({
           size="sm"
           className={cn(
             "h-auto px-2 py-1 text-xs justify-start font-medium",
-            className
+            className,
           )}
         >
           <div className="flex items-center gap-2 flex-wrap">
@@ -77,4 +77,4 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}; 
+};

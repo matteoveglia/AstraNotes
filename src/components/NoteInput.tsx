@@ -509,7 +509,9 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const handleRelatedVersionsSelect = (versions: AssetVersion[]) => {
     // The RelatedVersionsModal handles the actual playlist addition
     // This callback is called after successful addition for any additional handling
-    console.debug(`[NoteInput] ${versions.length} related versions were added to playlist`);
+    console.debug(
+      `[NoteInput] ${versions.length} related versions were added to playlist`,
+    );
   };
 
   // Fetch projectId for this asset version
@@ -636,7 +638,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                     <ExternalLink className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 {/* Version Details Panel - positioned outside button group to avoid clipping */}
                 {isVersionDetailsPanelOpen && (
                   <VersionDetailsPanel
@@ -646,7 +648,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   />
                 )}
               </div>
-              
+
               {/* Remove button if manually added */}
               {manuallyAdded && (
                 <Button

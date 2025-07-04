@@ -147,8 +147,9 @@ async function performFetch(
     ]);
 
     // Convert the status IDs to status objects for the interface
-    const versionStatus = statusPanelData.versionStatusId 
-      ? versionStatuses.find(s => s.id === statusPanelData.versionStatusId) || null
+    const versionStatus = statusPanelData.versionStatusId
+      ? versionStatuses.find((s) => s.id === statusPanelData.versionStatusId) ||
+        null
       : null;
 
     const currentStatuses: StatusPanelData = {
@@ -199,7 +200,9 @@ export async function updateEntityStatusSuspense(
         // Apply optimistic update
         const updatedData = { ...cachedData };
         if (updatedData.currentStatuses.versionId === entityId) {
-          const newStatus = updatedData.versionStatuses.find(s => s.id === statusId);
+          const newStatus = updatedData.versionStatuses.find(
+            (s) => s.id === statusId,
+          );
           if (newStatus) {
             updatedData.currentStatuses.versionStatus = newStatus;
           }

@@ -1,5 +1,5 @@
 /**
- * @fileoverview RelatedVersionsModal.tsx  
+ * @fileoverview RelatedVersionsModal.tsx
  * Modal component for displaying and selecting related versions from the same shot.
  * Features grid/list view switching, search, filtering, pagination, and multi-select capabilities.
  * @component
@@ -9,8 +9,23 @@ import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
-import { relatedVersionsService, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
-import { Grid, List as ListIcon, Search, Filter, Loader2, ChevronLeft, ChevronRight, CircleSlash, X, ChevronsUpDown } from "lucide-react";
+import {
+  relatedVersionsService,
+  VersionStatus,
+  ShotStatus,
+} from "@/services/relatedVersionsService";
+import {
+  Grid,
+  List as ListIcon,
+  Search,
+  Filter,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  CircleSlash,
+  X,
+  ChevronsUpDown,
+} from "lucide-react";
 import { Input } from "./ui/input";
 import {
   Select,
@@ -23,8 +38,21 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { RelatedVersionsGrid } from "./RelatedVersionsGrid";
 import { RelatedVersionsList } from "./RelatedVersionsList";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "./ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import { ftrackService } from "@/services/ftrack";
 import { useToast } from "./ui/toast";
 import { playlistStore } from "@/store/playlist";
@@ -38,7 +66,7 @@ interface RelatedVersionsModalProps {
   onVersionsSelect: (versions: AssetVersion[]) => void;
 }
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = "grid" | "list";
 
 interface PaginationState {
   currentPage: number;
@@ -55,30 +83,36 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 }) => {
   // Hooks must be called at the top level
   const toast = useToast();
-  
+
   // Core state
   const [relatedVersions, setRelatedVersions] = useState<AssetVersion[]>([]);
   const [selectedVersions, setSelectedVersions] = useState<AssetVersion[]>([]);
-  const [selectedAcrossPages, setSelectedAcrossPages] = useState<Set<string>>(new Set());
+  const [selectedAcrossPages, setSelectedAcrossPages] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(false);
   const [progressiveLoading, setProgressiveLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // 0–100 for Phase 6.1
   const [error, setError] = useState<string | null>(null);
-  
+
   // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [availableStatuses, setAvailableStatuses] = useState<VersionStatus[]>([]);
-  const [availableShotStatuses, setAvailableShotStatuses] = useState<ShotStatus[]>([]);
-  
+  const [availableStatuses, setAvailableStatuses] = useState<VersionStatus[]>(
+    [],
+  );
+  const [availableShotStatuses, setAvailableShotStatuses] = useState<
+    ShotStatus[]
+  >([]);
+
   // Pagination state
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     pageSize: 20,
     totalItems: 0,
   });
-  
+
   // Centralized version data cache
   const [versionDataCache, setVersionDataCache] = useState<{
     details: Record<string, any>;
@@ -89,7 +123,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     statuses: {},
     shotStatuses: {},
   });
-  
+
   // React 18 Concurrent features
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -97,16 +131,19 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   // const [isPending, startTransition] = useTransition();
 
   const isPending = false;
-  
+
   // Extract shot name from current version
   const shotName = useMemo(() => {
     return relatedVersionsService.extractShotName(currentVersionName);
   }, [currentVersionName]);
 
   // Sort info coming from list view
-  const [sortInfo, setSortInfo] = useState<{ field: 'name' | 'version' | 'publishedBy' | 'updatedAt'; direction: 'asc' | 'desc' }>({
-    field: 'updatedAt',
-    direction: 'desc',
+  const [sortInfo, setSortInfo] = useState<{
+    field: "name" | "version" | "publishedBy" | "updatedAt";
+    direction: "asc" | "desc";
+  }>({
+    field: "updatedAt",
+    direction: "desc",
   });
 
   // Fetch related versions when modal opens
@@ -123,150 +160,209 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       setSelectedAcrossPages(new Set());
       setSearchTerm("");
       setStatusFilter([]);
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
       setVersionDataCache({ details: {}, statuses: {}, shotStatuses: {} });
       setError(null);
       setProgressiveLoading(false);
     }
   }, [isOpen]);
 
-  const fetchAvailableStatusesForVersions = async (versions: AssetVersion[]) => {
+  const fetchAvailableStatusesForVersions = async (
+    versions: AssetVersion[],
+  ) => {
     try {
       // We need at least one version to get statuses for that project
       if (versions.length === 0) {
-        console.debug("[RelatedVersionsModal] No versions available, skipping status fetch");
+        console.debug(
+          "[RelatedVersionsModal] No versions available, skipping status fetch",
+        );
         return;
       }
 
       // Use the first version to get all available statuses for the project
       const firstVersionId = versions[0].id;
-      
+
       // For shot statuses, we need to get the parent entity from status panel data
-      const statusData = await ftrackService.fetchStatusPanelData(firstVersionId);
-      
+      const statusData =
+        await ftrackService.fetchStatusPanelData(firstVersionId);
+
       const promises = [
         relatedVersionsService.fetchAllVersionStatuses(firstVersionId),
       ];
-      
+
       // Only fetch shot statuses if we have parent info
       if (statusData?.parentId && statusData?.parentType) {
-        promises.push(relatedVersionsService.fetchAllShotStatuses(statusData.parentId));
+        promises.push(
+          relatedVersionsService.fetchAllShotStatuses(statusData.parentId),
+        );
       } else {
         promises.push(Promise.resolve([]));
       }
-      
+
       const [versionStatuses, shotStatuses] = await Promise.all(promises);
-      
+
       setAvailableStatuses(versionStatuses);
       setAvailableShotStatuses(shotStatuses);
     } catch (error) {
-      console.warn("[RelatedVersionsModal] Failed to fetch available statuses:", error);
+      console.warn(
+        "[RelatedVersionsModal] Failed to fetch available statuses:",
+        error,
+      );
     }
   };
 
   const handleStatusUpdate = async (versionId: string, newStatusId: string) => {
-    console.debug(`[RelatedVersionsModal] Updating status for version ${versionId} to ${newStatusId}`);
+    console.debug(
+      `[RelatedVersionsModal] Updating status for version ${versionId} to ${newStatusId}`,
+    );
     try {
       // Optimistic UI update
-      setVersionDataCache(prev => {
+      setVersionDataCache((prev) => {
         const newStatuses = { ...prev.statuses };
-        const newStatus = availableStatuses.find(s => s.id === newStatusId);
+        const newStatus = availableStatuses.find((s) => s.id === newStatusId);
         if (newStatuses[versionId] && newStatus) {
           newStatuses[versionId] = newStatus;
         }
         return { ...prev, statuses: newStatuses };
       });
-      
+
       // Call ftrack service to update status
-      await ftrackService.updateEntityStatus("AssetVersion", versionId, newStatusId);
-      console.debug(`[RelatedVersionsModal] Successfully updated status for version ${versionId}`);
+      await ftrackService.updateEntityStatus(
+        "AssetVersion",
+        versionId,
+        newStatusId,
+      );
+      console.debug(
+        `[RelatedVersionsModal] Successfully updated status for version ${versionId}`,
+      );
     } catch (error) {
-      console.error(`[RelatedVersionsModal] Failed to update status for version ${versionId}:`, error);
+      console.error(
+        `[RelatedVersionsModal] Failed to update status for version ${versionId}:`,
+        error,
+      );
       // Revert UI on failure (optional, could show toast instead)
       // For now, we'll leave the optimistic update
     }
   };
 
-  const handleShotStatusUpdate = async (versionId: string, newStatusId: string) => {
-    console.debug(`[RelatedVersionsModal] Updating shot status for version ${versionId} to ${newStatusId}`);
+  const handleShotStatusUpdate = async (
+    versionId: string,
+    newStatusId: string,
+  ) => {
+    console.debug(
+      `[RelatedVersionsModal] Updating shot status for version ${versionId} to ${newStatusId}`,
+    );
     try {
       // Get the parent entity information from status panel data
       const statusData = await ftrackService.fetchStatusPanelData(versionId);
       if (!statusData?.parentId || !statusData?.parentType) {
-        console.warn(`[RelatedVersionsModal] No parent entity found for version ${versionId}`);
+        console.warn(
+          `[RelatedVersionsModal] No parent entity found for version ${versionId}`,
+        );
         return;
       }
 
       // Optimistic UI update
-      setVersionDataCache(prev => {
+      setVersionDataCache((prev) => {
         const newShotStatuses = { ...prev.shotStatuses };
-        const newStatus = availableShotStatuses.find(s => s.id === newStatusId);
+        const newStatus = availableShotStatuses.find(
+          (s) => s.id === newStatusId,
+        );
         if (newStatus) {
           newShotStatuses[versionId] = newStatus;
         }
         return { ...prev, shotStatuses: newShotStatuses };
       });
-      
+
       // Call ftrack service to update the parent entity status
-      await ftrackService.updateEntityStatus(statusData.parentType, statusData.parentId, newStatusId);
-      console.debug(`[RelatedVersionsModal] Successfully updated shot status for version ${versionId}`);
+      await ftrackService.updateEntityStatus(
+        statusData.parentType,
+        statusData.parentId,
+        newStatusId,
+      );
+      console.debug(
+        `[RelatedVersionsModal] Successfully updated shot status for version ${versionId}`,
+      );
     } catch (error) {
-      console.error(`[RelatedVersionsModal] Failed to update shot status for version ${versionId}:`, error);
+      console.error(
+        `[RelatedVersionsModal] Failed to update shot status for version ${versionId}:`,
+        error,
+      );
       // Revert UI on failure (optional, could show toast instead)
     }
   };
 
   const batchFetchVersionData = async (versionIds: string[]) => {
     try {
-      console.debug("[RelatedVersionsModal] Batch fetching version data for", versionIds.length, "versions");
-      
+      console.debug(
+        "[RelatedVersionsModal] Batch fetching version data for",
+        versionIds.length,
+        "versions",
+      );
+
       // Fetch details, statuses, and shot statuses in parallel
       const [details, statuses, shotStatuses] = await Promise.all([
         relatedVersionsService.batchFetchVersionDetails(versionIds),
         relatedVersionsService.batchFetchVersionStatuses(versionIds),
         relatedVersionsService.batchFetchShotStatuses(versionIds),
       ]);
-      
+
       // Update cache
-      setVersionDataCache(prev => ({
+      setVersionDataCache((prev) => ({
         details: { ...prev.details, ...details },
         statuses: { ...prev.statuses, ...statuses },
         shotStatuses: { ...prev.shotStatuses, ...shotStatuses },
       }));
-      
-      console.debug("[RelatedVersionsModal] Cached version data for", Object.keys(details).length, "versions");
+
+      console.debug(
+        "[RelatedVersionsModal] Cached version data for",
+        Object.keys(details).length,
+        "versions",
+      );
     } catch (error) {
-      console.warn("[RelatedVersionsModal] Failed to batch fetch version data:", error);
+      console.warn(
+        "[RelatedVersionsModal] Failed to batch fetch version data:",
+        error,
+      );
     }
   };
 
   const fetchRelatedVersions = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      console.debug("[RelatedVersionsModal] Fetching related versions for shot:", shotName);
-      const versions = await relatedVersionsService.fetchVersionsByShotName(shotName);
-      
-      // Filter out the current version
-      const filteredVersions = versions.filter(v => v.id !== currentAssetVersionId);
-      
-      // Sort by publishedAt (newest first) - using updatedAt as proxy for now
-      const sortedVersions = filteredVersions.sort((a, b) => 
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      console.debug(
+        "[RelatedVersionsModal] Fetching related versions for shot:",
+        shotName,
       );
-      
+      const versions =
+        await relatedVersionsService.fetchVersionsByShotName(shotName);
+
+      // Filter out the current version
+      const filteredVersions = versions.filter(
+        (v) => v.id !== currentAssetVersionId,
+      );
+
+      // Sort by publishedAt (newest first) - using updatedAt as proxy for now
+      const sortedVersions = filteredVersions.sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+
       // Show basic version data immediately
       setRelatedVersions(sortedVersions);
-      setPagination(prev => ({ 
-        ...prev, 
+      setPagination((prev) => ({
+        ...prev,
         totalItems: sortedVersions.length,
-        currentPage: 1 
+        currentPage: 1,
       }));
       setLoading(false); // Stop blocking loader here
-      
-      console.debug(`[RelatedVersionsModal] Showing ${sortedVersions.length} related versions with basic data`);
-      
+
+      console.debug(
+        `[RelatedVersionsModal] Showing ${sortedVersions.length} related versions with basic data`,
+      );
+
       // Start progressive loading for additional data (Phase 6.1)
       if (sortedVersions.length > 0) {
         setProgressiveLoading(true);
@@ -278,26 +374,41 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           setLoadingProgress(10);
 
           // Prepare IDs
-          const versionIds = sortedVersions.map(v => v.id);
+          const versionIds = sortedVersions.map((v) => v.id);
 
           // Step 2 – version details (40%)
-          const details = await relatedVersionsService.batchFetchVersionDetails(versionIds);
-          setVersionDataCache(prev => ({ ...prev, details: { ...prev.details, ...details } }));
+          const details =
+            await relatedVersionsService.batchFetchVersionDetails(versionIds);
+          setVersionDataCache((prev) => ({
+            ...prev,
+            details: { ...prev.details, ...details },
+          }));
           setLoadingProgress(40);
 
           // Step 3 – version statuses (70%)
-          const statuses = await relatedVersionsService.batchFetchVersionStatuses(versionIds);
-          setVersionDataCache(prev => ({ ...prev, statuses: { ...prev.statuses, ...statuses } }));
+          const statuses =
+            await relatedVersionsService.batchFetchVersionStatuses(versionIds);
+          setVersionDataCache((prev) => ({
+            ...prev,
+            statuses: { ...prev.statuses, ...statuses },
+          }));
           setLoadingProgress(70);
 
           // Step 4 – shot statuses (100%)
-          const shotStatuses = await relatedVersionsService.batchFetchShotStatuses(versionIds);
-          setVersionDataCache(prev => ({ ...prev, shotStatuses: { ...prev.shotStatuses, ...shotStatuses } }));
+          const shotStatuses =
+            await relatedVersionsService.batchFetchShotStatuses(versionIds);
+          setVersionDataCache((prev) => ({
+            ...prev,
+            shotStatuses: { ...prev.shotStatuses, ...shotStatuses },
+          }));
           setLoadingProgress(100);
 
           console.debug("[RelatedVersionsModal] Progressive loading completed");
         } catch (progressiveError) {
-          console.warn("[RelatedVersionsModal] Progressive loading failed:", progressiveError);
+          console.warn(
+            "[RelatedVersionsModal] Progressive loading failed:",
+            progressiveError,
+          );
           // Don't set error state - basic functionality still works
         } finally {
           // Allow a brief moment for 100% to be visible before fading out
@@ -306,10 +417,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           }, 400);
         }
       }
-      
     } catch (err) {
-      console.error("[RelatedVersionsModal] Failed to fetch related versions:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch related versions");
+      console.error(
+        "[RelatedVersionsModal] Failed to fetch related versions:",
+        err,
+      );
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch related versions",
+      );
       setLoading(false);
     }
   };
@@ -321,22 +436,28 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     // Apply search filter
     if (deferredSearchTerm.trim()) {
       const searchLower = deferredSearchTerm.toLowerCase();
-      filtered = filtered.filter(version =>
-        version.name.toLowerCase().includes(searchLower) ||
-        `v${String(version.version)}`.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        (version) =>
+          version.name.toLowerCase().includes(searchLower) ||
+          `v${String(version.version)}`.toLowerCase().includes(searchLower),
       );
     }
 
     // Apply status filter
     if (statusFilter.length > 0) {
-      filtered = filtered.filter(version => {
+      filtered = filtered.filter((version) => {
         const versionStatus = versionDataCache.statuses[version.id];
         return versionStatus && statusFilter.includes(versionStatus.id);
       });
     }
 
     return filtered;
-  }, [relatedVersions, deferredSearchTerm, statusFilter, versionDataCache.statuses]);
+  }, [
+    relatedVersions,
+    deferredSearchTerm,
+    statusFilter,
+    versionDataCache.statuses,
+  ]);
 
   // Apply sorting globally so both grid & list views respect the same order (Phase 6.2)
   const sortedFilteredVersions = useMemo(() => {
@@ -345,13 +466,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
     const getValue = (v: AssetVersion) => {
       switch (field) {
-        case 'name':
+        case "name":
           return v.name.toLowerCase();
-        case 'version':
+        case "version":
           return v.version;
-        case 'publishedBy':
-          return (v.user?.username || '').toLowerCase();
-        case 'updatedAt':
+        case "publishedBy":
+          return (v.user?.username || "").toLowerCase();
+        case "updatedAt":
         default:
           return new Date(v.updatedAt).getTime();
       }
@@ -360,8 +481,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     versions.sort((a, b) => {
       const aVal = getValue(a);
       const bVal = getValue(b);
-      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      if (aVal < bVal) return direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return direction === "asc" ? 1 : -1;
       return 0;
     });
 
@@ -371,18 +492,18 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   // Reset page to 1 when search or filter changes.
   useEffect(() => {
     if (pagination.currentPage !== 1) {
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
     }
-  // We specifically want to run this effect only when filters change,
-  // not when other pagination state like currentPage changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // We specifically want to run this effect only when filters change,
+    // not when other pagination state like currentPage changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deferredSearchTerm, statusFilter]);
 
   // Update total items when the filtered list changes
   useEffect(() => {
-    setPagination(prev => ({ ...prev, totalItems: filteredVersions.length }));
+    setPagination((prev) => ({ ...prev, totalItems: filteredVersions.length }));
   }, [filteredVersions]);
-  
+
   // Paginate the filtered & sorted versions
   const paginatedVersions = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.pageSize;
@@ -407,14 +528,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
     // Human readable sort label mapping
     const sortLabels: Record<string, string> = {
-      updatedAt: 'Date',
-      name: 'Name',
-      version: 'Version',
-      publishedBy: 'Published By',
+      updatedAt: "Date",
+      name: "Name",
+      version: "Version",
+      publishedBy: "Published By",
     };
-    const dirLabels: Record<'asc' | 'desc', string> = {
-      asc: 'ascending',
-      desc: 'descending',
+    const dirLabels: Record<"asc" | "desc", string> = {
+      asc: "ascending",
+      desc: "descending",
     };
 
     const sortText = `Sorted by ${sortLabels[sortInfo.field] || sortInfo.field} (${dirLabels[sortInfo.direction]})`;
@@ -428,8 +549,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
   const handleVersionToggle = (version: AssetVersion) => {
     const isSelected = selectedAcrossPages.has(version.id);
-    
-    setSelectedAcrossPages(prev => {
+
+    setSelectedAcrossPages((prev) => {
       const newSet = new Set(prev);
       if (isSelected) {
         newSet.delete(version.id);
@@ -438,10 +559,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       }
       return newSet;
     });
-    
-    setSelectedVersions(prev => {
+
+    setSelectedVersions((prev) => {
       if (isSelected) {
-        return prev.filter(v => v.id !== version.id);
+        return prev.filter((v) => v.id !== version.id);
       } else {
         return [...prev, version];
       }
@@ -449,33 +570,35 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    const currentPageVersionIds = paginatedVersions.map(v => v.id);
-    const allSelected = currentPageVersionIds.every(id => selectedAcrossPages.has(id));
-    
+    const currentPageVersionIds = paginatedVersions.map((v) => v.id);
+    const allSelected = currentPageVersionIds.every((id) =>
+      selectedAcrossPages.has(id),
+    );
+
     if (allSelected) {
       // Deselect all on current page
-      setSelectedAcrossPages(prev => {
+      setSelectedAcrossPages((prev) => {
         const newSet = new Set(prev);
-        currentPageVersionIds.forEach(id => newSet.delete(id));
+        currentPageVersionIds.forEach((id) => newSet.delete(id));
         return newSet;
       });
-      
-      setSelectedVersions(prev => 
-        prev.filter(v => !currentPageVersionIds.includes(v.id))
+
+      setSelectedVersions((prev) =>
+        prev.filter((v) => !currentPageVersionIds.includes(v.id)),
       );
     } else {
       // Select all on current page
-      setSelectedAcrossPages(prev => {
+      setSelectedAcrossPages((prev) => {
         const newSet = new Set(prev);
-        currentPageVersionIds.forEach(id => newSet.add(id));
+        currentPageVersionIds.forEach((id) => newSet.add(id));
         return newSet;
       });
-      
+
       const newSelections = paginatedVersions.filter(
-        v => !selectedAcrossPages.has(v.id)
+        (v) => !selectedAcrossPages.has(v.id),
       );
-      
-      setSelectedVersions(prev => [...prev, ...newSelections]);
+
+      setSelectedVersions((prev) => [...prev, ...newSelections]);
     }
   };
 
@@ -489,17 +612,25 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
     try {
       // Flag versions as manually added
-      const versionsWithFlag = selectedVersions.map(v => ({ ...v, manuallyAdded: true }));
+      const versionsWithFlag = selectedVersions.map((v) => ({
+        ...v,
+        manuallyAdded: true,
+      }));
       // Add to playlist via store (uses active playlist from store)
       const { activePlaylistId } = usePlaylistsStore.getState();
       if (!activePlaylistId) {
         toast.showError("No active playlist selected");
         return;
       }
-      await playlistStore.addVersionsToPlaylist(activePlaylistId, versionsWithFlag);
+      await playlistStore.addVersionsToPlaylist(
+        activePlaylistId,
+        versionsWithFlag,
+      );
 
       onVersionsSelect(versionsWithFlag); // notify parent if needed
-      toast.showSuccess(`Added ${versionsWithFlag.length} version${versionsWithFlag.length===1?'':'s'} to playlist`);
+      toast.showSuccess(
+        `Added ${versionsWithFlag.length} version${versionsWithFlag.length === 1 ? "" : "s"} to playlist`,
+      );
       onClose();
     } catch (error) {
       console.error(`[RelatedVersionsModal] Failed to add versions:`, error);
@@ -508,14 +639,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
+    setPagination((prev) => ({ ...prev, currentPage: newPage }));
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
-    setPagination(prev => ({ 
-      ...prev, 
-      pageSize: newPageSize, 
-      currentPage: 1 // Reset to first page when changing page size
+    setPagination((prev) => ({
+      ...prev,
+      pageSize: newPageSize,
+      currentPage: 1, // Reset to first page when changing page size
     }));
   };
 
@@ -566,9 +697,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   size="sm"
                   className={cn(
                     "rounded-none border-r border-zinc-200 dark:border-zinc-700",
-                    viewMode === 'grid' && "bg-zinc-100 dark:bg-zinc-800"
+                    viewMode === "grid" && "bg-zinc-100 dark:bg-zinc-800",
                   )}
-                  onClick={() => handleViewModeChange('grid')}
+                  onClick={() => handleViewModeChange("grid")}
                   title="Grid View"
                 >
                   <Grid className="h-4 w-4" />
@@ -578,9 +709,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   size="sm"
                   className={cn(
                     "rounded-none",
-                    viewMode === 'list' && "bg-zinc-100 dark:bg-zinc-800"
+                    viewMode === "list" && "bg-zinc-100 dark:bg-zinc-800",
                   )}
-                  onClick={() => handleViewModeChange('list')}
+                  onClick={() => handleViewModeChange("list")}
                   title="List View"
                 >
                   <ListIcon className="h-4 w-4" />
@@ -602,7 +733,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               className="h-8 pl-10"
             />
           </div>
-          
+
           {/* Status filter dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -623,7 +754,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             <DropdownMenuContent align="end" className="w-56 mt-1">
               <TooltipProvider>
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <DropdownMenuLabel className="p-0">Filter by Version Status</DropdownMenuLabel>
+                  <DropdownMenuLabel className="p-0">
+                    Filter by Version Status
+                  </DropdownMenuLabel>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -633,7 +766,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                           "h-auto p-1 text-xs",
                           statusFilter.length > 0
                             ? "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                            : "text-muted-foreground hover:text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
                         )}
                         onClick={handleStatusInverse}
                         disabled={availableStatuses.length === 0}
@@ -658,7 +791,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                     setStatusFilter((prev) =>
                       checked
                         ? [...prev, status.id]
-                        : prev.filter((id) => id !== status.id)
+                        : prev.filter((id) => id !== status.id),
                     );
                   }}
                 >
@@ -691,7 +824,11 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           {/* Sort dropdown (Phase 6.2) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
                 <ChevronsUpDown className="h-4 w-4" />
                 <span>Sort</span>
               </Button>
@@ -701,26 +838,34 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               <DropdownMenuSeparator />
 
               {[
-                { field: 'name', label: 'Asset Name' },
-                { field: 'version', label: 'Version' },
-                { field: 'publishedBy', label: 'Published By' },
-                { field: 'updatedAt', label: 'Date' },
+                { field: "name", label: "Asset Name" },
+                { field: "version", label: "Version" },
+                { field: "publishedBy", label: "Published By" },
+                { field: "updatedAt", label: "Date" },
               ].map(({ field, label }) => (
                 <React.Fragment key={field}>
                   <DropdownMenuItem
-                    onClick={() => setSortInfo({ field: field as any, direction: 'asc' })}
+                    onClick={() =>
+                      setSortInfo({ field: field as any, direction: "asc" })
+                    }
                     className={cn(
-                      'flex justify-between',
-                      sortInfo.field === field && sortInfo.direction === 'asc' && 'bg-zinc-100 dark:bg-zinc-800'
+                      "flex justify-between",
+                      sortInfo.field === field &&
+                        sortInfo.direction === "asc" &&
+                        "bg-zinc-100 dark:bg-zinc-800",
                     )}
                   >
                     {label} (Asc)
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => setSortInfo({ field: field as any, direction: 'desc' })}
+                    onClick={() =>
+                      setSortInfo({ field: field as any, direction: "desc" })
+                    }
                     className={cn(
-                      'flex justify-between',
-                      sortInfo.field === field && sortInfo.direction === 'desc' && 'bg-zinc-100 dark:bg-zinc-800'
+                      "flex justify-between",
+                      sortInfo.field === field &&
+                        sortInfo.direction === "desc" &&
+                        "bg-zinc-100 dark:bg-zinc-800",
                     )}
                   >
                     {label} (Desc)
@@ -745,9 +890,17 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           ) : error ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-red-600 dark:text-red-400 mb-2">Error loading related versions</p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">{error}</p>
-                <Button onClick={fetchRelatedVersions} variant="outline" size="sm">
+                <p className="text-red-600 dark:text-red-400 mb-2">
+                  Error loading related versions
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                  {error}
+                </p>
+                <Button
+                  onClick={fetchRelatedVersions}
+                  variant="outline"
+                  size="sm"
+                >
                   Try Again
                 </Button>
               </div>
@@ -756,10 +909,16 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <p className="text-zinc-600 dark:text-zinc-400 mb-2">
-                  {deferredSearchTerm.trim() ? "No versions match your search" : "No related versions found"}
+                  {deferredSearchTerm.trim()
+                    ? "No versions match your search"
+                    : "No related versions found"}
                 </p>
                 {deferredSearchTerm.trim() && (
-                  <Button onClick={() => setSearchTerm("")} variant="outline" size="sm">
+                  <Button
+                    onClick={() => setSearchTerm("")}
+                    variant="outline"
+                    size="sm"
+                  >
                     Clear Search
                   </Button>
                 )}
@@ -770,7 +929,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               {/* Versions content */}
               <div className="flex-1 min-h-0 overflow-auto relative">
                 {/* Removed transient switching overlay to avoid visual flash (Phase 5.10) */}
-                
+
                 {/* Reverted to "sync" now that item-level animations causing the flash are removed */}
                 <AnimatePresence mode="sync">
                   <motion.div
@@ -780,7 +939,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                   >
-                    {viewMode === 'grid' ? (
+                    {viewMode === "grid" ? (
                       <RelatedVersionsGrid
                         versions={paginatedVersions}
                         selectedVersionIds={selectedAcrossPages}
@@ -802,14 +961,16 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         availableShotStatuses={availableShotStatuses}
                         versionDataCache={versionDataCache}
                         onSelectAll={handleSelectAll}
-                        onSortChange={(field: string, direction: 'asc' | 'desc') => setSortInfo({ field: field as any, direction })}
+                        onSortChange={(
+                          field: string,
+                          direction: "asc" | "desc",
+                        ) => setSortInfo({ field: field as any, direction })}
                         sortInfo={sortInfo as any}
                       />
                     )}
                   </motion.div>
                 </AnimatePresence>
               </div>
-
             </>
           )}
         </div>
@@ -820,10 +981,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             <div className="flex items-center py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
               {/* Left section – page size selector (always visible) */}
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">Show:</span>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Show:
+                </span>
                 <Select
                   value={pagination.pageSize.toString()}
-                  onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                  onValueChange={(value) =>
+                    handlePageSizeChange(parseInt(value))
+                  }
                 >
                   <SelectTrigger className="w-20 h-8">
                     <SelectValue />
@@ -834,7 +999,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                     <SelectItem value="30">30</SelectItem>
                   </SelectContent>
                 </Select>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">per page</span>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  per page
+                </span>
               </div>
 
               {/* Center section – version / filter summary (always visible) */}
@@ -849,13 +1016,16 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                 {Math.ceil(pagination.totalItems / pagination.pageSize) > 1 && (
                   <>
                     <span className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                      Page {pagination.currentPage} of {Math.ceil(pagination.totalItems / pagination.pageSize)}
+                      Page {pagination.currentPage} of{" "}
+                      {Math.ceil(pagination.totalItems / pagination.pageSize)}
                     </span>
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        onClick={() =>
+                          handlePageChange(pagination.currentPage - 1)
+                        }
                         disabled={pagination.currentPage <= 1}
                         className="h-8 w-8 p-0"
                       >
@@ -864,8 +1034,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage >= Math.ceil(pagination.totalItems / pagination.pageSize)}
+                        onClick={() =>
+                          handlePageChange(pagination.currentPage + 1)
+                        }
+                        disabled={
+                          pagination.currentPage >=
+                          Math.ceil(pagination.totalItems / pagination.pageSize)
+                        }
                         className="h-8 w-8 p-0"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -876,49 +1051,52 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               </div>
             </div>
           )}
-          
+
           {/* Footer actions */}
           <div className="flex items-center justify-between pt-3">
-          <div className="flex items-center gap-2">
-            {paginatedVersions.length > 0 && (
+            <div className="flex items-center gap-2">
+              {paginatedVersions.length > 0 && (
+                <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                  {paginatedVersions.every((v) => selectedAcrossPages.has(v.id))
+                    ? "Deselect All"
+                    : "Select All"}
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSelectAll}
+                onClick={handleClearSelection}
+                disabled={selectedVersions.length === 0}
               >
-                                 {paginatedVersions.every(v => selectedAcrossPages.has(v.id))
-                   ? "Deselect All"
-                   : "Select All"
-                 }
+                Clear Selection{" "}
+                {selectedVersions.length > 0
+                  ? `(${selectedVersions.length})`
+                  : ""}
               </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearSelection}
-              disabled={selectedVersions.length === 0}
-            >
-              Clear Selection {selectedVersions.length > 0 ? `(${selectedVersions.length})` : ''}
-            </Button>
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleAddSelected}
-              disabled={selectedVersions.length === 0}
-              className="flex items-center gap-2"
-            >
-              Add {selectedVersions.length > 0 ? `${selectedVersions.length} ` : ''}Selected Version{selectedVersions.length === 1 ? '' : 's'} to Playlist
-            </Button>
-            
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAddSelected}
+                disabled={selectedVersions.length === 0}
+                className="flex items-center gap-2"
+              >
+                Add{" "}
+                {selectedVersions.length > 0
+                  ? `${selectedVersions.length} `
+                  : ""}
+                Selected Version{selectedVersions.length === 1 ? "" : "s"} to
+                Playlist
+              </Button>
+
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
     </Dialog>
   );
-}; 
+};

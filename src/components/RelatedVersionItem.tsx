@@ -31,7 +31,7 @@ interface RelatedVersionItemProps {
   availableShotStatuses?: ShotStatus[];
   onStatusUpdate?: (versionId: string, newStatusId: string) => void;
   onShotStatusUpdate?: (versionId: string, newStatusId: string) => void;
-  viewMode: 'grid' | 'list';
+  viewMode: "grid" | "list";
   className?: string;
 }
 
@@ -49,8 +49,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   className,
 }) => {
   const [isThumbnailModalOpen, setIsThumbnailModalOpen] = useState(false);
-  const [isModalOperationInProgress, setIsModalOperationInProgress] = useState(false);
-  
+  const [isModalOperationInProgress, setIsModalOperationInProgress] =
+    useState(false);
+
   // Use cached data instead of fetching
   const versionDetails = versionDataCache?.details[version.id] || null;
   const versionStatus = versionDataCache?.statuses[version.id] || null;
@@ -75,10 +76,14 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   const handleItemClick = (e: React.MouseEvent) => {
     // Don't trigger selection if clicking on thumbnail or checkbox, or if modal operation is in progress
     const target = e.target as HTMLElement;
-    if (target.closest('[data-thumbnail]') || target.closest('[data-checkbox]') || isModalOperationInProgress) {
+    if (
+      target.closest("[data-thumbnail]") ||
+      target.closest("[data-checkbox]") ||
+      isModalOperationInProgress
+    ) {
       return;
     }
-    
+
     onToggleSelection(version);
   };
 
@@ -90,7 +95,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   const handleModalClose = () => {
     // Set flag to prevent any selection during modal close
     setIsModalOperationInProgress(true);
-    
+
     // Use setTimeout to ensure modal close doesn't interfere with any potential parent events
     setTimeout(() => {
       setIsThumbnailModalOpen(false);
@@ -104,8 +109,21 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      const day = date.getDate().toString().padStart(2, '0');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = date.getDate().toString().padStart(2, "0");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       const month = months[date.getMonth()];
       const year = date.getFullYear().toString().slice(-2);
       return `${day} ${month} '${year}`;
@@ -114,14 +132,15 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
     }
   };
 
-  if (viewMode === 'list') {
+  if (viewMode === "list") {
     // List view layout - table row style (animations removed in Phase 6.5 for performance)
     return (
       <div
         className={cn(
           "flex items-center gap-4 p-3 border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors",
-          isSelected && "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700",
-          className
+          isSelected &&
+            "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700",
+          className,
         )}
         onClick={handleItemClick}
       >
@@ -136,7 +155,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
         </div>
 
         {/* Thumbnail */}
-        <div 
+        <div
           data-thumbnail
           className="flex-shrink-0 w-16 h-12 bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden cursor-pointer"
           onClick={handleThumbnailClick}
@@ -160,7 +179,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
 
         {/* Version */}
         <div className="flex-shrink-0 w-20">
-          <div className="text-sm text-zinc-600 dark:text-zinc-400">v{version.version}</div>
+          <div className="text-sm text-zinc-600 dark:text-zinc-400">
+            v{version.version}
+          </div>
         </div>
 
         {/* Shot Status */}
@@ -208,7 +229,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
             <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
             <div className="text-xs text-zinc-600 dark:text-zinc-400">
-              {versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)}
+              {versionDetails?.publishedAt
+                ? formatDate(versionDetails.publishedAt)
+                : formatDate(version.updatedAt)}
             </div>
           )}
         </div>
@@ -238,8 +261,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
       className={cn(
         "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer",
         "min-w-[280px]",
-        isSelected && "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600 ring-offset-2",
-        className
+        isSelected &&
+          "ring-2 ring-blue-500 border-blue-300 dark:border-blue-600 ring-offset-2",
+        className,
       )}
       onClick={handleItemClick}
     >
@@ -257,14 +281,16 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
       <div className="p-3 pb-2">
         <div className="flex items-center font-medium text-sm truncate text-zinc-900 dark:text-zinc-100 pr-8">
           <span className="truncate">{version.name}</span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-1 flex items-center">- v{version.version}</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-1 flex items-center">
+            - v{version.version}
+          </span>
         </div>
       </div>
 
       {/* Content Layout: Thumbnail | Data columns */}
       <div className="flex gap-3 p-3 pt-0">
         {/* Thumbnail Container - spans full height of content area */}
-        <div 
+        <div
           data-thumbnail
           className="flex-shrink-0 w-24 bg-zinc-100 dark:bg-zinc-800 rounded cursor-pointer flex items-center justify-center self-stretch"
           onClick={handleThumbnailClick}
@@ -277,7 +303,8 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
               <div className="relative flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800 rounded">
                 <BorderTrail
                   style={{
-                    boxShadow: "0px 0px 20px 10px rgb(255 255 255 / 30%), 0 0 30px 20px rgb(0 0 0 / 30%)",
+                    boxShadow:
+                      "0px 0px 20px 10px rgb(255 255 255 / 30%), 0 0 30px 20px rgb(0 0 0 / 30%)",
                   }}
                   size={30}
                 />
@@ -334,7 +361,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
               <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate flex-1 min-w-0">
-                {versionDetails?.publishedBy || version.user?.username || "Unknown"}
+                {versionDetails?.publishedBy ||
+                  version.user?.username ||
+                  "Unknown"}
               </span>
             )}
           </div>
@@ -348,7 +377,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
               <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <span className="text-xs text-zinc-700 dark:text-zinc-300 flex-1 min-w-0">
-                {versionDetails?.publishedAt ? formatDate(versionDetails.publishedAt) : formatDate(version.updatedAt)}
+                {versionDetails?.publishedAt
+                  ? formatDate(versionDetails.publishedAt)
+                  : formatDate(version.updatedAt)}
               </span>
             )}
           </div>
@@ -369,7 +400,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
       )}
     </motion.div>
   );
-}; 
+};
 
 // Memoized export to avoid unnecessary re-renders when unrelated props don't change (Phase 6.4)
 export const RelatedVersionItem = React.memo(
@@ -390,11 +421,13 @@ export const RelatedVersionItem = React.memo(
     const nextVerStatus = next.versionDataCache?.statuses?.[next.version.id];
     if (prevVerStatus !== nextVerStatus) return false;
 
-    const prevShotStatus = prev.versionDataCache?.shotStatuses?.[prev.version.id];
-    const nextShotStatus = next.versionDataCache?.shotStatuses?.[next.version.id];
+    const prevShotStatus =
+      prev.versionDataCache?.shotStatuses?.[prev.version.id];
+    const nextShotStatus =
+      next.versionDataCache?.shotStatuses?.[next.version.id];
     if (prevShotStatus !== nextShotStatus) return false;
 
     // 4. No pertinent changes – skip render
     return true;
-  }
-); 
+  },
+);

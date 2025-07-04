@@ -239,7 +239,9 @@ export const MainContent: React.FC<MainContentProps> = ({
       if (playlistId !== activePlaylist.id) return;
 
       // Filter out versions already present
-      const existingIds = new Set(activePlaylist.versions?.map(v => v.id) || []);
+      const existingIds = new Set(
+        activePlaylist.versions?.map((v) => v.id) || [],
+      );
       const newVersions = versions.filter((v: any) => !existingIds.has(v.id));
       if (newVersions.length === 0) return;
 

@@ -42,14 +42,18 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
   className,
 }) => {
   // Consistent grid layout classes
-  const gridClasses = "grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4";
+  const gridClasses =
+    "grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4";
 
   const handleVersionToggle = (version: AssetVersion) => {
     onVersionToggle(version);
   };
 
   const handleThumbnailClick = (version: AssetVersion) => {
-    console.debug("[RelatedVersionsGrid] Thumbnail clicked for version:", version.name);
+    console.debug(
+      "[RelatedVersionsGrid] Thumbnail clicked for version:",
+      version.name,
+    );
   };
 
   if (loading) {
@@ -72,7 +76,7 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
               <div className="flex gap-3 p-3 pt-0">
                 {/* Thumbnail skeleton */}
                 <div className="flex-shrink-0 w-24 bg-zinc-200 dark:bg-zinc-700 rounded self-stretch" />
-                
+
                 {/* Data skeleton */}
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
@@ -105,12 +109,26 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
       <div className={cn("flex items-center justify-center py-12", className)}>
         <div className="text-center">
           <div className="text-zinc-400 mb-2">
-            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2M7 4h10M7 4L6 20a1 1 0 001 1h10a1 1 0 001-1L17 4M9 9v6M15 9v6" />
+            <svg
+              className="w-12 h-12 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2M7 4h10M7 4L6 20a1 1 0 001 1h10a1 1 0 001-1L17 4M9 9v6M15 9v6"
+              />
             </svg>
           </div>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-1">No versions found</p>
-          <p className="text-sm text-zinc-500">Try adjusting your search or filters</p>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-1">
+            No versions found
+          </p>
+          <p className="text-sm text-zinc-500">
+            Try adjusting your search or filters
+          </p>
         </div>
       </div>
     );
@@ -147,4 +165,4 @@ export const RelatedVersionsGrid: React.FC<RelatedVersionsGridProps> = ({
       )}
     </div>
   );
-}; 
+};
