@@ -231,9 +231,9 @@ export const RelatedVersionItem: React.FC<RelatedVersionItemProps> = ({
   // Grid view layout - improved styling to match NoteInput.tsx patterns
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
+      initial={false}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
       className={cn(
         "relative group bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden hover:shadow-md transition-all cursor-pointer",
         "min-w-[280px]",

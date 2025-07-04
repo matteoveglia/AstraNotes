@@ -91,7 +91,11 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   
   // React 18 Concurrent features
   const deferredSearchTerm = useDeferredValue(searchTerm);
-  const [isPending, startTransition] = useTransition();
+
+  // Removed useTransition as it was preventing state commit in some browsers (Phase 5.10 follow-up)
+  // const [isPending, startTransition] = useTransition();
+
+  const isPending = false;
   
   // Extract shot name from current version
   const shotName = useMemo(() => {
@@ -368,9 +372,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   }, [paginatedVersions.length, relatedVersions.length, sortInfo]);
 
   const handleViewModeChange = (newMode: ViewMode) => {
-    startTransition(() => {
-      setViewMode(newMode);
-    });
+    setViewMode(newMode);
   };
 
   const handleVersionToggle = (version: AssetVersion) => {
@@ -658,28 +660,16 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             <>
               {/* Versions content */}
               <div className="flex-1 min-h-0 overflow-auto relative">
-                {/* Loading overlay outside of AnimatePresence */}
-                {isPending && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.7 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-white/50 dark:bg-zinc-900/50 flex items-center justify-center z-10"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Switching view...</span>
-                    </div>
-                  </motion.div>
-                )}
+                {/* Removed transient switching overlay to avoid visual flash (Phase 5.10) */}
                 
+                {/* Reverted to "sync" now that item-level animations causing the flash are removed */}
                 <AnimatePresence mode="sync">
                   <motion.div
                     key={viewMode}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                   >
                     {viewMode === 'grid' ? (
                       <RelatedVersionsGrid
