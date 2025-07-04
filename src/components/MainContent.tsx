@@ -231,6 +231,33 @@ export const MainContent: React.FC<MainContentProps> = ({
     return cleanupRef.current;
   }, [playlist.id, initializePlaylist]);
 
+  // Listen for versions being added via playlistStore (e.g., from RelatedVersionsModal)
+  useEffect(() => {
+    const handleVersionsAdded = (data: any) => {
+      const { playlistId, versions } = data || {};
+      if (!playlistId || !Array.isArray(versions)) return;
+      if (playlistId !== activePlaylist.id) return;
+
+      // Filter out versions already present
+      const existingIds = new Set(activePlaylist.versions?.map(v => v.id) || []);
+      const newVersions = versions.filter((v: any) => !existingIds.has(v.id));
+      if (newVersions.length === 0) return;
+
+      startTransition(() => {
+        const updatedPlaylist = {
+          ...activePlaylist,
+          versions: [...(activePlaylist.versions || []), ...newVersions],
+        } as Playlist;
+
+        if (onPlaylistUpdate) onPlaylistUpdate(updatedPlaylist);
+        setActivePlaylist(updatedPlaylist);
+      });
+    };
+
+    playlistStore.on("versions-added", handleVersionsAdded);
+    return () => playlistStore.off("versions-added", handleVersionsAdded);
+  }, [activePlaylist, onPlaylistUpdate]);
+
   // Use custom hooks
   const { settings } = useSettings();
   const { fetchLabels } = useLabelStore();

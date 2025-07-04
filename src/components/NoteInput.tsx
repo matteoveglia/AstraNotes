@@ -8,13 +8,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
-import { NoteStatus } from "@/types";
+import { NoteStatus, AssetVersion } from "@/types";
 import { cn } from "../lib/utils";
 import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink, X, Info } from "lucide-react";
+import { Loader2, Workflow, ExternalLink, X, Info, Users } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackService } from "@/services/ftrack";
@@ -24,6 +24,7 @@ import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 import { NoteAttachments, Attachment } from "./NoteAttachments";
 import { NoteStatusPanel } from "./NoteStatusPanel";
 import { VersionDetailsPanel } from "./VersionDetailsPanel";
+import { RelatedVersionsModal } from "./RelatedVersionsModal";
 
 export interface NoteInputProps {
   versionName: string;
@@ -78,6 +79,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   const dragCountRef = useRef(0);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isVersionDetailsPanelOpen, setIsVersionDetailsPanelOpen] =
+    useState(false);
+  const [isRelatedVersionsModalOpen, setIsRelatedVersionsModalOpen] =
     useState(false);
   const { settings } = useSettings();
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
@@ -338,7 +341,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    console.log("[DragDebug] Drop event", {
+    console.debug("[DragDebug] Drop event", {
       fileCount: e.dataTransfer.files.length,
       target: e.target,
       currentTarget: e.currentTarget,
@@ -356,38 +359,38 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
     // Process dropped files
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      console.log(
+      console.debug(
         "[DragDebug] Processing dropped files:",
         e.dataTransfer.files.length,
       );
       const fileNames = Array.from(e.dataTransfer.files)
         .map((f) => f.name)
         .join(", ");
-      console.log("[DragDebug] Dropped file names:", fileNames);
+      console.debug("[DragDebug] Dropped file names:", fileNames);
 
       handleAddFiles(e.dataTransfer.files);
     } else {
-      console.log("[DragDebug] Drop event contained no files");
+      console.debug("[DragDebug] Drop event contained no files");
     }
   };
 
   // Enhanced file processing with better logging
   const handleAddFiles = (files: FileList) => {
-    console.log("Processing dropped/selected files:", files.length);
+    console.debug("Processing dropped/selected files:", files.length);
     const imageFiles = Array.from(files).filter((file) => {
       const isImage = file.type.startsWith("image/");
-      console.log(
+      console.debug(
         `File: ${file.name}, type: ${file.type}, is image: ${isImage}`,
       );
       return isImage;
     });
 
-    console.log("Image files found:", imageFiles.length);
+    console.debug("Image files found:", imageFiles.length);
     if (imageFiles.length > 0) {
       const newAttachments: Attachment[] = imageFiles.map((file, index) => {
         const id = `file-${Date.now()}-${index}`;
         const previewUrl = URL.createObjectURL(file);
-        console.log(
+        console.debug(
           `Created attachment: ${id}, ${file.name}, preview URL created`,
         );
 
@@ -404,7 +407,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       setAttachments(updatedAttachments);
 
       // Debounce the save operation to avoid race conditions
-      console.log(`Saving ${updatedAttachments.length} attachments`);
+      console.debug(`Saving ${updatedAttachments.length} attachments`);
       // CRITICAL FIX for Issue #9: Don't save drafts for published notes
       if (status !== "published") {
         onSave(content, labelId || "", updatedAttachments);
@@ -481,7 +484,11 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     }
   };
 
-  const openThumbnailModal = () => {
+  const openThumbnailModal = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (thumbnailId) {
       setIsModalOpen(true);
     }
@@ -493,6 +500,16 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   const handleVersionDetailsPanelToggle = () => {
     setIsVersionDetailsPanelOpen((open) => !open);
+  };
+
+  const handleRelatedVersionsToggle = () => {
+    setIsRelatedVersionsModalOpen(true);
+  };
+
+  const handleRelatedVersionsSelect = (versions: AssetVersion[]) => {
+    // The RelatedVersionsModal handles the actual playlist addition
+    // This callback is called after successful addition for any additional handling
+    console.debug(`[NoteInput] ${versions.length} related versions were added to playlist`);
   };
 
   // Fetch projectId for this asset version
@@ -587,17 +604,40 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              {/* Three-button group: Related | Info | ftrack */}
               <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center hover:bg-blue-100 dark:hover:bg-blue-900"
-                  onClick={handleVersionDetailsPanelToggle}
-                  title="Version Details"
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
+                <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-purple-100 dark:hover:bg-purple-900"
+                    onClick={handleRelatedVersionsToggle}
+                    title="Related Versions"
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
+                    onClick={handleVersionDetailsPanelToggle}
+                    title="Version Details"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
+                    onClick={handleOpenInFtrack}
+                    title="Open in ftrack"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Version Details Panel - positioned outside button group to avoid clipping */}
                 {isVersionDetailsPanelOpen && (
                   <VersionDetailsPanel
                     assetVersionId={assetVersionId}
@@ -606,15 +646,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   />
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center hover:bg-purple-100 dark:hover:bg-purple-900"
-                onClick={handleOpenInFtrack}
-                title="Open in ftrack"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
+              
+              {/* Remove button if manually added */}
               {manuallyAdded && (
                 <Button
                   variant="ghost"
@@ -724,6 +757,15 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             thumbnailId={thumbnailId}
           />
         )}
+
+        {/* Related Versions Modal */}
+        <RelatedVersionsModal
+          isOpen={isRelatedVersionsModalOpen}
+          onClose={() => setIsRelatedVersionsModalOpen(false)}
+          currentAssetVersionId={assetVersionId}
+          currentVersionName={versionName}
+          onVersionsSelect={handleRelatedVersionsSelect}
+        />
       </div>
     </div>
   );

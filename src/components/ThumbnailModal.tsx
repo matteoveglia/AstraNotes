@@ -151,7 +151,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
     setShowVideo(false);
   };
 
-  const handleThumbnailError = () => {
+  const _handleThumbnailError = () => {
     // If thumbnail fails to load, try to refresh it
     if (thumbnailId && !isRefreshingThumbnail) {
       refreshThumbnailIfNeeded();
@@ -161,9 +161,46 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
   // Show modal if we have a thumbnailId or if we're showing video
   if (!thumbnailId && !showVideo) return null;
 
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Prevent any potential event bubbling when closing
+      setTimeout(() => {
+        onClose();
+      }, 0);
+    }
+  };
+
+  const handleOutsideClick = (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Use setTimeout to ensure the close happens after any potential parent event handlers
+    setTimeout(() => {
+      onClose();
+    }, 0);
+  };
+
+  const handleInteractOutside = (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const handleEscapeKeyDown = (e: KeyboardEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Use setTimeout to ensure the close happens after any potential parent event handlers
+    setTimeout(() => {
+      onClose();
+    }, 0);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-full">
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+      <DialogContent 
+        className="max-w-5xl w-full"
+        onPointerDownOutside={handleOutsideClick}
+        onInteractOutside={handleInteractOutside}
+        onEscapeKeyDown={handleEscapeKeyDown}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
             <span className="select-text">
@@ -263,7 +300,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
                   title={`${versionName} - v${versionNumber}`}
                   className="w-full max-h-[70vh]"
                   onError={handleVideoError}
-                  onLoad={() => console.log("Video loaded successfully")}
+                  onLoad={() => console.debug("Video loaded successfully")}
                 />
               </motion.div>
             )}

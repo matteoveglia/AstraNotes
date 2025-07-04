@@ -33,7 +33,7 @@ interface Status {
 
 interface StatusPanelData {
   versionId: string;
-  versionStatusId: string;
+  versionStatusId?: string;
   taskId?: string;
   taskStatusId?: string;
   parentId?: string;
@@ -46,7 +46,7 @@ const DEBUG = false; // Reduced logging for better performance
 
 function log(...args: any[]) {
   if (DEBUG) {
-    console.log("[FtrackService]", ...args);
+    console.debug("[FtrackService]", ...args);
   }
 }
 
@@ -1332,7 +1332,7 @@ export class FtrackService {
    * Get the HTTP API key from the API
    */
   private async getApiKey(session: Session, username: string) {
-    console.log("Getting API key for user:", username);
+    log("Getting API key for user:", username);
 
     try {
       // Get the server location - using safer query approach
@@ -1345,18 +1345,18 @@ export class FtrackService {
         serverLocationQuery.data[0];
 
       if (!serverLocation) {
-        console.log("Trying alternative query for server location...");
+        log("Trying alternative query for server location...");
         // Try alternative approach to get the server location
         try {
           const locationsQuery = await session.query("select Location");
-          console.log(`Found ${locationsQuery.data.length} locations`);
+          log(`Found ${locationsQuery.data.length} locations`);
 
           serverLocation = locationsQuery.data.find(
             (loc: any) => loc.name === "ftrack.server",
           );
 
           if (serverLocation) {
-            console.log(
+            log(
               "Found server location via alternative query:",
               serverLocation.id,
             );
@@ -1555,10 +1555,10 @@ export class FtrackService {
    * Fetch all necessary data for the status panel
    */
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
-    try {
-      const session = await this.getSession();
-      if (!session) throw new Error("No active ftrack session");
+    const session = await this.ensureSession();
+    log("Fetching status panel data for asset version:", assetVersionId);
 
+    try {
       // Fetch the asset version and its parent shot with their status IDs
       const query = `select 
         id,
@@ -1590,7 +1590,10 @@ export class FtrackService {
         projectId: parent.project.id,
       };
     } catch (error) {
-      console.error("Error fetching status panel data:", error);
+      safeConsoleError(
+        `[FtrackService] Failed to fetch status panel data for version ${assetVersionId}`,
+        error,
+      );
       throw error;
     }
   }
@@ -2199,6 +2202,25 @@ export class FtrackService {
       log("Failed to fetch version details:", error);
       throw error;
     }
+  }
+
+  async getStatusesForObjectType(objectTypeName: string): Promise<Status[]> {
+    await this.ensureStatusMappingsInitialized();
+    
+    // Find the object type id
+    const objectType = this.allWorkflowSchemas.find(
+      (ot) => ot.name === objectTypeName,
+    );
+    if (!objectType) {
+      console.warn(`[FtrackService] Object type "${objectTypeName}" not found.`);
+      return [];
+    }
+    
+    // In our simplified model, we assume all AssetVersion statuses are shared
+    // across all projects for now. We can refine this later if needed.
+    const assetVersionStatuses = this.schemaStatusMapping['__shared__']?.[objectType.id];
+    
+    return assetVersionStatuses || [];
   }
 }
 
