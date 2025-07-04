@@ -411,6 +411,11 @@ const App: React.FC = () => {
     setActivePlaylist,
   ]);
 
+  // Keep local openPlaylists in sync with project switches (temporary until Phase 2.3 refactor)
+  useEffect(() => {
+    setOpenPlaylists(["quick-notes"]);
+  }, [selectedProjectId]);
+
   const handlePlaylistSelect = async (playlistId: string) => {
     console.log(`Selecting playlist: ${playlistId}`);
     console.log(`Current openPlaylists before:`, openPlaylists);

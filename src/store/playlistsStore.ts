@@ -12,6 +12,7 @@ import { create } from "zustand";
 import { Playlist } from "@/types";
 import { ftrackService } from "../services/ftrack";
 import { db } from "./db";
+import { useProjectStore } from "./projectStore";
 
 const QUICK_NOTES_PLAYLIST: Playlist = {
   id: "quick-notes",
@@ -37,20 +38,39 @@ interface PlaylistsState {
   setActivePlaylist: (playlistId: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
+  // New Phase-2 actions
+  fetchPlaylists: (projectId?: string | null) => Promise<void>;
+  fetchVersionsForPlaylist: (playlistId: string) => Promise<void>;
+  openPlaylist: (playlistId: string) => void;
+  closePlaylist: (playlistId: string) => void;
   loadPlaylists: (projectId?: string | null) => Promise<{
     deletedPlaylists?: Array<{ id: string; name: string }>;
   }>;
   updatePlaylist: (playlistId: string) => Promise<void>;
   cleanupLocalPlaylists: () => Promise<void>;
   debugLocalPlaylists: () => Promise<void>;
-  // PHASE-1 scaffolding – placeholder actions (unused until Phase 2)
-  fetchPlaylists: (projectId?: string | null) => Promise<void>;
-  fetchVersionsForPlaylist: (playlistId: string) => Promise<void>;
-  openPlaylist: (playlistId: string) => void;
-  closePlaylist: (playlistId: string) => void;
 }
 
-export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
+export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
+  // Subscribe to project changes *inside* the create call so we have access to get()
+  useProjectStore.subscribe(
+    (state) => state.selectedProjectId,
+    (newProjectId, oldProjectId) => {
+      if (newProjectId && newProjectId !== oldProjectId) {
+        // Reset open playlists and status maps for new project context
+        set({
+          activePlaylistId: "quick-notes",
+          openPlaylistIds: ["quick-notes"],
+          playlistStatus: {},
+        });
+        get().fetchPlaylists(newProjectId).catch((e) => {
+          console.error("[PlaylistsStore] Failed to fetch playlists for project switch", e);
+        });
+      }
+    },
+  );
+
+  return {
   playlists: [QUICK_NOTES_PLAYLIST],
   activePlaylistId: "quick-notes",
   isLoading: false,
@@ -93,18 +113,51 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 
-  // PHASE-1 scaffolding – placeholder actions (currently unused)
-  fetchPlaylists: async () => {
-    throw new Error("Not Implemented: fetchPlaylists (Phase 2)");
+  // Phase-2: new high-level actions
+  fetchPlaylists: async (projectId?: string | null) => {
+    // Delegate to existing loadPlaylists for now, but expose via new API
+    try {
+      set({ isLoading: true });
+      await get().loadPlaylists(projectId);
+    } finally {
+      set({ isLoading: false });
+    }
   },
-  fetchVersionsForPlaylist: async () => {
-    throw new Error("Not Implemented: fetchVersionsForPlaylist (Phase 2)");
+
+  fetchVersionsForPlaylist: async (playlistId: string) => {
+    const { playlistStatus } = get();
+    // Prevent duplicate loads
+    if (playlistStatus[playlistId] === "loading") return;
+
+    // Optimistically set status to loading
+    set((state) => ({
+      playlistStatus: { ...state.playlistStatus, [playlistId]: "loading" },
+    }));
+
+    try {
+      await get().updatePlaylist(playlistId);
+      set((state) => ({
+        playlistStatus: { ...state.playlistStatus, [playlistId]: "loaded" },
+      }));
+    } catch (e) {
+      console.error("[PlaylistsStore] Failed to fetch versions for", playlistId, e);
+      set((state) => ({
+        playlistStatus: { ...state.playlistStatus, [playlistId]: "error" },
+      }));
+    }
   },
-  openPlaylist: () => {
-    throw new Error("Not Implemented: openPlaylist (Phase 2)");
+
+  openPlaylist: (playlistId: string) => {
+    set((state) => {
+      if (state.openPlaylistIds.includes(playlistId)) return {} as any;
+      return { openPlaylistIds: [...state.openPlaylistIds, playlistId] };
+    });
   },
-  closePlaylist: () => {
-    throw new Error("Not Implemented: closePlaylist (Phase 2)");
+
+  closePlaylist: (playlistId: string) => {
+    set((state) => ({
+      openPlaylistIds: state.openPlaylistIds.filter((id) => id !== playlistId),
+    }));
   },
 
   loadPlaylists: async (projectId?: string | null) => {
@@ -750,7 +803,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => ({
       console.error("❌ Failed to debug local playlists:", error);
     }
   },
-}));
+  };
+});
 
 // Make debugging functions available globally
 if (typeof window !== "undefined") {
@@ -758,4 +812,7 @@ if (typeof window !== "undefined") {
     usePlaylistsStore.getState().debugLocalPlaylists();
   (window as any).cleanupLocalPlaylists = () =>
     usePlaylistsStore.getState().cleanupLocalPlaylists();
+
+  // Expose full store for debugging (Phase 2 support)
+  (window as any).usePlaylistsStore = usePlaylistsStore;
 }
