@@ -5,12 +5,12 @@
  * @component
  */
 
-import React, { useState, useEffect, useMemo, useDeferredValue, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
 import { relatedVersionsService, VersionStatus, ShotStatus } from "@/services/relatedVersionsService";
-import { Grid, List, Search, Filter, Loader2, ChevronLeft, ChevronRight, CircleSlash, X } from "lucide-react";
+import { Grid, List as ListIcon, Search, Filter, Loader2, ChevronLeft, ChevronRight, CircleSlash, X, ChevronsUpDown } from "lucide-react";
 import { Input } from "./ui/input";
 import {
   Select,
@@ -62,6 +62,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   const [selectedAcrossPages, setSelectedAcrossPages] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [progressiveLoading, setProgressiveLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0); // 0–100 for Phase 6.1
   const [error, setError] = useState<string | null>(null);
   
   // View state
@@ -103,7 +104,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   }, [currentVersionName]);
 
   // Sort info coming from list view
-  const [sortInfo, setSortInfo] = useState<{ field: string; direction: 'asc' | 'desc' }>({
+  const [sortInfo, setSortInfo] = useState<{ field: 'name' | 'version' | 'publishedBy' | 'updatedAt'; direction: 'asc' | 'desc' }>({
     field: 'updatedAt',
     direction: 'desc',
   });
@@ -266,23 +267,43 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       
       console.debug(`[RelatedVersionsModal] Showing ${sortedVersions.length} related versions with basic data`);
       
-      // Start progressive loading for additional data
+      // Start progressive loading for additional data (Phase 6.1)
       if (sortedVersions.length > 0) {
         setProgressiveLoading(true);
-        
+        setLoadingProgress(0);
+
         try {
-          // Fetch available statuses first (needed for dropdowns)
+          // Step 1 – fetch available statuses (10%)
           await fetchAvailableStatusesForVersions(sortedVersions);
-          
-          // Then progressively load version details and statuses
-          await batchFetchVersionData(sortedVersions.map(v => v.id));
-          
+          setLoadingProgress(10);
+
+          // Prepare IDs
+          const versionIds = sortedVersions.map(v => v.id);
+
+          // Step 2 – version details (40%)
+          const details = await relatedVersionsService.batchFetchVersionDetails(versionIds);
+          setVersionDataCache(prev => ({ ...prev, details: { ...prev.details, ...details } }));
+          setLoadingProgress(40);
+
+          // Step 3 – version statuses (70%)
+          const statuses = await relatedVersionsService.batchFetchVersionStatuses(versionIds);
+          setVersionDataCache(prev => ({ ...prev, statuses: { ...prev.statuses, ...statuses } }));
+          setLoadingProgress(70);
+
+          // Step 4 – shot statuses (100%)
+          const shotStatuses = await relatedVersionsService.batchFetchShotStatuses(versionIds);
+          setVersionDataCache(prev => ({ ...prev, shotStatuses: { ...prev.shotStatuses, ...shotStatuses } }));
+          setLoadingProgress(100);
+
           console.debug("[RelatedVersionsModal] Progressive loading completed");
         } catch (progressiveError) {
           console.warn("[RelatedVersionsModal] Progressive loading failed:", progressiveError);
           // Don't set error state - basic functionality still works
         } finally {
-          setProgressiveLoading(false);
+          // Allow a brief moment for 100% to be visible before fading out
+          setTimeout(() => {
+            setProgressiveLoading(false);
+          }, 400);
         }
       }
       
@@ -317,6 +338,36 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     return filtered;
   }, [relatedVersions, deferredSearchTerm, statusFilter, versionDataCache.statuses]);
 
+  // Apply sorting globally so both grid & list views respect the same order (Phase 6.2)
+  const sortedFilteredVersions = useMemo(() => {
+    const versions = [...filteredVersions];
+    const { field, direction } = sortInfo;
+
+    const getValue = (v: AssetVersion) => {
+      switch (field) {
+        case 'name':
+          return v.name.toLowerCase();
+        case 'version':
+          return v.version;
+        case 'publishedBy':
+          return (v.user?.username || '').toLowerCase();
+        case 'updatedAt':
+        default:
+          return new Date(v.updatedAt).getTime();
+      }
+    };
+
+    versions.sort((a, b) => {
+      const aVal = getValue(a);
+      const bVal = getValue(b);
+      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return versions;
+  }, [filteredVersions, sortInfo]);
+
   // Reset page to 1 when search or filter changes.
   useEffect(() => {
     if (pagination.currentPage !== 1) {
@@ -332,12 +383,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     setPagination(prev => ({ ...prev, totalItems: filteredVersions.length }));
   }, [filteredVersions]);
   
-  // Paginate the filtered versions
+  // Paginate the filtered & sorted versions
   const paginatedVersions = useMemo(() => {
     const startIndex = (pagination.currentPage - 1) * pagination.pageSize;
     const endIndex = startIndex + pagination.pageSize;
-    return filteredVersions.slice(startIndex, endIndex);
-  }, [filteredVersions, pagination.currentPage, pagination.pageSize]);
+    return sortedFilteredVersions.slice(startIndex, endIndex);
+  }, [sortedFilteredVersions, pagination.currentPage, pagination.pageSize]);
 
   // Summary text for pagination toolbar (Phase 5.6)
   const summaryText = useMemo(() => {
@@ -485,6 +536,22 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Related Versions for Shot: {shotName}</span>
             <div className="flex items-center gap-2 mr-8">
+              {/* Progressive loading pill (Phase 6.1) */}
+              <AnimatePresence>
+                {progressiveLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 text-xs font-medium px-3 py-1 rounded-full"
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>{`Loading Additional Data (${loadingProgress}%)`}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* View mode toggle */}
               <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                 <Button
@@ -509,7 +576,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   onClick={() => handleViewModeChange('list')}
                   title="List View"
                 >
-                  <List className="h-4 w-4" />
+                  <ListIcon className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -613,17 +680,51 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Sort dropdown (Phase 6.2) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <ChevronsUpDown className="h-4 w-4" />
+                <span>Sort</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 mt-1">
+              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              {[
+                { field: 'name', label: 'Asset Name' },
+                { field: 'version', label: 'Version' },
+                { field: 'publishedBy', label: 'Published By' },
+                { field: 'updatedAt', label: 'Date' },
+              ].map(({ field, label }) => (
+                <React.Fragment key={field}>
+                  <DropdownMenuItem
+                    onClick={() => setSortInfo({ field: field as any, direction: 'asc' })}
+                    className={cn(
+                      'flex justify-between',
+                      sortInfo.field === field && sortInfo.direction === 'asc' && 'bg-zinc-100 dark:bg-zinc-800'
+                    )}
+                  >
+                    {label} (Asc)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSortInfo({ field: field as any, direction: 'desc' })}
+                    className={cn(
+                      'flex justify-between',
+                      sortInfo.field === field && sortInfo.direction === 'desc' && 'bg-zinc-100 dark:bg-zinc-800'
+                    )}
+                  >
+                    {label} (Desc)
+                  </DropdownMenuItem>
+                </React.Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Progressive loading indicator */}
-        {progressiveLoading && (
-          <div className="flex items-center justify-center py-2 bg-blue-50 dark:bg-blue-900/20 border-y border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Loading additional data...</span>
-            </div>
-          </div>
-        )}
+        {/* Progressive loading banner removed in favour of pill (Phase 6.1) */}
 
         {/* Content area */}
         <div className="flex-1 min-h-0 flex flex-col">
@@ -694,7 +795,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                         availableShotStatuses={availableShotStatuses}
                         versionDataCache={versionDataCache}
                         onSelectAll={handleSelectAll}
-                        onSortChange={(field: string, direction: 'asc' | 'desc') => setSortInfo({ field, direction })}
+                        onSortChange={(field: string, direction: 'asc' | 'desc') => setSortInfo({ field: field as any, direction })}
+                        sortInfo={sortInfo as any}
                       />
                     )}
                   </motion.div>

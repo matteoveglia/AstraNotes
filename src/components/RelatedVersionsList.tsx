@@ -32,6 +32,12 @@ interface RelatedVersionsListProps {
   onShotStatusUpdate?: (versionId: string, newStatusId: string) => void;
   loading?: boolean;
   className?: string;
+  /**
+   * Optional external sort information controlled by the parent (RelatedVersionsModal).
+   * When provided, the internal sortField / sortDirection will be synced
+   * to stay consistent with the parent-level sort dropdown (Phase 6.2).
+   */
+  sortInfo?: { field: SortField; direction: SortDirection };
 }
 
 type SortField = 'name' | 'version' | 'publishedBy' | 'updatedAt';
@@ -64,9 +70,24 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
   onShotStatusUpdate,
   loading = false,
   className,
+  sortInfo,
 }) => {
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Keep internal sort state in sync with any externally controlled sortInfo.
+  useEffect(() => {
+    if (!sortInfo) return;
+
+    if (sortInfo.field !== sortField) {
+      setSortField(sortInfo.field as SortField);
+    }
+
+    if (sortInfo.direction !== sortDirection) {
+      setSortDirection(sortInfo.direction as SortDirection);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortInfo]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
