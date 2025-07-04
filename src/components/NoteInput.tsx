@@ -341,7 +341,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    console.log("[DragDebug] Drop event", {
+    console.debug("[DragDebug] Drop event", {
       fileCount: e.dataTransfer.files.length,
       target: e.target,
       currentTarget: e.currentTarget,
@@ -359,38 +359,38 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
     // Process dropped files
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      console.log(
+      console.debug(
         "[DragDebug] Processing dropped files:",
         e.dataTransfer.files.length,
       );
       const fileNames = Array.from(e.dataTransfer.files)
         .map((f) => f.name)
         .join(", ");
-      console.log("[DragDebug] Dropped file names:", fileNames);
+      console.debug("[DragDebug] Dropped file names:", fileNames);
 
       handleAddFiles(e.dataTransfer.files);
     } else {
-      console.log("[DragDebug] Drop event contained no files");
+      console.debug("[DragDebug] Drop event contained no files");
     }
   };
 
   // Enhanced file processing with better logging
   const handleAddFiles = (files: FileList) => {
-    console.log("Processing dropped/selected files:", files.length);
+    console.debug("Processing dropped/selected files:", files.length);
     const imageFiles = Array.from(files).filter((file) => {
       const isImage = file.type.startsWith("image/");
-      console.log(
+      console.debug(
         `File: ${file.name}, type: ${file.type}, is image: ${isImage}`,
       );
       return isImage;
     });
 
-    console.log("Image files found:", imageFiles.length);
+    console.debug("Image files found:", imageFiles.length);
     if (imageFiles.length > 0) {
       const newAttachments: Attachment[] = imageFiles.map((file, index) => {
         const id = `file-${Date.now()}-${index}`;
         const previewUrl = URL.createObjectURL(file);
-        console.log(
+        console.debug(
           `Created attachment: ${id}, ${file.name}, preview URL created`,
         );
 
@@ -407,7 +407,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       setAttachments(updatedAttachments);
 
       // Debounce the save operation to avoid race conditions
-      console.log(`Saving ${updatedAttachments.length} attachments`);
+      console.debug(`Saving ${updatedAttachments.length} attachments`);
       // CRITICAL FIX for Issue #9: Don't save drafts for published notes
       if (status !== "published") {
         onSave(content, labelId || "", updatedAttachments);

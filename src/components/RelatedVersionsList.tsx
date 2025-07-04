@@ -51,8 +51,8 @@ const COL_WIDTH = {
   preview: "flex-shrink-0 w-16", // 64 px thumbnail preview
   name: "flex-1 min-w-0", // grows to fill remaining space
   version: "flex-shrink-0 w-20", // ~80 px
-  shotStatus: "flex-shrink-0 w-24", // ~96 px
-  versionStatus: "flex-shrink-0 w-32", // ~128 px
+  shotStatus: "flex-shrink-0 w-28", // ~112 px
+  versionStatus: "flex-shrink-0 w-36", // ~144 px
   publishedBy: "flex-shrink-0 w-32", // ~128 px
   date: "flex-shrink-0 w-24", // ~96 px
 } as const;
@@ -183,8 +183,8 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
             <div className="w-16 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="flex-1 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-20 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
-            <div className="w-24 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
-            <div className="w-32 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
+            <div className="w-28 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
+            <div className="w-36 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-32 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
             <div className="w-24 h-3 bg-zinc-300 dark:bg-zinc-600 rounded animate-pulse" />
           </div>
@@ -198,8 +198,8 @@ export const RelatedVersionsList: React.FC<RelatedVersionsListProps> = ({
                 <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4 animate-pulse" />
               </div>
               <div className="w-20 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
-              <div className="w-24 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
-              <div className="w-32 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+              <div className="w-28 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
+              <div className="w-36 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-32 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
               <div className="w-24 h-3 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
             </div>

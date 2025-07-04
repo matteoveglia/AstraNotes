@@ -164,7 +164,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
         </div>
 
         {/* Shot Status */}
-        <div className="flex-shrink-0 w-24">
+        <div className="flex-shrink-0 w-28 whitespace-normal">
           {isLoadingStatuses ? (
             <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
@@ -178,7 +178,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
         </div>
 
         {/* Version Status */}
-        <div className="flex-shrink-0 w-32">
+        <div className="flex-shrink-0 w-36 whitespace-normal">
           {isLoadingStatuses ? (
             <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (

@@ -46,7 +46,7 @@ const DEBUG = false; // Reduced logging for better performance
 
 function log(...args: any[]) {
   if (DEBUG) {
-    console.log("[FtrackService]", ...args);
+    console.debug("[FtrackService]", ...args);
   }
 }
 
@@ -1332,7 +1332,7 @@ export class FtrackService {
    * Get the HTTP API key from the API
    */
   private async getApiKey(session: Session, username: string) {
-    console.log("Getting API key for user:", username);
+    log("Getting API key for user:", username);
 
     try {
       // Get the server location - using safer query approach
@@ -1345,18 +1345,18 @@ export class FtrackService {
         serverLocationQuery.data[0];
 
       if (!serverLocation) {
-        console.log("Trying alternative query for server location...");
+        log("Trying alternative query for server location...");
         // Try alternative approach to get the server location
         try {
           const locationsQuery = await session.query("select Location");
-          console.log(`Found ${locationsQuery.data.length} locations`);
+          log(`Found ${locationsQuery.data.length} locations`);
 
           serverLocation = locationsQuery.data.find(
             (loc: any) => loc.name === "ftrack.server",
           );
 
           if (serverLocation) {
-            console.log(
+            log(
               "Found server location via alternative query:",
               serverLocation.id,
             );

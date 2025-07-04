@@ -300,7 +300,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
                   title={`${versionName} - v${versionNumber}`}
                   className="w-full max-h-[70vh]"
                   onError={handleVideoError}
-                  onLoad={() => console.log("Video loaded successfully")}
+                  onLoad={() => console.debug("Video loaded successfully")}
                 />
               </motion.div>
             )}

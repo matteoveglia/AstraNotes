@@ -45,7 +45,7 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({
             className
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {currentStatus?.color && (
               <div
                 className="w-2 h-2 rounded-full"
