@@ -88,6 +88,11 @@ Components and logic are organized by feature domain:
 - **Hooks**: useVersionSelection, useThumbnailLoading, useNoteManagement
 - **Purpose**: Version browsing, selection, and management
 
+### Related Versions Feature (`src/components` & `src/services`)
+- **Components**: RelatedVersionsModal, RelatedVersionsGrid, RelatedVersionsList, RelatedVersionItem, StatusSelector
+- **Services**: relatedVersionsService (progressive data fetching & caching)
+- **Purpose**: Display all asset versions that share the same shot as the current version, with powerful search, filtering, status editing, and multi-select capabilities. Versions can be added directly to the active playlist.
+
 ## Custom Hooks (`src/hooks`)
 
 ### Core Application Hooks
@@ -192,6 +197,15 @@ Handles file uploads and attachment management with multiple upload strategies.
 - **Error Recovery**: Multiple fallback strategies
 - **Metadata Handling**: Automatic image dimension extraction
 - **Platform Support**: Works with both File objects and Tauri file paths
+
+### `relatedVersionsService.ts` (`RelatedVersionsService`)
+
+Provides progressive data fetching and caching for related versions.
+
+- **Caching**: Uses a `Map` (`relatedVersionsCache`) to store fetched related versions, keyed by `playlistId-versionId`.
+- **`fetchRelatedVersions(playlistId, versionId, options?)`**: Fetches related versions for a specific version, including pagination and caching.
+- **`clearRelatedVersionsCache(playlistId, versionId)`**: Clears the cache for a specific version.
+- **`getRelatedVersions(playlistId, versionId)`**: Retrieves cached related versions or fetches them if not available.
 
 ### Additional Services
 
