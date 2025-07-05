@@ -9,14 +9,12 @@ import { ftrackService } from "./services/ftrack";
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useProjectStore } from "./store/projectStore";
 import { playlistStore } from "./store/playlist";
-import { ToastProvider } from "./components/ui/toast";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useThemeManager } from "./hooks/useThemeManager";
 import { useAppInitializer } from "./hooks/useAppInitializer";
 import { useAppEventListeners } from "./hooks/useAppEventListeners";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
-import { SyncConflictManager } from "./features/playlists/components";
 
 const App: React.FC = () => {
   // Initialise cross-cutting hooks (moved out of this component)
@@ -545,10 +543,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <ToastProvider>
-      <SyncConflictManager />
-      <ErrorBoundary>
-        <div className="h-screen flex flex-col select-none">
+    <div className="h-screen flex flex-col select-none">
           <TopBar
             onLoadPlaylists={async () => {
               // CRITICAL FIX: Get current project ID for manual reload
@@ -650,9 +645,7 @@ const App: React.FC = () => {
               />
             </div>
           </div>
-        </div>
-      </ErrorBoundary>
-    </ToastProvider>
+    </div>
   );
 };
 

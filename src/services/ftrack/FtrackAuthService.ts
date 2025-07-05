@@ -21,8 +21,8 @@ export class FtrackAuthService {
    * NOTE: New code should avoid depending directly on the Session.
    */
   async getSession() {
-    // @ts-expect-error internal api
-    return ftrackService.getSession();
+    // Accessing a private method on the legacy service – cast to `any` while we complete the migration.
+    return (ftrackService as any).getSession();
   }
 }
 
