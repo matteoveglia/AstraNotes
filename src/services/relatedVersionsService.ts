@@ -5,7 +5,8 @@
  */
 
 import { AssetVersion } from "@/types";
-import { ftrackService } from "./ftrack";
+import { ftrackVersionService } from "./ftrack/FtrackVersionService";
+import { ftrackStatusService } from "./ftrack/FtrackStatusService";
 
 export interface VersionStatus {
   id: string;
@@ -131,7 +132,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
 
     try {
       // Use the existing search functionality to find versions matching the shot name
-      const versions = await ftrackService.searchVersions({
+      const versions = await ftrackVersionService.searchVersions({
         searchTerm: shotName,
         limit: 1000, // Get a large number to capture all related versions
       });
@@ -177,10 +178,10 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
         try {
           // This call returns status IDs, we need to resolve them to status objects
           const statusData =
-            await ftrackService.fetchStatusPanelData(versionId);
+            await ftrackStatusService.fetchStatusPanelData(versionId);
           if (statusData && statusData.versionStatusId) {
             // Use the working getStatusesForEntity method instead of getStatusesForObjectType
-            const allStatuses = await ftrackService.getStatusesForEntity(
+            const allStatuses = await ftrackStatusService.getStatusesForEntity(
               "AssetVersion",
               versionId,
             );
@@ -232,17 +233,12 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
         try {
           // This call returns status IDs, we need to resolve them to status objects
           const statusData =
-            await ftrackService.fetchStatusPanelData(versionId);
-          if (
-            statusData &&
-            statusData.parentStatusId &&
-            statusData.parentType &&
-            statusData.parentId
-          ) {
-            // Use the working getStatusesForEntity method with the parent entity ID
-            const allStatuses = await ftrackService.getStatusesForEntity(
+            await ftrackStatusService.fetchStatusPanelData(versionId);
+          if (statusData && statusData.parentStatusId && statusData.parentType) {
+            // Use the working getStatusesForEntity method instead of getStatusesForObjectType
+            const allStatuses = await ftrackStatusService.getStatusesForEntity(
               statusData.parentType,
-              statusData.parentId,
+              statusData.parentId || versionId,
             );
             const statusObj = allStatuses.find(
               (s) => s.id === statusData.parentStatusId,
@@ -277,21 +273,22 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
    */
   async fetchAllVersionStatuses(versionId: string): Promise<VersionStatus[]> {
     console.debug(
-      "[RelatedVersionsService] Fetching all version statuses for version:",
+      "[RelatedVersionsService] Fetching all version statuses for:",
       versionId,
     );
+
     try {
-      // Use the working getStatusesForEntity method with a specific version ID
-      return await ftrackService.getStatusesForEntity(
+      const statuses = await ftrackStatusService.getStatusesForEntity(
         "AssetVersion",
         versionId,
       );
+      return statuses;
     } catch (error) {
       console.error(
-        "[RelatedVersionsService] Failed to fetch all version statuses:",
+        "[RelatedVersionsService] Failed to fetch version statuses:",
         error,
       );
-      throw error;
+      return [];
     }
   }
 
@@ -301,18 +298,22 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
    */
   async fetchAllShotStatuses(shotId: string): Promise<ShotStatus[]> {
     console.debug(
-      "[RelatedVersionsService] Fetching all shot statuses for shot:",
+      "[RelatedVersionsService] Fetching all shot statuses for:",
       shotId,
     );
+
     try {
-      // Use the working getStatusesForEntity method with a specific shot ID
-      return await ftrackService.getStatusesForEntity("Shot", shotId);
+      const statuses = await ftrackStatusService.getStatusesForEntity(
+        "Shot",
+        shotId,
+      );
+      return statuses;
     } catch (error) {
       console.error(
-        "[RelatedVersionsService] Failed to fetch all shot statuses:",
+        "[RelatedVersionsService] Failed to fetch shot statuses:",
         error,
       );
-      throw error;
+      return [];
     }
   }
 
@@ -323,7 +324,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     versionIds: string[],
   ): Promise<Record<string, VersionDetails>> {
     console.debug(
-      "[RelatedVersionsService] Batch fetching details for",
+      "[RelatedVersionsService] Batch fetching version details for",
       versionIds.length,
       "versions",
     );
@@ -335,8 +336,9 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
-          const versionDetails =
-            await ftrackService.fetchVersionDetails(versionId);
+          const versionDetails = await ftrackVersionService.fetchVersionDetails(
+            versionId,
+          );
           details[versionId] = versionDetails;
         } catch (error) {
           console.warn(

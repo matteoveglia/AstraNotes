@@ -5,6 +5,8 @@ import type {
   SyncVersionsResponse,
   CreatePlaylistRequest,
   CreatePlaylistResponse,
+  Project,
+  AssetVersion,
 } from "@/types";
 
 /**
@@ -20,6 +22,14 @@ import type {
  * dedicated services.
  */
 export class FtrackPlaylistService {
+  /*
+   * Project Management
+   * ------------------------------------------------------------------
+   */
+  async getProjects(): Promise<Project[]> {
+    return ftrackService.getProjects();
+  }
+
   /*
    * Review Sessions ("playlists" in ftrack terminology)
    * ------------------------------------------------------------------
@@ -76,6 +86,13 @@ export class FtrackPlaylistService {
     playlistType: "reviewsession" | "list" = "reviewsession",
   ): Promise<SyncVersionsResponse> {
     return ftrackService.addVersionsToPlaylist(playlistId, versionIds, playlistType);
+  }
+
+  /*
+   * Get versions for a specific playlist.
+   */
+  async getPlaylistVersions(playlistId: string): Promise<AssetVersion[]> {
+    return ftrackService.getPlaylistVersions(playlistId);
   }
 }
 

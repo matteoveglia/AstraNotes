@@ -1,6 +1,12 @@
 import { ftrackService } from "../ftrack";
 import type { Attachment } from "@/components/NoteAttachments";
 
+interface Label {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export class FtrackNoteService {
   /**
    * Publish a simple text note to an AssetVersion in ftrack.
@@ -34,8 +40,25 @@ export class FtrackNoteService {
   /**
    * Get available note labels (cached by the underlying service).
    */
-  async getNoteLabels() {
+  async getNoteLabels(): Promise<Label[]> {
     return ftrackService.getNoteLabels();
+  }
+
+  /**
+   * Publish a note with attachments using the API.
+   */
+  async publishNoteWithAttachmentsAPI(
+    versionId: string,
+    content: string,
+    attachments: any[],
+    labelId?: string,
+  ): Promise<string | null> {
+    return ftrackService.publishNoteWithAttachmentsAPI(
+      versionId,
+      content,
+      labelId || "",
+      attachments,
+    );
   }
 }
 

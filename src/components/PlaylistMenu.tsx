@@ -30,10 +30,10 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { ThumbnailReloadModal } from "./ThumbnailReloadModal";
-import { ftrackService } from "../services/ftrack";
 import { usePlaylistsStore } from "../store/playlistsStore";
 import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
+import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
 
 interface PlaylistMenuProps {
   onClearAllNotes: () => void;
@@ -62,7 +62,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   useEffect(() => {
     const fetchLabels = async () => {
       try {
-        const noteLabels = await ftrackService.getNoteLabels();
+        const noteLabels = await ftrackNoteService.getNoteLabels();
         setLabels(noteLabels);
       } catch (error) {
         console.error("Failed to fetch note labels:", error);

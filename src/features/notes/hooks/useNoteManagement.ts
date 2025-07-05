@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { Playlist, NoteStatus } from "@/types";
 import { playlistStore } from "@/store/playlist";
 import { db, type NoteAttachment } from "@/store/db";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
 import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
 import { useErrorHandler, categorizeError } from "@/utils/errorHandling";
@@ -617,11 +617,11 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`,
             );
 
-            const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
+            const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
               versionId,
               content,
-              labelId,
               attachments,
+              labelId,
             );
 
             if (noteId) {
@@ -783,11 +783,11 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing ALL notes - version ${versionId} with ${attachments.length} attachments and labelId: "${labelId}"`,
             );
 
-            const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
+            const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
               versionId,
               content,
-              labelId,
               attachments,
+              labelId,
             );
 
             if (noteId) {
@@ -930,11 +930,11 @@ export function useNoteManagement(playlist: Playlist) {
           `[useNoteManagement] Publishing note for ${versionId} (${versionDisplay}) with ${attachments.length} attachments`,
         );
 
-        const noteId = await ftrackService.publishNoteWithAttachmentsAPI(
+        const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
           versionId,
           content,
-          labelId,
           attachments,
+          labelId,
         );
 
         if (noteId) {

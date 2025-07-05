@@ -41,7 +41,7 @@ import { PlaylistRepository } from "./PlaylistRepository";
 import { PlaylistCache } from "./PlaylistCache";
 import { PlaylistSync } from "./PlaylistSync";
 import { DraftManager } from "./DraftManager";
-import { FtrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import { PlaylistEntity, VersionEntity } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 import { usePlaylistsStore } from "../playlistsStore";
@@ -50,7 +50,7 @@ import { useSettings } from "../settingsStore";
 export class PlaylistStore extends SimpleEventEmitter {
   private repository = new PlaylistRepository();
   private cache = new PlaylistCache();
-  private ftrackService = new FtrackService();
+  private ftrackService = ftrackPlaylistService;
   private sync = new PlaylistSync(
     this.repository,
     this.cache,

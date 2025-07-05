@@ -13,7 +13,7 @@ import {
   PlaylistCategory,
   AssetVersion,
 } from "@/types";
-import { FtrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import { db } from "./db";
 import { playlistStore } from "./playlist";
 
@@ -49,7 +49,7 @@ interface PlaylistCreationState {
   invalidatePlaylistCache: (playlistId: string) => Promise<void>;
 }
 
-const ftrackService = new FtrackService();
+const ftrackService = ftrackPlaylistService;
 
 export const usePlaylistCreationStore = create<PlaylistCreationState>(
   (set, get) => ({
@@ -141,7 +141,7 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>(
     fetchCategories: async (projectId: string): Promise<void> => {
       set({ categoriesLoading: true });
       try {
-        const categories = await ftrackService.getListCategories(projectId);
+        const categories = await ftrackPlaylistService.getListCategories(projectId);
         set({ categories, categoriesLoading: false });
       } catch (error) {
         console.error("Failed to fetch categories:", error);

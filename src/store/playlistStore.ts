@@ -16,7 +16,7 @@ import {
   NoteStatus,
   CreatePlaylistRequest,
 } from "@/types";
-import { ftrackService } from "../services/ftrack";
+import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
 import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
 import Dexie from "dexie";
@@ -85,7 +85,7 @@ export class PlaylistStore {
   private isPolling = false;
   private currentPlaylistId: string | null = null;
   private activePollingIds: Set<string> = new Set();
-  private ftrackService = ftrackService;
+  private ftrackService = ftrackPlaylistService;
   private pollingCallback:
     | ((
         added: number,

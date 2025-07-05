@@ -5,7 +5,7 @@ import { OpenPlaylistsBar } from "./components/OpenPlaylistsBar";
 import { MainContent } from "./components/MainContent";
 import type { Playlist, AssetVersion } from "@/types";
 import { useWhatsNew } from "./hooks/useWhatsNew";
-import { ftrackService } from "./services/ftrack";
+
 import { usePlaylistsStore } from "./store/playlistsStore";
 import { useProjectStore } from "./store/projectStore";
 import { playlistStore } from "./store/playlist";
@@ -15,6 +15,7 @@ import { useAppInitializer } from "./hooks/useAppInitializer";
 import { useAppEventListeners } from "./hooks/useAppEventListeners";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
+import { ftrackPlaylistService } from "./services/ftrack/FtrackPlaylistService";
 
 const App: React.FC = () => {
   // Initialise cross-cutting hooks (moved out of this component)
@@ -256,7 +257,7 @@ const App: React.FC = () => {
         }
 
         // CRITICAL FIX: Use ftrackId for API call instead of database UUID
-        const ftrackVersions = await ftrackService.getPlaylistVersions(
+        const ftrackVersions = await ftrackPlaylistService.getPlaylistVersions(
           currentPlaylist.ftrackId,
         );
 

@@ -30,6 +30,13 @@ export class FtrackVersionService {
   async fetchVersionDetails(assetVersionId: string) {
     return ftrackService.fetchVersionDetails(assetVersionId);
   }
+
+  /**
+   * Get URL for a specific component.
+   */
+  async getComponentUrl(componentId: string): Promise<string | null> {
+    return ftrackService.getComponentUrl(componentId);
+  }
 }
 
 export const ftrackVersionService = new FtrackVersionService(); 

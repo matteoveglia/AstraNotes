@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Playlist, AssetVersion } from "@/types";
 import { playlistStore } from "@/store/playlist";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 
 interface Modifications {
   added: number;
@@ -301,7 +301,7 @@ export function usePlaylistModifications(
       // If we have pending versions, use those, otherwise fetch fresh ones
       const freshVersions =
         pendingVersions ||
-        (await ftrackService.getPlaylistVersions(playlist.ftrackId));
+        (await ftrackPlaylistService.getPlaylistVersions(playlist.ftrackId));
 
       // Create maps for quick lookup
       const freshVersionsMap = new Map(freshVersions.map((v) => [v.id, v]));
