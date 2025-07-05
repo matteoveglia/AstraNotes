@@ -31,7 +31,7 @@ interface PlaylistsState {
   activePlaylistId: string | null;
   isLoading: boolean;
   error: string | null;
-  // PHASE-1 scaffolding – new state fields (unused until Phase 2)
+  // Store state for open playlists and their loading status
   openPlaylistIds: string[];
   playlistStatus: Record<string, "idle" | "loading" | "loaded" | "error">;
   setPlaylists: (playlists: Playlist[]) => void;
@@ -59,7 +59,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
   activePlaylistId: "quick-notes",
   isLoading: false,
   error: null,
-  // PHASE-1 scaffolding – initialize new state fields
+  // Initialize open playlist state
   openPlaylistIds: [],
   playlistStatus: {},
 
