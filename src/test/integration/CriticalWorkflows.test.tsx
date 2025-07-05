@@ -7,25 +7,27 @@ import {
   TestConsoleHelpers,
 } from "../utils/testHelpers";
 
-// Mock ftrack service using factory function to avoid hoisting issues
-vi.mock("@/services/ftrack", () => {
-  const mockService = {
+// Mock new ftrack services
+vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
+  ftrackPlaylistService: {
     getPlaylistVersions: vi.fn(),
-    createPlaylist: vi.fn(),
-    updatePlaylist: vi.fn(),
+    getPlaylists: vi.fn(),
+    getLists: vi.fn(),
+    createReviewSession: vi.fn(),
     addVersionsToPlaylist: vi.fn(),
-    removeVersionFromPlaylist: vi.fn(),
-  };
+  },
+}));
 
-  return {
-    FtrackService: vi.fn().mockImplementation(() => mockService),
-    ftrackService: mockService,
-  };
-});
+vi.mock("@/services/ftrack/FtrackNoteService", () => ({
+  ftrackNoteService: {
+    publishNoteWithAttachmentsAPI: vi.fn(),
+  },
+}));
 
 // Import store AFTER setting up mocks
 import { playlistStore } from "@/store/playlist";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
+import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
 
 describe("Critical Workflows Integration Tests", () => {
   beforeEach(async () => {
@@ -75,7 +77,7 @@ describe("Critical Workflows Integration Tests", () => {
         await TestScenarios.setupRefreshScenario();
 
       // Mock ftrack to return fresh versions
-      vi.mocked(ftrackService.getPlaylistVersions).mockResolvedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
         freshVersions,
       );
 
@@ -84,10 +86,10 @@ describe("Critical Workflows Integration Tests", () => {
       expect(result.success).toBe(true);
 
       // Verify API was called with ftrackId, not database UUID
-      expect(ftrackService.getPlaylistVersions).toHaveBeenCalledWith(
+      expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
         "ftrack-123",
       );
-      expect(ftrackService.getPlaylistVersions).not.toHaveBeenCalledWith(
+      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalledWith(
         playlist.id,
       );
     });
@@ -176,6 +178,11 @@ describe("Critical Workflows Integration Tests", () => {
       const { playlist, versions, draftVersionId } =
         await TestScenarios.setupFtrackPlaylistWithContent();
 
+      // Mock the publish call
+      vi.mocked(ftrackNoteService.publishNoteWithAttachmentsAPI).mockResolvedValue(
+        "new-note-id",
+      );
+
       // Publish the note
       await playlistStore.publishNote(playlist.id, draftVersionId);
 
@@ -185,6 +192,16 @@ describe("Critical Workflows Integration Tests", () => {
         draftVersionId,
         "Test draft content", // content should remain
         "published", // status should change
+      );
+
+      // Verify note was published to ftrack
+      expect(
+        ftrackNoteService.publishNoteWithAttachmentsAPI,
+      ).toHaveBeenCalledWith(
+        draftVersionId,
+        "Test draft content",
+        expect.any(Array), // attachments
+        "label-123",
       );
     });
 
@@ -223,7 +240,7 @@ describe("Critical Workflows Integration Tests", () => {
       const freshFtrackVersions = TestDataFactory.createAssetVersions(1, {
         id: "fresh-version",
       });
-      vi.mocked(ftrackService.getPlaylistVersions).mockResolvedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
         freshFtrackVersions,
       );
 

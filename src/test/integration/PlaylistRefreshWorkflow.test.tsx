@@ -2,15 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
 import { playlistStore } from "@/store/playlist";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import type { Playlist, AssetVersion } from "@/types";
 
-// Mock ftrack service
-vi.mock("@/services/ftrack", () => ({
-  FtrackService: vi.fn().mockImplementation(() => ({
-    getPlaylistVersions: vi.fn(),
-  })),
-  ftrackService: {
+// Mock ftrackPlaylistService
+vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
+  ftrackPlaylistService: {
     getPlaylistVersions: vi.fn(),
   },
 }));
@@ -84,7 +81,7 @@ describe("Playlist Refresh Workflow Integration", () => {
   describe("Ftrack Playlist Refresh", () => {
     it("should successfully refresh ftrack playlist using ftrackId", async () => {
       // Mock the ftrack service to return updated versions
-      vi.mocked(ftrackService.getPlaylistVersions).mockResolvedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
         mockFtrackVersions,
       );
 
@@ -98,10 +95,10 @@ describe("Playlist Refresh Workflow Integration", () => {
       });
 
       // Verify ftrack API was called with ftrackId, not database UUID
-      expect(ftrackService.getPlaylistVersions).toHaveBeenCalledWith(
+      expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
         "ftrack-playlist-123",
       );
-      expect(ftrackService.getPlaylistVersions).not.toHaveBeenCalledWith(
+      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalledWith(
         "test-playlist-uuid",
       );
 
@@ -126,7 +123,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         ],
       };
 
-      vi.mocked(ftrackService.getPlaylistVersions).mockResolvedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
         mockFtrackVersions,
       );
 
@@ -141,13 +138,15 @@ describe("Playlist Refresh Workflow Integration", () => {
       // Should detect 2 added (new ftrack versions) and 1 removed (old version not in ftrack)
       expect(result.current.modifications.added).toBe(2);
       expect(result.current.modifications.removed).toBe(1);
-      expect(result.current.modifications.addedVersions).toEqual([
-        "version-1",
-        "version-2",
-      ]);
-      expect(result.current.modifications.removedVersions).toEqual([
-        "old-version",
-      ]);
+      const addedVersionIds = new Set(
+        (result.current.modifications.addedVersions || []).map((v) => v.id),
+      );
+      const removedVersionIds = new Set(
+        (result.current.modifications.removedVersions || []).map((v) => v.id),
+      );
+      expect(addedVersionIds.has("version-1")).toBe(true);
+      expect(addedVersionIds.has("version-2")).toBe(true);
+      expect(removedVersionIds.has("old-version")).toBe(true);
     });
 
     it("should preserve manually added versions during refresh", async () => {
@@ -167,7 +166,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         ],
       };
 
-      vi.mocked(ftrackService.getPlaylistVersions).mockResolvedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
         mockFtrackVersions,
       );
 
@@ -198,7 +197,7 @@ describe("Playlist Refresh Workflow Integration", () => {
       });
 
       // Should not call ftrack API for local playlists
-      expect(ftrackService.getPlaylistVersions).not.toHaveBeenCalled();
+      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalled();
 
       // Should log appropriate message
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -221,7 +220,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         expect(success).toBe(false);
       });
 
-      expect(ftrackService.getPlaylistVersions).not.toHaveBeenCalled();
+      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalled();
     });
   });
 
@@ -232,7 +231,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         .mockImplementation(() => {});
 
       // Mock API to throw error
-      vi.mocked(ftrackService.getPlaylistVersions).mockRejectedValue(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockRejectedValue(
         new Error("API Error"),
       );
 
@@ -257,7 +256,7 @@ describe("Playlist Refresh Workflow Integration", () => {
 
   describe("Refresh State Management", () => {
     it("should manage isRefreshing state correctly", async () => {
-      vi.mocked(ftrackService.getPlaylistVersions).mockImplementation(
+      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve(mockFtrackVersions), 10),

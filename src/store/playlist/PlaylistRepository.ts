@@ -6,6 +6,7 @@
 
 import { db, PlaylistRecord, VersionRecord } from "../db";
 import { PlaylistEntity, VersionEntity, PlaylistOperations } from "./types";
+import type { NoteAttachment } from "../db";
 
 export class PlaylistRepository implements PlaylistOperations {
   // =================== PLAYLIST CRUD ===================
@@ -160,6 +161,15 @@ export class PlaylistRepository implements PlaylistOperations {
     return records.map((record) => this.versionRecordToEntity(record));
   }
 
+  async getVersion(
+    playlistId: string,
+    versionId: string,
+  ): Promise<VersionEntity | null> {
+    const record = await db.versions.get([playlistId, versionId]);
+    if (!record) return null;
+    return this.versionRecordToEntity(record);
+  }
+
   async addVersionToPlaylist(
     playlistId: string,
     version: VersionEntity,
@@ -196,6 +206,20 @@ export class PlaylistRepository implements PlaylistOperations {
       `[PlaylistRepository] Updated version ${versionId} in playlist ${playlistId}`,
       updates,
     );
+  }
+
+  async getAttachmentsForVersion(
+    playlistId: string,
+    versionId: string,
+  ): Promise<NoteAttachment[]> {
+    const attachments = await db.attachments
+      .where({
+        playlistId: playlistId,
+        versionId: versionId,
+      })
+      .toArray();
+
+    return attachments; // Return full attachment objects
   }
 
   async removeVersionFromPlaylist(

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { usePlaylistsStore } from "@/store/playlistsStore";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import { createMockPlaylist } from "@/test/utils";
 
 // Mock the database with comprehensive methods
@@ -34,9 +34,9 @@ vi.mock("@/store/db", () => ({
   },
 }));
 
-// Mock ftrackService with all required methods
-vi.mock("@/services/ftrack", () => ({
-  ftrackService: {
+// Mock ftrackPlaylistService with all required methods
+vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
+  ftrackPlaylistService: {
     getPlaylists: vi.fn(() => Promise.resolve([])),
     getLists: vi.fn(() => Promise.resolve([])),
   },
@@ -73,8 +73,8 @@ describe("usePlaylistsStore", () => {
       notes: [],
     });
     const mockPlaylists = [mockPlaylist];
-    (ftrackService.getPlaylists as any).mockResolvedValue(mockPlaylists);
-    (ftrackService.getLists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(mockPlaylists);
+    (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     const promise = usePlaylistsStore.getState().loadPlaylists();
 
@@ -111,8 +111,8 @@ describe("usePlaylistsStore", () => {
       projectId: "test-project-id",
     });
     const mockPlaylists = [mockPlaylist];
-    (ftrackService.getPlaylists as any).mockResolvedValue(mockPlaylists);
-    (ftrackService.getLists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(mockPlaylists);
+    (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     const promise = usePlaylistsStore
       .getState()
@@ -132,8 +132,8 @@ describe("usePlaylistsStore", () => {
 
   it("loadPlaylists should set error on failure", async () => {
     const error = new Error("Failed to load");
-    (ftrackService.getPlaylists as any).mockRejectedValue(error);
-    (ftrackService.getLists as any).mockRejectedValue(error);
+    (ftrackPlaylistService.getPlaylists as any).mockRejectedValue(error);
+    (ftrackPlaylistService.getLists as any).mockRejectedValue(error);
 
     const promise = usePlaylistsStore.getState().loadPlaylists();
 
@@ -176,8 +176,8 @@ describe("usePlaylistsStore", () => {
       notes: [],
     });
     const freshList = [freshPlaylist];
-    (ftrackService.getPlaylists as any).mockResolvedValue(freshList);
-    (ftrackService.getLists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(freshList);
+    (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     await usePlaylistsStore.getState().updatePlaylist("p2");
 
@@ -188,8 +188,8 @@ describe("usePlaylistsStore", () => {
   });
 
   it("updatePlaylist should do nothing for quick-notes", async () => {
-    (ftrackService.getPlaylists as any).mockResolvedValue([]);
-    (ftrackService.getLists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     await usePlaylistsStore.getState().updatePlaylist("quick-notes");
 
@@ -221,8 +221,8 @@ describe("usePlaylistsStore", () => {
       notes: [],
     });
     const otherList = [otherPlaylist];
-    (ftrackService.getPlaylists as any).mockResolvedValue(otherList);
-    (ftrackService.getLists as any).mockResolvedValue([]);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(otherList);
+    (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     await usePlaylistsStore.getState().updatePlaylist("p3");
 

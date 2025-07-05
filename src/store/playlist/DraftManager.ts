@@ -4,6 +4,7 @@
  * Manages note status and content persistence tied to stable playlist UUIDs.
  */
 
+import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
 import { PlaylistRepository } from "./PlaylistRepository";
 import { DraftOperations } from "./types";
 
@@ -91,6 +92,29 @@ export class DraftManager implements DraftOperations {
       `[DraftManager] Publishing note for version ${versionId} in playlist ${playlistId}`,
     );
 
+    // 1. Get the current version data from the repository
+    const version = await this.repository.getVersion(playlistId, versionId);
+    if (!version || !version.draftContent) {
+      throw new Error(
+        `Draft for version ${versionId} in playlist ${playlistId} not found or is empty.`,
+      );
+    }
+
+    // 2. Get attachments for the version
+    const attachments = await this.repository.getAttachmentsForVersion(
+      playlistId,
+      versionId,
+    );
+
+    // 3. Call the ftrack API to publish the note
+    await ftrackNoteService.publishNoteWithAttachmentsAPI(
+      versionId,
+      version.draftContent,
+      attachments,
+      version.labelId,
+    );
+
+    // 4. Update the local status to "published"
     await this.repository.updateVersion(playlistId, versionId, {
       noteStatus: "published",
       lastModified: Date.now(),

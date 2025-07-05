@@ -2,26 +2,32 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { playlistStore } from "@/store/playlist";
 import type { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 import { db } from "@/store/db";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
+import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
 
-// Mock the UI store to simulate playlist existence checks
-const mockUIStore = {
-  playlists: [] as Playlist[],
-  getState: () => ({ playlists: mockUIStore.playlists }),
-};
-
-// Mock the ftrack service
-vi.mock("@/services/ftrack", () => ({
-  FtrackService: vi.fn().mockImplementation(() => ({
-    getPlaylistVersions: vi.fn(),
-  })),
-  ftrackService: {
+// Mock ftrack services
+vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
+  ftrackPlaylistService: {
     getPlaylistVersions: vi.fn(),
   },
 }));
-
-vi.mock("@/store/playlistsStore", () => ({
-  usePlaylistsStore: mockUIStore,
+vi.mock("@/services/ftrack/FtrackNoteService", () => ({
+  ftrackNoteService: {
+    publishNoteWithAttachmentsAPI: vi.fn(),
+  },
 }));
+
+// Mock the UI store to simulate playlist existence checks
+vi.mock("@/store/playlistsStore", () => {
+  const mockUIStore = {
+    playlists: [] as Playlist[],
+    getState: () => ({ playlists: mockUIStore.playlists }),
+  };
+  return {
+    usePlaylistsStore: mockUIStore,
+  };
+});
+let mockPlaylists: Playlist[] = [];
 
 describe("Playlist Store Integration Tests", () => {
   const sampleFtrackPlaylist: Playlist = {
@@ -66,7 +72,8 @@ describe("Playlist Store Integration Tests", () => {
     await db.versions.clear();
 
     // Reset mock UI store
-    mockUIStore.playlists = [];
+    const { usePlaylistsStore } = await import("@/store/playlistsStore");
+    (usePlaylistsStore as any).playlists = [];
 
     // Clear playlist store cache
     playlistStore.clearCache();
@@ -111,7 +118,8 @@ describe("Playlist Store Integration Tests", () => {
   describe("Ftrack Metadata Preservation", () => {
     it("should preserve ftrack metadata when creating database entry for ftrack playlist", async () => {
       // Simulate ftrack playlist existing in UI store
-      mockUIStore.playlists = [sampleFtrackPlaylist];
+      const { usePlaylistsStore } = await import("@/store/playlistsStore");
+      (usePlaylistsStore as any).playlists = [sampleFtrackPlaylist];
 
       // Trigger database entry creation by adding versions
       await playlistStore.addVersionsToPlaylist(
@@ -246,6 +254,14 @@ describe("Playlist Store Integration Tests", () => {
       await playlistStore.addVersionsToPlaylist("test-playlist", [
         sampleVersions[0],
       ]);
+
+      // Add a version with a draft
+      await playlistStore.saveDraft("test-playlist", "version-1", "Test content");
+
+      // Mock the ftrack publish call for this test suite
+      vi.mocked(ftrackNoteService.publishNoteWithAttachmentsAPI).mockResolvedValue(
+        "new-note-id",
+      );
     });
 
     it("should save and retrieve draft content", async () => {
@@ -291,17 +307,8 @@ describe("Playlist Store Integration Tests", () => {
     });
 
     it("should publish note and update status", async () => {
-      // Save draft first
-      await playlistStore.saveDraft(
-        "test-playlist",
-        "version-1",
-        "Test content",
-      );
-
-      // Publish note
       await playlistStore.publishNote("test-playlist", "version-1");
 
-      // Verify note status was updated
       const dbVersion = await db.versions.get(["test-playlist", "version-1"]);
       expect(dbVersion?.noteStatus).toBe("published");
     });
