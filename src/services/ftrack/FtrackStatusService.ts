@@ -1,4 +1,4 @@
-import { ftrackService } from "../ftrack";
+import { ftrackService } from "../legacy/ftrack";
 
 interface Status {
   id: string;

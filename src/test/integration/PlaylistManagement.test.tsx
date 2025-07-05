@@ -7,7 +7,7 @@ vi.mock("@/utils/menu", () => ({
 }));
 
 // Mock the ftrackService
-vi.mock("@/services/ftrack", () => ({
+vi.mock("@/services/legacy/ftrack", () => ({
   ftrackService: {
     getPlaylists: vi.fn().mockResolvedValue([]),
     getNoteLabels: vi.fn().mockResolvedValue([]),

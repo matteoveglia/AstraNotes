@@ -1,4 +1,4 @@
-import { ftrackService } from "../ftrack";
+import { ftrackService } from "../legacy/ftrack";
 import type { FtrackSettings } from "@/types";
 
 export class FtrackAuthService {

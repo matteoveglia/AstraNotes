@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type NoteStatus } from "@/types";
 
 // Mock the ftrack service
-vi.mock("@/services/ftrack", () => ({
+vi.mock("@/services/legacy/ftrack", () => ({
   ftrackService: {
     getCurrentProject: vi
       .fn()
