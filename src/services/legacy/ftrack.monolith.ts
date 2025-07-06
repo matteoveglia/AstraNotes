@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * @fileoverview ftrack.ts
  * FTrack service integration handling all API interactions.
