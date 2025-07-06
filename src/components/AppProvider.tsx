@@ -1,6 +1,7 @@
 import React from "react";
 import { ToastProvider } from "./ui/toast";
 import { ErrorBoundary } from "./ui/error-boundary";
+import { MonolithFallbackBanner } from "./MonolithFallbackBanner";
 import { SyncConflictManager } from "@/features/playlists/components";
 
 interface AppProviderProps {
@@ -18,6 +19,7 @@ interface AppProviderProps {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
     <ToastProvider>
+      <MonolithFallbackBanner />
       {/* Cross-playlist sync-conflict modal logic lives at the root level */}
       <SyncConflictManager />
       {/* Top-level error boundary so uncaught errors surface gracefully */}
