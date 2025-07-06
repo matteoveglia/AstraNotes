@@ -1,4 +1,5 @@
 import { ftrackService } from "../legacy/ftrack";
+import { BaseFtrackClient } from "./BaseFtrackClient";
 
 interface Status {
   id: string;
@@ -17,7 +18,7 @@ interface StatusPanelData {
   projectId: string;
 }
 
-export class FtrackStatusService {
+export class FtrackStatusService extends BaseFtrackClient {
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
     return ftrackService.fetchStatusPanelData(assetVersionId);
   }

@@ -1,4 +1,5 @@
 import { ftrackService } from "../legacy/ftrack";
+import { BaseFtrackClient } from "./BaseFtrackClient";
 import type { AssetVersion } from "@/types";
 
 interface SearchVersionsOptions {
@@ -7,7 +8,7 @@ interface SearchVersionsOptions {
   projectId?: string | null;
 }
 
-export class FtrackVersionService {
+export class FtrackVersionService extends BaseFtrackClient {
   /**
    * Searches versions by search term (supports project filtering).
    */

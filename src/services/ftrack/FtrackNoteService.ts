@@ -1,4 +1,5 @@
 import { ftrackService } from "../legacy/ftrack";
+import { BaseFtrackClient } from "./BaseFtrackClient";
 import type { Attachment } from "@/components/NoteAttachments";
 
 interface Label {
@@ -7,7 +8,7 @@ interface Label {
   color: string;
 }
 
-export class FtrackNoteService {
+export class FtrackNoteService extends BaseFtrackClient {
   /**
    * Publish a simple text note to an AssetVersion in ftrack.
    */

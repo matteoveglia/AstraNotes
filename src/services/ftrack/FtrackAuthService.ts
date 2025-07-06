@@ -1,19 +1,30 @@
 import { ftrackService } from "../legacy/ftrack";
+import { BaseFtrackClient } from "./BaseFtrackClient";
+import { useSettings } from "@/store/settingsStore";
 import type { FtrackSettings } from "@/types";
 
-export class FtrackAuthService {
+export class FtrackAuthService extends BaseFtrackClient {
+  private isFallback() {
+    return useSettings.getState().settings.useMonolithFallback;
+  }
   /**
    * Updates the stored connection credentials/settings. Delegates to legacy service for now.
    */
   updateSettings(settings: FtrackSettings) {
-    ftrackService.updateSettings(settings);
+    if (this.isFallback()) {
+      ftrackService.updateSettings(settings);
+    } else {
+      super.updateSettings(settings);
+    }
   }
 
   /**
    * Lightweight connection test to validate credentials.
    */
   async testConnection(): Promise<boolean> {
-    return ftrackService.testConnection();
+    return this.isFallback()
+      ? ftrackService.testConnection()
+      : super.testConnection();
   }
 
   /**
@@ -21,8 +32,9 @@ export class FtrackAuthService {
    * NOTE: New code should avoid depending directly on the Session.
    */
   async getSession() {
-    // Accessing a private method on the legacy service – cast to `any` while we complete the migration.
-    return (ftrackService as any).getSession();
+    return this.isFallback()
+      ? (ftrackService as any).getSession()
+      : super.getSession();
   }
 }
 

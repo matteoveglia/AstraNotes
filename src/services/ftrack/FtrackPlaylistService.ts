@@ -1,4 +1,5 @@
 import { ftrackService } from "../legacy/ftrack";
+import { BaseFtrackClient } from "./BaseFtrackClient";
 import type {
   Playlist,
   PlaylistCategory,
@@ -21,7 +22,7 @@ import type {
  * search, status logic, note publishing etc. will live in their own
  * dedicated services.
  */
-export class FtrackPlaylistService {
+export class FtrackPlaylistService extends BaseFtrackClient {
   /*
    * Project Management
    * ------------------------------------------------------------------
