@@ -3,6 +3,7 @@ import { ToastProvider } from "./ui/toast";
 import { ErrorBoundary } from "./ui/error-boundary";
 import { MonolithFallbackBanner } from "./MonolithFallbackBanner";
 import { SyncConflictManager } from "@/features/playlists/components";
+import { useSettings } from "@/store/settingsStore";
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -24,7 +25,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       <SyncConflictManager />
       {/* Top-level error boundary so uncaught errors surface gracefully */}
       <ErrorBoundary>
-        <div className="pt-6">{children}</div>
+        {/* Add top padding only when banner is shown */}
+        {useSettings((s) => s.settings.useMonolithFallback) ? (
+          <div className="pt-6">{children}</div>
+        ) : (
+          <>{children}</>
+        )}
       </ErrorBoundary>
     </ToastProvider>
   );
