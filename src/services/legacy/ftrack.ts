@@ -5,4 +5,4 @@
  * DO NOT import this file directly from application code.
  */
 
-export * from "../ftrack"; 
+export * from "./ftrack.monolith"; 
