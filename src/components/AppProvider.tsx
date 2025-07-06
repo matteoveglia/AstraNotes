@@ -23,7 +23,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       {/* Cross-playlist sync-conflict modal logic lives at the root level */}
       <SyncConflictManager />
       {/* Top-level error boundary so uncaught errors surface gracefully */}
-      <ErrorBoundary>{children}</ErrorBoundary>
+      <ErrorBoundary>
+        <div className="pt-6">{children}</div>
+      </ErrorBoundary>
     </ToastProvider>
   );
 };
