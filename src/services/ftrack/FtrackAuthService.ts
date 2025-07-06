@@ -1,18 +1,26 @@
-import { ftrackService } from "../legacy/ftrack";
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import { useSettings } from "@/store/settingsStore";
 import type { FtrackSettings } from "@/types";
 
 export class FtrackAuthService extends BaseFtrackClient {
+  private legacyService: any | null = null;
+
+  private async getLegacy() {
+    if (!this.legacyService) {
+      const mod = await import("../legacy/ftrack");
+      this.legacyService = mod.ftrackService;
+    }
+    return this.legacyService;
+  }
   private isFallback() {
     return useSettings.getState().settings.useMonolithFallback;
   }
   /**
    * Updates the stored connection credentials/settings. Delegates to legacy service for now.
    */
-  updateSettings(settings: FtrackSettings) {
+  async updateSettings(settings: FtrackSettings) {
     if (this.isFallback()) {
-      ftrackService.updateSettings(settings);
+      (await this.getLegacy()).updateSettings(settings);
     } else {
       super.updateSettings(settings);
     }
@@ -22,9 +30,10 @@ export class FtrackAuthService extends BaseFtrackClient {
    * Lightweight connection test to validate credentials.
    */
   async testConnection(): Promise<boolean> {
-    return this.isFallback()
-      ? ftrackService.testConnection()
-      : super.testConnection();
+    if (this.isFallback()) {
+      return (await this.getLegacy()).testConnection();
+    }
+    return super.testConnection();
   }
 
   /**
@@ -32,9 +41,10 @@ export class FtrackAuthService extends BaseFtrackClient {
    * NOTE: New code should avoid depending directly on the Session.
    */
   async getSession() {
-    return this.isFallback()
-      ? (ftrackService as any).getSession()
-      : super.getSession();
+    if (this.isFallback()) {
+      return (await this.getLegacy()).getSession();
+    }
+    return super.getSession();
   }
 }
 
