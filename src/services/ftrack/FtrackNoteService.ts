@@ -58,15 +58,19 @@ export class FtrackNoteService extends BaseFtrackClient {
     const session = await this.getSession();
     const userId = await this.ensureCurrentUser(session);
 
+    const processedContent = content.replace(/\n/g, "\n\n");
     const response: any = await session.create("Note", {
-      content,
+      content: processedContent,
       parent_id: versionId,
       parent_type: "AssetVersion",
-      author_id: userId,
-      label_id: labelId || undefined,
+      user_id: userId,
     });
 
-    return response?.data?.id || null;
+    const noteIdSimple = response?.data?.id;
+    if (noteIdSimple && labelId) {
+      await session.create("NoteLabelLink", { note_id: noteIdSimple, label_id: labelId });
+    }
+    return noteIdSimple || null;
   }
 
   async publishNoteWithAttachments(
@@ -91,6 +95,7 @@ export class FtrackNoteService extends BaseFtrackClient {
     labelId?: string,
   ): Promise<string | null> {
     if (this.isFallback()) {
+      // Delegates to legacy monolith when feature flag is enabled
       return (await this.getLegacy()).publishNoteWithAttachmentsAPI(
         versionId,
         content,
@@ -102,32 +107,29 @@ export class FtrackNoteService extends BaseFtrackClient {
     const session = await this.getSession();
     const userId = await this.ensureCurrentUser(session);
 
-    // Create the note first
-    const noteResp: any = await session.create("Note", {
-      content,
-      parent_id: versionId,
-      parent_type: "AssetVersion",
-      author_id: userId,
-      label_id: labelId || undefined,
-    });
+    // Use the official AttachmentService helper that internally:
+    // 1. uploads all attachments via session.createComponent (reliable path)
+    // 2. creates the note with correct user_id association
+    // 3. links componentIds to the note
+    const processed = content.replace(/\n/g, "\n\n");
 
-    const noteId = noteResp?.data?.id;
-    if (!noteId) return null;
+    const result = await AttachmentService.createNoteWithAttachmentsAPI(
+      session,
+      processed,
+      versionId,
+      "AssetVersion",
+      attachments,
+      userId,
+    );
 
-    if (attachments?.length) {
-      const componentIds: string[] = [];
-      for (const att of attachments) {
-        try {
-          const res = await AttachmentService.uploadAttachment(session, att);
-          if (res.success && res.componentId) {
-            componentIds.push(res.componentId);
-          }
-        } catch (err) {
-          console.error("[FtrackNoteService] Failed to upload attachment", err);
-        }
-      }
-      if (componentIds.length) {
-        await AttachmentService.attachComponentsToNote(session, noteId, componentIds);
+    const noteId = result?.noteId ?? null;
+
+    // Handle label linking (not covered by AttachmentService)
+    if (noteId && labelId) {
+      try {
+        await session.create("NoteLabelLink", { note_id: noteId, label_id: labelId });
+      } catch (err) {
+        console.error("[FtrackNoteService] Failed to link label to note", err);
       }
     }
 
