@@ -334,6 +334,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
       success: failed.length === 0,
       syncedVersionIds: synced,
       failedVersionIds: failed,
+      playlistId,
     };
   }
 

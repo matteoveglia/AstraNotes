@@ -112,14 +112,20 @@ export class FtrackNoteService extends BaseFtrackClient {
     const noteId = noteResp?.data?.id;
     if (!noteId) return null;
 
-    // Handle attachments via AttachmentService (uploads & linking)
     if (attachments?.length) {
+      const componentIds: string[] = [];
       for (const att of attachments) {
         try {
-          await AttachmentService.uploadAttachment(session, noteId, att);
+          const res = await AttachmentService.uploadAttachment(session, att);
+          if (res.success && res.componentId) {
+            componentIds.push(res.componentId);
+          }
         } catch (err) {
           console.error("[FtrackNoteService] Failed to upload attachment", err);
         }
+      }
+      if (componentIds.length) {
+        await AttachmentService.attachComponentsToNote(session, noteId, componentIds);
       }
     }
 

@@ -21,7 +21,7 @@ export class BaseFtrackClient {
   private session: Session | null = null;
   private settings: FtrackSettings | null = null;
 
-  private constructor() {
+  constructor() {
     // Load persisted settings (same mechanism as monolith for now)
     const saved = localStorage.getItem("ftrackSettings");
     if (saved) {

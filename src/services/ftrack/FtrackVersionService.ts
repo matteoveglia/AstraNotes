@@ -113,7 +113,7 @@ export class FtrackVersionService extends BaseFtrackClient {
     }
 
     const session = await this.getSession();
-    const query = `select id, asset.name, version, description, asset.type.name, user.username, date from AssetVersion where id is "${assetVersionId}"`;
+    const query = `select id, asset.name, version, asset.type.name, user.username, date from AssetVersion where id is "${assetVersionId}"`;
     const result = await session.query(query);
     if (!result?.data?.length) return null;
     const row = result.data[0];
@@ -121,7 +121,7 @@ export class FtrackVersionService extends BaseFtrackClient {
       id: row.id,
       assetName: row["asset.name"] ?? row.asset?.name,
       versionNumber: row.version,
-      description: row.description,
+      description: row.description || "",
       assetType: row["asset.type.name"] ?? row.asset?.type?.name,
       publishedBy: row["user.username"] ?? row.user?.username,
       publishedAt: row.date,
