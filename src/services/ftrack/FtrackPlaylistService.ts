@@ -148,7 +148,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
       isQuickNotes: false,
       type: "list" as const,
       categoryId: list.category_id,
-      categoryName: list["category.name"] || "Uncategorized",
+      categoryName: (list["category.name"] || list.category?.name) || "Uncategorized",
       isOpen: list.is_open,
       projectId: list.project_id,
     }));
@@ -325,6 +325,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
         }
         synced.push(versionId);
       } catch (err) {
+        this.log("Failed to add version", versionId, err);
         failed.push(versionId);
       }
     }
