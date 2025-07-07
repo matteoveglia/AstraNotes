@@ -61,6 +61,7 @@ export class FtrackNoteService extends BaseFtrackClient {
     const response: any = await session.create("Note", {
       content,
       parent_id: versionId,
+      parent_type: "AssetVersion",
       author_id: userId,
       label_id: labelId || undefined,
     });
@@ -105,6 +106,7 @@ export class FtrackNoteService extends BaseFtrackClient {
     const noteResp: any = await session.create("Note", {
       content,
       parent_id: versionId,
+      parent_type: "AssetVersion",
       author_id: userId,
       label_id: labelId || undefined,
     });
