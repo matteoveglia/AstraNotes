@@ -199,15 +199,63 @@ export class FtrackStatusService extends BaseFtrackClient {
         return [];
       }
 
-      console.debug(
-        `[fetchApplicableStatuses] Returning statuses for ${entityType} (${entityId}):`,
-        statusQuery.data[0].statuses,
-      );
-      return statusQuery.data[0].statuses.map((status: any) => ({
+      let statuses = statusQuery.data[0].statuses.map((status: any) => ({
         id: status.id,
         name: status.name,
         color: status.color,
       }));
+
+      // SPECIAL CASE: For shots that might be using version-like statuses
+      // If this is a Shot and we need to check if the current status exists in the workflow
+      if (entityType === "Shot") {
+        // Get the current shot status to check if it exists in our workflow
+        const currentStatusQuery = await session.query(
+          `select status_id from Shot where id is "${entityId}"`,
+        );
+        
+        if (currentStatusQuery?.data?.[0]?.status_id) {
+          const currentStatusId = currentStatusQuery.data[0].status_id;
+          const statusExists = statuses.some((s: Status) => s.id === currentStatusId);
+          
+          if (!statusExists) {
+            console.debug(
+              `[fetchApplicableStatuses] Current shot status ${currentStatusId} not found in task workflow, checking version workflow`,
+            );
+            
+            // Try the version workflow instead
+            const versionWorkflowId = schema.asset_version_workflow_schema_id;
+            if (versionWorkflowId) {
+              const versionStatusQuery = await session.query(
+                `select statuses.id, statuses.name, statuses.color
+                from WorkflowSchema
+                where id is "${versionWorkflowId}"`,
+              );
+              
+              if (versionStatusQuery?.data?.[0]?.statuses) {
+                const versionStatuses = versionStatusQuery.data[0].statuses.map((status: any) => ({
+                  id: status.id,
+                  name: status.name,
+                  color: status.color,
+                }));
+                
+                                 const statusExistsInVersion = versionStatuses.some((s: Status) => s.id === currentStatusId);
+                if (statusExistsInVersion) {
+                  console.debug(
+                    `[fetchApplicableStatuses] Found shot status in version workflow, using version statuses for shot`,
+                  );
+                  statuses = versionStatuses;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      console.debug(
+        `[fetchApplicableStatuses] Returning statuses for ${entityType} (${entityId}):`,
+        statuses,
+      );
+      return statuses;
     } catch (error) {
       console.debug("Failed to fetch applicable statuses:", error);
       throw error;
