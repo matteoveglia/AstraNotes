@@ -176,21 +176,44 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
+          console.debug(
+            `[RelatedVersionsService] Fetching status for version: ${versionId}`,
+          );
           // This call returns status IDs, we need to resolve them to status objects
           const statusData =
             await ftrackStatusService.fetchStatusPanelData(versionId);
+          console.debug(
+            `[RelatedVersionsService] Status data for ${versionId}:`,
+            statusData,
+          );
           if (statusData && statusData.versionStatusId) {
             // Use the working getStatusesForEntity method instead of getStatusesForObjectType
             const allStatuses = await ftrackStatusService.getStatusesForEntity(
               "AssetVersion",
               versionId,
             );
+            console.debug(
+              `[RelatedVersionsService] All statuses for ${versionId}:`,
+              allStatuses.length,
+            );
             const statusObj = allStatuses.find(
               (s) => s.id === statusData.versionStatusId,
             );
             if (statusObj) {
+              console.debug(
+                `[RelatedVersionsService] Found status for ${versionId}:`,
+                statusObj,
+              );
               statuses[versionId] = statusObj;
+            } else {
+              console.warn(
+                `[RelatedVersionsService] Status object not found for ${versionId} with ID ${statusData.versionStatusId}`,
+              );
             }
+          } else {
+            console.warn(
+              `[RelatedVersionsService] No version status ID for ${versionId}`,
+            );
           }
         } catch (error) {
           console.warn(
@@ -202,6 +225,10 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
         }
       }
 
+      console.debug(
+        `[RelatedVersionsService] Returning ${Object.keys(statuses).length} version statuses`,
+        statuses,
+      );
       return statuses;
     } catch (error) {
       console.error(
@@ -231,21 +258,49 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
+          console.debug(
+            `[RelatedVersionsService] Fetching shot status for version: ${versionId}`,
+          );
           // This call returns status IDs, we need to resolve them to status objects
           const statusData =
             await ftrackStatusService.fetchStatusPanelData(versionId);
-          if (statusData && statusData.parentStatusId && statusData.parentType) {
+          console.debug(
+            `[RelatedVersionsService] Shot status data for ${versionId}:`,
+            statusData,
+          );
+          if (statusData && statusData.parentStatusId && statusData.parentType && statusData.parentId) {
             // Use the working getStatusesForEntity method instead of getStatusesForObjectType
             const allStatuses = await ftrackStatusService.getStatusesForEntity(
               statusData.parentType,
-              statusData.parentId || versionId,
+              statusData.parentId,
+            );
+            console.debug(
+              `[RelatedVersionsService] All shot statuses for ${versionId}:`,
+              allStatuses.length,
             );
             const statusObj = allStatuses.find(
               (s) => s.id === statusData.parentStatusId,
             );
             if (statusObj) {
+              console.debug(
+                `[RelatedVersionsService] Found shot status for ${versionId}:`,
+                statusObj,
+              );
               statuses[versionId] = statusObj;
+            } else {
+              console.warn(
+                `[RelatedVersionsService] Shot status object not found for ${versionId} with ID ${statusData.parentStatusId}`,
+              );
             }
+          } else {
+            console.warn(
+              `[RelatedVersionsService] Missing shot status data for ${versionId}:`,
+              { 
+                hasParentStatusId: !!statusData?.parentStatusId,
+                hasParentType: !!statusData?.parentType,
+                hasParentId: !!statusData?.parentId
+              }
+            );
           }
         } catch (error) {
           console.warn(
@@ -257,6 +312,10 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
         }
       }
 
+      console.debug(
+        `[RelatedVersionsService] Returning ${Object.keys(statuses).length} shot statuses`,
+        statuses,
+      );
       return statuses;
     } catch (error) {
       console.error(

@@ -17,6 +17,7 @@ interface StatusPanelData {
   versionStatus: Status | null;
   parentId?: string;
   parentStatusId?: string;
+  parentStatus?: Status | null;
   parentType?: string;
   projectId: string;
 }
@@ -152,11 +153,17 @@ async function performFetch(
         null
       : null;
 
+    const parentStatus = statusPanelData.parentStatusId && parentStatuses.length > 0
+      ? parentStatuses.find((s) => s.id === statusPanelData.parentStatusId) ||
+        null
+      : null;
+
     const currentStatuses: StatusPanelData = {
       versionId: statusPanelData.versionId,
       versionStatus,
       parentId: statusPanelData.parentId,
       parentStatusId: statusPanelData.parentStatusId,
+      parentStatus,
       parentType: statusPanelData.parentType,
       projectId: statusPanelData.projectId,
     };
@@ -209,6 +216,12 @@ export async function updateEntityStatusSuspense(
         }
         if (updatedData.currentStatuses.parentId === entityId) {
           updatedData.currentStatuses.parentStatusId = statusId;
+          const newParentStatus = updatedData.parentStatuses.find(
+            (s) => s.id === statusId,
+          );
+          if (newParentStatus) {
+            updatedData.currentStatuses.parentStatus = newParentStatus;
+          }
         }
 
         // Update cache with optimistic data

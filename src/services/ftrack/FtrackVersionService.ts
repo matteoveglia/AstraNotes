@@ -123,7 +123,7 @@ export class FtrackVersionService extends BaseFtrackClient {
       versionNumber: row.version,
       description: row.comment || undefined,
       assetType: row["asset.type.name"] ?? row.asset?.type?.name,
-      publishedBy: `${row["user.first_name"] || ""} ${row["user.last_name"] || ""}`.trim() || row["user.username"] || row.user?.username,
+      publishedBy: row["user.first_name"] || row.user?.first_name || row["user.username"] || row.user?.username,
       publishedAt: row.date,
     };
   }
