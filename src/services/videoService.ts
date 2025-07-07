@@ -55,18 +55,18 @@ class VideoService {
 
       console.log(
         `[VideoService] Found ${components.length} components for version ${versionId}:`,
-        components.map((c) => ({ name: c.name, id: c.id })),
+        components.map((c: any) => ({ name: c.name, id: c.id })),
       );
 
       // Try to find the 1080p component first
       let reviewableComponent = components.find(
-        (c) => c.name === "ftrackreview-mp4-1080",
+        (c: any) => c.name === "ftrackreview-mp4-1080",
       );
 
       // If not found, try the regular mp4 component
       if (!reviewableComponent) {
         reviewableComponent = components.find(
-          (c) => c.name === "ftrackreview-mp4",
+          (c: any) => c.name === "ftrackreview-mp4",
         );
         console.log(
           `[VideoService] ftrackreview-mp4-1080 not found, trying ftrackreview-mp4:`,
@@ -137,13 +137,13 @@ class VideoService {
 
       // Try to find the 1080p component first
       let reviewableComponent = components.find(
-        (c) => c.name === "ftrackreview-mp4-1080",
+        (c: any) => c.name === "ftrackreview-mp4-1080",
       );
 
       // If not found, try the regular mp4 component
       if (!reviewableComponent) {
         reviewableComponent = components.find(
-          (c) => c.name === "ftrackreview-mp4",
+          (c: any) => c.name === "ftrackreview-mp4",
         );
         console.log(
           `[VideoService] Using fallback ftrackreview-mp4 component for ${versionId}`,
@@ -160,7 +160,7 @@ class VideoService {
         );
         console.warn(
           `[VideoService] Available components:`,
-          components.map((c) => c.name),
+          components.map((c: any) => c.name),
         );
         return null;
       }

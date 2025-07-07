@@ -113,7 +113,7 @@ export class FtrackVersionService extends BaseFtrackClient {
     }
 
     const session = await this.getSession();
-    const query = `select id, asset.name, version, asset.type.name, user.username, date from AssetVersion where id is "${assetVersionId}"`;
+    const query = `select id, description, asset.name, version, asset.type.name, user.username, date from AssetVersion where id is "${assetVersionId}"`;
     const result = await session.query(query);
     if (!result?.data?.length) return null;
     const row = result.data[0];

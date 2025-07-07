@@ -101,16 +101,16 @@ export class DraftManager implements DraftOperations {
     }
 
     // 2. Get attachments for the version
-    const attachments = await this.repository.getAttachmentsForVersion(
+    const attachments = (await this.repository.getAttachmentsForVersion(
       playlistId,
       versionId,
-    );
+    )) as any;
 
     // 3. Call the ftrack API to publish the note
     await ftrackNoteService.publishNoteWithAttachmentsAPI(
       versionId,
       version.draftContent,
-      attachments,
+      attachments as any,
       version.labelId,
     );
 

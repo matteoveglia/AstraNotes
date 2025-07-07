@@ -49,7 +49,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   private currentUserId: string | null = null;
 
   private async ensureCurrentUser(session: Session): Promise<string> {
-    if (this.currentUserId) return this.currentUserId;
+    if (this.currentUserId) return this.currentUserId!;
     const username = useSettings.getState().settings.apiUser;
     const result = await session.query(
       `select id from User where username is "${username}"`,
@@ -58,7 +58,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
       throw new Error("Could not determine current user in ftrack");
     }
     this.currentUserId = result.data[0].id;
-    return this.currentUserId;
+    return this.currentUserId!;
   }
 
   private mapVersionsToPlaylist(versions: any[]): AssetVersion[] {
