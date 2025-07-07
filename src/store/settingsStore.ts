@@ -38,7 +38,7 @@ export const useSettings = create<SettingsState>()(
         apiUser: "",
         autoRefreshEnabled: true,
         defaultLabelId: undefined,
-        useMonolithFallback: true,
+        useMonolithFallback: false,
       },
       setSettings: (newSettings) => set({ settings: newSettings }),
     }),
