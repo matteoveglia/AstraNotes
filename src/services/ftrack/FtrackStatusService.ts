@@ -41,39 +41,52 @@ export class FtrackStatusService extends BaseFtrackClient {
     return useSettings.getState().settings.useMonolithFallback;
   }
 
+  /**
+   * Fetch all necessary data for the status panel
+   */
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).fetchStatusPanelData(assetVersionId);
-    }
-
     const session = await this.getSession();
-    const query = `
-      select
+    console.debug("[FtrackStatusService] Fetching status panel data for asset version:", assetVersionId);
+
+    try {
+      // CRITICAL FIX: Use the correct relationship path from schema
+      // AssetVersion -> asset.parent (not just parent)
+      const query = `select 
         id,
         status_id,
-        parent.id,
-        parent.status_id,
-        parent.__entity_type__,
-        project.id
-      from AssetVersion
-      where id is "${assetVersionId}"
-    `;
+        asset.parent.id,
+        asset.parent.name,
+        asset.parent.status_id,
+        asset.parent.object_type.name,
+        asset.parent.project.id
+      from AssetVersion 
+      where id is "${assetVersionId}"`;
 
-    const result = await session.query(query);
-    const data = result.data?.[0];
+      const result = await session.query(query);
+      const version = result.data[0];
 
-    if (!data) {
-      throw new Error(`AssetVersion not found: ${assetVersionId}`);
+      if (!version) {
+        throw new Error("Asset version not found");
+      }
+
+      // Get the shot (parent) details
+      const parent = version.asset.parent;
+
+      return {
+        versionId: version.id,
+        versionStatusId: version.status_id,
+        parentId: parent.id,
+        parentStatusId: parent.status_id,
+        parentType: parent.object_type.name,
+        projectId: parent.project.id,
+      };
+    } catch (error) {
+      console.error(
+        `[FtrackStatusService] Failed to fetch status panel data for version ${assetVersionId}:`,
+        error,
+      );
+      throw error;
     }
-
-    return {
-      versionId: data.id,
-      versionStatusId: data.status_id,
-      parentId: data.parent?.id,
-      parentStatusId: data.parent?.status_id,
-      parentType: data.parent?.__entity_type__,
-      projectId: data.project?.id,
-    };
   }
 
   /**

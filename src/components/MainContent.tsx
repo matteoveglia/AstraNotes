@@ -964,7 +964,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             >
               <CardTitle className="text-xl select-text">
                 {activePlaylist.name}
-                {isInitializing && (
+                {isInitializing && activePlaylist.versions?.length === 0 && (
                   <span className="ml-2 text-sm font-normal text-muted-foreground">
                     (Loading...)
                   </span>
