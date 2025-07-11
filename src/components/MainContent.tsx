@@ -995,7 +995,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               </AnimatePresence>
             </div>
             <p className="text-sm text-muted-foreground">
-              {isInitializing && !activePlaylist.versions ? (
+              {isInitializing && (!activePlaylist.versions || activePlaylist.versions.length === 0) ? (
                 "Initializing playlist..."
               ) : (
                 <>

@@ -453,10 +453,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         } finally {
           // Only set timeout if not aborted
           if (!currentAbortController.signal.aborted) {
-            // Allow a brief moment for 100% to be visible before fading out
-            setTimeout(() => {
-              setProgressiveLoading(false);
-            }, 400);
+          // Allow a brief moment for 100% to be visible before fading out
+          setTimeout(() => {
+            setProgressiveLoading(false);
+          }, 400);
           }
         }
       }
