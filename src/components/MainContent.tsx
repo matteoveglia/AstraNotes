@@ -56,7 +56,10 @@ export const MainContent: React.FC<MainContentProps> = ({
   onPlaylistUpdate,
 }) => {
   // Simplified state management - remove complex merging logic
-  const [isInitializing, setIsInitializing] = useState(true);
+  // Initialize loading state based on whether the playlist already has versions
+  const [isInitializing, setIsInitializing] = useState(
+    (playlist.versions?.length || 0) === 0,
+  );
   const [activePlaylist, setActivePlaylist] = useState<Playlist>(playlist);
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
@@ -187,6 +190,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       console.debug(
         `[MainContent] Initialization completed successfully for ${playlistId}`,
       );
+      // Mark that the playlist has successfully loaded at least once
     } catch (error) {
       console.error(
         `[MainContent] Failed to initialize playlist ${playlistId}:`,
@@ -954,7 +958,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   return (
     <Card className="h-full flex flex-col rounded-none">
-      <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
+      <CardHeader className="flex flex-row items-center justify-between border-b flex-none min-h-[4.5rem]">
         <div className="flex items-center gap-2">
           <div className="flex flex-col">
             <div
@@ -964,15 +968,9 @@ export const MainContent: React.FC<MainContentProps> = ({
             >
               <CardTitle className="text-xl select-text">
                 {activePlaylist.name}
-                {isInitializing && activePlaylist.versions?.length === 0 && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                {isInitializing && (activePlaylist.versions?.length || 0) === 0 && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground min-h-[1.25rem]">
                     (Loading...)
-                  </span>
-                )}
-                {isPending && !isInitializing && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground flex items-center gap-1">
-                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                    Updating...
                   </span>
                 )}
               </CardTitle>
@@ -994,32 +992,32 @@ export const MainContent: React.FC<MainContentProps> = ({
                   )}
               </AnimatePresence>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {isInitializing && (!activePlaylist.versions || activePlaylist.versions.length === 0) ? (
-                "Initializing playlist..."
-              ) : (
-                <>
-                  {filteredVersions.length} Version
-                  {filteredVersions.length !== 1 ? "s" : ""}
-                  {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
-                    ` (${activePlaylist.versions?.length || 0} total)`}
-                  {activePlaylist.isLocalOnly && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="ml-2 cursor-help">• Local only</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            This playlist is local only and not synced to
-                            ftrack. Use the sync button to push it to ftrack.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </>
-              )}
+            <p className="text-sm text-muted-foreground min-h-[1.25rem]">
+              {isInitializing && (activePlaylist.versions?.length || 0) === 0
+                ? "Initializing playlist..."
+                : (
+                  <>
+                    {filteredVersions.length} Version
+                    {filteredVersions.length !== 1 ? "s" : ""}
+                    {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
+                      ` (${activePlaylist.versions?.length || 0} total)`}
+                    {activePlaylist.isLocalOnly && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-2 cursor-help">• Local only</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>
+                              This playlist is local only and not synced to
+                              ftrack. Use the sync button to push it to ftrack.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </>
+                )}
             </p>
           </div>
         </div>
