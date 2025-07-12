@@ -1,6 +1,5 @@
 import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./BaseFtrackClient";
-import { useSettings } from "@/store/settingsStore";
 import type { AssetVersion } from "@/types";
 
 interface SearchVersionsOptions {
@@ -11,19 +10,6 @@ interface SearchVersionsOptions {
 
 export class FtrackVersionService extends BaseFtrackClient {
   /* helpers */
-  private legacy: any | null = null;
-  private async getLegacy() {
-    if (!this.legacy) {
-      const mod = await import("../legacy/ftrack");
-      this.legacy = mod.ftrackService;
-    }
-    return this.legacy;
-  }
-
-  private isFallback() {
-    return useSettings.getState().settings.useMonolithFallback;
-  }
-
   // simple in-memory cache (5-minute TTL)
   private searchCache = new Map<string, { ts: number; data: AssetVersion[] }>();
 
@@ -33,10 +19,6 @@ export class FtrackVersionService extends BaseFtrackClient {
   async searchVersions(
     options: SearchVersionsOptions,
   ): Promise<AssetVersion[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).searchVersions(options as any);
-    }
-
     const key = JSON.stringify(options);
     const cached = this.searchCache.get(key);
     if (cached && Date.now() - cached.ts < 5 * 60_000) {
@@ -94,10 +76,6 @@ export class FtrackVersionService extends BaseFtrackClient {
    * Fetches the components for a specific AssetVersion (used for download URL, etc.).
    */
   async getVersionComponents(versionId: string) {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getVersionComponents(versionId);
-    }
-
     const session = await this.getSession();
     const query = `select id, name, component_locations, file_type from Component where version_id is "${versionId}"`;
     const result = await session.query(query);
@@ -108,10 +86,6 @@ export class FtrackVersionService extends BaseFtrackClient {
    * Fetches detailed information about an AssetVersion.
    */
   async fetchVersionDetails(assetVersionId: string) {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).fetchVersionDetails(assetVersionId);
-    }
-
     const session = await this.getSession();
     const query = `select id, version, comment, date, asset.name, asset.type.name, user.first_name, user.last_name, user.username from AssetVersion where id is "${assetVersionId}"`;
     const result = await session.query(query);
@@ -132,10 +106,6 @@ export class FtrackVersionService extends BaseFtrackClient {
    * Get URL for a specific component.
    */
   async getComponentUrl(componentId: string): Promise<string | null> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getComponentUrl(componentId);
-    }
-
     const session = await this.getSession();
     try {
       const url = await session.getComponentUrl(componentId);
