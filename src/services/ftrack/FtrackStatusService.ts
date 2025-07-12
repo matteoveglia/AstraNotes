@@ -1,5 +1,4 @@
 import { BaseFtrackClient } from "./BaseFtrackClient";
-import { useSettings } from "../../store/settingsStore";
 
 interface Status {
   id: string;
@@ -17,8 +16,6 @@ interface StatusPanelData {
 }
 
 export class FtrackStatusService extends BaseFtrackClient {
-  private legacy: any | null = null;
-
   // Schema status mapping cache - similar to legacy service
   private schemaStatusMapping: {
     [projectSchemaId: string]: {
@@ -28,18 +25,6 @@ export class FtrackStatusService extends BaseFtrackClient {
   
   private schemaStatusMappingReady = false;
   private allWorkflowSchemas: any[] = [];
-
-  private async getLegacy() {
-    if (!this.legacy) {
-      const { FtrackService } = await import("../legacy/ftrack.monolith");
-      this.legacy = new FtrackService();
-    }
-    return this.legacy;
-  }
-
-  private isFallback() {
-    return useSettings.getState().settings.useMonolithFallback;
-  }
 
   /**
    * Fetch all necessary data for the status panel
@@ -175,10 +160,6 @@ export class FtrackStatusService extends BaseFtrackClient {
     entityType: string,
     entityId: string,
   ): Promise<Status[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).fetchApplicableStatuses(entityType, entityId);
-    }
-
     // Ensure mappings are initialized
     await this.ensureStatusMappingsInitialized();
 
@@ -253,10 +234,6 @@ export class FtrackStatusService extends BaseFtrackClient {
     entityType: string,
     entityId: string,
   ): Promise<Status[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getStatusesForEntity(entityType, entityId);
-    }
-
     // Use fetchApplicableStatuses for proper schema-based status filtering
     return this.fetchApplicableStatuses(entityType, entityId);
   }
@@ -266,14 +243,6 @@ export class FtrackStatusService extends BaseFtrackClient {
     entityId: string,
     statusId: string,
   ): Promise<void> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).updateEntityStatus(
-        entityType,
-        entityId,
-        statusId,
-      );
-    }
-
     const session = await this.getSession();
     await session.update(entityType, entityId, { status_id: statusId });
   }

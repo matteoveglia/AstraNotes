@@ -1,6 +1,5 @@
 import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./BaseFtrackClient";
-import { useSettings } from "@/store/settingsStore";
 import type {
   Playlist,
   PlaylistCategory,
@@ -15,33 +14,13 @@ import type {
  * FtrackPlaylistService
  * ----------------------------------
  * Handles playlist-oriented operations (projects, review sessions, lists …).
- *
- * ‑ If `settings.useMonolithFallback === true` we dynamically import the
- *   legacy monolith and delegate the call (zero regression risk).
- * ‑ When the flag is *false* we run a slimmed, focused implementation that
- *   talks directly to ftrack via BaseFtrackClient’s Session.
  */
 export class FtrackPlaylistService extends BaseFtrackClient {
   /* ------------------------------------------------------------------ */
   /* helpers                                                            */
   /* ------------------------------------------------------------------ */
-  private legacy: any | null = null;
-
-  private async getLegacy() {
-    if (!this.legacy) {
-      const mod = await import("../legacy/ftrack");
-      this.legacy = mod.ftrackService;
-    }
-    return this.legacy;
-  }
-
-  private isFallback() {
-    return useSettings.getState().settings.useMonolithFallback;
-  }
-
   private log(...args: any[]) {
     if (process.env.NODE_ENV === "development") {
-       
       console.debug("[FtrackPlaylistService]", ...args);
     }
   }
@@ -50,7 +29,10 @@ export class FtrackPlaylistService extends BaseFtrackClient {
 
   private async ensureCurrentUser(session: Session): Promise<string> {
     if (this.currentUserId) return this.currentUserId!;
-    const username = useSettings.getState().settings.apiUser;
+    const username = this.settings?.apiUser;
+    if (!username) {
+      throw new Error("No API user configured");
+    }
     const result = await session.query(
       `select id from User where username is "${username}"`,
     );
@@ -82,10 +64,6 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   /* API methods                                                        */
   /* ------------------------------------------------------------------ */
   async getProjects(): Promise<Project[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getProjects();
-    }
-
     const session = await this.getSession();
     const query = `select id, name, full_name from Project order by name asc`;
     const response = await session.query(query);
@@ -99,10 +77,6 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   }
 
   async getPlaylists(projectId?: string | null): Promise<Playlist[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getPlaylists(projectId);
-    }
-
     const session = await this.getSession();
     let query = `select id, name, created_at, end_date, created_by_id, project_id from ReviewSession`;
     if (projectId) {
@@ -125,10 +99,6 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   }
 
   async getLists(projectId?: string | null): Promise<Playlist[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getLists(projectId);
-    }
-
     const session = await this.getSession();
     let query = `select id, name, date, is_open, project_id, category_id, category.name from List where is_open is true`;
     if (projectId) {
@@ -155,10 +125,6 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   }
 
   async getPlaylistCategories(): Promise<PlaylistCategory[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getPlaylistCategories();
-    }
-
     const [reviewSessions, lists] = await Promise.all([
       this.getPlaylists(),
       this.getLists(),
@@ -199,96 +165,67 @@ export class FtrackPlaylistService extends BaseFtrackClient {
   async createReviewSession(
     request: CreatePlaylistRequest,
   ): Promise<CreatePlaylistResponse> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).createReviewSession(request);
-    }
+    const session = await this.getSession();
+    const currentUserId = await this.ensureCurrentUser(session);
 
-    try {
-      const session = await this.getSession();
-      const userId = await this.ensureCurrentUser(session);
-      const now = new Date();
-      const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const result = await session.create("ReviewSession", {
+      name: request.name,
+      project_id: request.projectId,
+      created_by_id: currentUserId,
+    });
 
-      const response = await session.create("ReviewSession", {
-        name: request.name,
-        project_id: request.projectId,
-        description: request.description || "",
-        created_by_id: userId,
-        start_date: now.toISOString(),
-        end_date: endDate.toISOString(),
-      }) as any;
+    this.log("Created review session:", result);
 
-      const reviewSessionId = response.data?.id;
-      return {
-        id: reviewSessionId || "",
-        name: response.data?.name || request.name,
-        type: "reviewsession",
-        success: !!reviewSessionId,
-        error: reviewSessionId ? undefined : "Failed to create review session",
-      };
-    } catch (err: any) {
-      this.log("Failed to create ReviewSession", err);
-      return {
-        id: "",
-        name: request.name,
-        type: "reviewsession",
-        success: false,
-        error: err?.message || "Creation failed",
-      };
-    }
+    return {
+      id: result.id,
+      name: result.name,
+      title: result.name,
+      notes: [],
+      createdAt: result.created_at,
+      updatedAt: result.created_at,
+      isQuickNotes: false,
+      type: "reviewsession" as const,
+      projectId: result.project_id,
+    };
   }
 
   async createList(
     request: CreatePlaylistRequest,
   ): Promise<CreatePlaylistResponse> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).createList(request);
-    }
+    const session = await this.getSession();
+    const currentUserId = await this.ensureCurrentUser(session);
 
-    try {
-      const session = await this.getSession();
-      const userId = await this.ensureCurrentUser(session);
-      if (!request.categoryId) {
-        throw new Error("categoryId is required for lists");
-      }
-      const response = await session.create("AssetVersionList", {
-        name: request.name,
-        project_id: request.projectId,
-        category_id: request.categoryId,
-        owner_id: userId,
-      }) as any;
+    const result = await session.create("List", {
+      name: request.name,
+      project_id: request.projectId,
+      created_by_id: currentUserId,
+      is_open: true,
+    });
 
-      const listId = response.data?.id;
-      return {
-        id: listId || "",
-        name: response.data?.name || request.name,
-        type: "list",
-        success: !!listId,
-        error: listId ? undefined : "Failed to create list",
-      };
-    } catch (err: any) {
-      this.log("Failed to create AssetVersionList", err);
-      return {
-        id: "",
-        name: request.name,
-        type: "list",
-        success: false,
-        error: err?.message || "Creation failed",
-      };
-    }
+    this.log("Created list:", result);
+
+    return {
+      id: result.id,
+      name: result.name,
+      title: result.name,
+      notes: [],
+      createdAt: result.date || new Date().toISOString(),
+      updatedAt: result.date || new Date().toISOString(),
+      isQuickNotes: false,
+      type: "list" as const,
+      projectId: result.project_id,
+    };
   }
 
   async getListCategories(projectId: string): Promise<PlaylistCategory[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getListCategories(projectId);
-    }
-
     const session = await this.getSession();
-    const result = await session.query(`select id, name from ListCategory`);
-    return (result?.data || []).map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      type: "lists" as const,
+    const query = `select id, name from ListCategory where project_id is "${projectId}" order by name`;
+    const result = await session.query(query);
+
+    return (result?.data || []).map((cat: any) => ({
+      id: cat.id,
+      name: cat.name,
+      type: "listcategory" as const,
       playlists: [],
     }));
   }
@@ -298,74 +235,52 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     versionIds: string[],
     playlistType: "reviewsession" | "list" = "reviewsession",
   ): Promise<SyncVersionsResponse> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).addVersionsToPlaylist(
-        playlistId,
-        versionIds,
-        playlistType,
-      );
-    }
-
     const session = await this.getSession();
-    const synced: string[] = [];
-    const failed: string[] = [];
+    const currentUserId = await this.ensureCurrentUser(session);
+
+    this.log(`Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`);
+
+    const results = [];
+    const errors = [];
 
     for (const versionId of versionIds) {
       try {
-        if (playlistType === "reviewsession") {
-          await session.create("ReviewSessionObject", {
-            review_session_id: playlistId,
-            asset_version_id: versionId,
-          });
-        } else {
-          await session.create("ListObject", {
-            list_id: playlistId,
-            entity_id: versionId,
-          });
-        }
-        synced.push(versionId);
-      } catch (err) {
-        this.log("Failed to add version", versionId, err);
-        failed.push(versionId);
+        const result = await session.create("ReviewSessionObject", {
+          review_session_id: playlistId,
+          asset_version_id: versionId,
+          created_by_id: currentUserId,
+        });
+        results.push(result);
+      } catch (error) {
+        this.log(`Failed to add version ${versionId}:`, error);
+        errors.push({ versionId, error: String(error) });
       }
     }
 
     return {
-      success: failed.length === 0,
-      syncedVersionIds: synced,
-      failedVersionIds: failed,
-      playlistId,
+      added: results.length,
+      errors: errors.length,
+      errorDetails: errors,
     };
   }
 
   async getPlaylistVersions(playlistId: string): Promise<AssetVersion[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getPlaylistVersions(playlistId);
-    }
-
     const session = await this.getSession();
+    const query = `
+      select 
+        id,
+        asset_version.id,
+        asset_version.asset.name,
+        asset_version.version,
+        asset_version.thumbnail.id
+      from ReviewSessionObject 
+      where review_session_id is "${playlistId}"
+      order by asset_version.asset.name, asset_version.version
+    `;
 
-    // Detect whether the id refers to ReviewSession or List
-    const rsCheck = await session.query(`select id from ReviewSession where id is "${playlistId}"`);
-    if (rsCheck?.data?.length) {
-      const query = `select asset_version.id, asset_version.version, asset_version.asset.name, asset_version.thumbnail.id, id from ReviewSessionObject where review_session.id is "${playlistId}" order by sort_order`;
-      const result = await session.query(query);
-      return this.mapVersionsToPlaylist(result.data || []);
-    }
-
-    const listCheck = await session.query(`select id from List where id is "${playlistId}"`);
-    if (listCheck?.data?.length) {
-      const listObjQuery = await session.query(`select entity_id from ListObject where list_id is "${playlistId}"`);
-      const entityIds = listObjQuery.data.map((o: any) => o.entity_id);
-      if (!entityIds.length) return [];
-      const query = `select id, version, asset.name, thumbnail.id from AssetVersion where id in (${entityIds.map((id: string) => `"${id}"`).join(", ")}) order by date desc`;
-      const result = await session.query(query);
-      return this.mapVersionsToPlaylist(result.data || []);
-    }
-
-    return [];
+    const result = await session.query(query);
+    return this.mapVersionsToPlaylist(result?.data || []);
   }
 }
 
-// Singleton export
 export const ftrackPlaylistService = new FtrackPlaylistService(); 

@@ -1,7 +1,6 @@
 import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import { AttachmentService } from "@/services/attachmentService";
-import { useSettings } from "@/store/settingsStore";
 import type { Attachment } from "@/components/NoteAttachments";
 
 interface Label {
@@ -14,25 +13,14 @@ export class FtrackNoteService extends BaseFtrackClient {
   /* -------------------------------------------------- */
   /* helpers                                            */
   /* -------------------------------------------------- */
-  private legacy: any | null = null;
-
-  private async getLegacy() {
-    if (!this.legacy) {
-      const mod = await import("../legacy/ftrack");
-      this.legacy = mod.ftrackService;
-    }
-    return this.legacy;
-  }
-
-  private isFallback() {
-    return useSettings.getState().settings.useMonolithFallback;
-  }
-
   private currentUserId: string | null = null;
 
   private async ensureCurrentUser(session: Session): Promise<string> {
     if (this.currentUserId) return this.currentUserId!;
-    const username = useSettings.getState().settings.apiUser;
+    const username = this.settings?.apiUser;
+    if (!username) {
+      throw new Error("No API user configured");
+    }
     const result = await session.query(
       `select id from User where username is "${username}"`,
     );
@@ -51,10 +39,6 @@ export class FtrackNoteService extends BaseFtrackClient {
     content: string,
     labelId?: string,
   ): Promise<string | null> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).publishNote(versionId, content, labelId);
-    }
-
     const session = await this.getSession();
     const userId = await this.ensureCurrentUser(session);
 
@@ -94,16 +78,6 @@ export class FtrackNoteService extends BaseFtrackClient {
     attachments: Attachment[],
     labelId?: string,
   ): Promise<string | null> {
-    if (this.isFallback()) {
-      // Delegates to legacy monolith when feature flag is enabled
-      return (await this.getLegacy()).publishNoteWithAttachmentsAPI(
-        versionId,
-        content,
-        labelId,
-        attachments,
-      );
-    }
-
     const session = await this.getSession();
     const userId = await this.ensureCurrentUser(session);
 
@@ -137,10 +111,6 @@ export class FtrackNoteService extends BaseFtrackClient {
   }
 
   async getNoteLabels(): Promise<Label[]> {
-    if (this.isFallback()) {
-      return (await this.getLegacy()).getNoteLabels();
-    }
-
     const session = await this.getSession();
     const result = await session.query("select id, name, color from NoteLabel");
     return (result?.data || []).map((l: any) => ({

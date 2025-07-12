@@ -1,42 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { useSettings } from "@/store/settingsStore";
+import { ftrackAuthService } from "@/services/ftrack/FtrackAuthService";
+import { baseFtrackClient } from "@/services/ftrack/BaseFtrackClient";
 
-// Dynamically import after toggling flag to ensure correct branch executed
-async function getAuthService() {
-  const mod = await import("@/services/ftrack/FtrackAuthService");
-  return mod.ftrackAuthService;
-}
-
-describe("FtrackAuthService flag switching", () => {
+describe("FtrackAuthService", () => {
   beforeEach(() => {
-    // reset flag before each test
-    const current = useSettings.getState().settings;
-    useSettings.getState().setSettings({ ...current, useMonolithFallback: true });
+    vi.clearAllMocks();
   });
 
-  it("delegates to monolith when fallback true", async () => {
-    // Mock legacy service dynamically
-    vi.mock("@/services/legacy/ftrack", () => ({
-      ftrackService: {
-        testConnection: vi.fn().mockResolvedValue(true),
-      },
-    }));
-
-    const auth = await getAuthService();
-    const result = await auth.testConnection();
-    expect(result).toBe(true);
-  });
-
-  it("uses Base client when fallback false", async () => {
-    const current = useSettings.getState().settings;
-    useSettings.getState().setSettings({ ...current, useMonolithFallback: false });
-
+  it("should use BaseFtrackClient for testConnection", async () => {
     // Spy on Base client method
-    const { baseFtrackClient } = await import("@/services/ftrack/BaseFtrackClient");
-    vi.spyOn(baseFtrackClient, "testConnection").mockResolvedValueOnce(false);
+    vi.spyOn(baseFtrackClient, "testConnection").mockResolvedValueOnce(true);
 
-    const auth = await getAuthService();
-    const result = await auth.testConnection();
-    expect(result).toBe(false);
+    const result = await ftrackAuthService.testConnection();
+    expect(result).toBe(true);
+    expect(baseFtrackClient.testConnection).toHaveBeenCalledOnce();
+  });
+
+  it("should use BaseFtrackClient for getSession", async () => {
+    const mockSession = { id: "session-123" };
+    vi.spyOn(baseFtrackClient, "getSession").mockResolvedValueOnce(mockSession as any);
+
+    const result = await ftrackAuthService.getSession();
+    expect(result).toBe(mockSession);
+    expect(baseFtrackClient.getSession).toHaveBeenCalledOnce();
+  });
+
+  it("should use BaseFtrackClient for updateSettings", async () => {
+    const mockSettings = { serverUrl: "test", apiKey: "key", apiUser: "user" };
+    vi.spyOn(baseFtrackClient, "updateSettings").mockImplementationOnce(() => {});
+
+    ftrackAuthService.updateSettings(mockSettings);
+    expect(baseFtrackClient.updateSettings).toHaveBeenCalledWith(mockSettings);
   });
 }); 

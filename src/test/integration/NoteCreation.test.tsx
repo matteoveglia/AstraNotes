@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type NoteStatus } from "@/types";
 
-// Mock the ftrack service
-vi.mock("@/services/legacy/ftrack", () => ({
-  ftrackService: {
-    getCurrentProject: vi
+// Mock the new FtrackPlaylistService
+vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
+  ftrackPlaylistService: {
+    getProjects: vi
       .fn()
-      .mockResolvedValue({ id: "project-id", name: "Test Project" }),
+      .mockResolvedValue([{ id: "project-id", name: "Test Project", fullName: "Test Project", status: "Active" }]),
   },
 }));
 
