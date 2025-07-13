@@ -6,7 +6,14 @@ vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
   ftrackPlaylistService: {
     getProjects: vi
       .fn()
-      .mockResolvedValue([{ id: "project-id", name: "Test Project", fullName: "Test Project", status: "Active" }]),
+      .mockResolvedValue([
+        {
+          id: "project-id",
+          name: "Test Project",
+          fullName: "Test Project",
+          status: "Active",
+        },
+      ]),
   },
 }));
 

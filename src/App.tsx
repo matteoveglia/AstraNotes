@@ -545,107 +545,105 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col select-none">
-          <TopBar
-            onLoadPlaylists={async () => {
-              // CRITICAL FIX: Get current project ID for manual reload
-              const currentProjectId =
-                useProjectStore.getState().selectedProjectId;
-              await loadPlaylistsWithLists(currentProjectId);
-            }}
-            onCloseAllPlaylists={handleCloseAll}
-            onProjectChange={handleProjectChange}
-            shouldShowWhatsNew={shouldShowModal}
-            onWhatsNewClose={hideModal}
-          />
-          <div className="flex-1 flex overflow-hidden">
-            <PlaylistPanel
-              playlists={playlists}
-              activePlaylist={activePlaylistId}
-              onPlaylistSelect={handlePlaylistSelect}
-              loading={isLoading}
-              error={error}
-              onRefresh={async () => {
-                // Refresh playlists ensuring parent state synchronization
-                const currentProjectId =
-                  useProjectStore.getState().selectedProjectId;
-                await loadPlaylistsWithLists(currentProjectId);
-              }}
-            />
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-hidden">
-                {shouldShowContent ? (
-                  isPlaylistReady ? (
-                    <ErrorBoundary
-                      fallback={
-                        <div className="h-full flex flex-col items-center justify-center p-6">
-                          <h3 className="text-xl font-semibold text-red-600 mb-2">
-                            Error loading content
-                          </h3>
-                          <p className="text-zinc-700 mb-4">
-                            Failed to load playlist content
-                          </p>
-                          <button
-                            onClick={() => window.location.reload()}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      }
-                    >
-                      <MainContent
-                        playlist={activePlaylistData}
-                        onPlaylistUpdate={handleMainContentPlaylistUpdate}
-                      />
-                    </ErrorBoundary>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
+      <TopBar
+        onLoadPlaylists={async () => {
+          // CRITICAL FIX: Get current project ID for manual reload
+          const currentProjectId = useProjectStore.getState().selectedProjectId;
+          await loadPlaylistsWithLists(currentProjectId);
+        }}
+        onCloseAllPlaylists={handleCloseAll}
+        onProjectChange={handleProjectChange}
+        shouldShowWhatsNew={shouldShowModal}
+        onWhatsNewClose={hideModal}
+      />
+      <div className="flex-1 flex overflow-hidden">
+        <PlaylistPanel
+          playlists={playlists}
+          activePlaylist={activePlaylistId}
+          onPlaylistSelect={handlePlaylistSelect}
+          loading={isLoading}
+          error={error}
+          onRefresh={async () => {
+            // Refresh playlists ensuring parent state synchronization
+            const currentProjectId =
+              useProjectStore.getState().selectedProjectId;
+            await loadPlaylistsWithLists(currentProjectId);
+          }}
+        />
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-hidden">
+            {shouldShowContent ? (
+              isPlaylistReady ? (
+                <ErrorBoundary
+                  fallback={
+                    <div className="h-full flex flex-col items-center justify-center p-6">
+                      <h3 className="text-xl font-semibold text-red-600 mb-2">
+                        Error loading content
+                      </h3>
+                      <p className="text-zinc-700 mb-4">
+                        Failed to load playlist content
+                      </p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  }
+                >
+                  <MainContent
+                    playlist={activePlaylistData}
+                    onPlaylistUpdate={handleMainContentPlaylistUpdate}
+                  />
+                </ErrorBoundary>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    {error ? (
+                      <>
+                        <p className="text-red-500 text-xl mb-2">
+                          Error loading playlists
+                        </p>
+                        <p className="text-zinc-600 mb-4">{error}</p>
+                        <button
+                          onClick={() =>
+                            loadPlaylistsWithLists(selectedProjectId)
+                          }
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Try again
+                        </button>
+                      </>
+                    ) : isLoading ? (
+                      <p className="text-zinc-500">Loading playlists...</p>
+                    ) : (
                       <div className="text-center">
-                        {error ? (
-                          <>
-                            <p className="text-red-500 text-xl mb-2">
-                              Error loading playlists
-                            </p>
-                            <p className="text-zinc-600 mb-4">{error}</p>
-                            <button
-                              onClick={() =>
-                                loadPlaylistsWithLists(selectedProjectId)
-                              }
-                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            >
-                              Try again
-                            </button>
-                          </>
-                        ) : isLoading ? (
-                          <p className="text-zinc-500">Loading playlists...</p>
+                        {!selectedProjectId || !hasValidatedSelectedProject ? (
+                          <NoProjectSelectedState />
                         ) : (
-                          <div className="text-center">
-                            {!selectedProjectId ||
-                            !hasValidatedSelectedProject ? (
-                              <NoProjectSelectedState />
-                            ) : (
-                              <p className="text-zinc-500 select-none">
-                                Select a playlist to view
-                              </p>
-                            )}
-                          </div>
+                          <p className="text-zinc-500 select-none">
+                            Select a playlist to view
+                          </p>
                         )}
                       </div>
-                    </div>
-                  )
-                ) : (
-                  <NoProjectSelectedState />
-                )}
-              </div>
-              <OpenPlaylistsBar
-                playlists={openPlaylists}
-                activePlaylist={activePlaylistId}
-                onPlaylistSelect={handlePlaylistSelect}
-                onPlaylistClose={handlePlaylistClose}
-                onCloseAll={handleCloseAll}
-              />
-            </div>
+                    )}
+                  </div>
+                </div>
+              )
+            ) : (
+              <NoProjectSelectedState />
+            )}
           </div>
+          <OpenPlaylistsBar
+            playlists={openPlaylists}
+            activePlaylist={activePlaylistId}
+            onPlaylistSelect={handlePlaylistSelect}
+            onPlaylistClose={handlePlaylistClose}
+            onCloseAll={handleCloseAll}
+          />
+        </div>
+      </div>
     </div>
   );
 };

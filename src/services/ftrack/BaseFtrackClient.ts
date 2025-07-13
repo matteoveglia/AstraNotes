@@ -55,7 +55,11 @@ export class BaseFtrackClient {
    * Create a new Session if not already initialised.
    */
   private async initSession(): Promise<Session | null> {
-    if (!this.settings?.serverUrl || !this.settings?.apiKey || !this.settings?.apiUser) {
+    if (
+      !this.settings?.serverUrl ||
+      !this.settings?.apiKey ||
+      !this.settings?.apiUser
+    ) {
       return null;
     }
 
@@ -72,7 +76,10 @@ export class BaseFtrackClient {
       return this.session;
     } catch (error) {
       // Keep error small – full error handling is still inside monolith path
-      safeConsoleError("[BaseFtrackClient] Failed to initialise session", error);
+      safeConsoleError(
+        "[BaseFtrackClient] Failed to initialise session",
+        error,
+      );
       this.session = null;
       return null;
     }
@@ -107,7 +114,12 @@ export class BaseFtrackClient {
   isFallbackEnabled(): boolean {
     return useSettings.getState().settings.useMonolithFallback;
   }
+
+  /** Protected getter for settings access in derived classes */
+  protected getSettings(): FtrackSettings | null {
+    return this.settings;
+  }
 }
 
 // Convenience singleton export
-export const baseFtrackClient = BaseFtrackClient.instance; 
+export const baseFtrackClient = BaseFtrackClient.instance;

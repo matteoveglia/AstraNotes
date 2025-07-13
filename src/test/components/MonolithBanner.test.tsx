@@ -19,4 +19,4 @@ describe("MonolithFallbackBanner", () => {
     renderWithFlag(false);
     expect(screen.queryByText(/monolith fallback/i)).toBeNull();
   });
-}); 
+});

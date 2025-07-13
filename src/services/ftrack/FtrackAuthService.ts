@@ -25,4 +25,4 @@ export class FtrackAuthService extends BaseFtrackClient {
   }
 }
 
-export const ftrackAuthService = new FtrackAuthService(); 
+export const ftrackAuthService = new FtrackAuthService();

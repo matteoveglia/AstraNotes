@@ -256,12 +256,16 @@ describe("Playlist Store Integration Tests", () => {
       ]);
 
       // Add a version with a draft
-      await playlistStore.saveDraft("test-playlist", "version-1", "Test content");
+      await playlistStore.saveDraft(
+        "test-playlist",
+        "version-1",
+        "Test content",
+      );
 
       // Mock the ftrack publish call for this test suite
-      vi.mocked(ftrackNoteService.publishNoteWithAttachmentsAPI).mockResolvedValue(
-        "new-note-id",
-      );
+      vi.mocked(
+        ftrackNoteService.publishNoteWithAttachmentsAPI,
+      ).mockResolvedValue("new-note-id");
     });
 
     it("should save and retrieve draft content", async () => {

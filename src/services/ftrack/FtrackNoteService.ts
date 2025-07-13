@@ -17,7 +17,7 @@ export class FtrackNoteService extends BaseFtrackClient {
 
   private async ensureCurrentUser(session: Session): Promise<string> {
     if (this.currentUserId) return this.currentUserId!;
-    const username = this.settings?.apiUser;
+    const username = this.getSettings()?.apiUser;
     if (!username) {
       throw new Error("No API user configured");
     }
@@ -52,7 +52,10 @@ export class FtrackNoteService extends BaseFtrackClient {
 
     const noteIdSimple = response?.data?.id;
     if (noteIdSimple && labelId) {
-      await session.create("NoteLabelLink", { note_id: noteIdSimple, label_id: labelId });
+      await session.create("NoteLabelLink", {
+        note_id: noteIdSimple,
+        label_id: labelId,
+      });
     }
     return noteIdSimple || null;
   }
@@ -101,7 +104,10 @@ export class FtrackNoteService extends BaseFtrackClient {
     // Handle label linking (not covered by AttachmentService)
     if (noteId && labelId) {
       try {
-        await session.create("NoteLabelLink", { note_id: noteId, label_id: labelId });
+        await session.create("NoteLabelLink", {
+          note_id: noteId,
+          label_id: labelId,
+        });
       } catch (err) {
         console.error("[FtrackNoteService] Failed to link label to note", err);
       }
@@ -121,4 +127,4 @@ export class FtrackNoteService extends BaseFtrackClient {
   }
 }
 
-export const ftrackNoteService = new FtrackNoteService(); 
+export const ftrackNoteService = new FtrackNoteService();

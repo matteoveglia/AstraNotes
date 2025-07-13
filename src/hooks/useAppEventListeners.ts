@@ -39,11 +39,13 @@ export function useAppEventListeners({
   // playlist-synced → playlist converted from local to ftrack
   useEffect(() => {
     const listener = (event: Event) => {
-      const { playlistId, ftrackId } = (event as CustomEvent<{
-        playlistId: string;
-        ftrackId?: string;
-        playlistName: string;
-      }>).detail;
+      const { playlistId, ftrackId } = (
+        event as CustomEvent<{
+          playlistId: string;
+          ftrackId?: string;
+          playlistName: string;
+        }>
+      ).detail;
 
       const currentPlaylists = playlists;
 
@@ -102,5 +104,11 @@ export function useAppEventListeners({
     return () => {
       playlistStore.off("playlist-updated", handlePlaylistUpdate);
     };
-  }, [playlists, setLocalPlaylists, loadPlaylistsWithLists, loadedVersionsRef, setLoadingVersions]);
-} 
+  }, [
+    playlists,
+    setLocalPlaylists,
+    loadPlaylistsWithLists,
+    loadedVersionsRef,
+    setLoadingVersions,
+  ]);
+}

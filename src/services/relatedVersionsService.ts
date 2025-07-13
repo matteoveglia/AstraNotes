@@ -268,7 +268,12 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
             `[RelatedVersionsService] Shot status data for ${versionId}:`,
             statusData,
           );
-          if (statusData && statusData.parentStatusId && statusData.parentType && statusData.parentId) {
+          if (
+            statusData &&
+            statusData.parentStatusId &&
+            statusData.parentType &&
+            statusData.parentId
+          ) {
             // Use the working getStatusesForEntity method instead of getStatusesForObjectType
             const allStatuses = await ftrackStatusService.getStatusesForEntity(
               statusData.parentType,
@@ -295,11 +300,11 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
           } else {
             console.warn(
               `[RelatedVersionsService] Missing shot status data for ${versionId}:`,
-              { 
+              {
                 hasParentStatusId: !!statusData?.parentStatusId,
                 hasParentType: !!statusData?.parentType,
-                hasParentId: !!statusData?.parentId
-              }
+                hasParentId: !!statusData?.parentId,
+              },
             );
           }
         } catch (error) {
@@ -395,10 +400,11 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       // TODO: Optimize with true batch API calls when available
       for (const versionId of versionIds) {
         try {
-          const versionDetails = await ftrackVersionService.fetchVersionDetails(
-            versionId,
-          );
-          details[versionId] = versionDetails;
+          const versionDetails =
+            await ftrackVersionService.fetchVersionDetails(versionId);
+          if (versionDetails) {
+            details[versionId] = versionDetails;
+          }
         } catch (error) {
           console.warn(
             "[RelatedVersionsService] Failed to fetch details for version:",

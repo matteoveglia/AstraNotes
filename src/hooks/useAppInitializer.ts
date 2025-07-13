@@ -17,9 +17,9 @@ export function useAppInitializer(): void {
       fetchLabels(),
       ftrackStatusService.ensureStatusMappingsInitialized().catch((error) => {
         console.error("Failed to initialize status mappings:", error);
-      })
+      }),
     ]).catch((error) => {
       console.error("Failed to initialize app:", error);
     });
   }, [loadProjects, fetchLabels]);
-} 
+}

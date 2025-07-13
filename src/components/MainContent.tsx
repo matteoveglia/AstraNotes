@@ -968,11 +968,12 @@ export const MainContent: React.FC<MainContentProps> = ({
             >
               <CardTitle className="text-xl select-text">
                 {activePlaylist.name}
-                {isInitializing && (activePlaylist.versions?.length || 0) === 0 && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground min-h-[1.25rem]">
-                    (Loading...)
-                  </span>
-                )}
+                {isInitializing &&
+                  (activePlaylist.versions?.length || 0) === 0 && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground min-h-[1.25rem]">
+                      (Loading...)
+                    </span>
+                  )}
               </CardTitle>
               <AnimatePresence>
                 {isPlaylistTitleHovered &&
@@ -993,31 +994,32 @@ export const MainContent: React.FC<MainContentProps> = ({
               </AnimatePresence>
             </div>
             <p className="text-sm text-muted-foreground min-h-[1.25rem]">
-              {isInitializing && (activePlaylist.versions?.length || 0) === 0
-                ? "Initializing playlist..."
-                : (
-                  <>
-                    {filteredVersions.length} Version
-                    {filteredVersions.length !== 1 ? "s" : ""}
-                    {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
-                      ` (${activePlaylist.versions?.length || 0} total)`}
-                    {activePlaylist.isLocalOnly && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="ml-2 cursor-help">• Local only</span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>
-                              This playlist is local only and not synced to
-                              ftrack. Use the sync button to push it to ftrack.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </>
-                )}
+              {isInitializing &&
+              (activePlaylist.versions?.length || 0) === 0 ? (
+                "Initializing playlist..."
+              ) : (
+                <>
+                  {filteredVersions.length} Version
+                  {filteredVersions.length !== 1 ? "s" : ""}
+                  {(selectedStatuses.length > 0 || selectedLabels.length > 0) &&
+                    ` (${activePlaylist.versions?.length || 0} total)`}
+                  {activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-2 cursor-help">• Local only</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            This playlist is local only and not synced to
+                            ftrack. Use the sync button to push it to ftrack.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </>
+              )}
             </p>
           </div>
         </div>

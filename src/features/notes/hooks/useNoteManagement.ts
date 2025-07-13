@@ -617,12 +617,13 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`,
             );
 
-            const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
-              versionId,
-              content,
-              attachments,
-              labelId,
-            );
+            const noteId =
+              await ftrackNoteService.publishNoteWithAttachmentsAPI(
+                versionId,
+                content,
+                attachments,
+                labelId,
+              );
 
             if (noteId) {
               console.debug(
@@ -783,12 +784,13 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing ALL notes - version ${versionId} with ${attachments.length} attachments and labelId: "${labelId}"`,
             );
 
-            const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
-              versionId,
-              content,
-              attachments,
-              labelId,
-            );
+            const noteId =
+              await ftrackNoteService.publishNoteWithAttachmentsAPI(
+                versionId,
+                content,
+                attachments,
+                labelId,
+              );
 
             if (noteId) {
               console.debug(

@@ -98,9 +98,9 @@ describe("Playlist Refresh Workflow Integration", () => {
       expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
         "ftrack-playlist-123",
       );
-      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalledWith(
-        "test-playlist-uuid",
-      );
+      expect(
+        ftrackPlaylistService.getPlaylistVersions,
+      ).not.toHaveBeenCalledWith("test-playlist-uuid");
 
       // Verify modifications were detected
       expect(result.current.modifications.added).toBe(1); // version-2 is new

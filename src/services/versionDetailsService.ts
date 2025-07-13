@@ -94,7 +94,11 @@ async function performFetch(assetVersionId: string): Promise<VersionDetails> {
   );
 
   try {
-    const result = await ftrackVersionService.fetchVersionDetails(assetVersionId);
+    const result =
+      await ftrackVersionService.fetchVersionDetails(assetVersionId);
+    if (!result) {
+      throw new Error(`Version details not found for ID: ${assetVersionId}`);
+    }
     endOperation(); // Record successful fetch time
     return result;
   } catch (error) {

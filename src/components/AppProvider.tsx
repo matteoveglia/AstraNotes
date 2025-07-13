@@ -36,4 +36,4 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   );
 };
 
-export default AppProvider; 
+export default AppProvider;

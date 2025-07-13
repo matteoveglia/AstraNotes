@@ -89,9 +89,9 @@ describe("Critical Workflows Integration Tests", () => {
       expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
         "ftrack-123",
       );
-      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalledWith(
-        playlist.id,
-      );
+      expect(
+        ftrackPlaylistService.getPlaylistVersions,
+      ).not.toHaveBeenCalledWith(playlist.id);
     });
   });
 
@@ -179,9 +179,9 @@ describe("Critical Workflows Integration Tests", () => {
         await TestScenarios.setupFtrackPlaylistWithContent();
 
       // Mock the publish call
-      vi.mocked(ftrackNoteService.publishNoteWithAttachmentsAPI).mockResolvedValue(
-        "new-note-id",
-      );
+      vi.mocked(
+        ftrackNoteService.publishNoteWithAttachmentsAPI,
+      ).mockResolvedValue("new-note-id");
 
       // Publish the note
       await playlistStore.publishNote(playlist.id, draftVersionId);

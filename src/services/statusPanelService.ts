@@ -153,10 +153,11 @@ async function performFetch(
         null
       : null;
 
-    const parentStatus = statusPanelData.parentStatusId && parentStatuses.length > 0
-      ? parentStatuses.find((s) => s.id === statusPanelData.parentStatusId) ||
-        null
-      : null;
+    const parentStatus =
+      statusPanelData.parentStatusId && parentStatuses.length > 0
+        ? parentStatuses.find((s) => s.id === statusPanelData.parentStatusId) ||
+          null
+        : null;
 
     const currentStatuses: StatusPanelData = {
       versionId: statusPanelData.versionId,
@@ -230,7 +231,11 @@ export async function updateEntityStatusSuspense(
     }
 
     // Perform the actual server update
-    await ftrackStatusService.updateEntityStatus(entityType, entityId, statusId);
+    await ftrackStatusService.updateEntityStatus(
+      entityType,
+      entityId,
+      statusId,
+    );
 
     // Server update succeeded - invalidate affected cache entries for fresh data
     // but only the specific ones, not everything

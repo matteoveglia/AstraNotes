@@ -51,4 +51,4 @@ export function useThemeManager(): void {
         /* ignore */
       });
   }, [theme]);
-} 
+}

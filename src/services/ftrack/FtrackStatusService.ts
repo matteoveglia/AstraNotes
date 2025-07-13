@@ -22,7 +22,7 @@ export class FtrackStatusService extends BaseFtrackClient {
       [objectTypeName: string]: Status[];
     };
   } = {};
-  
+
   private schemaStatusMappingReady = false;
   private allWorkflowSchemas: any[] = [];
 
@@ -31,7 +31,10 @@ export class FtrackStatusService extends BaseFtrackClient {
    */
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
     const session = await this.getSession();
-    console.debug("[FtrackStatusService] Fetching status panel data for asset version:", assetVersionId);
+    console.debug(
+      "[FtrackStatusService] Fetching status panel data for asset version:",
+      assetVersionId,
+    );
 
     try {
       // CRITICAL FIX: Use the correct relationship path from schema
@@ -83,10 +86,12 @@ export class FtrackStatusService extends BaseFtrackClient {
     }
 
     try {
-      console.debug("[FtrackStatusService] Initializing schema status mappings...");
-      
+      console.debug(
+        "[FtrackStatusService] Initializing schema status mappings...",
+      );
+
       const session = await this.getSession();
-      
+
       // Fetch all the data we need in parallel
       const [
         statusesResult,
@@ -94,14 +99,20 @@ export class FtrackStatusService extends BaseFtrackClient {
         projectSchemasResult,
         schemasResult,
         schemaStatusesResult,
-        workflowSchemasResult
+        workflowSchemasResult,
       ] = await Promise.all([
         session.query("select id, name, color from Status"),
         session.query("select id, name from ObjectType"),
-        session.query("select id, asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema"),
-        session.query("select id, project_schema_id, object_type_id from Schema"),
+        session.query(
+          "select id, asset_version_workflow_schema_id, task_workflow_schema_id from ProjectSchema",
+        ),
+        session.query(
+          "select id, project_schema_id, object_type_id from Schema",
+        ),
         session.query("select schema_id, status_id from SchemaStatus"),
-        session.query("select id, statuses.id, statuses.name, statuses.color from WorkflowSchema")
+        session.query(
+          "select id, statuses.id, statuses.name, statuses.color from WorkflowSchema",
+        ),
       ]);
 
       const allStatuses = statusesResult.data || [];
@@ -116,7 +127,7 @@ export class FtrackStatusService extends BaseFtrackClient {
 
       // Build the schema status mapping
       this.schemaStatusMapping = {};
-      
+
       for (const projectSchema of allProjectSchemas) {
         const schemaId = projectSchema.id;
         this.schemaStatusMapping[schemaId] = {};
@@ -139,7 +150,9 @@ export class FtrackStatusService extends BaseFtrackClient {
 
           // Map to Status objects
           const statuses = schemaStatuses
-            .map((ss: any) => allStatuses.find((st: any) => st.id === ss.status_id))
+            .map((ss: any) =>
+              allStatuses.find((st: any) => st.id === ss.status_id),
+            )
             .filter(Boolean) as Status[];
 
           this.schemaStatusMapping[schemaId][objectType.name] = statuses;
@@ -147,10 +160,14 @@ export class FtrackStatusService extends BaseFtrackClient {
       }
 
       this.schemaStatusMappingReady = true;
-      console.debug("[FtrackStatusService] Schema status mappings initialized successfully");
-      
+      console.debug(
+        "[FtrackStatusService] Schema status mappings initialized successfully",
+      );
     } catch (error) {
-      console.error("[FtrackStatusService] Failed to initialize schema status mappings:", error);
+      console.error(
+        "[FtrackStatusService] Failed to initialize schema status mappings:",
+        error,
+      );
       this.schemaStatusMappingReady = false;
       throw error;
     }
@@ -170,21 +187,25 @@ export class FtrackStatusService extends BaseFtrackClient {
 
     try {
       const session = await this.getSession();
-      
+
       // Get the entity's project and project_schema_id
       const entityQuery = await session.query(
         `select project.id, project.project_schema_id from ${entityType} where id is "${entityId}"`,
       );
-      
+
       const entityData = entityQuery.data[0];
       if (!entityData) {
-        console.debug(`[FtrackStatusService] Entity not found: ${entityType} ${entityId}`);
+        console.debug(
+          `[FtrackStatusService] Entity not found: ${entityType} ${entityId}`,
+        );
         return [];
       }
-      
+
       const projectSchemaId = entityData.project?.project_schema_id;
       if (!projectSchemaId) {
-        console.debug(`[FtrackStatusService] No project_schema_id for entity: ${entityType} ${entityId}`);
+        console.debug(
+          `[FtrackStatusService] No project_schema_id for entity: ${entityType} ${entityId}`,
+        );
         return [];
       }
 
@@ -194,38 +215,50 @@ export class FtrackStatusService extends BaseFtrackClient {
         const schemaResult = await session.query(
           `select asset_version_workflow_schema_id from ProjectSchema where id is "${projectSchemaId}"`,
         );
-        
+
         const schema = schemaResult.data[0];
         const workflowSchemaId = schema?.asset_version_workflow_schema_id;
-        
+
         if (!workflowSchemaId) {
-          console.debug(`[FtrackStatusService] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`);
+          console.debug(
+            `[FtrackStatusService] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`,
+          );
           return [];
         }
-        
+
         // Find the workflow schema and its statuses
         const workflowSchema = this.allWorkflowSchemas.find(
           (ws: any) => ws.id === workflowSchemaId,
         );
-        
-        const statuses = workflowSchema?.statuses?.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-        })) || [];
-        
-        console.debug(`[FtrackStatusService] AssetVersion workflow schema ${workflowSchemaId} statuses:`, statuses);
+
+        const statuses =
+          workflowSchema?.statuses?.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+          })) || [];
+
+        console.debug(
+          `[FtrackStatusService] AssetVersion workflow schema ${workflowSchemaId} statuses:`,
+          statuses,
+        );
         return statuses;
       }
 
       // For all other entity types, use the pre-built mapping
-      const statuses = this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
-      
-      console.debug(`[FtrackStatusService] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`, statuses);
+      const statuses =
+        this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
+
+      console.debug(
+        `[FtrackStatusService] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`,
+        statuses,
+      );
       return statuses;
-      
     } catch (error) {
-      console.debug("[FtrackStatusService] Failed to fetch applicable statuses:", error);
+      console.debug(
+        "[FtrackStatusService] Failed to fetch applicable statuses:",
+        error,
+      );
       throw error;
     }
   }

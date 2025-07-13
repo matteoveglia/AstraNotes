@@ -18,7 +18,9 @@ describe("FtrackAuthService", () => {
 
   it("should use BaseFtrackClient for getSession", async () => {
     const mockSession = { id: "session-123" };
-    vi.spyOn(baseFtrackClient, "getSession").mockResolvedValueOnce(mockSession as any);
+    vi.spyOn(baseFtrackClient, "getSession").mockResolvedValueOnce(
+      mockSession as any,
+    );
 
     const result = await ftrackAuthService.getSession();
     expect(result).toBe(mockSession);
@@ -27,9 +29,11 @@ describe("FtrackAuthService", () => {
 
   it("should use BaseFtrackClient for updateSettings", async () => {
     const mockSettings = { serverUrl: "test", apiKey: "key", apiUser: "user" };
-    vi.spyOn(baseFtrackClient, "updateSettings").mockImplementationOnce(() => {});
+    vi.spyOn(baseFtrackClient, "updateSettings").mockImplementationOnce(
+      () => {},
+    );
 
     ftrackAuthService.updateSettings(mockSettings);
     expect(baseFtrackClient.updateSettings).toHaveBeenCalledWith(mockSettings);
   });
-}); 
+});

@@ -10,6 +10,16 @@ import type {
   AssetVersion,
 } from "@/types";
 
+// Local interface for ftrack session.create() responses
+interface CreateResponse {
+  id?: string;
+  name?: string;
+  created_at?: string;
+  project_id?: string;
+  date?: string;
+  [key: string]: any;
+}
+
 /**
  * FtrackPlaylistService
  * ----------------------------------
@@ -29,7 +39,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
 
   private async ensureCurrentUser(session: Session): Promise<string> {
     if (this.currentUserId) return this.currentUserId!;
-    const username = this.settings?.apiUser;
+    const username = this.getSettings()?.apiUser;
     if (!username) {
       throw new Error("No API user configured");
     }
@@ -118,7 +128,8 @@ export class FtrackPlaylistService extends BaseFtrackClient {
       isQuickNotes: false,
       type: "list" as const,
       categoryId: list.category_id,
-      categoryName: (list["category.name"] || list.category?.name) || "Uncategorized",
+      categoryName:
+        list["category.name"] || list.category?.name || "Uncategorized",
       isOpen: list.is_open,
       projectId: list.project_id,
     }));
@@ -168,7 +179,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     const session = await this.getSession();
     const currentUserId = await this.ensureCurrentUser(session);
 
-    const result = await session.create("ReviewSession", {
+    const result: CreateResponse = await session.create("ReviewSession", {
       name: request.name,
       project_id: request.projectId,
       created_by_id: currentUserId,
@@ -177,15 +188,10 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     this.log("Created review session:", result);
 
     return {
-      id: result.id,
-      name: result.name,
-      title: result.name,
-      notes: [],
-      createdAt: result.created_at,
-      updatedAt: result.created_at,
-      isQuickNotes: false,
-      type: "reviewsession" as const,
-      projectId: result.project_id,
+      id: result.id || "",
+      name: result.name || request.name,
+      type: "reviewsession",
+      success: true,
     };
   }
 
@@ -195,7 +201,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     const session = await this.getSession();
     const currentUserId = await this.ensureCurrentUser(session);
 
-    const result = await session.create("List", {
+    const result: CreateResponse = await session.create("List", {
       name: request.name,
       project_id: request.projectId,
       created_by_id: currentUserId,
@@ -205,27 +211,22 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     this.log("Created list:", result);
 
     return {
-      id: result.id,
-      name: result.name,
-      title: result.name,
-      notes: [],
-      createdAt: result.date || new Date().toISOString(),
-      updatedAt: result.date || new Date().toISOString(),
-      isQuickNotes: false,
-      type: "list" as const,
-      projectId: result.project_id,
+      id: result.id || "",
+      name: result.name || request.name,
+      type: "list",
+      success: true,
     };
   }
 
   async getListCategories(projectId: string): Promise<PlaylistCategory[]> {
     const session = await this.getSession();
-    const query = `select id, name from ListCategory where project_id is "${projectId}" order by name`;
+    const query = `select id, name from ListCategory order by name`;
     const result = await session.query(query);
 
     return (result?.data || []).map((cat: any) => ({
       id: cat.id,
       name: cat.name,
-      type: "listcategory" as const,
+      type: "lists" as const,
       playlists: [],
     }));
   }
@@ -238,49 +239,102 @@ export class FtrackPlaylistService extends BaseFtrackClient {
     const session = await this.getSession();
     const currentUserId = await this.ensureCurrentUser(session);
 
-    this.log(`Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`);
+    this.log(
+      `Adding ${versionIds.length} versions to ${playlistType} ${playlistId}`,
+    );
 
-    const results = [];
-    const errors = [];
+    const syncedVersionIds: string[] = [];
+    const failedVersionIds: string[] = [];
 
     for (const versionId of versionIds) {
       try {
-        const result = await session.create("ReviewSessionObject", {
-          review_session_id: playlistId,
-          asset_version_id: versionId,
-          created_by_id: currentUserId,
-        });
-        results.push(result);
+        if (playlistType === "reviewsession") {
+          await session.create("ReviewSessionObject", {
+            review_session_id: playlistId,
+            asset_version_id: versionId,
+            created_by_id: currentUserId,
+          });
+        } else {
+          await session.create("ListObject", {
+            list_id: playlistId,
+            entity_id: versionId,
+            created_by_id: currentUserId,
+          });
+        }
+        syncedVersionIds.push(versionId);
       } catch (error) {
         this.log(`Failed to add version ${versionId}:`, error);
-        errors.push({ versionId, error: String(error) });
+        failedVersionIds.push(versionId);
       }
     }
 
     return {
-      added: results.length,
-      errors: errors.length,
-      errorDetails: errors,
+      playlistId,
+      syncedVersionIds,
+      failedVersionIds,
+      success: failedVersionIds.length === 0,
+      error:
+        failedVersionIds.length > 0
+          ? `Failed to add ${failedVersionIds.length} versions`
+          : undefined,
     };
   }
 
   async getPlaylistVersions(playlistId: string): Promise<AssetVersion[]> {
     const session = await this.getSession();
-    const query = `
-      select 
-        id,
-        asset_version.id,
-        asset_version.asset.name,
-        asset_version.version,
-        asset_version.thumbnail.id
-      from ReviewSessionObject 
-      where review_session_id is "${playlistId}"
-      order by asset_version.asset.name, asset_version.version
-    `;
+    
+    // First determine if this is a review session or list
+    const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
+    const reviewSessionResult = await session.query(reviewSessionQuery);
 
-    const result = await session.query(query);
-    return this.mapVersionsToPlaylist(result?.data || []);
+    if (reviewSessionResult?.data?.length > 0) {
+      // Handle Review Session versions
+      const query = `
+        select 
+          id,
+          asset_version.id,
+          asset_version.asset.name,
+          asset_version.version,
+          asset_version.thumbnail.id
+        from ReviewSessionObject 
+        where review_session_id is "${playlistId}"
+        order by asset_version.asset.name, asset_version.version
+      `;
+      const result = await session.query(query);
+      return this.mapVersionsToPlaylist(result?.data || []);
+    } else {
+      // Check if this is a List
+      const listQuery = `select id from List where id is "${playlistId}"`;
+      const listResult = await session.query(listQuery);
+
+      if (listResult?.data?.length > 0) {
+        // Get entity IDs from ListObject table
+        const listObjectQuery = `select entity_id from ListObject where list_id is "${playlistId}"`;
+        const listObjectResult = await session.query(listObjectQuery);
+
+        if (listObjectResult?.data?.length > 0) {
+          const entityIds = listObjectResult.data.map(obj => obj.entity_id);
+          
+          // Fetch version details for all entities
+          const query = `
+            select 
+              id,
+              version,
+              asset.name,
+              thumbnail.id
+            from AssetVersion
+            where id in (${entityIds.map(id => `"${id}"`).join(", ")})
+            order by date desc
+          `;
+          const result = await session.query(query);
+          return this.mapVersionsToPlaylist(result?.data || []);
+        }
+      }
+    }
+
+    this.log(`Playlist ${playlistId} not found as review session or list`);
+    return [];
   }
 }
 
-export const ftrackPlaylistService = new FtrackPlaylistService(); 
+export const ftrackPlaylistService = new FtrackPlaylistService();

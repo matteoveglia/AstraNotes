@@ -73,7 +73,9 @@ describe("usePlaylistsStore", () => {
       notes: [],
     });
     const mockPlaylists = [mockPlaylist];
-    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(mockPlaylists);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(
+      mockPlaylists,
+    );
     (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     const promise = usePlaylistsStore.getState().loadPlaylists();
@@ -111,7 +113,9 @@ describe("usePlaylistsStore", () => {
       projectId: "test-project-id",
     });
     const mockPlaylists = [mockPlaylist];
-    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(mockPlaylists);
+    (ftrackPlaylistService.getPlaylists as any).mockResolvedValue(
+      mockPlaylists,
+    );
     (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
     const promise = usePlaylistsStore

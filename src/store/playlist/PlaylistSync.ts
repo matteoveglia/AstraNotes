@@ -40,11 +40,11 @@ class SimpleEventEmitter {
 import { PlaylistRepository } from "./PlaylistRepository";
 import { PlaylistCache } from "./PlaylistCache";
 import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
-import { 
-  PlaylistEntity, 
-  VersionEntity, 
-  SyncOperations, 
-  PlaylistEvent 
+import {
+  PlaylistEntity,
+  VersionEntity,
+  SyncOperations,
+  PlaylistEvent,
 } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 import { usePlaylistsStore } from "../playlistsStore";

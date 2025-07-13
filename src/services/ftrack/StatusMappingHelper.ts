@@ -35,7 +35,9 @@ export class StatusMappingHelper {
   /**
    * Fetch shared status data from ftrack
    */
-  static async fetchSharedStatusData(session: any): Promise<WorkflowSchemaData> {
+  static async fetchSharedStatusData(
+    session: any,
+  ): Promise<WorkflowSchemaData> {
     console.debug("[StatusMappingHelper] Fetching shared status data");
 
     try {
@@ -64,7 +66,10 @@ export class StatusMappingHelper {
         allSchemaStatuses: schemaStatusResult?.data || [],
       };
     } catch (error) {
-      console.error("[StatusMappingHelper] Failed to fetch shared data:", error);
+      console.error(
+        "[StatusMappingHelper] Failed to fetch shared data:",
+        error,
+      );
       throw error;
     }
   }
@@ -135,11 +140,12 @@ export class StatusMappingHelper {
                 (ot: any) => ot.id === override.type_id,
               );
               if (objectType) {
-                const overrideStatuses = await this.getStatusesForWorkflowSchema(
-                  session,
-                  override.workflow_schema_id,
-                  allStatuses,
-                );
+                const overrideStatuses =
+                  await this.getStatusesForWorkflowSchema(
+                    session,
+                    override.workflow_schema_id,
+                    allStatuses,
+                  );
                 this.schemaStatusMapping[projectSchemaId][objectType.name] =
                   overrideStatuses;
               }
@@ -252,4 +258,4 @@ export class StatusMappingHelper {
     this.allWorkflowSchemas = [];
     console.debug("[StatusMappingHelper] Cache cleared");
   }
-} 
+}

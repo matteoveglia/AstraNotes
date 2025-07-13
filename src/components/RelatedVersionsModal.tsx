@@ -161,11 +161,13 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     if (!isOpen) {
       // Cancel any ongoing requests
       if (abortControllerRef.current) {
-        console.debug("[RelatedVersionsModal] Cancelling ongoing requests due to modal close");
+        console.debug(
+          "[RelatedVersionsModal] Cancelling ongoing requests due to modal close",
+        );
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
-      
+
       setSelectedVersions([]);
       setSelectedAcrossPages(new Set());
       setSearchTerm("");
@@ -264,7 +266,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     );
     try {
       // Get the parent entity information from status panel data
-      const statusData = await ftrackStatusService.fetchStatusPanelData(versionId);
+      const statusData =
+        await ftrackStatusService.fetchStatusPanelData(versionId);
       if (!statusData?.parentId || !statusData?.parentType) {
         console.warn(
           `[RelatedVersionsModal] No parent entity found for version ${versionId}`,
@@ -355,7 +358,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
       // Check if request was aborted
       if (currentAbortController.signal.aborted) {
-        console.debug("[RelatedVersionsModal] Request aborted during fetchVersionsByShotName");
+        console.debug(
+          "[RelatedVersionsModal] Request aborted during fetchVersionsByShotName",
+        );
         return;
       }
 
@@ -392,7 +397,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           // Step 1 – fetch available statuses (10%)
           await fetchAvailableStatusesForVersions(sortedVersions);
           if (currentAbortController.signal.aborted) {
-            console.debug("[RelatedVersionsModal] Request aborted during fetchAvailableStatusesForVersions");
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during fetchAvailableStatusesForVersions",
+            );
             return;
           }
           setLoadingProgress(10);
@@ -404,7 +411,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           const details =
             await relatedVersionsService.batchFetchVersionDetails(versionIds);
           if (currentAbortController.signal.aborted) {
-            console.debug("[RelatedVersionsModal] Request aborted during batchFetchVersionDetails");
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchVersionDetails",
+            );
             return;
           }
           setVersionDataCache((prev) => ({
@@ -417,7 +426,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           const statuses =
             await relatedVersionsService.batchFetchVersionStatuses(versionIds);
           if (currentAbortController.signal.aborted) {
-            console.debug("[RelatedVersionsModal] Request aborted during batchFetchVersionStatuses");
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchVersionStatuses",
+            );
             return;
           }
           setVersionDataCache((prev) => ({
@@ -430,7 +441,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           const shotStatuses =
             await relatedVersionsService.batchFetchShotStatuses(versionIds);
           if (currentAbortController.signal.aborted) {
-            console.debug("[RelatedVersionsModal] Request aborted during batchFetchShotStatuses");
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchShotStatuses",
+            );
             return;
           }
           setVersionDataCache((prev) => ({
@@ -453,10 +466,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         } finally {
           // Only set timeout if not aborted
           if (!currentAbortController.signal.aborted) {
-          // Allow a brief moment for 100% to be visible before fading out
-          setTimeout(() => {
-            setProgressiveLoading(false);
-          }, 400);
+            // Allow a brief moment for 100% to be visible before fading out
+            setTimeout(() => {
+              setProgressiveLoading(false);
+            }, 400);
           }
         }
       }

@@ -141,7 +141,8 @@ export const usePlaylistCreationStore = create<PlaylistCreationState>(
     fetchCategories: async (projectId: string): Promise<void> => {
       set({ categoriesLoading: true });
       try {
-        const categories = await ftrackPlaylistService.getListCategories(projectId);
+        const categories =
+          await ftrackPlaylistService.getListCategories(projectId);
         set({ categories, categoriesLoading: false });
       } catch (error) {
         console.error("Failed to fetch categories:", error);
