@@ -34,12 +34,8 @@ export function useAutoRefresh({
   const startAutoRefresh = useCallback(async () => {
     // Check if this is a Quick Notes playlist (project-scoped)
     const isQuickNotes = playlistId.startsWith("quick-notes-");
-    
-    if (
-      !settings.autoRefreshEnabled ||
-      !isEnabled ||
-      isQuickNotes
-    ) {
+
+    if (!settings.autoRefreshEnabled || !isEnabled || isQuickNotes) {
       return;
     }
 
@@ -63,12 +59,8 @@ export function useAutoRefresh({
   useEffect(() => {
     // Check if this is a Quick Notes playlist (project-scoped)
     const isQuickNotes = playlistId.startsWith("quick-notes-");
-    
-    if (
-      settings.autoRefreshEnabled &&
-      isEnabled &&
-      !isQuickNotes
-    ) {
+
+    if (settings.autoRefreshEnabled && isEnabled && !isQuickNotes) {
       startAutoRefresh();
     } else {
       stopAutoRefresh();

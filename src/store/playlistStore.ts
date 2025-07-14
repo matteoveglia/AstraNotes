@@ -752,7 +752,9 @@ export class PlaylistStore {
       // For other playlists, store without versions as they're stored separately in the versions table
       const playlistWithoutVersions = {
         ...playlist,
-        versions: playlist.id.startsWith("quick-notes-") ? playlist.versions : [], // preserve versions for Quick Notes
+        versions: playlist.id.startsWith("quick-notes-")
+          ? playlist.versions
+          : [], // preserve versions for Quick Notes
       };
 
       // Cache the playlist metadata first

@@ -424,11 +424,10 @@ describe("Playlist Store Integration Tests", () => {
             updatedAt: dbEntry.updatedAt,
             ftrackId: dbEntry.ftrackId,
             // CRITICAL FIX: Quick Notes should NEVER be considered local only
-            isLocalOnly:
-              dbEntry.id.startsWith("quick-notes-")
-                ? false
-                : dbEntry.localStatus === "draft" ||
-                  dbEntry.ftrackSyncStatus === "not_synced",
+            isLocalOnly: dbEntry.id.startsWith("quick-notes-")
+              ? false
+              : dbEntry.localStatus === "draft" ||
+                dbEntry.ftrackSyncStatus === "not_synced",
             isQuickNotes: dbEntry.id.startsWith("quick-notes-"),
             ftrackSyncState:
               dbEntry.ftrackSyncStatus === "synced"
@@ -471,11 +470,10 @@ describe("Playlist Store Integration Tests", () => {
         id: dbPlaylist.id,
         name: dbPlaylist.name,
         // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
-        isLocalOnly:
-          dbPlaylist.id.startsWith("quick-notes-")
-            ? false
-            : dbPlaylist.localStatus === "draft" ||
-              dbPlaylist.ftrackSyncStatus === "not_synced",
+        isLocalOnly: dbPlaylist.id.startsWith("quick-notes-")
+          ? false
+          : dbPlaylist.localStatus === "draft" ||
+            dbPlaylist.ftrackSyncStatus === "not_synced",
         isQuickNotes: dbPlaylist.id.startsWith("quick-notes-"),
       });
 

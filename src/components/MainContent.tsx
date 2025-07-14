@@ -1025,7 +1025,9 @@ export const MainContent: React.FC<MainContentProps> = ({
         </div>
         <div className="flex items-center gap-4">
           {!isInitializing &&
-          (modifications.added > 0 || modifications.removed > 0) ? (
+          (modifications.added > 0 ||
+            modifications.removed > 0 ||
+            activePlaylist.deletedInFtrack) ? (
             <ModificationsBanner
               addedCount={modifications.added}
               removedCount={modifications.removed}
@@ -1041,6 +1043,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                   modifications.removedVersions?.some((rv) => rv.id === v.id),
                 ) || []
               }
+              isPlaylistDeleted={activePlaylist.deletedInFtrack}
             />
           ) : null}
           <div className="flex items-center gap-2">

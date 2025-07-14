@@ -961,8 +961,9 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // Status mapping for UI compatibility
       // CRITICAL FIX: Quick Notes should NEVER be considered local only
-      isLocalOnly:
-        entity.id.startsWith("quick-notes-") ? false : entity.localStatus !== "synced",
+      isLocalOnly: entity.id.startsWith("quick-notes-")
+        ? false
+        : entity.localStatus !== "synced",
       ftrackSyncState:
         entity.ftrackSyncStatus === "not_synced"
           ? "pending"

@@ -435,9 +435,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       const storePlaylistMap = new Map(storePlaylists.map((p) => [p.id, p]));
 
       // Always preserve Quick Notes from current state
-      const quickNotesPlaylist = playlists.find(
-        (p) => p.isQuickNotes,
-      );
+      const quickNotesPlaylist = playlists.find((p) => p.isQuickNotes);
 
       // Process each playlist from the latest fetch
       const processedPlaylists = filteredLatestPlaylists
@@ -680,7 +678,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                   onSelect={(playlist) => onPlaylistSelect(playlist.id)}
                   activePlaylistId={
                     // If Quick Notes is active, don't show any carousel playlist as selected
-                    quickNotesPlaylist && activePlaylist === quickNotesPlaylist.id
+                    quickNotesPlaylist &&
+                    activePlaylist === quickNotesPlaylist.id
                       ? null
                       : activePlaylist
                   }

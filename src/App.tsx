@@ -51,9 +51,10 @@ const App: React.FC = () => {
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   // fetchLabels & loadProjects are now handled inside useAppInitializer
   const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
-  
+
   // Get project-scoped Quick Notes ID
-  const getQuickNotesId = () => playlistStore.getQuickNotesId(selectedProjectId);
+  const getQuickNotesId = () =>
+    playlistStore.getQuickNotesId(selectedProjectId);
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   // Store loaded versions to prevent reloading
@@ -517,7 +518,12 @@ const App: React.FC = () => {
     ) {
       fetchVersionsForPlaylist(activePlaylistId);
     }
-  }, [activePlaylistId, playlistStatus, fetchVersionsForPlaylist, getQuickNotesId]);
+  }, [
+    activePlaylistId,
+    playlistStatus,
+    fetchVersionsForPlaylist,
+    getQuickNotesId,
+  ]);
 
   // Get the active playlist data
   const activePlaylistData = Array.isArray(playlists)
@@ -530,12 +536,12 @@ const App: React.FC = () => {
         .map((id) => playlists.find((p) => p.id === id))
         .filter((p): p is Playlist => {
           if (!p) return false;
-          
+
           // Always show Quick Notes for the current project
           if (p.isQuickNotes) {
             return p.id === getQuickNotesId();
           }
-          
+
           // For other playlists, only show those from the current project
           return p.projectId === selectedProjectId;
         })

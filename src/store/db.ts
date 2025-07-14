@@ -241,7 +241,10 @@ export class AstraNotesDB extends Dexie {
       // Use default project-scoped Quick Notes ID
       const defaultQuickNotesId = "quick-notes-default";
       localStorage.setItem("active-playlist", defaultQuickNotesId);
-      localStorage.setItem("playlist-tabs", JSON.stringify([defaultQuickNotesId]));
+      localStorage.setItem(
+        "playlist-tabs",
+        JSON.stringify([defaultQuickNotesId]),
+      );
 
       console.log("Database cleared successfully - reloading app");
 

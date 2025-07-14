@@ -16,7 +16,7 @@ import { useProjectStore } from "./projectStore";
 
 // Helper function to create Quick Notes playlist for a project
 const createQuickNotesPlaylist = (projectId: string | null): Playlist => ({
-  id: `quick-notes-${projectId || 'default'}`,
+  id: `quick-notes-${projectId || "default"}`,
   name: "Quick Notes",
   title: "Quick Notes",
   notes: [],
@@ -83,13 +83,12 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
       } else {
         // Quick Notes is missing, need to add it
         const { playlists: currentPlaylists } = get();
-        const existingQuickNotes = currentPlaylists.find(
-          (p) => p.isQuickNotes,
-        );
+        const existingQuickNotes = currentPlaylists.find((p) => p.isQuickNotes);
 
         // Use existing Quick Notes if available, otherwise create new one
         const projectId = useProjectStore.getState().selectedProjectId;
-        const quickNotesToAdd = existingQuickNotes || createQuickNotesPlaylist(projectId);
+        const quickNotesToAdd =
+          existingQuickNotes || createQuickNotesPlaylist(projectId);
         const finalPlaylists = [quickNotesToAdd, ...playlists];
         set({ playlists: finalPlaylists });
       }
@@ -254,7 +253,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           ftrackPlaylistService.getPlaylists(projectId), // Review Sessions with project filter
           ftrackPlaylistService.getLists(projectId), // Lists with project filter
           // CRITICAL FIX: Load ONLY playlists for the current project from database
-          projectId ? db.playlists.where("projectId").equals(projectId).toArray() : db.playlists.toArray(),
+          projectId
+            ? db.playlists.where("projectId").equals(projectId).toArray()
+            : db.playlists.toArray(),
         ]);
 
         const fetchedPlaylists = [...reviewSessions, ...lists];
@@ -327,7 +328,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               );
 
               // Flag playlist as deleted in ftrack instead of removing it
-              await db.playlists.update(orphanedPlaylist.id, { deletedInFtrack: true });
+              await db.playlists.update(orphanedPlaylist.id, {
+                deletedInFtrack: true,
+              });
 
               // Track deleted playlist for UI updates
               deletedPlaylists.push({
@@ -407,11 +410,10 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               // CRITICAL FIX: Include projectId from database for UI filtering
               projectId: dbPlaylist.projectId,
               // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
-              isLocalOnly:
-                dbPlaylist.id.startsWith("quick-notes-")
-                  ? false
-                  : dbPlaylist.localStatus === "draft" ||
-                    dbPlaylist.ftrackSyncStatus === "not_synced",
+              isLocalOnly: dbPlaylist.id.startsWith("quick-notes-")
+                ? false
+                : dbPlaylist.localStatus === "draft" ||
+                  dbPlaylist.ftrackSyncStatus === "not_synced",
               isQuickNotes: dbPlaylist.id.startsWith("quick-notes-"),
               ftrackSyncState:
                 dbPlaylist.ftrackSyncStatus === "synced"
@@ -814,64 +816,77 @@ let fetchPlaylistsPromise: Promise<any> | null = null;
 useProjectStore.subscribe(async (state) => {
   const newProjectId = state.selectedProjectId;
   if (newProjectId !== prevProjectId) {
-    console.log(`[PlaylistsStore] Project switched from ${prevProjectId} to ${newProjectId}`);
-    
+    console.log(
+      `[PlaylistsStore] Project switched from ${prevProjectId} to ${newProjectId}`,
+    );
+
     // Cancel any ongoing fetchPlaylists request
     if (fetchPlaylistsPromise) {
-      console.log('[PlaylistsStore] Cancelling previous fetchPlaylists request');
+      console.log(
+        "[PlaylistsStore] Cancelling previous fetchPlaylists request",
+      );
       fetchPlaylistsPromise = null;
     }
-    
-    const { fetchPlaylists, playlists, openPlaylistIds } = usePlaylistsStore.getState();
+
+    const { fetchPlaylists, playlists, openPlaylistIds } =
+      usePlaylistsStore.getState();
     const { playlistStore } = await import("./playlist");
-    
+
     // Get the Quick Notes ID for the new project
     const quickNotesId = playlistStore.getQuickNotesId(newProjectId);
-    
+
     // Initialize Quick Notes for the new project
     await playlistStore.initializeQuickNotes(newProjectId);
-    
+
     // Close all playlists from other projects, keep only current project's Quick Notes
-    const playlistsToClose = openPlaylistIds.filter(id => {
-      const playlist = playlists.find(p => p.id === id);
+    const playlistsToClose = openPlaylistIds.filter((id) => {
+      const playlist = playlists.find((p) => p.id === id);
       if (!playlist) return true; // Close unknown playlists
-      
+
       // Keep Quick Notes for the new project
       if (playlist.isQuickNotes && id === quickNotesId) {
         return false;
       }
-      
+
       // Close all other playlists (including Quick Notes from other projects)
       return true;
     });
-    
-    console.log(`[PlaylistsStore] Closing ${playlistsToClose.length} playlists from other projects:`, playlistsToClose);
-    
+
+    console.log(
+      `[PlaylistsStore] Closing ${playlistsToClose.length} playlists from other projects:`,
+      playlistsToClose,
+    );
+
     // Reset state to the new project's Quick Notes
     usePlaylistsStore.setState({
       activePlaylistId: quickNotesId,
       openPlaylistIds: [quickNotesId],
       playlistStatus: {},
     });
-    
+
     // Fetch playlists for the new project with debouncing
     if (newProjectId) {
-      fetchPlaylistsPromise = fetchPlaylists(newProjectId).then(() => {
-        // CRITICAL FIX: Re-set the active playlist after playlists are loaded
-        // This ensures the active playlist is properly highlighted in the UI
-        const currentState = usePlaylistsStore.getState();
-        if (currentState.activePlaylistId === quickNotesId) {
-          console.log(`[PlaylistsStore] Re-setting active playlist to ensure UI highlighting: ${quickNotesId}`);
-          usePlaylistsStore.setState({ activePlaylistId: quickNotesId });
-        }
-      }).catch((e) => {
-        console.error(
-          "[PlaylistsStore] Failed to fetch playlists for project switch",
-          e,
-        );
-      }).finally(() => {
-        fetchPlaylistsPromise = null;
-      });
+      fetchPlaylistsPromise = fetchPlaylists(newProjectId)
+        .then(() => {
+          // CRITICAL FIX: Re-set the active playlist after playlists are loaded
+          // This ensures the active playlist is properly highlighted in the UI
+          const currentState = usePlaylistsStore.getState();
+          if (currentState.activePlaylistId === quickNotesId) {
+            console.log(
+              `[PlaylistsStore] Re-setting active playlist to ensure UI highlighting: ${quickNotesId}`,
+            );
+            usePlaylistsStore.setState({ activePlaylistId: quickNotesId });
+          }
+        })
+        .catch((e) => {
+          console.error(
+            "[PlaylistsStore] Failed to fetch playlists for project switch",
+            e,
+          );
+        })
+        .finally(() => {
+          fetchPlaylistsPromise = null;
+        });
     }
   }
   prevProjectId = newProjectId;

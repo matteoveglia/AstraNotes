@@ -244,7 +244,15 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                   >
                     <span className="truncate flex-1">{playlist.name}</span>
                     <div className="flex items-center gap-1">
-                      {playlist.isLocalOnly && (
+                      {playlist.deletedInFtrack && (
+                        <span
+                          className="text-red-500 text-xs shrink-0"
+                          title="This playlist has been deleted from ftrack. You can continue to use it but it will be removed when you restart the app."
+                        >
+                          ●
+                        </span>
+                      )}
+                      {playlist.isLocalOnly && !playlist.deletedInFtrack && (
                         <span
                           className="text-orange-500 text-xs shrink-0"
                           title="Local only - not synced to ftrack"
@@ -252,16 +260,18 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                           ●
                         </span>
                       )}
-                      {playlist.type === "list" && !playlist.isLocalOnly && (
-                        <span
-                          className={cn(
-                            "text-xs shrink-0",
-                            playlist.isOpen ? "text-green-700" : "opacity-70",
-                          )}
-                        >
-                          {playlist.isOpen ? "●" : "○"}
-                        </span>
-                      )}
+                      {playlist.type === "list" &&
+                        !playlist.isLocalOnly &&
+                        !playlist.deletedInFtrack && (
+                          <span
+                            className={cn(
+                              "text-xs shrink-0",
+                              playlist.isOpen ? "text-green-700" : "opacity-70",
+                            )}
+                          >
+                            {playlist.isOpen ? "●" : "○"}
+                          </span>
+                        )}
                       {status === "removed" && (
                         <span className="text-red-500 text-xs">-</span>
                       )}
