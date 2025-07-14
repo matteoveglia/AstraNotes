@@ -31,7 +31,6 @@ describe("Auto-Refresh Integration", () => {
         apiUser: "",
         autoRefreshEnabled: true,
         defaultLabelId: undefined,
-        useMonolithFallback: true,
       },
     });
   });
@@ -121,7 +120,6 @@ describe("Auto-Refresh Integration", () => {
           apiUser: "",
           autoRefreshEnabled: false,
           defaultLabelId: undefined,
-          useMonolithFallback: true,
         },
       });
     });

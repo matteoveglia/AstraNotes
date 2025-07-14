@@ -17,11 +17,6 @@ interface Settings {
   apiUser: string;
   autoRefreshEnabled: boolean;
   defaultLabelId?: string;
-  /**
-   * TEMPORARY: When true, wrapper services continue delegating to the legacy monolith.
-   * Set to false once Phase 3.5 migration is complete.
-   */
-  useMonolithFallback: boolean;
 }
 
 interface SettingsState {
@@ -38,7 +33,6 @@ export const useSettings = create<SettingsState>()(
         apiUser: "",
         autoRefreshEnabled: true,
         defaultLabelId: undefined,
-        useMonolithFallback: false,
       },
       setSettings: (newSettings) => set({ settings: newSettings }),
     }),

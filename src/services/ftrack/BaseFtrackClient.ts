@@ -1,7 +1,6 @@
 import { Session } from "@ftrack/api";
 import type { FtrackSettings } from "@/types";
 import { safeConsoleError } from "@/utils/errorHandling";
-import { useSettings } from "@/store/settingsStore";
 
 /**
  * BaseFtrackClient
@@ -108,11 +107,6 @@ export class BaseFtrackClient {
     } catch (err) {
       return false;
     }
-  }
-
-  /** Helper to know if monolith fallback is enabled */
-  isFallbackEnabled(): boolean {
-    return useSettings.getState().settings.useMonolithFallback;
   }
 
   /** Protected getter for settings access in derived classes */

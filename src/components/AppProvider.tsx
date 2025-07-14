@@ -1,9 +1,7 @@
 import React from "react";
 import { ToastProvider } from "./ui/toast";
 import { ErrorBoundary } from "./ui/error-boundary";
-import { MonolithFallbackBanner } from "./MonolithFallbackBanner";
 import { SyncConflictManager } from "@/features/playlists/components";
-import { useSettings } from "@/store/settingsStore";
 
 interface AppProviderProps {
   children: React.ReactNode;
@@ -20,18 +18,10 @@ interface AppProviderProps {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
     <ToastProvider>
-      <MonolithFallbackBanner />
       {/* Cross-playlist sync-conflict modal logic lives at the root level */}
       <SyncConflictManager />
       {/* Top-level error boundary so uncaught errors surface gracefully */}
-      <ErrorBoundary>
-        {/* Add top padding only when banner is shown */}
-        {useSettings((s) => s.settings.useMonolithFallback) ? (
-          <div className="pt-6">{children}</div>
-        ) : (
-          <>{children}</>
-        )}
-      </ErrorBoundary>
+      <ErrorBoundary>{children}</ErrorBoundary>
     </ToastProvider>
   );
 };
