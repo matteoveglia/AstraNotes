@@ -191,7 +191,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // CRITICAL FIX: Don't save ftrack native playlists to database - they should remain in UI store only
       const isLocalPlaylist = uiPlaylist.isLocalOnly;
-      const isQuickNotes = id === "quick-notes";
+      const isQuickNotes = id.startsWith("quick-notes-");
       const isFtrackNative = !isLocalPlaylist && !isQuickNotes;
 
       console.log(
@@ -496,7 +496,7 @@ export class PlaylistStore extends SimpleEventEmitter {
         );
       } else {
         // If it's Quick Notes specifically, initialize it
-        if (playlistId === "quick-notes") {
+        if (playlistId.startsWith("quick-notes-")) {
           console.log(`[PlaylistStore] Quick Notes not found - initializing`);
           await this.initializeQuickNotes();
         } else {
@@ -962,14 +962,14 @@ export class PlaylistStore extends SimpleEventEmitter {
       // Status mapping for UI compatibility
       // CRITICAL FIX: Quick Notes should NEVER be considered local only
       isLocalOnly:
-        entity.id === "quick-notes" ? false : entity.localStatus !== "synced",
+        entity.id.startsWith("quick-notes-") ? false : entity.localStatus !== "synced",
       ftrackSyncState:
         entity.ftrackSyncStatus === "not_synced"
           ? "pending"
           : entity.ftrackSyncStatus,
 
       // CRITICAL FIX: Add isQuickNotes flag
-      isQuickNotes: entity.id === "quick-notes",
+      isQuickNotes: entity.id.startsWith("quick-notes-"),
 
       // Additional metadata - CRITICAL FIX: Include ALL entity fields
       projectId: entity.projectId,
@@ -1063,7 +1063,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       }
 
       // Don't auto-refresh Quick Notes playlist
-      if (playlistId === "quick-notes") {
+      if (playlistId.startsWith("quick-notes-")) {
         console.debug(
           `[PlaylistStore] Skipping auto-refresh for Quick Notes playlist`,
         );
@@ -1522,8 +1522,10 @@ export class PlaylistStore extends SimpleEventEmitter {
   /**
    * Initializes Quick Notes playlist in the database if it doesn't exist
    */
-  async initializeQuickNotes(): Promise<void> {
-    const quickNotesId = "quick-notes";
+  async initializeQuickNotes(projectId?: string | null): Promise<void> {
+    // Use current project ID or fall back to "none" for backward compatibility
+    const currentProjectId = projectId ?? "none";
+    const quickNotesId = `quick-notes-${currentProjectId}`;
     const now = new Date().toISOString();
 
     const quickNotesEntity: PlaylistEntity = {
@@ -1532,12 +1534,20 @@ export class PlaylistStore extends SimpleEventEmitter {
       type: "list",
       localStatus: "draft",
       ftrackSyncStatus: "not_synced",
-      projectId: "none",
+      projectId: currentProjectId,
       createdAt: now,
       updatedAt: now,
     };
 
     return this.safeInitializePlaylist(quickNotesId, quickNotesEntity);
+  }
+
+  /**
+   * Get the Quick Notes ID for a specific project
+   */
+  getQuickNotesId(projectId?: string | null): string {
+    const currentProjectId = projectId ?? "none";
+    return `quick-notes-${currentProjectId}`;
   }
 
   // =================== LIFECYCLE ===================

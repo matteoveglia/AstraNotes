@@ -71,7 +71,7 @@ describe("Auto-Refresh Integration", () => {
 
     renderHook(() =>
       useAutoRefresh({
-        playlistId: "quick-notes",
+        playlistId: "quick-notes-test-project",
         isEnabled: true,
       }),
     );

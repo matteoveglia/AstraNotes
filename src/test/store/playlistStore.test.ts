@@ -59,8 +59,8 @@ describe("usePlaylistsStore", () => {
   it("should have default initial state", () => {
     const state = usePlaylistsStore.getState();
     expect(Array.isArray(state.playlists)).toBe(true);
-    expect(state.playlists[0].id).toBe("quick-notes");
-    expect(state.activePlaylistId).toBe("quick-notes");
+    expect(state.playlists[0].id).toMatch(/^quick-notes-/);
+    expect(state.activePlaylistId).toMatch(/^quick-notes-/);
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
   });
@@ -195,12 +195,14 @@ describe("usePlaylistsStore", () => {
     (ftrackPlaylistService.getPlaylists as any).mockResolvedValue([]);
     (ftrackPlaylistService.getLists as any).mockResolvedValue([]);
 
-    await usePlaylistsStore.getState().updatePlaylist("quick-notes");
-
     const state = usePlaylistsStore.getState();
-    expect(state.error).toBeNull();
+    const quickNotesId = state.playlists[0].id; // Get the actual Quick Notes ID
+    await usePlaylistsStore.getState().updatePlaylist(quickNotesId);
+
+    const newState = usePlaylistsStore.getState();
+    expect(newState.error).toBeNull();
     // playlist count unchanged
-    expect(state.playlists.length).toBe(initialState.playlists.length);
+    expect(newState.playlists.length).toBe(initialState.playlists.length);
   });
 
   it("updatePlaylist should not remove a non-existent playlist", async () => {

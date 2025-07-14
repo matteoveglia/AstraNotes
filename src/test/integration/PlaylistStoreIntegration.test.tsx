@@ -374,12 +374,14 @@ describe("Playlist Store Integration Tests", () => {
 
   describe("Quick Notes Special Handling", () => {
     it("should initialize Quick Notes with correct properties", async () => {
-      await playlistStore.initializeQuickNotes();
+      const projectId = "test-project";
+      await playlistStore.initializeQuickNotes(projectId);
+      const quickNotesId = playlistStore.getQuickNotesId(projectId);
 
-      const quickNotes = await playlistStore.getPlaylist("quick-notes");
+      const quickNotes = await playlistStore.getPlaylist(quickNotesId);
 
       expect(quickNotes).toBeDefined();
-      expect(quickNotes?.id).toBe("quick-notes");
+      expect(quickNotes?.id).toBe(quickNotesId);
       expect(quickNotes?.name).toBe("Quick Notes");
       expect(quickNotes?.isQuickNotes).toBe(true);
       expect(quickNotes?.isLocalOnly).toBe(false); // Quick Notes should never be local only
@@ -389,21 +391,23 @@ describe("Playlist Store Integration Tests", () => {
       // This test verifies the fix for the Quick Notes regression issue
       // where Quick Notes would show as "Local only" after navigation/reload
 
-      // First, initialize Quick Notes and add some versions to create database entry
-      await playlistStore.initializeQuickNotes();
-      await playlistStore.addVersionsToPlaylist("quick-notes", [
+      // Initialize Quick Notes and add some versions to create database entry
+      const projectId = "test-project";
+      await playlistStore.initializeQuickNotes(projectId);
+      const quickNotesId = playlistStore.getQuickNotesId(projectId);
+      await playlistStore.addVersionsToPlaylist(quickNotesId, [
         sampleVersions[0],
       ]);
 
       // Verify Quick Notes exists in database with versions
-      const dbEntry = await db.playlists.get("quick-notes");
+      const dbEntry = await db.playlists.get(quickNotesId);
       expect(dbEntry).toBeDefined();
-      expect(dbEntry?.id).toBe("quick-notes");
+      expect(dbEntry?.id).toBe(quickNotesId);
       expect(dbEntry?.localStatus).toBe("draft"); // Quick Notes starts as draft
 
       const dbVersions = await db.versions
         .where("playlistId")
-        .equals("quick-notes")
+        .equals(quickNotesId)
         .toArray();
       expect(dbVersions).toHaveLength(1);
 
@@ -421,11 +425,11 @@ describe("Playlist Store Integration Tests", () => {
             ftrackId: dbEntry.ftrackId,
             // CRITICAL FIX: Quick Notes should NEVER be considered local only
             isLocalOnly:
-              dbEntry.id === "quick-notes"
+              dbEntry.id.startsWith("quick-notes-")
                 ? false
                 : dbEntry.localStatus === "draft" ||
                   dbEntry.ftrackSyncStatus === "not_synced",
-            isQuickNotes: dbEntry.id === "quick-notes",
+            isQuickNotes: dbEntry.id.startsWith("quick-notes-"),
             ftrackSyncState:
               dbEntry.ftrackSyncStatus === "synced"
                 ? ("synced" as const)
@@ -457,8 +461,10 @@ describe("Playlist Store Integration Tests", () => {
       await db.playlists.add(regularPlaylistDb);
 
       // Initialize Quick Notes (which will also be in draft status initially)
-      await playlistStore.initializeQuickNotes();
-      const quickNotesDb = await db.playlists.get("quick-notes");
+      const projectId = "project-123";
+      await playlistStore.initializeQuickNotes(projectId);
+      const quickNotesId = playlistStore.getQuickNotesId(projectId);
+      const quickNotesDb = await db.playlists.get(quickNotesId);
 
       // Apply the fixed database-to-UI conversion logic to both
       const convertPlaylist = (dbPlaylist: any) => ({
@@ -466,11 +472,11 @@ describe("Playlist Store Integration Tests", () => {
         name: dbPlaylist.name,
         // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
         isLocalOnly:
-          dbPlaylist.id === "quick-notes"
+          dbPlaylist.id.startsWith("quick-notes-")
             ? false
             : dbPlaylist.localStatus === "draft" ||
               dbPlaylist.ftrackSyncStatus === "not_synced",
-        isQuickNotes: dbPlaylist.id === "quick-notes",
+        isQuickNotes: dbPlaylist.id.startsWith("quick-notes-"),
       });
 
       const quickNotes = convertPlaylist(quickNotesDb);

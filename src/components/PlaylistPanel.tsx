@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { useProjectStore } from "@/store/projectStore";
+import { playlistStore } from "@/store/playlist";
 import { motion } from "motion/react";
 import { showContextMenu } from "@/utils/menu";
 import { PlaylistList } from "./PlaylistList";
@@ -52,7 +53,10 @@ interface PlaylistCategoryWithStatus
   playlists: PlaylistWithStatus[];
 }
 
-const QUICK_NOTES_ID = "quick-notes";
+// Helper function to get project-scoped Quick Notes ID
+const getQuickNotesId = (projectId?: string | null) => {
+  return playlistStore.getQuickNotesId(projectId);
+};
 
 const gridVariants = {
   hidden: { opacity: 0 },
@@ -164,7 +168,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   ): PlaylistCategoryWithStatus[] => {
     // Filter out Quick Notes for categories
     const nonQuickNotesPlaylists = playlistsWithStatus.filter(
-      (p) => p.id !== QUICK_NOTES_ID && !p.isQuickNotes,
+      (p) => !p.isQuickNotes,
     );
 
     const categories: PlaylistCategoryWithStatus[] = [];
@@ -349,15 +353,16 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           (p) => p.id === activePlaylist,
         );
 
+        const quickNotesId = getQuickNotesId(selectedProjectId);
         if (
           activePlaylist &&
           !activePlaylistStillExists &&
-          activePlaylist !== "quick-notes"
+          activePlaylist !== quickNotesId
         ) {
           console.debug(
             "[PlaylistPanel] Active playlist was deleted during refresh, redirecting to Quick Notes",
           );
-          onPlaylistSelect("quick-notes");
+          onPlaylistSelect(quickNotesId);
         }
 
         // Note: Parent refresh updates the store, and new props will flow down via useEffect
@@ -386,7 +391,8 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         );
 
         if (wasActivePlaylistDeleted) {
-          onPlaylistSelect("quick-notes");
+          const quickNotesId = getQuickNotesId(selectedProjectId);
+          onPlaylistSelect(quickNotesId);
         }
 
         // Store deletion info for simple notification dialog
@@ -430,14 +436,14 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
       // Always preserve Quick Notes from current state
       const quickNotesPlaylist = playlists.find(
-        (p) => p.id === QUICK_NOTES_ID || p.isQuickNotes,
+        (p) => p.isQuickNotes,
       );
 
       // Process each playlist from the latest fetch
       const processedPlaylists = filteredLatestPlaylists
         .map((latest) => {
           // Skip Quick Notes
-          if (latest.id === QUICK_NOTES_ID || latest.isQuickNotes) {
+          if (latest.isQuickNotes) {
             return null;
           }
 
@@ -593,7 +599,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
 
   // Separate Quick Notes from other playlists
   const quickNotesPlaylist = playlists.find(
-    (p) => p.id === QUICK_NOTES_ID || p.isQuickNotes,
+    (p) => p.id === getQuickNotesId(selectedProjectId) || p.isQuickNotes,
   );
 
   // Generate categories for PlaylistList
@@ -674,8 +680,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                   onSelect={(playlist) => onPlaylistSelect(playlist.id)}
                   activePlaylistId={
                     // If Quick Notes is active, don't show any carousel playlist as selected
-                    activePlaylist === QUICK_NOTES_ID ||
-                    activePlaylist === "quick-notes"
+                    quickNotesPlaylist && activePlaylist === quickNotesPlaylist.id
                       ? null
                       : activePlaylist
                   }

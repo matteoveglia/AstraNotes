@@ -21,6 +21,7 @@ import { Attachment } from "@/components/NoteAttachments";
 import { videoService } from "../services/videoService";
 import Dexie from "dexie";
 import * as fs from "@tauri-apps/plugin-fs";
+import { playlistStore as newPlaylistStore } from "./playlist";
 
 const DEBUG = true;
 function log(...args: any[]): void {
@@ -329,7 +330,7 @@ export class PlaylistStore {
         title: cached.name, // Use name as title for new records
         createdAt: cached.createdAt,
         updatedAt: cached.updatedAt,
-        isQuickNotes: id === "quick-notes",
+        isQuickNotes: id.startsWith("quick-notes-"),
         lastAccessed: Date.now(),
         lastChecked: Date.now(),
         hasModifications: false,
@@ -751,7 +752,7 @@ export class PlaylistStore {
       // For other playlists, store without versions as they're stored separately in the versions table
       const playlistWithoutVersions = {
         ...playlist,
-        versions: playlist.id === "quick-notes" ? playlist.versions : [], // preserve versions for Quick Notes
+        versions: playlist.id.startsWith("quick-notes-") ? playlist.versions : [], // preserve versions for Quick Notes
       };
 
       // Cache the playlist metadata first
@@ -822,7 +823,7 @@ export class PlaylistStore {
       const cleanedPlaylist = this.cleanPlaylistForStorage(playlist);
 
       // Special handling for Quick Notes
-      if (playlistId === "quick-notes") {
+      if (playlistId.startsWith("quick-notes-")) {
         const existingVersions = await db.versions
           .where("playlistId")
           .equals(playlistId)
@@ -844,10 +845,11 @@ export class PlaylistStore {
   }
 
   async initializeQuickNotes(): Promise<void> {
-    const quickNotes = await this.getPlaylist("quick-notes");
+    const quickNotesId = newPlaylistStore.getQuickNotesId();
+    const quickNotes = await this.getPlaylist(quickNotesId);
     if (!quickNotes) {
       const cleanedPlaylist = this.cleanPlaylistForStorage({
-        id: "quick-notes",
+        id: quickNotesId,
         name: "Quick Notes",
         title: "Quick Notes",
         createdAt: new Date().toISOString(),
@@ -862,7 +864,7 @@ export class PlaylistStore {
 
   async updatePlaylist(playlistId: string): Promise<void> {
     // Don't update Quick Notes from Ftrack
-    if (playlistId === "quick-notes") return;
+    if (playlistId.startsWith("quick-notes-")) return;
 
     try {
       // Clean up video cache when playlist updates
@@ -1367,7 +1369,7 @@ export class PlaylistStore {
       });
 
       // Skip detailed comparison for quick notes
-      if (playlistId === "quick-notes") return;
+      if (playlistId.startsWith("quick-notes-")) return;
 
       // Create lookup maps for faster comparison
       const freshMap = new Map(
@@ -1720,7 +1722,7 @@ export class PlaylistStore {
         playlist.hasModifications = true;
 
         // For Quick Notes, also update the versions array in the playlist to maintain the connection
-        if (playlistId === "quick-notes") {
+        if (playlistId.startsWith("quick-notes-")) {
           playlist.versions = playlist.versions || [];
           playlist.versions.push({
             id: minimalVersion.id,
@@ -1826,7 +1828,7 @@ export class PlaylistStore {
       }
 
       // For Quick Notes, also delete any drafts associated with these versions
-      if (playlistId === "quick-notes") {
+      if (playlistId.startsWith("quick-notes-")) {
         // Delete any drafts for these versions
         for (const versionId of versionIds) {
           try {
@@ -1853,7 +1855,7 @@ export class PlaylistStore {
           );
 
           // For Quick Notes, ensure we remove the versions from both the versions array and the DB
-          if (playlistId === "quick-notes") {
+          if (playlistId.startsWith("quick-notes-")) {
             cachedPlaylist.versions = remainingVersions;
           } else {
             cachedPlaylist.versions = remainingVersions;

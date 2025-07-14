@@ -51,12 +51,13 @@ const App: React.FC = () => {
   const { setPlaylists: setStorePlaylists } = usePlaylistsStore();
   // fetchLabels & loadProjects are now handled inside useAppInitializer
   const { selectedProjectId, hasValidatedSelectedProject } = useProjectStore();
+  
+  // Get project-scoped Quick Notes ID
+  const getQuickNotesId = () => playlistStore.getQuickNotesId(selectedProjectId);
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   // Store loaded versions to prevent reloading
-  const loadedVersionsRef = useRef<Record<string, boolean>>({
-    "quick-notes": true, // Quick Notes doesn't need versions
-  });
+  const loadedVersionsRef = useRef<Record<string, boolean>>({});
 
   // App initialization side-effects have been moved to useAppInitializer
 
@@ -78,8 +79,9 @@ const App: React.FC = () => {
 
         // CRITICAL FIX: Ensure Quick Notes exists in the current component state
         const currentPlaylists = usePlaylistsStore.getState().playlists;
+        const quickNotesId = getQuickNotesId();
         const hasQuickNotes = currentPlaylists.some(
-          (p) => p.id === "quick-notes",
+          (p) => p.id === quickNotesId,
         );
         if (!hasQuickNotes) {
           console.log(
@@ -90,9 +92,10 @@ const App: React.FC = () => {
         // Set Quick Notes as active if no project is selected
         if (!actualProjectId || !hasValidatedSelectedProject) {
           console.log("No validated project - showing only Quick Notes");
-          if (!activePlaylistId || activePlaylistId !== "quick-notes") {
-            setActivePlaylist("quick-notes");
-            openPlaylist("quick-notes");
+          const quickNotesId = getQuickNotesId();
+          if (!activePlaylistId || activePlaylistId !== quickNotesId) {
+            setActivePlaylist(quickNotesId);
+            openPlaylist(quickNotesId);
           }
           return;
         }
@@ -124,8 +127,9 @@ const App: React.FC = () => {
             console.log(
               "🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes",
             );
-            setActivePlaylist("quick-notes");
-            openPlaylist("quick-notes");
+            const quickNotesId = getQuickNotesId();
+            setActivePlaylist(quickNotesId);
+            openPlaylist(quickNotesId);
           }
         }
 
@@ -149,20 +153,21 @@ const App: React.FC = () => {
   // Load versions when active playlist changes
   useEffect(() => {
     const loadVersionsForActivePlaylist = async () => {
+      const quickNotesId = getQuickNotesId();
       // Skip if it's Quick Notes or if we've already loaded versions for this playlist
       if (
-        activePlaylistId === "quick-notes" ||
+        activePlaylistId === quickNotesId ||
         (activePlaylistId && loadedVersionsRef.current[activePlaylistId])
       ) {
         // CRITICAL FIX: For Quick Notes, load versions from database only (no ftrack)
         if (
-          activePlaylistId === "quick-notes" &&
-          !loadedVersionsRef.current["quick-notes"]
+          activePlaylistId === quickNotesId &&
+          !loadedVersionsRef.current[quickNotesId]
         ) {
           console.log("Loading Quick Notes versions from database only...");
           try {
             const databaseVersions =
-              await playlistStore.getPlaylistVersions("quick-notes");
+              await playlistStore.getPlaylistVersions(quickNotesId);
             const assetVersions = databaseVersions.map((v) => ({
               id: v.id,
               name: v.name,
@@ -181,13 +186,13 @@ const App: React.FC = () => {
 
             setLocalPlaylists(
               playlists.map((playlist) =>
-                playlist.id === "quick-notes"
+                playlist.id === quickNotesId
                   ? { ...playlist, versions: assetVersions }
                   : playlist,
               ),
             );
 
-            loadedVersionsRef.current["quick-notes"] = true;
+            loadedVersionsRef.current[quickNotesId] = true;
             console.log(
               `Quick Notes loaded ${assetVersions.length} versions from database`,
             );
@@ -346,8 +351,9 @@ const App: React.FC = () => {
       );
 
       // Keep Quick Notes in playlists
+      const quickNotesId = getQuickNotesId();
       const quickNotesPlaylist = {
-        id: "quick-notes",
+        id: quickNotesId,
         name: "Quick Notes",
         title: "Quick Notes",
         notes: [],
@@ -360,11 +366,11 @@ const App: React.FC = () => {
 
       setLocalPlaylists([quickNotesPlaylist]);
       setStorePlaylists([]); // Clear store playlists (project-specific)
-      setActivePlaylist("quick-notes"); // Always set Quick Notes as active when no project
-      openPlaylist("quick-notes"); // Keep Quick Notes open
+      setActivePlaylist(quickNotesId); // Always set Quick Notes as active when no project
+      openPlaylist(quickNotesId); // Keep Quick Notes open
 
       // Clear the loaded versions cache when clearing project (except Quick Notes)
-      const newCache = { "quick-notes": true };
+      const newCache = { [quickNotesId]: true };
       loadedVersionsRef.current = newCache;
       console.log("Cleared loadedVersionsRef cache except Quick Notes");
     }
@@ -380,29 +386,30 @@ const App: React.FC = () => {
 
   // Handle playlist state when project selection changes
   useEffect(() => {
+    const quickNotesId = getQuickNotesId();
     const quickNotesExists = playlists.some((p) => p.isQuickNotes);
 
     if (selectedProjectId && hasValidatedSelectedProject) {
       // Project selected - ensure Quick Notes is in open playlists if it exists
-      if (quickNotesExists && !openPlaylistIds.includes("quick-notes")) {
-        openPlaylist("quick-notes");
+      if (quickNotesExists && !openPlaylistIds.includes(quickNotesId)) {
+        openPlaylist(quickNotesId);
 
         // Set Quick Notes as active if no other playlist is active
         if (!activePlaylistId) {
-          setActivePlaylist("quick-notes");
+          setActivePlaylist(quickNotesId);
         }
       }
     } else {
       // No project selected - Quick Notes should be the only active playlist
       if (quickNotesExists) {
-        if (activePlaylistId !== "quick-notes") {
-          setActivePlaylist("quick-notes");
+        if (activePlaylistId !== quickNotesId) {
+          setActivePlaylist(quickNotesId);
         }
         if (
-          !openPlaylistIds.includes("quick-notes") ||
+          !openPlaylistIds.includes(quickNotesId) ||
           openPlaylistIds.length > 1
         ) {
-          openPlaylist("quick-notes");
+          openPlaylist(quickNotesId);
         }
       }
     }
@@ -419,15 +426,17 @@ const App: React.FC = () => {
   // Ensure Quick Notes is open if nothing else is
   useEffect(() => {
     if (openPlaylistIds.length === 0) {
-      openPlaylist("quick-notes");
+      const quickNotesId = getQuickNotesId();
+      openPlaylist(quickNotesId);
     }
-  }, [openPlaylistIds, openPlaylist]);
+  }, [openPlaylistIds, openPlaylist, getQuickNotesId]);
 
   const handlePlaylistSelect = async (playlistId: string) => {
+    const quickNotesId = getQuickNotesId();
     openPlaylist(playlistId);
     setActivePlaylist(playlistId);
     if (
-      playlistId !== "quick-notes" &&
+      playlistId !== quickNotesId &&
       playlistStatus[playlistId] === undefined
     ) {
       fetchVersionsForPlaylist(playlistId);
@@ -447,19 +456,21 @@ const App: React.FC = () => {
   });
 
   const handlePlaylistClose = (playlistId: string) => {
-    if (playlistId === "quick-notes") return;
+    const quickNotesId = getQuickNotesId();
+    if (playlistId === quickNotesId) return;
     closePlaylist(playlistId);
     if (activePlaylistId === playlistId) {
       // Only switch to Quick Notes if it exists
-      setActivePlaylist("quick-notes");
+      setActivePlaylist(quickNotesId);
     }
   };
 
   const handleCloseAll = () => {
+    const quickNotesId = getQuickNotesId();
     openPlaylistIds
-      .filter((id) => id !== "quick-notes")
+      .filter((id) => id !== quickNotesId)
       .forEach((id) => closePlaylist(id));
-    setActivePlaylist("quick-notes");
+    setActivePlaylist(quickNotesId);
   };
 
   const handleMainContentPlaylistUpdate = (updatedPlaylist: Playlist) => {
@@ -498,14 +509,15 @@ const App: React.FC = () => {
 
   // Auto-fetch versions for active playlist when needed
   useEffect(() => {
+    const quickNotesId = getQuickNotesId();
     if (
       activePlaylistId &&
-      activePlaylistId !== "quick-notes" &&
+      activePlaylistId !== quickNotesId &&
       playlistStatus[activePlaylistId] === undefined
     ) {
       fetchVersionsForPlaylist(activePlaylistId);
     }
-  }, [activePlaylistId, playlistStatus, fetchVersionsForPlaylist]);
+  }, [activePlaylistId, playlistStatus, fetchVersionsForPlaylist, getQuickNotesId]);
 
   // Get the active playlist data
   const activePlaylistData = Array.isArray(playlists)

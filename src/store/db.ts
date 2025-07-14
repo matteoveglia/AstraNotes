@@ -237,8 +237,10 @@ export class AstraNotesDB extends Dexie {
       });
 
       // Only reset minimal playlist state - do NOT touch other localStorage settings
-      localStorage.setItem("active-playlist", "quick-notes");
-      localStorage.setItem("playlist-tabs", JSON.stringify(["quick-notes"]));
+      // Use default project-scoped Quick Notes ID
+      const defaultQuickNotesId = "quick-notes-default";
+      localStorage.setItem("active-playlist", defaultQuickNotesId);
+      localStorage.setItem("playlist-tabs", JSON.stringify([defaultQuickNotesId]));
 
       console.log("Database cleared successfully - reloading app");
 
