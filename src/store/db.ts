@@ -48,6 +48,7 @@ export interface PlaylistRecord {
   categoryId?: string;
   categoryName?: string;
   description?: string;
+  deletedInFtrack?: boolean; // Whether this playlist has been deleted in ftrack but still exists locally
 
   // Timestamps
   createdAt: string;

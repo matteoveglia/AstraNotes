@@ -271,7 +271,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           })),
         });
 
-        // CRITICAL FIX: Add Ftrack Validation - Remove orphaned database playlists that no longer exist in ftrack
+        // CRITICAL FIX: Add Ftrack Validation - Flag orphaned database playlists that no longer exist in ftrack
         // FIX ISSUE #2: Make cleanup more conservative to prevent data loss when switching projects
         // Only consider a playlist "orphaned" if:
         // 1. It has a ftrackId (was synced to ftrack)
@@ -319,25 +319,15 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
             })),
           );
 
-          // Remove orphaned playlists from database
+          // Flag orphaned playlists as deleted in ftrack instead of removing them
           for (const orphanedPlaylist of orphanedPlaylists) {
             try {
               console.log(
-                `🗑️  [CLEANUP] Removing orphaned playlist from database: ${orphanedPlaylist.name} (ftrackId: ${orphanedPlaylist.ftrackId})`,
+                `🏷️  [CLEANUP] Flagging orphaned playlist as deleted in ftrack: ${orphanedPlaylist.name} (ftrackId: ${orphanedPlaylist.ftrackId})`,
               );
 
-              // Remove playlist and all its versions from database
-              await db.transaction(
-                "rw",
-                [db.playlists, db.versions],
-                async () => {
-                  await db.playlists.delete(orphanedPlaylist.id);
-                  await db.versions
-                    .where("playlistId")
-                    .equals(orphanedPlaylist.id)
-                    .delete();
-                },
-              );
+              // Flag playlist as deleted in ftrack instead of removing it
+              await db.playlists.update(orphanedPlaylist.id, { deletedInFtrack: true });
 
               // Track deleted playlist for UI updates
               deletedPlaylists.push({
@@ -346,25 +336,25 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               });
 
               console.log(
-                `✅ [CLEANUP] Successfully removed orphaned playlist: ${orphanedPlaylist.name}`,
+                `✅ [CLEANUP] Successfully flagged orphaned playlist as deleted: ${orphanedPlaylist.name}`,
               );
             } catch (error) {
               console.error(
-                `❌ [CLEANUP] Failed to remove orphaned playlist ${orphanedPlaylist.name}:`,
+                `❌ [CLEANUP] Failed to flag orphaned playlist ${orphanedPlaylist.name}:`,
                 error,
               );
             }
           }
 
-          // Reload database playlists after cleanup
-          const cleanedDatabasePlaylists = await db.playlists.toArray();
+          // Reload database playlists after flagging
+          const updatedDatabasePlaylists = await db.playlists.toArray();
           console.log(
-            `🎯 [CLEANUP] Database cleanup complete. Remaining playlists: ${cleanedDatabasePlaylists.length} (removed ${orphanedPlaylists.length})`,
+            `🎯 [CLEANUP] Database cleanup complete. Total playlists: ${updatedDatabasePlaylists.length} (flagged ${orphanedPlaylists.length} as deleted)`,
           );
 
-          // Update the databasePlaylists array to reflect the cleanup
+          // Update the databasePlaylists array to reflect the flagging
           databasePlaylists.splice(0); // Clear original array
-          databasePlaylists.push(...cleanedDatabasePlaylists); // Add cleaned playlists
+          databasePlaylists.push(...updatedDatabasePlaylists); // Add updated playlists
         }
 
         // DEBUG: Let's also see what ftrack playlists we're getting
@@ -430,6 +420,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               type: dbPlaylist.type,
               categoryId: dbPlaylist.categoryId,
               categoryName: dbPlaylist.categoryName,
+              deletedInFtrack: dbPlaylist.deletedInFtrack || false,
             };
 
             return convertedPlaylist;
