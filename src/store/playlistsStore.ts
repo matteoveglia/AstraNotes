@@ -253,8 +253,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         const [reviewSessions, lists, databasePlaylists] = await Promise.all([
           ftrackPlaylistService.getPlaylists(projectId), // Review Sessions with project filter
           ftrackPlaylistService.getLists(projectId), // Lists with project filter
-          // Load ALL playlists from the new modular store database
-          db.playlists.toArray(),
+          // CRITICAL FIX: Load ONLY playlists for the current project from database
+          projectId ? db.playlists.where("projectId").equals(projectId).toArray() : db.playlists.toArray(),
         ]);
 
         const fetchedPlaylists = [...reviewSessions, ...lists];
@@ -818,12 +818,20 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
 
 // Replace previous subscribe block with simple listener
 let prevProjectId: string | null = null;
+let fetchPlaylistsPromise: Promise<any> | null = null;
+
 useProjectStore.subscribe(async (state) => {
   const newProjectId = state.selectedProjectId;
   if (newProjectId !== prevProjectId) {
     console.log(`[PlaylistsStore] Project switched from ${prevProjectId} to ${newProjectId}`);
     
-    const { fetchPlaylists } = usePlaylistsStore.getState();
+    // Cancel any ongoing fetchPlaylists request
+    if (fetchPlaylistsPromise) {
+      console.log('[PlaylistsStore] Cancelling previous fetchPlaylists request');
+      fetchPlaylistsPromise = null;
+    }
+    
+    const { fetchPlaylists, playlists, openPlaylistIds } = usePlaylistsStore.getState();
     const { playlistStore } = await import("./playlist");
     
     // Get the Quick Notes ID for the new project
@@ -832,6 +840,22 @@ useProjectStore.subscribe(async (state) => {
     // Initialize Quick Notes for the new project
     await playlistStore.initializeQuickNotes(newProjectId);
     
+    // Close all playlists from other projects, keep only current project's Quick Notes
+    const playlistsToClose = openPlaylistIds.filter(id => {
+      const playlist = playlists.find(p => p.id === id);
+      if (!playlist) return true; // Close unknown playlists
+      
+      // Keep Quick Notes for the new project
+      if (playlist.isQuickNotes && id === quickNotesId) {
+        return false;
+      }
+      
+      // Close all other playlists (including Quick Notes from other projects)
+      return true;
+    });
+    
+    console.log(`[PlaylistsStore] Closing ${playlistsToClose.length} playlists from other projects:`, playlistsToClose);
+    
     // Reset state to the new project's Quick Notes
     usePlaylistsStore.setState({
       activePlaylistId: quickNotesId,
@@ -839,13 +863,23 @@ useProjectStore.subscribe(async (state) => {
       playlistStatus: {},
     });
     
-    // Fetch playlists for the new project
+    // Fetch playlists for the new project with debouncing
     if (newProjectId) {
-      fetchPlaylists(newProjectId).catch((e) => {
+      fetchPlaylistsPromise = fetchPlaylists(newProjectId).then(() => {
+        // CRITICAL FIX: Re-set the active playlist after playlists are loaded
+        // This ensures the active playlist is properly highlighted in the UI
+        const currentState = usePlaylistsStore.getState();
+        if (currentState.activePlaylistId === quickNotesId) {
+          console.log(`[PlaylistsStore] Re-setting active playlist to ensure UI highlighting: ${quickNotesId}`);
+          usePlaylistsStore.setState({ activePlaylistId: quickNotesId });
+        }
+      }).catch((e) => {
         console.error(
           "[PlaylistsStore] Failed to fetch playlists for project switch",
           e,
         );
+      }).finally(() => {
+        fetchPlaylistsPromise = null;
       });
     }
   }

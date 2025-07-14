@@ -524,11 +524,21 @@ const App: React.FC = () => {
     ? playlists.find((p) => p.id === activePlaylistId)
     : undefined;
 
-  // Derive open playlists list from store IDs
+  // Derive open playlists list from store IDs, filtered by current project
   const openPlaylists = Array.isArray(playlists)
     ? openPlaylistIds
         .map((id) => playlists.find((p) => p.id === id))
-        .filter((p): p is Playlist => !!p)
+        .filter((p): p is Playlist => {
+          if (!p) return false;
+          
+          // Always show Quick Notes for the current project
+          if (p.isQuickNotes) {
+            return p.id === getQuickNotesId();
+          }
+          
+          // For other playlists, only show those from the current project
+          return p.projectId === selectedProjectId;
+        })
     : [];
 
   // Determine if we're ready to render the MainContent
