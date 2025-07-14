@@ -4,16 +4,14 @@ import { type NoteStatus } from "@/types";
 // Mock the new FtrackPlaylistService
 vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
   ftrackPlaylistService: {
-    getProjects: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: "project-id",
-          name: "Test Project",
-          fullName: "Test Project",
-          status: "Active",
-        },
-      ]),
+    getProjects: vi.fn().mockResolvedValue([
+      {
+        id: "project-id",
+        name: "Test Project",
+        fullName: "Test Project",
+        status: "Active",
+      },
+    ]),
   },
 }));
 

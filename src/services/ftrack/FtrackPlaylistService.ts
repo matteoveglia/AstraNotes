@@ -282,7 +282,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
 
   async getPlaylistVersions(playlistId: string): Promise<AssetVersion[]> {
     const session = await this.getSession();
-    
+
     // First determine if this is a review session or list
     const reviewSessionQuery = `select id from ReviewSession where id is "${playlistId}"`;
     const reviewSessionResult = await session.query(reviewSessionQuery);
@@ -313,8 +313,8 @@ export class FtrackPlaylistService extends BaseFtrackClient {
         const listObjectResult = await session.query(listObjectQuery);
 
         if (listObjectResult?.data?.length > 0) {
-          const entityIds = listObjectResult.data.map(obj => obj.entity_id);
-          
+          const entityIds = listObjectResult.data.map((obj) => obj.entity_id);
+
           // Fetch version details for all entities
           const query = `
             select 
@@ -323,7 +323,7 @@ export class FtrackPlaylistService extends BaseFtrackClient {
               asset.name,
               thumbnail.id
             from AssetVersion
-            where id in (${entityIds.map(id => `"${id}"`).join(", ")})
+            where id in (${entityIds.map((id) => `"${id}"`).join(", ")})
             order by date desc
           `;
           const result = await session.query(query);

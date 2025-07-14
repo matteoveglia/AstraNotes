@@ -22,5 +22,6 @@
     "types": ["vitest/globals"]
   },
   "include": ["src"],
+  "exclude": ["src/_ARCHIVE"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
