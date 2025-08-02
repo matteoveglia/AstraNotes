@@ -322,7 +322,9 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
           );
 
           // Create a blob URL for preview
-          const blob = new Blob([fileData], { type: attachment.type });
+          const arrayBuffer = new ArrayBuffer(fileData.byteLength);
+          new Uint8Array(arrayBuffer).set(fileData);
+          const blob = new Blob([arrayBuffer], { type: attachment.type });
           const previewUrl = URL.createObjectURL(blob);
 
           // Update the attachment with the preview URL and file info

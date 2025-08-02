@@ -89,15 +89,10 @@ See [Testing Quick Reference](./testing-quickref.md) and [Testing Guide](./testi
 
 ## Development Tools
 
-### Storybook
+
 Interactive component development and documentation:
 
 ```bash
-# Start Storybook development server
-pnpm storybook
-
-# Build Storybook for production
-pnpm build-storybook
 ```
 
 ### Code Quality
@@ -136,7 +131,7 @@ AstraNotes/
 │   │   ├── components/     # Component tests
 │   │   ├── store/          # Store tests
 │   │   └── utils/          # Test utilities and factories
-│   └── stories/             # Storybook stories
+
 ├── src-tauri/               # Tauri backend code
 │   └── src/                 # Rust source code
 ├── docs/                    # Documentation
@@ -215,7 +210,7 @@ AstraNotes/
 ### Development Debugging
 - Use browser dev tools for frontend debugging
 - Check Tauri console for backend logs
-- Use Storybook for isolated component development
+
 - Run tests with `--ui` flag for interactive debugging
 
 ### Test Debugging

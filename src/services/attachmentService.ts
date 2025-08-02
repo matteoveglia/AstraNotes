@@ -67,7 +67,9 @@ async function getFileFromPath(filePath: string): Promise<File> {
     }
 
     // Create a Blob with the file data
-    const blob = new Blob([fileData], { type: mimeType });
+    const arrayBuffer = new ArrayBuffer(fileData.byteLength);
+    new Uint8Array(arrayBuffer).set(fileData);
+    const blob = new Blob([arrayBuffer], { type: mimeType });
 
     // Convert Blob to File
     return new File([blob], fileName, { type: mimeType });
