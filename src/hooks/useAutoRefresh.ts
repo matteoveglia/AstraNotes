@@ -28,60 +28,23 @@ export function useAutoRefresh({
   isEnabled = true,
   onRefreshCompleted,
 }: UseAutoRefreshOptions) {
-  const { settings } = useSettings();
+  // PHASE 4.6.2 FIX: Auto-refresh functionality completely removed
+  console.debug(
+    `[useAutoRefresh] Auto-refresh has been disabled - hook is now a no-op for playlist: ${playlistId}`,
+  );
 
-  // Start auto-refresh when conditions are met
+  // No-op functions to maintain API compatibility
   const startAutoRefresh = useCallback(async () => {
-    // Check if this is a Quick Notes playlist (project-scoped)
-    const isQuickNotes = playlistId.startsWith("quick-notes-");
-
-    if (!settings.autoRefreshEnabled || !isEnabled || isQuickNotes) {
-      return;
-    }
-
-    try {
-      await playlistStore.startAutoRefresh(playlistId, onRefreshCompleted);
-      console.debug(
-        `[useAutoRefresh] Started auto-refresh for playlist: ${playlistId}`,
-      );
-    } catch (error) {
-      console.error(`[useAutoRefresh] Failed to start auto-refresh:`, error);
-    }
-  }, [playlistId, settings.autoRefreshEnabled, isEnabled, onRefreshCompleted]);
-
-  // Stop auto-refresh
-  const stopAutoRefresh = useCallback(() => {
-    playlistStore.stopAutoRefresh();
-    console.debug(`[useAutoRefresh] Stopped auto-refresh`);
+    console.debug(`[useAutoRefresh] Auto-refresh disabled - startAutoRefresh is a no-op`);
   }, []);
 
-  // Effect to start/stop auto-refresh based on settings and conditions
-  useEffect(() => {
-    // Check if this is a Quick Notes playlist (project-scoped)
-    const isQuickNotes = playlistId.startsWith("quick-notes-");
-
-    if (settings.autoRefreshEnabled && isEnabled && !isQuickNotes) {
-      startAutoRefresh();
-    } else {
-      stopAutoRefresh();
-    }
-
-    // Cleanup on unmount or dependency change
-    return () => {
-      stopAutoRefresh();
-    };
-  }, [
-    settings.autoRefreshEnabled,
-    isEnabled,
-    playlistId,
-    startAutoRefresh,
-    stopAutoRefresh,
-  ]);
+  const stopAutoRefresh = useCallback(() => {
+    console.debug(`[useAutoRefresh] Auto-refresh disabled - stopAutoRefresh is a no-op`);
+  }, []);
 
   return {
-    isAutoRefreshActive: playlistStore.isAutoRefreshActive(),
-    currentAutoRefreshPlaylistId:
-      playlistStore.getCurrentAutoRefreshPlaylistId(),
+    isAutoRefreshActive: false, // Always false since auto-refresh is disabled
+    currentAutoRefreshPlaylistId: null, // Always null since auto-refresh is disabled
     startAutoRefresh,
     stopAutoRefresh,
   };

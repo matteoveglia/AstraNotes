@@ -269,19 +269,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="border-t pt-4 mt-4">
               <div className="space-y-4">
-                <div className="flex items-center justify-between mt-1">
-                  <Label htmlFor="auto-refresh">Enable Auto Refresh</Label>
-                  <Switch
-                    id="auto-refresh"
-                    checked={settings.autoRefreshEnabled}
-                    onCheckedChange={(checked: boolean) =>
-                      setSettings({
-                        ...settings,
-                        autoRefreshEnabled: checked,
-                      })
-                    }
-                  />
-                </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="default-label">Default Note Label</Label>
                   <Select

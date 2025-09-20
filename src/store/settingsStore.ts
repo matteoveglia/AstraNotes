@@ -15,7 +15,6 @@ interface Settings {
   serverUrl: string;
   apiKey: string;
   apiUser: string;
-  autoRefreshEnabled: boolean;
   defaultLabelId?: string;
 }
 
@@ -31,7 +30,6 @@ export const useSettings = create<SettingsState>()(
         serverUrl: "",
         apiKey: "",
         apiUser: "",
-        autoRefreshEnabled: true,
         defaultLabelId: undefined,
       },
       setSettings: (newSettings) => set({ settings: newSettings }),

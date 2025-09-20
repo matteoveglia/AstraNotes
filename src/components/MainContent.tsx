@@ -269,10 +269,12 @@ export const MainContent: React.FC<MainContentProps> = ({
   const { fetchLabels } = useLabelStore();
   const {
     modifications,
+    setModifications,
     isRefreshing,
     pendingVersions,
     applyPendingChanges,
     refreshPlaylist,
+    directRefresh,
   } = usePlaylistModifications(activePlaylist, onPlaylistUpdate);
 
   const {
@@ -305,56 +307,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     fetchLabels();
   }, [fetchLabels]);
 
-  // Auto-refresh polling based on settings - simplified logic
-  useEffect(() => {
-    // Don't poll for Quick Notes playlist or during initialization
-    if (activePlaylist.isQuickNotes || isInitializing) return;
-
-    if (!settings.autoRefreshEnabled) {
-      playlistStore.stopAutoRefresh();
-      return;
-    }
-
-    // Only start auto-refresh after initialization is complete
-    const startAutoRefreshWithDelay = async () => {
-      // Small delay to ensure initialization is complete
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.debug(
-        `[MainContent] Starting auto-refresh for playlist ${activePlaylist.id}`,
-      );
-      try {
-        await playlistStore.startAutoRefresh(activePlaylist.id, (result) => {
-          if (result.success && (result.addedCount || result.removedCount)) {
-            console.debug(
-              `[MainContent] Auto-refresh detected changes: +${result.addedCount || 0}, -${result.removedCount || 0}`,
-            );
-            // Changes are handled by the playlist-refreshed event listener
-          }
-          if (!result.success && result.error) {
-            console.error(`[MainContent] Auto-refresh error:`, result.error);
-          }
-        });
-      } catch (error) {
-        console.error(`[MainContent] Failed to start auto-refresh:`, error);
-      }
-    };
-
-    startAutoRefreshWithDelay();
-
-    // Stop auto-refresh when dependencies change
-    return () => {
-      console.debug(
-        `[MainContent] Stopping auto-refresh for playlist ${activePlaylist.id}`,
-      );
-      playlistStore.stopAutoRefresh();
-    };
-  }, [
-    activePlaylist.id,
-    activePlaylist.isQuickNotes,
-    settings.autoRefreshEnabled,
-    isInitializing, // Add this dependency
-  ]);
+  // PHASE 4.6.2 FIX: Auto-refresh completely removed
+  // Playlists will only be refreshed when user explicitly clicks "Refresh" button
 
   // Synchronize activePlaylist when playlist prop updates (e.g., after applying changes)
   useEffect(() => {
@@ -530,6 +484,10 @@ export const MainContent: React.FC<MainContentProps> = ({
 
         // Update the local state as well
         setActivePlaylist(updatedPlaylist);
+
+        // Note: We don't update modifications state for manually added versions
+        // because they're already persisted to the database and don't need
+        // the modifications banner (which is for auto-refresh changes)
       });
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
@@ -605,6 +563,10 @@ export const MainContent: React.FC<MainContentProps> = ({
           // Update the local state as well
           setActivePlaylist(updatedPlaylist);
         });
+
+        // Note: We don't update modifications state for manually added versions
+        // because they're already persisted to the database and don't need
+        // the modifications banner (which is for auto-refresh changes)
 
         console.log(
           `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
@@ -1091,7 +1053,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               onClearAllSelections={clearAllSelections}
               isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
               isRefreshing={isRefreshing}
-              onRefresh={refreshPlaylist}
+              onRefresh={directRefresh}
               selectedStatuses={selectedStatuses}
               selectedLabels={selectedLabels}
               selectedVersions={selectedVersions}

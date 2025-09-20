@@ -770,33 +770,26 @@ export class PlaylistStore extends SimpleEventEmitter {
         this.entityToAssetVersion(entity),
       );
 
-      // Apply changes to database
-      if (addedVersions.length > 0) {
-        await this.addVersionsToPlaylist(playlistId, addedVersions);
-      }
-
-      if (removedVersionEntities.length > 0) {
-        for (const versionEntity of removedVersionEntities) {
-          await this.removeVersionFromPlaylist(playlistId, versionEntity.id);
-        }
-      }
-
-      // Clear cache to force reload
-      this.cache.invalidate(playlistId);
-
+      // PHASE 4.6.2 FIX: Do NOT automatically apply changes to database
+      // Only detect and report changes - let user decide when to apply them
+      
       console.debug(
-        `[PlaylistStore] Refreshed playlist ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""}`,
+        `[PlaylistStore] Detected playlist changes for ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""} (NOT auto-applied)`,
       );
 
-      // Emit detailed refresh event with version data
-      this.emit("playlist-refreshed", {
-        playlistId,
-        addedCount: addedVersions.length,
-        removedCount: removedVersions.length,
-        addedVersions,
-        removedVersions,
-        nameUpdated,
-      });
+      // Only emit event if there are actual changes to report
+      // This will trigger the modifications banner but won't auto-apply changes
+      if (addedVersions.length > 0 || removedVersions.length > 0) {
+        this.emit("playlist-changes-detected", {
+          playlistId,
+          addedCount: addedVersions.length,
+          removedCount: removedVersions.length,
+          addedVersions,
+          removedVersions,
+          nameUpdated,
+          freshVersions, // Include fresh versions for manual refresh
+        });
+      }
 
       return {
         success: true,
@@ -815,6 +808,165 @@ export class PlaylistStore extends SimpleEventEmitter {
         playlistId,
         error: error instanceof Error ? error.message : "Unknown error",
       });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Applies detected playlist changes to the database (user-initiated refresh)
+   * This replaces the automatic application that was removed from refreshPlaylist()
+   */
+  async applyPlaylistRefresh(
+    playlistId: string,
+    freshVersions: AssetVersion[],
+    addedVersions: AssetVersion[],
+    removedVersions: AssetVersion[]
+  ): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      console.debug(
+        `[PlaylistStore] Applying playlist refresh for ${playlistId}: +${addedVersions.length} -${removedVersions.length}`,
+      );
+
+      // Apply additions to database
+      if (addedVersions.length > 0) {
+        await this.addVersionsToPlaylist(playlistId, addedVersions);
+      }
+
+      // Apply removals to database
+      if (removedVersions.length > 0) {
+        for (const removedVersion of removedVersions) {
+          await this.removeVersionFromPlaylist(playlistId, removedVersion.id);
+        }
+      }
+
+      // Clear cache to force reload with fresh data
+      this.cache.invalidate(playlistId);
+
+      console.debug(
+        `[PlaylistStore] Successfully applied playlist refresh for ${playlistId}`,
+      );
+
+      // Emit completion event
+      this.emit("playlist-refresh-applied", {
+        playlistId,
+        addedCount: addedVersions.length,
+        removedCount: removedVersions.length,
+        addedVersions,
+        removedVersions,
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error(
+        `[PlaylistStore] Failed to apply playlist refresh for ${playlistId}:`,
+        error,
+      );
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * PHASE 4.6.3: Direct playlist refresh without modifications banner
+   * Fetches latest state from ftrack and applies changes immediately
+   */
+  async directPlaylistRefresh(playlistId: string): Promise<{
+    success: boolean;
+    addedCount?: number;
+    removedCount?: number;
+    error?: string;
+  }> {
+    try {
+      console.debug(`[PlaylistStore] Direct refresh for playlist: ${playlistId}`);
+
+      // Get playlist entity to access ftrackId
+      const entity = await this.repository.getPlaylist(playlistId);
+      if (!entity) {
+        throw new Error(`Playlist ${playlistId} not found`);
+      }
+
+      if (!entity.ftrackId) {
+        console.debug(
+          `[PlaylistStore] Cannot refresh local-only playlist: ${playlistId}`,
+        );
+        return {
+          success: false,
+          error: "Local-only playlist cannot be refreshed",
+        };
+      }
+
+      // Fetch fresh versions from ftrack
+      const freshVersions = await this.ftrackService.getPlaylistVersions(
+        entity.ftrackId,
+      );
+
+      // Get current versions
+      const currentVersions =
+        await this.repository.getPlaylistVersions(playlistId);
+      const currentVersionIds = new Set(
+        currentVersions.filter((v) => !v.isRemoved).map((v) => v.id),
+      );
+      const freshVersionIds = new Set(freshVersions.map((v) => v.id));
+
+      // Calculate changes
+      const addedVersions = freshVersions.filter(
+        (v) => !currentVersionIds.has(v.id),
+      );
+
+      // Only remove ftrack versions, preserve manually added versions
+      const removedVersionEntities = currentVersions.filter(
+        (currentVersion) => {
+          if (currentVersion.isRemoved) return false;
+          return (
+            !freshVersionIds.has(currentVersion.id) &&
+            !currentVersion.manuallyAdded
+          );
+        },
+      );
+
+      // Apply changes directly to database
+      if (addedVersions.length > 0) {
+        await this.addVersionsToPlaylist(playlistId, addedVersions);
+      }
+
+      if (removedVersionEntities.length > 0) {
+        for (const versionEntity of removedVersionEntities) {
+          await this.removeVersionFromPlaylist(playlistId, versionEntity.id);
+        }
+      }
+
+      // Clear cache to force reload
+      this.cache.invalidate(playlistId);
+
+      console.debug(
+        `[PlaylistStore] Direct refresh completed for ${playlistId}: +${addedVersions.length} -${removedVersionEntities.length}`,
+      );
+
+      // Emit direct refresh event (different from modifications banner events)
+      this.emit("playlist-direct-refresh-completed", {
+        playlistId,
+        addedCount: addedVersions.length,
+        removedCount: removedVersionEntities.length,
+      });
+
+      return {
+        success: true,
+        addedCount: addedVersions.length,
+        removedCount: removedVersionEntities.length,
+      };
+    } catch (error) {
+      console.error(
+        `[PlaylistStore] Failed to direct refresh playlist ${playlistId}:`,
+        error,
+      );
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -1034,8 +1186,8 @@ export class PlaylistStore extends SimpleEventEmitter {
   // =================== AUTO-REFRESH OPERATIONS ===================
 
   /**
-   * Starts auto-refresh polling for a playlist
-   * Integrates with settings store and prevents race conditions
+   * PHASE 4.6.2 FIX: Auto-refresh functionality removed
+   * This method is now a no-op to maintain API compatibility
    */
   async startAutoRefresh(
     playlistId: string,
@@ -1048,135 +1200,11 @@ export class PlaylistStore extends SimpleEventEmitter {
       error?: string;
     }) => void,
   ): Promise<void> {
-    try {
-      console.debug(
-        `[PlaylistStore] Starting auto-refresh for playlist: ${playlistId}`,
-      );
-
-      // Check if auto-refresh is enabled in settings
-      const { settings } = useSettings.getState();
-
-      if (!settings.autoRefreshEnabled) {
-        console.debug(
-          `[PlaylistStore] Auto-refresh disabled in settings, not starting`,
-        );
-        return;
-      }
-
-      // Don't auto-refresh Quick Notes playlist
-      if (playlistId.startsWith("quick-notes-")) {
-        console.debug(
-          `[PlaylistStore] Skipping auto-refresh for Quick Notes playlist`,
-        );
-        return;
-      }
-
-      // Get playlist entity to verify it can be refreshed
-      const entity = await this.repository.getPlaylist(playlistId);
-      if (!entity || !entity.ftrackId) {
-        console.debug(
-          `[PlaylistStore] Cannot auto-refresh local-only playlist: ${playlistId}`,
-        );
-        return;
-      }
-
-      // If we're already auto-refreshing this playlist, don't start another instance
-      if (
-        this.currentAutoRefreshPlaylistId === playlistId &&
-        this.autoRefreshInterval
-      ) {
-        console.debug(
-          `[PlaylistStore] Already auto-refreshing playlist: ${playlistId}`,
-        );
-        return;
-      }
-
-      // Stop any existing auto-refresh for different playlist
-      if (this.currentAutoRefreshPlaylistId !== playlistId) {
-        this.stopAutoRefresh();
-      }
-
-      this.currentAutoRefreshPlaylistId = playlistId;
-
-      // Set up periodic refresh
-      this.autoRefreshInterval = setInterval(async () => {
-        // Double-check settings and playlist haven't changed
-        const currentSettings = useSettings.getState().settings;
-        if (
-          !currentSettings.autoRefreshEnabled ||
-          this.currentAutoRefreshPlaylistId !== playlistId
-        ) {
-          this.stopAutoRefresh();
-          return;
-        }
-
-        // Prevent overlapping refresh calls
-        if (this.isAutoRefreshing) {
-          console.debug(
-            `[PlaylistStore] Auto-refresh already in progress for: ${playlistId}`,
-          );
-          return;
-        }
-
-        this.isAutoRefreshing = true;
-
-        try {
-          console.debug(
-            `[PlaylistStore] Auto-refreshing playlist: ${playlistId}`,
-          );
-          const result = await this.refreshPlaylist(playlistId);
-
-          // Emit auto-refresh specific event with version data
-          this.emit("auto-refresh-completed", {
-            playlistId,
-            result,
-          });
-
-          // Call callback if provided
-          if (callback) {
-            callback(result);
-          }
-
-          // Log changes if any
-          if (result.success && (result.addedCount || result.removedCount)) {
-            console.debug(
-              `[PlaylistStore] Auto-refresh found changes for ${playlistId}: +${result.addedCount || 0} -${result.removedCount || 0}`,
-            );
-          }
-        } catch (error) {
-          console.error(
-            `[PlaylistStore] Auto-refresh failed for ${playlistId}:`,
-            error,
-          );
-
-          const errorResult = {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          };
-
-          this.emit("auto-refresh-failed", {
-            playlistId,
-            error: errorResult.error,
-          });
-
-          if (callback) {
-            callback(errorResult);
-          }
-        } finally {
-          this.isAutoRefreshing = false;
-        }
-      }, PlaylistStore.AUTO_REFRESH_INTERVAL);
-
-      console.debug(
-        `[PlaylistStore] Auto-refresh started for playlist: ${playlistId}`,
-      );
-    } catch (error) {
-      console.error(
-        `[PlaylistStore] Failed to start auto-refresh for ${playlistId}:`,
-        error,
-      );
-      throw error;
-    }
+    console.debug(
+      `[PlaylistStore] Auto-refresh has been disabled - startAutoRefresh is now a no-op for playlist: ${playlistId}`,
+    );
+    // Auto-refresh functionality completely removed in Phase 4.6.2
+    // Playlists will only be refreshed when user explicitly requests it
   }
 
   /**

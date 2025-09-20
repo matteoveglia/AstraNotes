@@ -130,7 +130,7 @@ export const ModificationsBanner: React.FC<ModificationsBannerProps> = ({
           onClick={onUpdate}
           disabled={isUpdating}
         >
-          {isUpdating ? "Updating..." : "Update Playlist"}
+          {isUpdating ? "Refreshing..." : "Refresh"}
         </Button>
       )}
     </motion.div>
