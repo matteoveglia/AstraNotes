@@ -37,7 +37,13 @@ describe("MainContent local-only init smoke test", () => {
     // Create playlist and add versions
     await repo.createPlaylist(entity);
     await playlistStore.addVersionsToPlaylist(playlistId, [
-      { id: "v1", name: "Version 1", version: 1, createdAt: now, updatedAt: now },
+      {
+        id: "v1",
+        name: "Version 1",
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     // Verify we can retrieve it (this is what MainContent does during init)

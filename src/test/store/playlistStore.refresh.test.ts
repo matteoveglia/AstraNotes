@@ -53,12 +53,12 @@ describe("PlaylistStore refresh flows", () => {
     ]);
 
     // Fresh has B, C
-    (mockedService.ftrackPlaylistService.getPlaylistVersions as any).mockResolvedValue(
-      [
-        { id: "B", name: "B", version: 1, createdAt: now, updatedAt: now },
-        { id: "C", name: "C", version: 1, createdAt: now, updatedAt: now },
-      ],
-    );
+    (
+      mockedService.ftrackPlaylistService.getPlaylistVersions as any
+    ).mockResolvedValue([
+      { id: "B", name: "B", version: 1, createdAt: now, updatedAt: now },
+      { id: "C", name: "C", version: 1, createdAt: now, updatedAt: now },
+    ]);
 
     const result = await (playlistStore as any).refreshPlaylist(id);
     expect(result.success).toBe(true);
@@ -90,7 +90,9 @@ describe("PlaylistStore refresh flows", () => {
       { id: "C", name: "C", version: 1, createdAt: now, updatedAt: now },
     ];
     const added = [fresh[1]]; // C
-    const removed = [{ id: "A", name: "A", version: 1, createdAt: now, updatedAt: now }];
+    const removed = [
+      { id: "A", name: "A", version: 1, createdAt: now, updatedAt: now },
+    ];
 
     const applied = await (playlistStore as any).applyPlaylistRefresh(
       id,

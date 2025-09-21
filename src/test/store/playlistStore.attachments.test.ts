@@ -22,7 +22,10 @@ describe("PlaylistStore attachments", () => {
     vi.clearAllMocks();
   });
 
-  async function seedPlaylistWithVersion(playlistId: string, versionId: string) {
+  async function seedPlaylistWithVersion(
+    playlistId: string,
+    versionId: string,
+  ) {
     const entity: PlaylistEntity = {
       id: playlistId,
       name: "Attachments",

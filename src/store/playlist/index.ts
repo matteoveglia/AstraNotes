@@ -820,7 +820,10 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       const hasManual = currentVersions.some((v) => v.manuallyAdded);
 
-      if (hasManual && (addedVersions.length > 0 || removedVersions.length > 0)) {
+      if (
+        hasManual &&
+        (addedVersions.length > 0 || removedVersions.length > 0)
+      ) {
         await this.applyPlaylistRefresh(
           playlistId,
           freshVersions,
@@ -1399,11 +1402,11 @@ export class PlaylistStore extends SimpleEventEmitter {
           ? version.updatedAt
           : new Date().toISOString(),
     };
-}
+  }
 
-// =================== LEGACY COMPATIBILITY ===================
+  // =================== LEGACY COMPATIBILITY ===================
 
-// =================== BACKWARD COMPATIBILITY METHODS ===================
+  // =================== BACKWARD COMPATIBILITY METHODS ===================
 
   /**
    * @deprecated Use addVersionsToPlaylist() with array instead
@@ -1491,8 +1494,12 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // Build NoteAttachment records (store metadata only to avoid serialization issues)
       const toStore: NoteAttachment[] = (attachments || []).map((att: any) => {
-        const size = typeof att?.file === "object" && att.file && "size" in att.file ? Number(att.file.size) || 0 : 0;
-        const filePath = typeof att?.file === "string" ? (att.file as string) : undefined;
+        const size =
+          typeof att?.file === "object" && att.file && "size" in att.file
+            ? Number(att.file.size) || 0
+            : 0;
+        const filePath =
+          typeof att?.file === "string" ? (att.file as string) : undefined;
         return {
           id: String(att.id || crypto.randomUUID()),
           noteId: "",

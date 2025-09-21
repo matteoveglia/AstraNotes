@@ -45,7 +45,10 @@ export function useAutoRefresh({
 
   const startAutoRefresh = useCallback(
     (cb?: (result: any) => void) => {
-      (playlistStore as any).startAutoRefresh?.(playlistId, cb ?? onRefreshCompleted);
+      (playlistStore as any).startAutoRefresh?.(
+        playlistId,
+        cb ?? onRefreshCompleted,
+      );
     },
     [playlistId, onRefreshCompleted],
   );
@@ -54,7 +57,8 @@ export function useAutoRefresh({
     (playlistStore as any).stopAutoRefresh?.();
   }, []);
 
-  const isAutoRefreshActive = (playlistStore as any).isAutoRefreshActive?.() ?? false;
+  const isAutoRefreshActive =
+    (playlistStore as any).isAutoRefreshActive?.() ?? false;
   const currentAutoRefreshPlaylistId =
     (playlistStore as any).getCurrentAutoRefreshPlaylistId?.() ?? null;
 

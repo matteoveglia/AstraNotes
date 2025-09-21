@@ -38,8 +38,20 @@ describe("PlaylistStore directPlaylistRefresh deleted-in-ftrack", () => {
 
     await repo.createPlaylist(entity);
     await playlistStore.addVersionsToPlaylist(id, [
-      { id: "v1", name: "Version 1", version: 1, createdAt: now, updatedAt: now },
-      { id: "v2", name: "Version 2", version: 1, createdAt: now, updatedAt: now },
+      {
+        id: "v1",
+        name: "Version 1",
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "v2",
+        name: "Version 2",
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     // First get to populate cache
@@ -58,6 +70,6 @@ describe("PlaylistStore directPlaylistRefresh deleted-in-ftrack", () => {
     // DB should have the versions soft-deleted; verify via removed list
     const dbRemoved = await repo.getRemovedVersions(id);
     expect(dbRemoved.length).toBe(2);
-    expect(dbRemoved.every(v => v.isRemoved)).toBe(true);
+    expect(dbRemoved.every((v) => v.isRemoved)).toBe(true);
   });
 });

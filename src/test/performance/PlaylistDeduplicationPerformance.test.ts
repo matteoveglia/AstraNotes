@@ -64,7 +64,9 @@ describe("Playlist Deduplication Performance Tests", () => {
       expect(duration).toBeLessThan(5000); // 5 seconds
 
       // Verify all playlists were processed correctly (exclude Quick Notes)
-      const ui1 = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+      const ui1 = usePlaylistsStore
+        .getState()
+        .playlists.filter((p) => !p.isQuickNotes);
       expect(ui1).toHaveLength(100);
 
       const dbPlaylists = await db.playlists.toArray();
@@ -125,7 +127,9 @@ describe("Playlist Deduplication Performance Tests", () => {
       expect(duration).toBeLessThan(7000); // 7 seconds
 
       // Verify correct deduplication: 50 existing + 50 new = 100 total (exclude Quick Notes)
-      const ui2 = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+      const ui2 = usePlaylistsStore
+        .getState()
+        .playlists.filter((p) => !p.isQuickNotes);
       expect(ui2).toHaveLength(100);
 
       const dbPlaylists = await db.playlists.toArray();
@@ -211,7 +215,9 @@ describe("Playlist Deduplication Performance Tests", () => {
         await store.loadPlaylists("project-123");
 
         // Verify consistent state after each operation (exclude Quick Notes)
-        const ui = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+        const ui = usePlaylistsStore
+          .getState()
+          .playlists.filter((p) => !p.isQuickNotes);
         expect(ui).toHaveLength(30);
 
         const dbPlaylists = await db.playlists.toArray();

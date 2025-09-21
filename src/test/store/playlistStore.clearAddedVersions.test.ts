@@ -38,8 +38,22 @@ describe("PlaylistStore clearAddedVersions", () => {
 
     // Add mix of auto and manually added versions
     await playlistStore.addVersionsToPlaylist(id, [
-      { id: "auto", name: "Auto", version: 1, createdAt: now, updatedAt: now, manuallyAdded: false },
-      { id: "manual", name: "Manual", version: 1, createdAt: now, updatedAt: now, manuallyAdded: true },
+      {
+        id: "auto",
+        name: "Auto",
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+        manuallyAdded: false,
+      },
+      {
+        id: "manual",
+        name: "Manual",
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+        manuallyAdded: true,
+      },
     ]);
 
     // Clear added versions
@@ -53,6 +67,6 @@ describe("PlaylistStore clearAddedVersions", () => {
 
     // Verify removed (soft-deleted) versions include the manual one
     const removed = await repo.getRemovedVersions(id);
-    expect(removed.some(v => v.id === "manual")).toBe(true);
+    expect(removed.some((v) => v.id === "manual")).toBe(true);
   });
 });
