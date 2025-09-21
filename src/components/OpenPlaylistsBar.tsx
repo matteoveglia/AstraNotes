@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
 import type { Playlist } from "@/types";
+import { useProjectStore } from "../store/projectStore";
 
 interface PlaylistTabProps {
   playlist: Playlist;

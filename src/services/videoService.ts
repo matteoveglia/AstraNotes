@@ -1,10 +1,10 @@
 /**
  * @fileoverview videoService.ts
- * Service for managing video URL fetching, caching, and cleanup.
- * Handles ftrack video component URLs and memory management.
+ * Service for handling video-related operations including availability checks and URL generation.
+ * Handles caching of video URLs and availability status.
  */
 
-import { ftrackService } from "./ftrack";
+import { ftrackVersionService } from "./ftrack/FtrackVersionService";
 
 interface VideoCache {
   [versionId: string]: {
@@ -51,22 +51,23 @@ class VideoService {
       console.log(
         `[VideoService] Fetching components for version: ${versionId}`,
       );
-      const components = await ftrackService.getVersionComponents(versionId);
+      const components =
+        await ftrackVersionService.getVersionComponents(versionId);
 
       console.log(
         `[VideoService] Found ${components.length} components for version ${versionId}:`,
-        components.map((c) => ({ name: c.name, id: c.id })),
+        components.map((c: any) => ({ name: c.name, id: c.id })),
       );
 
       // Try to find the 1080p component first
       let reviewableComponent = components.find(
-        (c) => c.name === "ftrackreview-mp4-1080",
+        (c: any) => c.name === "ftrackreview-mp4-1080",
       );
 
       // If not found, try the regular mp4 component
       if (!reviewableComponent) {
         reviewableComponent = components.find(
-          (c) => c.name === "ftrackreview-mp4",
+          (c: any) => c.name === "ftrackreview-mp4",
         );
         console.log(
           `[VideoService] ftrackreview-mp4-1080 not found, trying ftrackreview-mp4:`,
@@ -133,17 +134,18 @@ class VideoService {
       console.log(
         `[VideoService] Fetching components for video URL: ${versionId}`,
       );
-      const components = await ftrackService.getVersionComponents(versionId);
+      const components =
+        await ftrackVersionService.getVersionComponents(versionId);
 
       // Try to find the 1080p component first
       let reviewableComponent = components.find(
-        (c) => c.name === "ftrackreview-mp4-1080",
+        (c: any) => c.name === "ftrackreview-mp4-1080",
       );
 
       // If not found, try the regular mp4 component
       if (!reviewableComponent) {
         reviewableComponent = components.find(
-          (c) => c.name === "ftrackreview-mp4",
+          (c: any) => c.name === "ftrackreview-mp4",
         );
         console.log(
           `[VideoService] Using fallback ftrackreview-mp4 component for ${versionId}`,
@@ -160,7 +162,7 @@ class VideoService {
         );
         console.warn(
           `[VideoService] Available components:`,
-          components.map((c) => c.name),
+          components.map((c: any) => c.name),
         );
         return null;
       }
@@ -168,7 +170,9 @@ class VideoService {
       console.log(
         `[VideoService] Getting URL for component: ${reviewableComponent.name} (${reviewableComponent.id})`,
       );
-      const url = await ftrackService.getComponentUrl(reviewableComponent.id);
+      const url = await ftrackVersionService.getComponentUrl(
+        reviewableComponent.id,
+      );
 
       if (url) {
         console.log(

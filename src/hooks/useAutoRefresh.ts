@@ -1,12 +1,11 @@
 /**
- * @fileoverview useAutoRefresh.ts
- * Custom hook for managing auto-refresh functionality.
- * Integrates with settings store and playlist store to provide
- * a clean interface for starting/stopping auto-refresh.
+ * @fileoverview useAutoRefresh.ts (Deprecated Shim)
+ * Auto-refresh has been removed in Phase 4.7. This hook remains as a
+ * backward-compatibility shim using optional chaining and returns
+ * inert controls. Safe to remove once all call sites are gone.
  */
 
-import { useEffect, useCallback } from "react";
-import { useSettings } from "@/store/settingsStore";
+import { useEffect, useCallback, useMemo } from "react";
 import { playlistStore } from "@/store/playlist";
 import type { AssetVersion } from "@/types";
 
@@ -28,62 +27,44 @@ export function useAutoRefresh({
   isEnabled = true,
   onRefreshCompleted,
 }: UseAutoRefreshOptions) {
-  const { settings } = useSettings();
+  const isQuickNotes = useMemo(
+    () => playlistId.startsWith("quick-notes-"),
+    [playlistId],
+  );
 
-  // Start auto-refresh when conditions are met
-  const startAutoRefresh = useCallback(async () => {
-    if (
-      !settings.autoRefreshEnabled ||
-      !isEnabled ||
-      playlistId === "quick-notes"
-    ) {
-      return;
+  // Start/stop auto-refresh based on flags. Skip Quick Notes.
+  useEffect(() => {
+    if (isEnabled && !isQuickNotes) {
+      (playlistStore as any).startAutoRefresh?.(playlistId, onRefreshCompleted);
+      return () => {
+        (playlistStore as any).stopAutoRefresh?.();
+      };
     }
+    return;
+  }, [playlistId, isEnabled, isQuickNotes, onRefreshCompleted]);
 
-    try {
-      await playlistStore.startAutoRefresh(playlistId, onRefreshCompleted);
-      console.debug(
-        `[useAutoRefresh] Started auto-refresh for playlist: ${playlistId}`,
+  const startAutoRefresh = useCallback(
+    (cb?: (result: any) => void) => {
+      (playlistStore as any).startAutoRefresh?.(
+        playlistId,
+        cb ?? onRefreshCompleted,
       );
-    } catch (error) {
-      console.error(`[useAutoRefresh] Failed to start auto-refresh:`, error);
-    }
-  }, [playlistId, settings.autoRefreshEnabled, isEnabled, onRefreshCompleted]);
+    },
+    [playlistId, onRefreshCompleted],
+  );
 
-  // Stop auto-refresh
   const stopAutoRefresh = useCallback(() => {
-    playlistStore.stopAutoRefresh();
-    console.debug(`[useAutoRefresh] Stopped auto-refresh`);
+    (playlistStore as any).stopAutoRefresh?.();
   }, []);
 
-  // Effect to start/stop auto-refresh based on settings and conditions
-  useEffect(() => {
-    if (
-      settings.autoRefreshEnabled &&
-      isEnabled &&
-      playlistId !== "quick-notes"
-    ) {
-      startAutoRefresh();
-    } else {
-      stopAutoRefresh();
-    }
-
-    // Cleanup on unmount or dependency change
-    return () => {
-      stopAutoRefresh();
-    };
-  }, [
-    settings.autoRefreshEnabled,
-    isEnabled,
-    playlistId,
-    startAutoRefresh,
-    stopAutoRefresh,
-  ]);
+  const isAutoRefreshActive =
+    (playlistStore as any).isAutoRefreshActive?.() ?? false;
+  const currentAutoRefreshPlaylistId =
+    (playlistStore as any).getCurrentAutoRefreshPlaylistId?.() ?? null;
 
   return {
-    isAutoRefreshActive: playlistStore.isAutoRefreshActive(),
-    currentAutoRefreshPlaylistId:
-      playlistStore.getCurrentAutoRefreshPlaylistId(),
+    isAutoRefreshActive,
+    currentAutoRefreshPlaylistId,
     startAutoRefresh,
     stopAutoRefresh,
   };

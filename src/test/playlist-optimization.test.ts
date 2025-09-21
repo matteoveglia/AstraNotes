@@ -199,6 +199,8 @@ describe('Playlist Store Optimization', () => {
 });
 */
 
+import { describe, it, expect } from "vitest";
+
 // Placeholder test to prevent empty test file
 describe("Placeholder", () => {
   it("should pass", () => {

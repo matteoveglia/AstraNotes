@@ -20,7 +20,7 @@ export function useApiWithNotifications() {
    * @param options Configuration options
    */
   const apiWithNotifications = useCallback(
-    async <T, R>(
+    async <T>(
       apiFn: (items: T[]) => Promise<{ success: T[]; failed: T[] }>,
       items: T[],
       options: {

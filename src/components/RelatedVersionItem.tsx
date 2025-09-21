@@ -57,11 +57,9 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
   const versionStatus = versionDataCache?.statuses[version.id] || null;
   const shotStatus = versionDataCache?.shotStatuses[version.id] || null;
   const isLoadingDetails = !versionDataCache?.details[version.id];
-  // Only stop loading when BOTH version and shot statuses are available (Phase 6.1 refinement)
-  const isLoadingStatuses = !(
-    versionDataCache?.statuses[version.id] &&
-    versionDataCache?.shotStatuses[version.id]
-  );
+  // Check loading status for each type separately
+  const isLoadingVersionStatus = !versionDataCache?.statuses[version.id];
+  const isLoadingShotStatus = !versionDataCache?.shotStatuses[version.id];
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering item selection
@@ -186,7 +184,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
 
         {/* Shot Status */}
         <div className="flex-shrink-0 w-28 whitespace-normal">
-          {isLoadingStatuses ? (
+          {isLoadingShotStatus ? (
             <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
             <StatusSelector
@@ -200,7 +198,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
 
         {/* Version Status */}
         <div className="flex-shrink-0 w-36 whitespace-normal">
-          {isLoadingStatuses ? (
+          {isLoadingVersionStatus ? (
             <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" />
           ) : (
             <StatusSelector
@@ -321,7 +319,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
             <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
               Shot:
             </span>
-            {isLoadingStatuses ? (
+            {isLoadingShotStatus ? (
               <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <StatusSelector
@@ -339,7 +337,7 @@ const RelatedVersionItemComponent: React.FC<RelatedVersionItemProps> = ({
             <span className="text-xs text-zinc-600 dark:text-zinc-400 w-10 text-right flex-shrink-0">
               Status:
             </span>
-            {isLoadingStatuses ? (
+            {isLoadingVersionStatus ? (
               <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse flex-1 min-w-0" />
             ) : (
               <StatusSelector

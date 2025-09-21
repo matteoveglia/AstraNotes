@@ -15,7 +15,7 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
-import { ftrackService } from "../services/ftrack";
+import { ftrackAuthService } from "../services/ftrack/FtrackAuthService";
 import {
   forceRefreshThumbnail,
   createCacheIntegration,
@@ -90,7 +90,7 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
 
       // Step 3: Connect to ftrack (40-60%)
       updateProgress("connecting", 60);
-      const session = await ftrackService.getSession();
+      const session = await ftrackAuthService.getSession();
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Step 4: Load fresh thumbnails (60-90%)

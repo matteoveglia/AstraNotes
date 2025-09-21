@@ -61,12 +61,3 @@ When the user opens the Related Versions modal (via the Related button in NoteIn
 Integration & component tests live in:
 * `src/test/integration/CriticalWorkflows.test.tsx` – covers selection & playlist addition.
 * `src/test/components/RelatedVersionItem.test.tsx` – ensures thumbnail modal & selection logic.
-
-## Storybook
-
-Interactive stories are available under **Features ➜ Related Versions**:
-* Grid view, List view
-* Loading states
-* Status editing
-
-Run `pnpm storybook` to explore the component suite. 

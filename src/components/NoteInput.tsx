@@ -17,7 +17,7 @@ import { BorderTrail } from "@/components/ui/border-trail";
 import { Loader2, Workflow, ExternalLink, X, Info, Users } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
@@ -516,7 +516,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Fetch projectId for this asset version
   useEffect(() => {
-    ftrackService
+    ftrackStatusService
       .fetchStatusPanelData(assetVersionId)
       .then((data) => setFtrackProjectId(data.projectId))
       .catch((err) =>

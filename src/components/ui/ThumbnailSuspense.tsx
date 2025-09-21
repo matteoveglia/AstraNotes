@@ -7,7 +7,7 @@
 import React, { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { getThumbnailSuspense } from "@/services/thumbnailService";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackAuthService } from "@/services/ftrack/FtrackAuthService";
 
 interface ThumbnailImageProps {
   thumbnailId: string;

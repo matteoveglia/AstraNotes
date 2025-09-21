@@ -2,6 +2,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import AppProvider from "./components/AppProvider";
 import "./index.css";
 import * as Sentry from "@sentry/react";
 import { initLogCapture } from "./lib/logExporter";
@@ -85,6 +86,8 @@ Sentry.init({
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <AppProvider>
+      <App />
+    </AppProvider>
   </React.StrictMode>,
 );

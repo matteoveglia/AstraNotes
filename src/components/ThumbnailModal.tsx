@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { VideoPlayer } from "./VideoPlayer";
 import { videoService } from "../services/videoService";
-import { ftrackService } from "../services/ftrack";
+import { ftrackAuthService } from "../services/ftrack/FtrackAuthService";
 import { fetchThumbnail } from "../services/thumbnailService";
 import { Play, Image, AlertCircle } from "lucide-react";
 import {
@@ -95,7 +95,7 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
     ) {
       setIsRefreshingThumbnail(true);
       try {
-        const session = await ftrackService.getSession();
+        const session = await ftrackAuthService.getSession();
         const freshUrl = await fetchThumbnail(
           thumbnailId,
           session,

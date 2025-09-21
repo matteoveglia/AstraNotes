@@ -53,10 +53,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import { ftrackService } from "@/services/ftrack";
 import { useToast } from "./ui/toast";
 import { playlistStore } from "@/store/playlist";
 import { usePlaylistsStore } from "@/store/playlistsStore";
+import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -132,6 +132,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
   const isPending = false;
 
+  // AbortController for cancelling requests when modal closes
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
   // Extract shot name from current version
   const shotName = useMemo(() => {
     return relatedVersionsService.extractShotName(currentVersionName);
@@ -156,6 +159,15 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
+      // Cancel any ongoing requests
+      if (abortControllerRef.current) {
+        console.debug(
+          "[RelatedVersionsModal] Cancelling ongoing requests due to modal close",
+        );
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
       setSelectedVersions([]);
       setSelectedAcrossPages(new Set());
       setSearchTerm("");
@@ -184,7 +196,7 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
       // For shot statuses, we need to get the parent entity from status panel data
       const statusData =
-        await ftrackService.fetchStatusPanelData(firstVersionId);
+        await ftrackStatusService.fetchStatusPanelData(firstVersionId);
 
       const promises = [
         relatedVersionsService.fetchAllVersionStatuses(firstVersionId),
@@ -227,9 +239,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       });
 
       // Call ftrack service to update status
-      await ftrackService.updateEntityStatus(
-        "AssetVersion",
+      await ftrackStatusService.updateEntityStatus(
         versionId,
+        "AssetVersion",
         newStatusId,
       );
       console.debug(
@@ -254,7 +266,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     );
     try {
       // Get the parent entity information from status panel data
-      const statusData = await ftrackService.fetchStatusPanelData(versionId);
+      const statusData =
+        await ftrackStatusService.fetchStatusPanelData(versionId);
       if (!statusData?.parentId || !statusData?.parentType) {
         console.warn(
           `[RelatedVersionsModal] No parent entity found for version ${versionId}`,
@@ -275,9 +288,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       });
 
       // Call ftrack service to update the parent entity status
-      await ftrackService.updateEntityStatus(
-        statusData.parentType,
+      await ftrackStatusService.updateEntityStatus(
         statusData.parentId,
+        statusData.parentType,
         newStatusId,
       );
       console.debug(
@@ -331,6 +344,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     setLoading(true);
     setError(null);
 
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    const currentAbortController = abortControllerRef.current;
+
     try {
       console.debug(
         "[RelatedVersionsModal] Fetching related versions for shot:",
@@ -338,6 +355,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       );
       const versions =
         await relatedVersionsService.fetchVersionsByShotName(shotName);
+
+      // Check if request was aborted
+      if (currentAbortController.signal.aborted) {
+        console.debug(
+          "[RelatedVersionsModal] Request aborted during fetchVersionsByShotName",
+        );
+        return;
+      }
 
       // Filter out the current version
       const filteredVersions = versions.filter(
@@ -371,6 +396,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
         try {
           // Step 1 – fetch available statuses (10%)
           await fetchAvailableStatusesForVersions(sortedVersions);
+          if (currentAbortController.signal.aborted) {
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during fetchAvailableStatusesForVersions",
+            );
+            return;
+          }
           setLoadingProgress(10);
 
           // Prepare IDs
@@ -379,6 +410,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           // Step 2 – version details (40%)
           const details =
             await relatedVersionsService.batchFetchVersionDetails(versionIds);
+          if (currentAbortController.signal.aborted) {
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchVersionDetails",
+            );
+            return;
+          }
           setVersionDataCache((prev) => ({
             ...prev,
             details: { ...prev.details, ...details },
@@ -388,6 +425,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           // Step 3 – version statuses (70%)
           const statuses =
             await relatedVersionsService.batchFetchVersionStatuses(versionIds);
+          if (currentAbortController.signal.aborted) {
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchVersionStatuses",
+            );
+            return;
+          }
           setVersionDataCache((prev) => ({
             ...prev,
             statuses: { ...prev.statuses, ...statuses },
@@ -397,6 +440,12 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           // Step 4 – shot statuses (100%)
           const shotStatuses =
             await relatedVersionsService.batchFetchShotStatuses(versionIds);
+          if (currentAbortController.signal.aborted) {
+            console.debug(
+              "[RelatedVersionsModal] Request aborted during batchFetchShotStatuses",
+            );
+            return;
+          }
           setVersionDataCache((prev) => ({
             ...prev,
             shotStatuses: { ...prev.shotStatuses, ...shotStatuses },
@@ -405,16 +454,23 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
           console.debug("[RelatedVersionsModal] Progressive loading completed");
         } catch (progressiveError) {
+          if (currentAbortController.signal.aborted) {
+            console.debug("[RelatedVersionsModal] Progressive loading aborted");
+            return;
+          }
           console.warn(
             "[RelatedVersionsModal] Progressive loading failed:",
             progressiveError,
           );
           // Don't set error state - basic functionality still works
         } finally {
-          // Allow a brief moment for 100% to be visible before fading out
-          setTimeout(() => {
-            setProgressiveLoading(false);
-          }, 400);
+          // Only set timeout if not aborted
+          if (!currentAbortController.signal.aborted) {
+            // Allow a brief moment for 100% to be visible before fading out
+            setTimeout(() => {
+              setProgressiveLoading(false);
+            }, 400);
+          }
         }
       }
     } catch (err) {
@@ -674,7 +730,6 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Related Versions for Shot: {shotName}</span>
             <div className="flex items-center gap-2 mr-8">
-              {/* Progressive loading pill (Phase 6.1) */}
               <AnimatePresence>
                 {progressiveLoading && (
                   <motion.div

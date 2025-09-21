@@ -56,7 +56,10 @@ export const MainContent: React.FC<MainContentProps> = ({
   onPlaylistUpdate,
 }) => {
   // Simplified state management - remove complex merging logic
-  const [isInitializing, setIsInitializing] = useState(true);
+  // Initialize loading state based on whether the playlist already has versions
+  const [isInitializing, setIsInitializing] = useState(
+    (playlist.versions?.length || 0) === 0,
+  );
   const [activePlaylist, setActivePlaylist] = useState<Playlist>(playlist);
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
@@ -109,8 +112,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       setIsInitializing(true);
       setInitializationError(null);
 
-      // Stop any existing polling immediately
-      playlistStore.stopPolling();
+      // Polling was removed; no action needed
 
       // For local playlists (both pending and synced), skip ftrack initialization and use versions directly
       if (playlistToInit.isLocalOnly || playlistId.startsWith("local_")) {
@@ -126,14 +128,18 @@ export const MainContent: React.FC<MainContentProps> = ({
             })),
           },
         );
-        // Just cache the playlist with its existing versions, using cleanPlaylistForStorage to convert
-        const cachedPlaylist =
-          playlistStore.cleanPlaylistForStorage(playlistToInit);
+        // Ensure playlist exists in DB and upsert provided versions
+        await playlistStore.getPlaylist(playlistId);
+        const initialVersions = playlistToInit.versions || [];
         console.debug(
-          `[MainContent] Cached playlist versions:`,
-          cachedPlaylist.versions?.length || 0,
+          `[MainContent] Upserting ${initialVersions.length} local versions into DB for ${playlistId}`,
         );
-        await playlistStore.cachePlaylist(cachedPlaylist);
+        if (initialVersions.length > 0) {
+          await playlistStore.addVersionsToPlaylist(
+            playlistId,
+            initialVersions,
+          );
+        }
       } else {
         // Initialize the playlist in store with error handling
         await playlistStore.initializePlaylist(playlistId, playlistToInit);
@@ -187,6 +193,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       console.debug(
         `[MainContent] Initialization completed successfully for ${playlistId}`,
       );
+      // Mark that the playlist has successfully loaded at least once
     } catch (error) {
       console.error(
         `[MainContent] Failed to initialize playlist ${playlistId}:`,
@@ -220,7 +227,6 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Store cleanup function
     cleanupRef.current = () => {
       console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
-      playlistStore.stopPolling();
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
         initializationTimeoutRef.current = null;
@@ -260,15 +266,60 @@ export const MainContent: React.FC<MainContentProps> = ({
     return () => playlistStore.off("versions-added", handleVersionsAdded);
   }, [activePlaylist, onPlaylistUpdate]);
 
+  // React to local store updates (no ftrack polling). Ensures flags like deletedInFtrack update immediately
+  useEffect(() => {
+    const handlePlaylistUpdated = (data: any) => {
+      if (!data || data.playlistId !== activePlaylist.id) return;
+      const updates = data.updates || {};
+      setActivePlaylist((prev) => {
+        const next = { ...(prev as Playlist), ...updates };
+        if (onPlaylistUpdate) onPlaylistUpdate(next);
+        return next;
+      });
+    };
+
+    const handleDirectRefreshCompleted = async (data: any) => {
+      if (!data || data.playlistId !== activePlaylist.id) return;
+      try {
+        const updated = await playlistStore.getPlaylist(activePlaylist.id);
+        if (updated) {
+          if (onPlaylistUpdate) onPlaylistUpdate(updated);
+          setActivePlaylist(updated);
+        }
+      } catch (e) {
+        console.error(
+          "Failed to load updated playlist after direct refresh:",
+          e,
+        );
+      }
+    };
+
+    playlistStore.on("playlist-updated", handlePlaylistUpdated);
+    playlistStore.on(
+      "playlist-direct-refresh-completed",
+      handleDirectRefreshCompleted,
+    );
+
+    return () => {
+      playlistStore.off("playlist-updated", handlePlaylistUpdated);
+      playlistStore.off(
+        "playlist-direct-refresh-completed",
+        handleDirectRefreshCompleted,
+      );
+    };
+  }, [activePlaylist.id, onPlaylistUpdate]);
+
   // Use custom hooks
   const { settings } = useSettings();
   const { fetchLabels } = useLabelStore();
   const {
     modifications,
+    setModifications,
     isRefreshing,
     pendingVersions,
     applyPendingChanges,
     refreshPlaylist,
+    directRefresh,
   } = usePlaylistModifications(activePlaylist, onPlaylistUpdate);
 
   const {
@@ -301,56 +352,8 @@ export const MainContent: React.FC<MainContentProps> = ({
     fetchLabels();
   }, [fetchLabels]);
 
-  // Auto-refresh polling based on settings - simplified logic
-  useEffect(() => {
-    // Don't poll for Quick Notes playlist or during initialization
-    if (activePlaylist.isQuickNotes || isInitializing) return;
-
-    if (!settings.autoRefreshEnabled) {
-      playlistStore.stopAutoRefresh();
-      return;
-    }
-
-    // Only start auto-refresh after initialization is complete
-    const startAutoRefreshWithDelay = async () => {
-      // Small delay to ensure initialization is complete
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.debug(
-        `[MainContent] Starting auto-refresh for playlist ${activePlaylist.id}`,
-      );
-      try {
-        await playlistStore.startAutoRefresh(activePlaylist.id, (result) => {
-          if (result.success && (result.addedCount || result.removedCount)) {
-            console.debug(
-              `[MainContent] Auto-refresh detected changes: +${result.addedCount || 0}, -${result.removedCount || 0}`,
-            );
-            // Changes are handled by the playlist-refreshed event listener
-          }
-          if (!result.success && result.error) {
-            console.error(`[MainContent] Auto-refresh error:`, result.error);
-          }
-        });
-      } catch (error) {
-        console.error(`[MainContent] Failed to start auto-refresh:`, error);
-      }
-    };
-
-    startAutoRefreshWithDelay();
-
-    // Stop auto-refresh when dependencies change
-    return () => {
-      console.debug(
-        `[MainContent] Stopping auto-refresh for playlist ${activePlaylist.id}`,
-      );
-      playlistStore.stopAutoRefresh();
-    };
-  }, [
-    activePlaylist.id,
-    activePlaylist.isQuickNotes,
-    settings.autoRefreshEnabled,
-    isInitializing, // Add this dependency
-  ]);
+  // PHASE 4.6.2 FIX: Auto-refresh completely removed
+  // Playlists will only be refreshed when user explicitly clicks "Refresh" button
 
   // Synchronize activePlaylist when playlist prop updates (e.g., after applying changes)
   useEffect(() => {
@@ -526,6 +529,10 @@ export const MainContent: React.FC<MainContentProps> = ({
 
         // Update the local state as well
         setActivePlaylist(updatedPlaylist);
+
+        // Note: We don't update modifications state for manually added versions
+        // because they're already persisted to the database and don't need
+        // the modifications banner (which is for auto-refresh changes)
       });
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
@@ -601,6 +608,10 @@ export const MainContent: React.FC<MainContentProps> = ({
           // Update the local state as well
           setActivePlaylist(updatedPlaylist);
         });
+
+        // Note: We don't update modifications state for manually added versions
+        // because they're already persisted to the database and don't need
+        // the modifications banner (which is for auto-refresh changes)
 
         console.log(
           `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
@@ -954,7 +965,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   return (
     <Card className="h-full flex flex-col rounded-none">
-      <CardHeader className="flex flex-row items-center justify-between border-b flex-none">
+      <CardHeader className="flex flex-row items-center justify-between border-b flex-none min-h-[4.5rem]">
         <div className="flex items-center gap-2">
           <div className="flex flex-col">
             <div
@@ -964,17 +975,12 @@ export const MainContent: React.FC<MainContentProps> = ({
             >
               <CardTitle className="text-xl select-text">
                 {activePlaylist.name}
-                {isInitializing && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    (Loading...)
-                  </span>
-                )}
-                {isPending && !isInitializing && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground flex items-center gap-1">
-                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                    Updating...
-                  </span>
-                )}
+                {isInitializing &&
+                  (activePlaylist.versions?.length || 0) === 0 && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground min-h-[1.25rem]">
+                      (Loading...)
+                    </span>
+                  )}
               </CardTitle>
               <AnimatePresence>
                 {isPlaylistTitleHovered &&
@@ -994,8 +1000,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                   )}
               </AnimatePresence>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {isInitializing ? (
+            <p className="text-sm text-muted-foreground min-h-[1.25rem]">
+              {isInitializing &&
+              (activePlaylist.versions?.length || 0) === 0 ? (
                 "Initializing playlist..."
               ) : (
                 <>
@@ -1025,7 +1032,9 @@ export const MainContent: React.FC<MainContentProps> = ({
         </div>
         <div className="flex items-center gap-4">
           {!isInitializing &&
-          (modifications.added > 0 || modifications.removed > 0) ? (
+          (modifications.added > 0 ||
+            modifications.removed > 0 ||
+            activePlaylist.deletedInFtrack) ? (
             <ModificationsBanner
               addedCount={modifications.added}
               removedCount={modifications.removed}
@@ -1041,6 +1050,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                   modifications.removedVersions?.some((rv) => rv.id === v.id),
                 ) || []
               }
+              isPlaylistDeleted={activePlaylist.deletedInFtrack}
             />
           ) : null}
           <div className="flex items-center gap-2">
@@ -1088,7 +1098,8 @@ export const MainContent: React.FC<MainContentProps> = ({
               onClearAllSelections={clearAllSelections}
               isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
               isRefreshing={isRefreshing}
-              onRefresh={refreshPlaylist}
+              onRefresh={directRefresh}
+              refreshDisabled={Boolean(activePlaylist.deletedInFtrack)}
               selectedStatuses={selectedStatuses}
               selectedLabels={selectedLabels}
               selectedVersions={selectedVersions}

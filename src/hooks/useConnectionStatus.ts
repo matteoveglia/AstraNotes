@@ -7,7 +7,7 @@
 
 import { useEffect } from "react";
 import { create } from "zustand";
-import { ftrackService } from "../services/ftrack";
+import { ftrackAuthService } from "../services/ftrack/FtrackAuthService";
 
 interface ConnectionState {
   isConnected: boolean;
@@ -44,7 +44,7 @@ export const useConnectionStatus = () => {
 
   const testConnection = async () => {
     try {
-      const result = await ftrackService.testConnection();
+      const result = await ftrackAuthService.testConnection();
       setConnected(result);
     } catch (error) {
       setConnected(false);

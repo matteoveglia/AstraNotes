@@ -29,6 +29,12 @@ export interface NoteAttachment {
 }
 
 /**
+ * Archived notes for removed versions (note preservation)
+ * Keyed by stable playlist UUID + version ID
+ */
+// Note preservation uses soft-deleted versions with isRemoved flag; no separate archive table
+
+/**
  * New unified playlist record with stable UUID identity
  * Uses stable UUIDs that never change, with separate external references
  */
@@ -48,6 +54,7 @@ export interface PlaylistRecord {
   categoryId?: string;
   categoryName?: string;
   description?: string;
+  deletedInFtrack?: boolean; // Whether this playlist has been deleted in ftrack but still exists locally
 
   // Timestamps
   createdAt: string;
@@ -144,6 +151,7 @@ export class AstraNotesDB extends Dexie {
   playlists!: Table<PlaylistRecord>;
   versions!: Table<VersionRecord>;
   attachments!: Table<NoteAttachment>;
+  // No separate archive table; preservation handled via soft deletes
 
   // Legacy tables removed - no migration needed per user directive
 
@@ -161,6 +169,8 @@ export class AstraNotesDB extends Dexie {
       attachments:
         "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
+
+    // No version 8 changes required for note preservation
 
     // Previous version maintained for upgrade path
     this.version(6).stores({
@@ -192,7 +202,7 @@ export class AstraNotesDB extends Dexie {
   }
 
   async cleanOldData() {
-    const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    const _sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
 
     // Get all active playlist IDs from unified table
     const activePlaylists = await this.playlists.toArray();
@@ -237,8 +247,13 @@ export class AstraNotesDB extends Dexie {
       });
 
       // Only reset minimal playlist state - do NOT touch other localStorage settings
-      localStorage.setItem("active-playlist", "quick-notes");
-      localStorage.setItem("playlist-tabs", JSON.stringify(["quick-notes"]));
+      // Use default project-scoped Quick Notes ID
+      const defaultQuickNotesId = "quick-notes-default";
+      localStorage.setItem("active-playlist", defaultQuickNotesId);
+      localStorage.setItem(
+        "playlist-tabs",
+        JSON.stringify([defaultQuickNotesId]),
+      );
 
       console.log("Database cleared successfully - reloading app");
 

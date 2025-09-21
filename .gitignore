@@ -30,13 +30,14 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea
 .DS_Store
-.cu*
+.wi*
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 private
+AstraNotes_MockData
 
 # Environment variables
 .env
@@ -53,5 +54,3 @@ coverage
 .debug
 # Sentry Config File
 .env.sentry-build-plugin
-
-*storybook.log

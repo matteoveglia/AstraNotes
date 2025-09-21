@@ -4,7 +4,7 @@
  * Eliminates manual loading state management in NoteStatusPanel.
  */
 
-import { ftrackService } from "./ftrack";
+import { ftrackStatusService } from "./ftrack/FtrackStatusService";
 
 interface Status {
   id: string;
@@ -17,6 +17,7 @@ interface StatusPanelData {
   versionStatus: Status | null;
   parentId?: string;
   parentStatusId?: string;
+  parentStatus?: Status | null;
   parentType?: string;
   projectId: string;
 }
@@ -133,13 +134,13 @@ async function performFetch(
   try {
     // Fetch current status data first
     const statusPanelData =
-      await ftrackService.fetchStatusPanelData(assetVersionId);
+      await ftrackStatusService.fetchStatusPanelData(assetVersionId);
 
     // Fetch applicable statuses for version and parent
     const [versionStatuses, parentStatuses] = await Promise.all([
-      ftrackService.getStatusesForEntity("AssetVersion", assetVersionId),
+      ftrackStatusService.getStatusesForEntity("AssetVersion", assetVersionId),
       statusPanelData.parentId && statusPanelData.parentType
-        ? ftrackService.getStatusesForEntity(
+        ? ftrackStatusService.getStatusesForEntity(
             statusPanelData.parentType,
             statusPanelData.parentId,
           )
@@ -152,11 +153,18 @@ async function performFetch(
         null
       : null;
 
+    const parentStatus =
+      statusPanelData.parentStatusId && parentStatuses.length > 0
+        ? parentStatuses.find((s) => s.id === statusPanelData.parentStatusId) ||
+          null
+        : null;
+
     const currentStatuses: StatusPanelData = {
       versionId: statusPanelData.versionId,
       versionStatus,
       parentId: statusPanelData.parentId,
       parentStatusId: statusPanelData.parentStatusId,
+      parentStatus,
       parentType: statusPanelData.parentType,
       projectId: statusPanelData.projectId,
     };
@@ -209,6 +217,12 @@ export async function updateEntityStatusSuspense(
         }
         if (updatedData.currentStatuses.parentId === entityId) {
           updatedData.currentStatuses.parentStatusId = statusId;
+          const newParentStatus = updatedData.parentStatuses.find(
+            (s) => s.id === statusId,
+          );
+          if (newParentStatus) {
+            updatedData.currentStatuses.parentStatus = newParentStatus;
+          }
         }
 
         // Update cache with optimistic data
@@ -217,7 +231,11 @@ export async function updateEntityStatusSuspense(
     }
 
     // Perform the actual server update
-    await ftrackService.updateEntityStatus(entityType, entityId, statusId);
+    await ftrackStatusService.updateEntityStatus(
+      entityType,
+      entityId,
+      statusId,
+    );
 
     // Server update succeeded - invalidate affected cache entries for fresh data
     // but only the specific ones, not everything

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useLabelStore } from "@/store/labelStore";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
 
-// Mock the ftrack service
-vi.mock("@/services/ftrack", () => ({
-  ftrackService: {
+// Mock the new ftrack note service
+vi.mock("@/services/ftrack/FtrackNoteService", () => ({
+  ftrackNoteService: {
     getNoteLabels: vi.fn(),
   },
 }));
@@ -38,13 +38,13 @@ describe("labelStore", () => {
     ];
 
     // Mock the service response
-    (ftrackService.getNoteLabels as any).mockResolvedValue(mockLabels);
+    (ftrackNoteService.getNoteLabels as any).mockResolvedValue(mockLabels);
 
     // Call the fetch function
     await useLabelStore.getState().fetchLabels();
 
     // Verify the service was called
-    expect(ftrackService.getNoteLabels).toHaveBeenCalledTimes(1);
+    expect(ftrackNoteService.getNoteLabels).toHaveBeenCalledTimes(1);
 
     // Check the store was updated correctly
     const state = useLabelStore.getState();
@@ -58,7 +58,7 @@ describe("labelStore", () => {
     const mockError = new Error("Failed to fetch labels");
 
     // Mock the service to throw an error
-    (ftrackService.getNoteLabels as any).mockRejectedValue(mockError);
+    (ftrackNoteService.getNoteLabels as any).mockRejectedValue(mockError);
 
     // Spy on console.error
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -67,7 +67,7 @@ describe("labelStore", () => {
     await useLabelStore.getState().fetchLabels();
 
     // Verify the service was called
-    expect(ftrackService.getNoteLabels).toHaveBeenCalledTimes(1);
+    expect(ftrackNoteService.getNoteLabels).toHaveBeenCalledTimes(1);
 
     // Check the store was updated correctly with the error
     const state = useLabelStore.getState();

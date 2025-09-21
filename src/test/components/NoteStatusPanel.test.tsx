@@ -12,11 +12,11 @@ import {
 import "@testing-library/jest-dom";
 import { vi, describe, it, expect, afterEach } from "vitest";
 import { NoteStatusPanel } from "@/components/NoteStatusPanel";
-import { ftrackService } from "@/services/ftrack";
+import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
 
-// Mock ftrackService
-vi.mock("@/services/ftrack", () => ({
-  ftrackService: {
+// Mock ftrackStatusService
+vi.mock("@/services/ftrack/FtrackStatusService", () => ({
+  ftrackStatusService: {
     fetchStatusPanelData: vi.fn().mockResolvedValue({
       versionId: "v1",
       versionStatusId: "vs1",
@@ -59,8 +59,8 @@ describe("NoteStatusPanel", () => {
     await act(async () => {
       render(<NoteStatusPanel assetVersionId="v1" />);
     });
-    expect(ftrackService.fetchStatusPanelData).toHaveBeenCalledWith("v1");
-    expect(ftrackService.getStatusesForEntity).toHaveBeenCalled();
+    expect(ftrackStatusService.fetchStatusPanelData).toHaveBeenCalledWith("v1");
+    expect(ftrackStatusService.getStatusesForEntity).toHaveBeenCalled();
   });
 
   it("calls onClose when close button is clicked", async () => {
