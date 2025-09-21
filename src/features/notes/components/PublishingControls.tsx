@@ -31,6 +31,8 @@ interface PublishingControlsProps {
   isQuickNotes: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
+  // Disable refresh button (e.g., when playlist deleted in ftrack)
+  refreshDisabled?: boolean;
   // Filter props
   selectedStatuses: NoteStatus[];
   selectedLabels: string[];
@@ -52,6 +54,7 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
   isQuickNotes,
   isRefreshing,
   onRefresh,
+  refreshDisabled,
   selectedStatuses,
   selectedLabels,
   selectedVersions,
@@ -104,7 +107,7 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
                 variant="ghost"
                 className="h-7 px-2"
                 onClick={onRefresh}
-                disabled={isRefreshing}
+                disabled={isRefreshing || Boolean(refreshDisabled)}
               >
                 <RefreshCw
                   className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}

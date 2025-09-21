@@ -169,8 +169,16 @@ export class PlaylistStore extends SimpleEventEmitter {
     // Load from database
     const entity = await this.repository.getPlaylist(id);
     if (entity) {
-      // Load versions
-      const versions = await this.repository.getPlaylistVersions(id);
+      // Load versions from DB
+      let versions = await this.repository.getPlaylistVersions(id);
+      // Special case: if playlist is flagged deleted in ftrack and DB has no active versions,
+      // prefer a cached snapshot of versions for the current session
+      if ((entity as any).deletedInFtrack === true && versions.length === 0) {
+        const snapshot = this.cache.getVersions(id);
+        if (snapshot && snapshot.length > 0) {
+          versions = snapshot;
+        }
+      }
 
       // Convert to UI model
       playlist = this.entityToPlaylist(entity, versions);
@@ -949,9 +957,8 @@ export class PlaylistStore extends SimpleEventEmitter {
       // Get current versions
       const currentVersions =
         await this.repository.getPlaylistVersions(playlistId);
-      const currentVersionIds = new Set(
-        currentVersions.filter((v) => !v.isRemoved).map((v) => v.id),
-      );
+      const activeCurrent = currentVersions.filter((v) => !v.isRemoved);
+      const currentVersionIds = new Set(activeCurrent.map((v) => v.id));
       const freshVersionIds = new Set(freshVersions.map((v) => v.id));
 
       // Calculate changes
@@ -960,32 +967,57 @@ export class PlaylistStore extends SimpleEventEmitter {
       );
 
       // Only remove ftrack versions, preserve manually added versions
-      const removedVersionEntities = currentVersions.filter(
-        (currentVersion) => {
-          if (currentVersion.isRemoved) return false;
-          return (
-            !freshVersionIds.has(currentVersion.id) &&
-            !currentVersion.manuallyAdded
-          );
-        },
-      );
+      const removedVersionEntities = activeCurrent.filter((currentVersion) => {
+        return (
+          !freshVersionIds.has(currentVersion.id) &&
+          !currentVersion.manuallyAdded
+        );
+      });
 
-      // Apply changes directly to database
-      if (addedVersions.length > 0) {
-        await this.addVersionsToPlaylist(playlistId, addedVersions);
-      }
+      // If ftrack returns no versions, treat as deleted for current session and keep UI snapshot
+      if (freshVersions.length === 0) {
+        console.debug(
+          `[PlaylistStore] Detected empty ftrack response for ${playlistId} - entering deleted snapshot flow`,
+        );
+        // 1) Update cache snapshot first (so any immediate UI reload uses snapshot)
+        const cached = this.cache.getPlaylist(playlistId);
+        const cachedCount = cached?.versions?.length || 0;
+        const activeCount = activeCurrent.length;
 
-      if (removedVersionEntities.length > 0) {
-        for (const versionEntity of removedVersionEntities) {
-          await this.removeVersionFromPlaylist(playlistId, versionEntity.id);
+        // Prefer existing cached snapshot when DB has no active versions
+        const snapshotVersions =
+          activeCount > 0
+            ? activeCurrent.map((v) => this.entityToAssetVersion(v))
+            : cached?.versions || [];
+
+        const snapshotPlaylist: Playlist = cached
+          ? {
+              ...cached,
+              versions: snapshotVersions,
+              deletedInFtrack: true,
+            }
+          : this.entityToPlaylist(
+              { ...(entity as any), deletedInFtrack: true } as PlaylistEntity,
+              activeCurrent,
+            );
+        this.cache.setPlaylist(playlistId, snapshotPlaylist);
+        console.debug(
+          `[PlaylistStore] Stored deleted snapshot in cache for ${playlistId} (active=${activeCount}, cached=${cachedCount}, used=${snapshotPlaylist.versions?.length || 0})`,
+        );
+        // Store VersionEntity snapshot as well for getPlaylist() fallback,
+        // but avoid overwriting with empty lists
+        if (activeCount > 0) {
+          this.cache.setVersions(playlistId, activeCurrent);
         }
-      }
 
-      // If playlist previously had ftrack versions but now returns none, flag as deleted in ftrack
-      const previouslyHadFtrackVersions = currentVersions.some(
-        (v) => !v.manuallyAdded,
-      );
-      if (previouslyHadFtrackVersions && addedVersions.length === 0 && freshVersions.length === 0) {
+        // 2) Persist removals to DB without invalidating cache
+        if (removedVersionEntities.length > 0) {
+          for (const versionEntity of removedVersionEntities) {
+            await this.markVersionRemovedSilently(playlistId, versionEntity.id);
+          }
+        }
+
+        // 3) Flag playlist as deleted in ftrack (DB + UI list)
         try {
           await this.repository.updatePlaylist(playlistId, {
             // @ts-ignore allow loose field in updates
@@ -1014,12 +1046,38 @@ export class PlaylistStore extends SimpleEventEmitter {
             e,
           );
         }
+
+        // 4) Do NOT invalidate cache here to preserve snapshot until restart
+
+        // Emit direct refresh event
+        this.emit("playlist-direct-refresh-completed", {
+          playlistId,
+          addedCount: 0,
+          removedCount: removedVersionEntities.length,
+        });
+
+        return {
+          success: true,
+          addedCount: 0,
+          removedCount: removedVersionEntities.length,
+        };
+      }
+
+      // Apply changes directly to database (normal path)
+      if (addedVersions.length > 0) {
+        await this.addVersionsToPlaylist(playlistId, addedVersions);
+      }
+
+      if (removedVersionEntities.length > 0) {
+        for (const versionEntity of removedVersionEntities) {
+          await this.removeVersionFromPlaylist(playlistId, versionEntity.id);
+        }
       }
 
       // Purge old removed versions' note data beyond TTL
       await this.purgeExpiredRemovedNotes(playlistId);
 
-      // Clear cache to force reload
+      // Clear cache to force reload (normal path)
       this.cache.invalidate(playlistId);
 
       console.debug(
@@ -1207,6 +1265,21 @@ export class PlaylistStore extends SimpleEventEmitter {
       updatedAt: entity.updatedAt || new Date().toISOString(),
       manuallyAdded: Boolean(entity.manuallyAdded),
     };
+  }
+
+  /**
+   * Marks a version as removed WITHOUT cache invalidation or events.
+   * Used to persist DB state while preserving the current-session snapshot in cache
+   * for playlists deleted in ftrack.
+   */
+  private async markVersionRemovedSilently(
+    playlistId: string,
+    versionId: string,
+  ): Promise<void> {
+    await this.repository.updateVersion(playlistId, versionId, {
+      isRemoved: true,
+    });
+    // Intentionally do NOT invalidate cache or emit events here.
   }
 
   private entityToPlaylist(

@@ -1094,6 +1094,7 @@ export const MainContent: React.FC<MainContentProps> = ({
               isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
               isRefreshing={isRefreshing}
               onRefresh={directRefresh}
+              refreshDisabled={Boolean(activePlaylist.deletedInFtrack)}
               selectedStatuses={selectedStatuses}
               selectedLabels={selectedLabels}
               selectedVersions={selectedVersions}
