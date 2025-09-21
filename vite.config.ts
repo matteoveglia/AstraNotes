@@ -46,6 +46,6 @@ export default defineConfig({
         '**/types/**',
       ]
     },
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/store/**/*.{test,spec}.{ts,tsx}'],
   },
 });
