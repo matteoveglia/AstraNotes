@@ -1632,17 +1632,6 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
 
   /**
-   * @deprecated Not needed in new architecture
-   * Legacy method for backward compatibility
-   */
-  async clearManuallyAddedFlags(
-    _playlistId: string,
-    _versionIds: string[],
-  ): Promise<void> {
-    // Not needed in new architecture
-  }
-
-  /**
    * @deprecated Use event listeners instead
    * Legacy method for backward compatibility
    */
