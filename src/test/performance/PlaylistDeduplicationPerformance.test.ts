@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import type { Playlist } from "@/types";
 import { db } from "@/store/db";
@@ -52,13 +51,11 @@ describe("Playlist Deduplication Performance Tests", () => {
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
       mockFtrackService.getLists.mockResolvedValue([]);
 
-      const { result } = renderHook(() => usePlaylistsStore());
+      const store = usePlaylistsStore.getState();
 
       const startTime = performance.now();
 
-      await act(async () => {
-        await result.current.loadPlaylists("project-123");
-      });
+      await store.loadPlaylists("project-123");
 
       const endTime = performance.now();
       const duration = endTime - startTime;
@@ -66,8 +63,9 @@ describe("Playlist Deduplication Performance Tests", () => {
       // Should complete within reasonable time (adjust threshold as needed)
       expect(duration).toBeLessThan(5000); // 5 seconds
 
-      // Verify all playlists were processed correctly
-      expect(result.current.playlists).toHaveLength(100);
+      // Verify all playlists were processed correctly (exclude Quick Notes)
+      const ui1 = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+      expect(ui1).toHaveLength(100);
 
       const dbPlaylists = await db.playlists.toArray();
       expect(dbPlaylists).toHaveLength(100);
@@ -114,13 +112,11 @@ describe("Playlist Deduplication Performance Tests", () => {
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
       mockFtrackService.getLists.mockResolvedValue([]);
 
-      const { result } = renderHook(() => usePlaylistsStore());
+      const store = usePlaylistsStore.getState();
 
       const startTime = performance.now();
 
-      await act(async () => {
-        await result.current.loadPlaylists("project-123");
-      });
+      await store.loadPlaylists("project-123");
 
       const endTime = performance.now();
       const duration = endTime - startTime;
@@ -128,8 +124,9 @@ describe("Playlist Deduplication Performance Tests", () => {
       // Should complete within reasonable time
       expect(duration).toBeLessThan(7000); // 7 seconds
 
-      // Verify correct deduplication: 50 existing + 50 new = 100 total
-      expect(result.current.playlists).toHaveLength(100);
+      // Verify correct deduplication: 50 existing + 50 new = 100 total (exclude Quick Notes)
+      const ui2 = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+      expect(ui2).toHaveLength(100);
 
       const dbPlaylists = await db.playlists.toArray();
       expect(dbPlaylists).toHaveLength(100);
@@ -161,15 +158,13 @@ describe("Playlist Deduplication Performance Tests", () => {
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
       mockFtrackService.getLists.mockResolvedValue([]);
 
-      const { result } = renderHook(() => usePlaylistsStore());
+      const store = usePlaylistsStore.getState();
 
       const startTime = performance.now();
 
       // Perform 10 concurrent refresh operations
       const refreshPromises = Array.from({ length: 10 }, () =>
-        act(async () => {
-          await result.current.loadPlaylists("project-123");
-        }),
+        usePlaylistsStore.getState().loadPlaylists("project-123"),
       );
 
       await Promise.all(refreshPromises);
@@ -209,16 +204,15 @@ describe("Playlist Deduplication Performance Tests", () => {
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
       mockFtrackService.getLists.mockResolvedValue([]);
 
-      const { result } = renderHook(() => usePlaylistsStore());
+      const store = usePlaylistsStore.getState();
 
       // Perform 20 sequential refresh operations
       for (let i = 0; i < 20; i++) {
-        await act(async () => {
-          await result.current.loadPlaylists("project-123");
-        });
+        await store.loadPlaylists("project-123");
 
-        // Verify consistent state after each operation
-        expect(result.current.playlists).toHaveLength(30);
+        // Verify consistent state after each operation (exclude Quick Notes)
+        const ui = usePlaylistsStore.getState().playlists.filter((p) => !p.isQuickNotes);
+        expect(ui).toHaveLength(30);
 
         const dbPlaylists = await db.playlists.toArray();
         expect(dbPlaylists).toHaveLength(30);
@@ -273,13 +267,10 @@ describe("Playlist Deduplication Performance Tests", () => {
       mockFtrackService.getPlaylists.mockResolvedValue([ftrackPlaylist]);
       mockFtrackService.getLists.mockResolvedValue([]);
 
-      const { result } = renderHook(() => usePlaylistsStore());
-
       const startTime = performance.now();
 
-      await act(async () => {
-        await result.current.loadPlaylists("project-123");
-      });
+      const store = usePlaylistsStore.getState();
+      await store.loadPlaylists("project-123");
 
       const endTime = performance.now();
       const duration = endTime - startTime;

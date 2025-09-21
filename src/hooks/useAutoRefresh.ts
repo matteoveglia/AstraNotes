@@ -5,7 +5,7 @@
  * a clean interface for starting/stopping auto-refresh.
  */
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { useSettings } from "@/store/settingsStore";
 import { playlistStore } from "@/store/playlist";
 import type { AssetVersion } from "@/types";
@@ -28,27 +28,40 @@ export function useAutoRefresh({
   isEnabled = true,
   onRefreshCompleted,
 }: UseAutoRefreshOptions) {
-  // PHASE 4.6.2 FIX: Auto-refresh functionality completely removed
-  console.debug(
-    `[useAutoRefresh] Auto-refresh has been disabled - hook is now a no-op for playlist: ${playlistId}`,
+  const isQuickNotes = useMemo(
+    () => playlistId.startsWith("quick-notes-"),
+    [playlistId],
   );
 
-  // No-op functions to maintain API compatibility
-  const startAutoRefresh = useCallback(async () => {
-    console.debug(
-      `[useAutoRefresh] Auto-refresh disabled - startAutoRefresh is a no-op`,
-    );
-  }, []);
+  // Start/stop auto-refresh based on flags. Skip Quick Notes.
+  useEffect(() => {
+    if (isEnabled && !isQuickNotes) {
+      (playlistStore as any).startAutoRefresh?.(playlistId, onRefreshCompleted);
+      return () => {
+        (playlistStore as any).stopAutoRefresh?.();
+      };
+    }
+    return;
+  }, [playlistId, isEnabled, isQuickNotes, onRefreshCompleted]);
+
+  const startAutoRefresh = useCallback(
+    (cb?: (result: any) => void) => {
+      (playlistStore as any).startAutoRefresh?.(playlistId, cb ?? onRefreshCompleted);
+    },
+    [playlistId, onRefreshCompleted],
+  );
 
   const stopAutoRefresh = useCallback(() => {
-    console.debug(
-      `[useAutoRefresh] Auto-refresh disabled - stopAutoRefresh is a no-op`,
-    );
+    (playlistStore as any).stopAutoRefresh?.();
   }, []);
 
+  const isAutoRefreshActive = (playlistStore as any).isAutoRefreshActive?.() ?? false;
+  const currentAutoRefreshPlaylistId =
+    (playlistStore as any).getCurrentAutoRefreshPlaylistId?.() ?? null;
+
   return {
-    isAutoRefreshActive: false, // Always false since auto-refresh is disabled
-    currentAutoRefreshPlaylistId: null, // Always null since auto-refresh is disabled
+    isAutoRefreshActive,
+    currentAutoRefreshPlaylistId,
     startAutoRefresh,
     stopAutoRefresh,
   };

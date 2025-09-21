@@ -52,12 +52,12 @@ describe("PlaylistStore directPlaylistRefresh deleted-in-ftrack", () => {
     expect(result.removedCount).toBe(2);
 
     // Cache should still have the versions (snapshot preserved)
-    const cachedAfterRefresh = playlistStore.getPlaylist(id);
+    const cachedAfterRefresh = await playlistStore.getPlaylist(id);
     expect(cachedAfterRefresh?.versions?.length || 0).toBe(2);
 
-    // DB should have removed versions (soft delete)
-    const dbVersions = await repo.getPlaylistVersions(id);
-    expect(dbVersions.length).toBe(2);
-    expect(dbVersions.every(v => v.isRemoved)).toBe(true);
+    // DB should have the versions soft-deleted; verify via removed list
+    const dbRemoved = await repo.getRemovedVersions(id);
+    expect(dbRemoved.length).toBe(2);
+    expect(dbRemoved.every(v => v.isRemoved)).toBe(true);
   });
 });

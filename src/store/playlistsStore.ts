@@ -592,9 +592,11 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
             for (const ftrackPlaylist of fetchedPlaylists) {
               try {
                 // ATOMIC: Check if we already have a database entry for this ftrack playlist
+                const ftrackKey =
+                  (ftrackPlaylist as any).ftrackId || ftrackPlaylist.id;
                 const existingEntry = await db.playlists
                   .where("ftrackId")
-                  .equals(ftrackPlaylist.id)
+                  .equals(String(ftrackKey))
                   .first();
 
                 let playlistId: string;
@@ -620,7 +622,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
                       | "list",
                     localStatus: "synced" as const, // Ftrack native playlists are already "synced"
                     ftrackSyncStatus: "synced" as const,
-                    ftrackId: String(ftrackPlaylist.id), // External reference only
+                    ftrackId: String(ftrackKey), // External reference only (prefer ftrackId if present)
                     projectId: ftrackPlaylist.projectId
                       ? String(ftrackPlaylist.projectId)
                       : "", // Ensure string
@@ -670,7 +672,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           formattedFtrackPlaylists.push({
             ...ftrackPlaylist,
             id: playlistId, // Use stable UUID as playlist ID
-            ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            ftrackId:
+              (ftrackPlaylist as any).ftrackId || ftrackPlaylist.id, // Preserve provided ftrackId when available
             projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
             isLocalOnly: false, // Ftrack native playlists are not local-only
             ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced

@@ -45,9 +45,14 @@ describe("PlaylistStore clearAddedVersions", () => {
     // Clear added versions
     await playlistStore.clearAddedVersions(id);
 
-    const versions = await repo.getPlaylistVersions(id);
-    expect(versions.length).toBe(2);
-    expect(versions.find(v => v.id === "manual")?.isRemoved).toBe(true);
-    expect(versions.find(v => v.id === "auto")?.isRemoved).toBe(false);
+    // Active versions should exclude removed ones
+    const active = await repo.getPlaylistVersions(id);
+    expect(active.length).toBe(1);
+    expect(active[0].id).toBe("auto");
+    expect(active[0].isRemoved).not.toBe(true);
+
+    // Verify removed (soft-deleted) versions include the manual one
+    const removed = await repo.getRemovedVersions(id);
+    expect(removed.some(v => v.id === "manual")).toBe(true);
   });
 });
