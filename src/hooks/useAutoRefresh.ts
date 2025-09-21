@@ -1,12 +1,11 @@
 /**
- * @fileoverview useAutoRefresh.ts
- * Custom hook for managing auto-refresh functionality.
- * Integrates with settings store and playlist store to provide
- * a clean interface for starting/stopping auto-refresh.
+ * @fileoverview useAutoRefresh.ts (Deprecated Shim)
+ * Auto-refresh has been removed in Phase 4.7. This hook remains as a
+ * backward-compatibility shim using optional chaining and returns
+ * inert controls. Safe to remove once all call sites are gone.
  */
 
 import { useEffect, useCallback, useMemo } from "react";
-import { useSettings } from "@/store/settingsStore";
 import { playlistStore } from "@/store/playlist";
 import type { AssetVersion } from "@/types";
 

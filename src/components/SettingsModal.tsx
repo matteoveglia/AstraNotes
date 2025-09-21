@@ -137,8 +137,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Close the modal first
       setIsOpen(false);
 
-      // Reset any polling that might be happening
-      playlistStore.stopAutoRefresh();
+      // Reset any polling that might be happening (legacy API; optional)
+      (playlistStore as any).stopAutoRefresh?.();
 
       // Clear thumbnail cache
       clearThumbnailCache();

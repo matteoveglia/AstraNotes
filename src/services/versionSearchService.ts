@@ -30,7 +30,7 @@ function createCacheKey(params: SearchParams): string {
  * Throws a promise if the search is still in progress, returns results when ready
  */
 export function searchVersionsSuspense(params: SearchParams): AssetVersion[] {
-  const { searchTerm, projectId } = params;
+  const { searchTerm, projectId: _projectId } = params;
 
   if (!searchTerm.trim()) {
     return [];

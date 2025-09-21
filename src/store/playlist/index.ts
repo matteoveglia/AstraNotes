@@ -45,7 +45,6 @@ import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import { PlaylistEntity, VersionEntity } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 import { usePlaylistsStore } from "../playlistsStore";
-import { useSettings } from "../settingsStore";
 import { db, type NoteAttachment } from "../db";
 
 export class PlaylistStore extends SimpleEventEmitter {
@@ -59,11 +58,6 @@ export class PlaylistStore extends SimpleEventEmitter {
   );
   private drafts = new DraftManager(this.repository);
 
-  // Auto-refresh/polling state
-  private autoRefreshInterval: NodeJS.Timeout | null = null;
-  private isAutoRefreshing = false;
-  private currentAutoRefreshPlaylistId: string | null = null;
-  private static readonly AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
   // Note preservation TTL (7 days)
   private static readonly NOTE_PRESERVATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -1405,67 +1399,11 @@ export class PlaylistStore extends SimpleEventEmitter {
           ? version.updatedAt
           : new Date().toISOString(),
     };
-  }
+}
 
-  // =================== AUTO-REFRESH OPERATIONS ===================
+// =================== LEGACY COMPATIBILITY ===================
 
-  /**
-   * PHASE 4.6.2 FIX: Auto-refresh functionality removed
-   * This method is now a no-op to maintain API compatibility
-   */
-  async startAutoRefresh(
-    playlistId: string,
-    callback?: (result: {
-      success: boolean;
-      addedCount?: number;
-      removedCount?: number;
-      addedVersions?: AssetVersion[];
-      removedVersions?: AssetVersion[];
-      error?: string;
-    }) => void,
-  ): Promise<void> {
-    console.debug(
-      `[PlaylistStore] Auto-refresh has been disabled - startAutoRefresh is now a no-op for playlist: ${playlistId}`,
-    );
-    // Auto-refresh functionality completely removed in Phase 4.6.2
-    // Playlists will only be refreshed when user explicitly requests it
-  }
-
-  /**
-   * Stops auto-refresh polling
-   */
-  stopAutoRefresh(): void {
-    if (this.autoRefreshInterval) {
-      console.debug(
-        `[PlaylistStore] Stopping auto-refresh for playlist: ${this.currentAutoRefreshPlaylistId}`,
-      );
-      clearInterval(this.autoRefreshInterval);
-      this.autoRefreshInterval = null;
-    }
-
-    this.isAutoRefreshing = false;
-    this.currentAutoRefreshPlaylistId = null;
-
-    console.debug(`[PlaylistStore] Auto-refresh stopped`);
-  }
-
-  /**
-   * Checks if auto-refresh is currently active
-   */
-  isAutoRefreshActive(): boolean {
-    return this.autoRefreshInterval !== null;
-  }
-
-  /**
-   * Gets the currently auto-refreshing playlist ID
-   */
-  getCurrentAutoRefreshPlaylistId(): string | null {
-    return this.currentAutoRefreshPlaylistId;
-  }
-
-  // =================== LEGACY COMPATIBILITY ===================
-
-  // =================== BACKWARD COMPATIBILITY METHODS ===================
+// =================== BACKWARD COMPATIBILITY METHODS ===================
 
   /**
    * @deprecated Use addVersionsToPlaylist() with array instead
@@ -1577,7 +1515,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       }
 
       // Mirror safe metadata on version record (without binary data)
-      const safeForVersion = toStore.map(({ data, ...rest }) => rest);
+      const safeForVersion = toStore.map(({ data: _data, ...rest }) => rest);
       await this.repository.updateVersion(playlistId, versionId, {
         attachments: safeForVersion as any,
         lastModified: Date.now(),
@@ -1775,7 +1713,6 @@ export class PlaylistStore extends SimpleEventEmitter {
     console.debug(
       "[PlaylistStore] Destroying store and cleaning up auto-refresh",
     );
-    this.stopAutoRefresh();
     this.sync.destroy();
     this.cache.destroy();
     this.removeAllListeners();

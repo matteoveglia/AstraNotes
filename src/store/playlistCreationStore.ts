@@ -8,13 +8,11 @@
 import { create } from "zustand";
 import {
   CreatePlaylistRequest,
-  CreatePlaylistResponse,
   Playlist,
   PlaylistCategory,
   AssetVersion,
 } from "@/types";
 import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
-import { db } from "./db";
 import { playlistStore } from "./playlist";
 
 interface PlaylistCreationState {
@@ -49,7 +47,7 @@ interface PlaylistCreationState {
   invalidatePlaylistCache: (playlistId: string) => Promise<void>;
 }
 
-const ftrackService = ftrackPlaylistService;
+// Note: ftrackPlaylistService is used directly where needed; no local alias required
 
 export const usePlaylistCreationStore = create<PlaylistCreationState>(
   (set, get) => ({

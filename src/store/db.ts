@@ -202,7 +202,7 @@ export class AstraNotesDB extends Dexie {
   }
 
   async cleanOldData() {
-    const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    const _sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
 
     // Get all active playlist IDs from unified table
     const activePlaylists = await this.playlists.toArray();
