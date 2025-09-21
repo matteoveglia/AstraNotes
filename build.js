@@ -85,6 +85,14 @@ const askYesNo = (question, defaultAnswer = 'n') => {
     return response === 'y' || response === 'yes';
 };
 
+const askChoice = (question, choices, defaultKey) => {
+    const display = Object.entries(choices)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+    const answer = (readline.question(`${question} (${display}) [${defaultKey}]: `) || defaultKey).toLowerCase();
+    return choices[answer] ? answer : defaultKey;
+};
+
 // Version management
 const getVersionAndReleaseNotes = () => {
     try {
@@ -147,9 +155,14 @@ const getVersionAndReleaseNotes = () => {
     }
 };
 
-// Initialize and validate
-validateTarget(target);
-logInfo(`Building AstraNotes for ${target}`);
+// Initialize and choose build mode
+const buildMode = askChoice('Build mode', { l: 'local', r: 'remote' }, 'l');
+if (buildMode === 'l') {
+    validateTarget(target);
+    logInfo(`Building AstraNotes for ${target} (local)`);
+} else {
+    logInfo('Triggering remote CI build on GitHub Actions (macOS + Windows)');
+}
 
 const { version: selectedVersion, releaseNotes } = getVersionAndReleaseNotes();
 
@@ -384,27 +397,80 @@ const verifySigningKeys = () => {
     }
 };
 
+const triggerRemoteWorkflow = async (version, notes) => {
+    try {
+        const repoEnv = process.env.GITHUB_REPOSITORY || '';
+        const repoFromEnv = repoEnv.split('/');
+        const owner = process.env.GH_OWNER || repoFromEnv[0] || 'matteoveglia';
+        const repo = process.env.GH_REPO || repoFromEnv[1] || 'AstraNotes';
+        const ref = process.env.GH_REF || 'main';
+        const workflowFile = process.env.GH_WORKFLOW || 'release.yml';
+        const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_PAT;
+
+        if (!token) {
+            logError('Missing GitHub token. Set GH_TOKEN (or GITHUB_TOKEN/GH_PAT) in your environment/.env');
+            process.exit(1);
+        }
+
+        const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
+        const payload = {
+            ref,
+            inputs: { version, notes, draft: 'true' }
+        };
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Failed to dispatch workflow: ${res.status} ${res.statusText} - ${text}`);
+        }
+
+        logSuccess(`Remote build dispatched for v${version}`);
+        logInfo(`View runs: https://github.com/${owner}/${repo}/actions/workflows/${workflowFile}`);
+        logInfo('The release will be created as a draft with your short notes. Edit the full notes on GitHub and publish when ready.');
+        process.exit(0);
+    } catch (err) {
+        logError(err.message);
+        process.exit(1);
+    }
+};
+
 // Main execution
 const main = async () => {
     try {
         logInfo('='.repeat(50));
         logInfo('AstraNotes Build Script');
         logInfo('='.repeat(50));
-        
-        // Verify signing keys
+
+        if (buildMode === 'r') {
+            // Remote CI path: dispatch workflow and exit
+            await triggerRemoteWorkflow(selectedVersion, releaseNotes);
+            return;
+        }
+
+        // Local path: Verify signing keys
         if (!verifySigningKeys()) {
             logError('Signing keys not properly configured');
             process.exit(1);
         }
 
-        // Update version in config
+        // Update version in config (local)
         updateTauriConfig(selectedVersion);
-        
+
         logInfo(`Version and release notes collected - latest.json update deferred until build success`);
-        
+
         // Run build
         logInfo('Starting Tauri build...');
-        execSync(`pnpm tauri build --target ${targets[target]}`, { 
+        execSync(`pnpm tauri build --target ${targets[target]}` , {
             stdio: 'inherit',
             env: { ...process.env }
         });

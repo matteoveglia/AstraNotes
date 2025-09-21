@@ -23,6 +23,7 @@
     "tauri:build:mac": "node build.js mac",
     "tauri:build:macuniversal": "node build.js macuniversal",
     "tauri:build:win": "node build.js win",
+    "tauri:build:remote": "node build.js",
     "update-all": "pnpm update && cd src-tauri && cargo update && cd .."
   },
   "dependencies": {

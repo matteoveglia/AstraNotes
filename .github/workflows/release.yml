@@ -1,0 +1,231 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (semver, e.g. 0.13.0)'
+        required: true
+      notes:
+        description: 'Short release notes (will appear in the draft release body)'
+        required: false
+        default: ''
+      draft:
+        description: 'Create draft release'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+env:
+  PNPM_VERSION: 9
+  NODE_VERSION: 22
+
+jobs:
+  build-macos:
+    name: Build macOS (Apple Silicon)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file
+        run: |
+          echo 'SENTRY_TAURI=""' > .env
+          echo 'VITE_SENTRY_DSN=""' >> .env
+
+      - name: Set app version for this run
+        run: |
+          jq --arg v "${{ github.event.inputs.version }}" '.version=$v' src-tauri/tauri.conf.json > tmp && mv tmp src-tauri/tauri.conf.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (aarch64-apple-darwin)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build --target aarch64-apple-darwin
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AstraNotes.app.tar.gz out/
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/AstraNotes.app.tar.gz.sig out/ || true
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/AstraNotes_${{ github.event.inputs.version }}_aarch64.dmg out/ || true
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: out/*
+
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install pnpm
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create .env file
+        run: |
+          echo 'SENTRY_TAURI=""' > .env
+          echo 'VITE_SENTRY_DSN=""' >> .env
+
+      - name: Set app version for this run
+        shell: bash
+        run: |
+          node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';const j=JSON.parse(fs.readFileSync(p));j.version='${{ github.event.inputs.version }}';fs.writeFileSync(p, JSON.stringify(j, null, 2));"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build (x86_64-pc-windows-msvc)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build --target x86_64-pc-windows-msvc
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p out
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/AstraNotes_${{ github.event.inputs.version }}_x64_en-US.msi out/
+          cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/AstraNotes_${{ github.event.inputs.version }}_x64_en-US.msi.sig out/ || true
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+
+  release:
+    name: Create Draft Release and Upload Assets
+    runs-on: ubuntu-latest
+    needs:
+      - build-macos
+      - build-windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: artifacts/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows
+          path: artifacts/windows
+
+      - name: Create or update draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=v${{ github.event.inputs.version }}
+          title="v${{ github.event.inputs.version }}"
+          notes="${{ github.event.inputs.notes }}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists; will upload assets."
+          else
+            gh release create "$tag" --title "$title" --notes "$notes" --draft
+          fi
+
+      - name: Generate latest.json
+        id: latest
+        shell: bash
+        run: |
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          MAC_SIG=""
+          WIN_SIG=""
+          if [ -f artifacts/macos/AstraNotes.app.tar.gz.sig ]; then
+            MAC_SIG=$(cat artifacts/macos/AstraNotes.app.tar.gz.sig)
+          fi
+          if [ -f artifacts/windows/AstraNotes_${{ github.event.inputs.version }}_x64_en-US.msi.sig ]; then
+            WIN_SIG=$(cat artifacts/windows/AstraNotes_${{ github.event.inputs.version }}_x64_en-US.msi.sig)
+          fi
+          mkdir -p artifacts
+          jq -n \
+            --arg v "${{ github.event.inputs.version }}" \
+            --arg notes "${{ github.event.inputs.notes }}" \
+            --arg pub "$PUB_DATE" \
+            --arg winSig "$WIN_SIG" \
+            --arg macSig "$MAC_SIG" \
+            --arg repo "${{ github.repository }}" \
+            '{
+              version: $v,
+              notes: $notes,
+              pub_date: $pub,
+              platforms: {
+                "windows-x86_64": {
+                  url: ("https://github.com/" + $repo + "/releases/download/v" + $v + "/AstraNotes_" + $v + "_x64_en-US.msi"),
+                  signature: $winSig
+                },
+                "darwin-aarch64": {
+                  url: ("https://github.com/" + $repo + "/releases/download/v" + $v + "/AstraNotes.app.tar.gz"),
+                  signature: $macSig
+                }
+              }
+            }' > artifacts/latest.json
+          echo "latest_json=artifacts/latest.json" >> $GITHUB_OUTPUT
+
+      - name: Upload assets to the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=v${{ github.event.inputs.version }}
+          gh release upload "$tag" artifacts/macos/* artifacts/windows/* "${{ steps.latest.outputs.latest_json }}" --clobber
+
+      - name: Show release URL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Draft release created: https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }}"
