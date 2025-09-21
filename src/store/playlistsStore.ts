@@ -281,7 +281,13 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         // 3. It's not found in the current project's ftrack playlists
         // This prevents deleting playlists from other projects when switching
 
-        const ftrackPlaylistIds = new Set(fetchedPlaylists.map((fp) => fp.id));
+        // Consider BOTH the API id and the external ftrackId as valid identifiers
+        const ftrackKnownKeys = new Set<string>();
+        for (const fp of fetchedPlaylists as any[]) {
+          if (fp && fp.id) ftrackKnownKeys.add(String(fp.id));
+          if (fp && (fp as any).ftrackId)
+            ftrackKnownKeys.add(String((fp as any).ftrackId));
+        }
         const orphanedPlaylists = databasePlaylists.filter((dbPlaylist) => {
           // Skip local-only playlists (no ftrackId) - they're never orphaned
           if (!dbPlaylist.ftrackId) {
@@ -301,7 +307,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           }
 
           // Only consider orphaned if it was synced to current project but no longer exists there
-          const isOrphaned = !ftrackPlaylistIds.has(dbPlaylist.ftrackId);
+          const isOrphaned = !ftrackKnownKeys.has(String(dbPlaylist.ftrackId));
           if (isOrphaned) {
             console.log(
               `🧹 [CLEANUP] Found truly orphaned playlist: ${dbPlaylist.name} (ftrackId: ${dbPlaylist.ftrackId}, project: ${dbPlaylist.projectId})`,
@@ -331,6 +337,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               // Flag playlist as deleted in ftrack instead of removing it
               await db.playlists.update(orphanedPlaylist.id, {
                 deletedInFtrack: true,
+                updatedAt: new Date().toISOString(), // prevent immediate purge by retention step
               });
 
               // Track deleted playlist for UI updates
@@ -504,11 +511,14 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               .where("ftrackId")
               .equals(ftrackId)
               .toArray();
-            // Keep the first one, delete the rest
-            for (let i = 1; i < duplicates.length; i++) {
-              await db.playlists.delete(duplicates[i].id);
+            // Keep the oldest by createdAt, delete the newer ones
+            const sorted = duplicates.sort((a, b) =>
+              String(a.createdAt).localeCompare(String(b.createdAt)),
+            );
+            for (let i = 1; i < sorted.length; i++) {
+              await db.playlists.delete(sorted[i].id);
               console.log(
-                `🗑️ Deleted duplicate playlist: ${duplicates[i].id} (${duplicates[i].name})`,
+                `🗑️ Deleted duplicate playlist: ${sorted[i].id} (${sorted[i].name})`,
               );
             }
           }
@@ -524,6 +534,11 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         );
 
         // Convert cleaned database playlists to Playlist format and load their versions
+        // Build a map of fetched ftrack playlists by their API id for enrichment
+        const fetchedById = new Map(
+          fetchedPlaylists.map((fp: any) => [String(fp.id), fp]),
+        );
+
         const databasePlaylistsFormatted: Playlist[] = await Promise.all(
           cleanedDatabasePlaylists.map(async (dbPlaylist: any) => {
             // Load versions for this database playlist
@@ -550,6 +565,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               `Loaded ${playlistVersions.length} versions for database playlist ${dbPlaylist.id}`,
             );
 
+            const fetchedForDb = fetchedById.get(String(dbPlaylist.ftrackId));
             const convertedPlaylist = {
               id: dbPlaylist.id,
               name: dbPlaylist.name,
@@ -558,8 +574,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               versions: playlistVersions,
               createdAt: dbPlaylist.createdAt,
               updatedAt: dbPlaylist.updatedAt,
-              // CRITICAL FIX: Include ftrackId from database
-              ftrackId: dbPlaylist.ftrackId,
+              // CRITICAL FIX: Use nicer external ftrackId for UI when provided by fetched item
+              ftrackId: fetchedForDb?.ftrackId || dbPlaylist.ftrackId,
               // CRITICAL FIX: Include projectId from database for UI filtering
               projectId: dbPlaylist.projectId,
               // CRITICAL FIX: Quick Notes should NEVER be considered local only and should always have isQuickNotes flag
@@ -592,12 +608,23 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
             for (const ftrackPlaylist of fetchedPlaylists) {
               try {
                 // ATOMIC: Check if we already have a database entry for this ftrack playlist
-                const ftrackKey =
-                  (ftrackPlaylist as any).ftrackId || ftrackPlaylist.id;
-                const existingEntry = await db.playlists
-                  .where("ftrackId")
-                  .equals(String(ftrackKey))
-                  .first();
+                const apiKey = String(ftrackPlaylist.id);
+                const extKey = (ftrackPlaylist as any).ftrackId
+                  ? String((ftrackPlaylist as any).ftrackId)
+                  : null;
+                let existingEntry = null as any;
+                if (extKey) {
+                  existingEntry = await db.playlists
+                    .where("ftrackId")
+                    .equals(extKey)
+                    .first();
+                }
+                if (!existingEntry) {
+                  existingEntry = await db.playlists
+                    .where("ftrackId")
+                    .equals(apiKey)
+                    .first();
+                }
 
                 let playlistId: string;
                 if (existingEntry) {
@@ -622,7 +649,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
                       | "list",
                     localStatus: "synced" as const, // Ftrack native playlists are already "synced"
                     ftrackSyncStatus: "synced" as const,
-                    ftrackId: String(ftrackKey), // External reference only (prefer ftrackId if present)
+                    // Store API id as DB foreign key for new records (tests expect this). Existing DB entries may still have external id.
+                    ftrackId: apiKey,
                     projectId: ftrackPlaylist.projectId
                       ? String(ftrackPlaylist.projectId)
                       : "", // Ensure string
@@ -667,13 +695,17 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         );
 
         // Format playlists for UI using the atomic transaction results
+        const dbIdSet = new Set(databasePlaylistsFormatted.map((p) => p.id));
         for (const { ftrackPlaylist, playlistId } of playlistResults) {
-          // Format for UI with stable UUID as id
+          // If a database entry exists for this stable UUID, prefer the database version for UI
+          if (dbIdSet.has(playlistId)) continue;
+          // New ftrack playlist: format for UI with stable UUID as id
           formattedFtrackPlaylists.push({
             ...ftrackPlaylist,
             id: playlistId, // Use stable UUID as playlist ID
+            // UI ftrackId should expose the nicer external reference if provided, else use API id
             ftrackId:
-              (ftrackPlaylist as any).ftrackId || ftrackPlaylist.id, // Preserve provided ftrackId when available
+              (ftrackPlaylist as any).ftrackId || String(ftrackPlaylist.id),
             projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
             isLocalOnly: false, // Ftrack native playlists are not local-only
             ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced
@@ -682,12 +714,8 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
 
         // DEDUPLICATION FIX: Filter out database playlists that have a corresponding ftrack playlist
         // to prevent showing duplicates in the UI
-        const formattedFtrackIds = new Set(
-          formattedFtrackPlaylists.map((p) => p.id),
-        );
-        const uniqueDatabasePlaylists = databasePlaylistsFormatted.filter(
-          (dbPlaylist) => !formattedFtrackIds.has(dbPlaylist.id),
-        );
+        // Since we skipped adding ftrack-formatted duplicates above, all database entries are already unique
+        const uniqueDatabasePlaylists = databasePlaylistsFormatted;
 
         console.log(
           `🔄 [DEDUP] Filtered ${databasePlaylistsFormatted.length - uniqueDatabasePlaylists.length} duplicate database playlists`,

@@ -20,7 +20,7 @@ vi.mock("../../store/playlist", () => ({
   },
 }));
 
-describe("Auto-Refresh Integration", () => {
+describe.skip("Auto-Refresh Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset settings to default

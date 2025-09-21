@@ -820,8 +820,32 @@ export class PlaylistStore extends SimpleEventEmitter {
         this.entityToAssetVersion(entity),
       );
 
-      // PHASE 4.6.2 FIX: Do NOT automatically apply changes to database
-      // Only detect and report changes - let user decide when to apply them
+      // Conditional behavior:
+      // - If playlist contains any manually added versions, auto-apply refresh to ensure mixed-content consistency
+      // - Otherwise, compute-only and emit a detection event (user/app can decide to apply)
+
+      const hasManual = currentVersions.some((v) => v.manuallyAdded);
+
+      if (hasManual && (addedVersions.length > 0 || removedVersions.length > 0)) {
+        await this.applyPlaylistRefresh(
+          playlistId,
+          freshVersions,
+          addedVersions,
+          removedVersions,
+        );
+
+        console.debug(
+          `[PlaylistStore] Auto-applied refresh for mixed-content playlist ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""}`,
+        );
+
+        return {
+          success: true,
+          addedCount: addedVersions.length,
+          removedCount: removedVersions.length,
+          addedVersions,
+          removedVersions,
+        };
+      }
 
       console.debug(
         `[PlaylistStore] Detected playlist changes for ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""} (NOT auto-applied)`,
@@ -1335,6 +1359,7 @@ export class PlaylistStore extends SimpleEventEmitter {
       categoryId: entity.categoryId,
       categoryName: entity.categoryName,
       isLocalOnly,
+      isQuickNotes,
       ftrackSyncState: mapSyncState(entity.ftrackSyncStatus),
       deletedInFtrack: Boolean(entity.deletedInFtrack),
       ftrackId: entity.ftrackId,
