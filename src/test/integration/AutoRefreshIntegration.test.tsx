@@ -29,7 +29,6 @@ describe("Auto-Refresh Integration", () => {
         serverUrl: "",
         apiKey: "",
         apiUser: "",
-        autoRefreshEnabled: true,
         defaultLabelId: undefined,
       },
     });
@@ -118,7 +117,6 @@ describe("Auto-Refresh Integration", () => {
           serverUrl: "",
           apiKey: "",
           apiUser: "",
-          autoRefreshEnabled: false,
           defaultLabelId: undefined,
         },
       });

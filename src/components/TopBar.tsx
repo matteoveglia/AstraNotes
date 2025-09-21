@@ -9,7 +9,6 @@
 import React from "react";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { ArrowUpCircle } from "lucide-react";
-import { useSettings } from "../store/settingsStore";
 import { useUpdateStore } from "../store/updateStore";
 import { cn } from "@/lib/utils";
 import { Sun, Moon } from "lucide-react";
@@ -41,7 +40,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onWhatsNewClose,
 }) => {
   const { isConnected } = useConnectionStatus();
-  const { settings } = useSettings();
   const { shouldShowNotification, shouldHighlightNotification } =
     useUpdateStore();
   const theme = useThemeStore((state) => state.theme);
@@ -85,9 +83,6 @@ export const TopBar: React.FC<TopBarProps> = ({
           <ProjectSelector onProjectChange={onProjectChange} />
         </div>
         <div className="flex items-center gap-1">
-          {!settings.autoRefreshEnabled && (
-            <span className="text-sm text-zinc-400">Auto Updates Off</span>
-          )}
           {shouldShowNotification() && (
             <Tooltip>
               <TooltipTrigger asChild>

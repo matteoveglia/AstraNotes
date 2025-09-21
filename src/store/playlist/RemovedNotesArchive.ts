@@ -1,10 +1,17 @@
 /**
  * @fileoverview RemovedNotesArchive.ts
- * Archives draft notes and labels for versions removed from a playlist.
- * Uses stable playlist UUIDs (NOT ftrack IDs) and a 7-day TTL by default.
+ * Legacy compatibility stub. Note preservation is handled via soft-deleted
+ * VersionRecord entries (isRemoved + draft fields) and 7-day TTL purge in
+ * PlaylistStore flows. This class remains as a no-op to avoid breaking imports.
  */
 
-import { db, type RemovedNoteArchiveRecord } from "../db";
+export interface RemovedNoteArchiveRecord {
+  playlistId: string;
+  versionId: string;
+  content: string;
+  labelId?: string;
+  archivedAt: number;
+}
 
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -12,36 +19,27 @@ export class RemovedNotesArchive {
   constructor(private ttlMs: number = DEFAULT_TTL_MS) {}
 
   async save(
-    playlistId: string,
-    versionId: string,
-    content: string,
-    labelId?: string,
-    archivedAt: number = Date.now(),
+    _playlistId: string,
+    _versionId: string,
+    _content: string,
+    _labelId?: string,
+    _archivedAt: number = Date.now(),
   ): Promise<void> {
-    const record: RemovedNoteArchiveRecord = {
-      playlistId,
-      versionId,
-      content,
-      labelId,
-      archivedAt,
-    };
-
-    await db.removedNotesArchive.put(record);
-    console.debug(
-      `[RemovedNotesArchive] Archived note for ${versionId} in playlist ${playlistId}`,
-    );
+    // No-op: preservation handled in VersionRecord via isRemoved + draft fields
+    return;
   }
 
   async get(
-    playlistId: string,
-    versionId: string,
+    _playlistId: string,
+    _versionId: string,
   ): Promise<RemovedNoteArchiveRecord | undefined> {
-    const rec = await db.removedNotesArchive.get([playlistId, versionId]);
-    return rec || undefined;
+    // No-op
+    return undefined;
   }
 
-  async delete(playlistId: string, versionId: string): Promise<void> {
-    await db.removedNotesArchive.delete([playlistId, versionId]);
+  async delete(_playlistId: string, _versionId: string): Promise<void> {
+    // No-op
+    return;
   }
 
   isExpired(archivedAt: number): boolean {
@@ -49,24 +47,17 @@ export class RemovedNotesArchive {
   }
 
   async purgeExpired(): Promise<number> {
-    const now = Date.now();
-    const all = await db.removedNotesArchive.toArray();
-    const expired = all.filter((r) => now - r.archivedAt > this.ttlMs);
-    if (expired.length > 0) {
-      await db.removedNotesArchive.bulkDelete(
-        expired.map((r) => [r.playlistId, r.versionId] as [string, string]),
-      );
-    }
-    return expired.length;
+    // No-op
+    return 0;
   }
 
   async listAll(): Promise<RemovedNoteArchiveRecord[]> {
-    return await db.removedNotesArchive.toArray();
+    // No-op
+    return [];
   }
 
   async listExpired(): Promise<RemovedNoteArchiveRecord[]> {
-    const now = Date.now();
-    const all = await this.listAll();
-    return all.filter((r) => now - r.archivedAt > this.ttlMs);
+    // No-op
+    return [];
   }
 }

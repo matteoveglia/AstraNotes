@@ -46,6 +46,7 @@ import { PlaylistEntity, VersionEntity } from "./types";
 import { Playlist, AssetVersion, CreatePlaylistRequest } from "@/types";
 import { usePlaylistsStore } from "../playlistsStore";
 import { useSettings } from "../settingsStore";
+import { db, type NoteAttachment } from "../db";
 
 export class PlaylistStore extends SimpleEventEmitter {
   private repository = new PlaylistRepository();
@@ -1439,56 +1440,6 @@ export class PlaylistStore extends SimpleEventEmitter {
 
   // =================== LEGACY COMPATIBILITY ===================
 
-  /**
-   * @deprecated Use startAutoRefresh instead of polling
-   */
-  stopPolling(): void {
-    console.debug(
-      "[PlaylistStore] stopPolling called - redirecting to stopAutoRefresh",
-    );
-    this.stopAutoRefresh();
-  }
-
-  /**
-   * @deprecated Use startAutoRefresh instead of polling
-   */
-  async startPolling(
-    playlistId: string,
-    callback?: (
-      added: any,
-      removed: any,
-      addedVersions: any,
-      removedVersions: any,
-      freshVersions: any,
-    ) => void,
-  ): Promise<void> {
-    console.debug(
-      "[PlaylistStore] startPolling called - redirecting to startAutoRefresh",
-    );
-
-    // Convert old callback format to new format
-    const newCallback = callback
-      ? (result: {
-          success: boolean;
-          addedCount?: number;
-          removedCount?: number;
-          error?: string;
-        }) => {
-          if (result.success) {
-            callback(
-              result.addedCount || 0,
-              result.removedCount || 0,
-              [],
-              [],
-              [],
-            );
-          }
-        }
-      : undefined;
-
-    await this.startAutoRefresh(playlistId, newCallback);
-  }
-
   // =================== BACKWARD COMPATIBILITY METHODS ===================
 
   /**
@@ -1544,13 +1495,7 @@ export class PlaylistStore extends SimpleEventEmitter {
     }
   }
 
-  /**
-   * @deprecated Use getPlaylistVersions() instead
-   * Legacy method for backward compatibility
-   */
-  async getLocalPlaylistVersions(playlistId: string): Promise<VersionEntity[]> {
-    return this.getPlaylistVersions(playlistId);
-  }
+  // (Pruned) stopPolling/startPolling/getLocalPlaylistVersions removed
 
   /**
    * @deprecated Use getPlaylist() instead
@@ -1563,40 +1508,83 @@ export class PlaylistStore extends SimpleEventEmitter {
     await this.getPlaylist(playlistId);
   }
 
-  /**
-   * @deprecated Use cache directly instead
-   * Legacy method for backward compatibility
-   */
-  async cachePlaylist(playlist: Playlist): Promise<void> {
-    this.cache.setPlaylist(playlist.id, playlist);
-  }
+  // (Pruned) cachePlaylist and cleanPlaylistForStorage removed
 
   /**
-   * @deprecated Not needed in new architecture
-   * Legacy method for backward compatibility - returns playlist as-is
-   */
-  cleanPlaylistForStorage(playlist: Playlist): Playlist {
-    return playlist;
-  }
-
-  /**
-   * @deprecated Use saveDraft() instead
-   * Legacy method for backward compatibility
+   * Saves attachments metadata for a version (persists to db.attachments and mirrors safe metadata on version record)
+   * Kept under legacy method name for compatibility with existing call sites
    */
   async saveAttachments(
-    _versionId: string,
-    _playlistId: string,
-    _attachments: any[],
+    versionId: string,
+    playlistId: string,
+    attachments: any[],
   ): Promise<void> {
-    // Attachments are handled by DraftManager
+    try {
+      // Remove existing attachments for this version+playlist
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+
+      // Build NoteAttachment records (store metadata only to avoid serialization issues)
+      const toStore: NoteAttachment[] = (attachments || []).map((att: any) => {
+        const size = typeof att?.file === "object" && att.file && "size" in att.file ? Number(att.file.size) || 0 : 0;
+        const filePath = typeof att?.file === "string" ? (att.file as string) : undefined;
+        return {
+          id: String(att.id || crypto.randomUUID()),
+          noteId: "",
+          versionId,
+          playlistId,
+          name: String(att.name || ""),
+          type: String(att.type || "application/octet-stream"),
+          size,
+          // Do not store binary to avoid DataCloneError; consumers reconstruct File when needed
+          data: undefined,
+          previewUrl: String(att.previewUrl || ""),
+          createdAt: Date.now(),
+          filePath,
+        } as NoteAttachment;
+      });
+
+      // Persist each attachment
+      for (const att of toStore) {
+        await db.attachments.put(att);
+      }
+
+      // Mirror safe metadata on version record (without binary data)
+      const safeForVersion = toStore.map(({ data, ...rest }) => rest);
+      await this.repository.updateVersion(playlistId, versionId, {
+        attachments: safeForVersion as any,
+        lastModified: Date.now(),
+      });
+
+      // Invalidate cache so UI pulls fresh data
+      this.cache.invalidate(playlistId);
+    } catch (error) {
+      console.error("[PlaylistStore] Failed to save attachments:", error);
+      // Do not throw to avoid disrupting UI flows; logging is sufficient
+    }
   }
 
   /**
-   * @deprecated Use clearDraft() instead
-   * Legacy method for backward compatibility
+   * Clears all attachments for a version in a playlist (db + version mirror)
+   * Kept under legacy method name for compatibility
    */
   async clearAttachments(versionId: string, playlistId: string): Promise<void> {
-    await this.clearDraft(playlistId, versionId);
+    try {
+      await db.attachments
+        .where("[versionId+playlistId]")
+        .equals([versionId, playlistId])
+        .delete();
+      await this.repository.updateVersion(playlistId, versionId, {
+        attachments: [],
+        lastModified: Date.now(),
+      });
+      this.cache.invalidate(playlistId);
+    } catch (error) {
+      console.error("[PlaylistStore] Failed to clear attachments:", error);
+      throw error;
+    }
   }
 
   /**
@@ -1658,20 +1646,7 @@ export class PlaylistStore extends SimpleEventEmitter {
    * @deprecated Use event listeners instead
    * Legacy method for backward compatibility
    */
-  async updatePlaylistAndRestartPolling(
-    playlistId: string,
-    _callback?: (
-      added: any,
-      removed: any,
-      addedVersions: any,
-      removedVersions: any,
-      freshVersions: any,
-    ) => void,
-  ): Promise<void> {
-    // Stop current auto-refresh and restart it for the specified playlist
-    this.stopAutoRefresh();
-    await this.startAutoRefresh(playlistId);
-  }
+  // (Pruned) updatePlaylistAndRestartPolling removed
 
   /**
    * Safely initializes a playlist in the database if it doesn't exist

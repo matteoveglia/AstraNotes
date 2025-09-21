@@ -397,7 +397,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
               // Delete all versions (including soft-deleted ones) and associated data
               await db.transaction(
                 "rw",
-                [db.versions, db.attachments, db.notes],
+                [db.versions, db.attachments],
                 async () => {
                   // Delete all versions for this playlist
                   const versionsToDelete = await db.versions
@@ -426,18 +426,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
                       `🗑️ [PURGE] Deleted ${attachmentsToDelete.length} attachments for playlist ${playlist.id}`,
                     );
                   }
-
-                  // Delete all notes for this playlist
-                  const notesToDelete = await db.notes
-                    .where("playlistId")
-                    .equals(playlist.id)
-                    .toArray();
-                  if (notesToDelete.length > 0) {
-                    await db.notes.bulkDelete(notesToDelete.map((n) => n.id));
-                    console.log(
-                      `🗑️ [PURGE] Deleted ${notesToDelete.length} notes for playlist ${playlist.id}`,
-                    );
-                  }
+                  // No standalone notes table; notes are part of VersionRecord draft fields
                 },
               );
 

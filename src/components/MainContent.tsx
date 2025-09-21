@@ -112,8 +112,7 @@ export const MainContent: React.FC<MainContentProps> = ({
       setIsInitializing(true);
       setInitializationError(null);
 
-      // Stop any existing polling immediately
-      playlistStore.stopPolling();
+      // Polling was removed; no action needed
 
       // For local playlists (both pending and synced), skip ftrack initialization and use versions directly
       if (playlistToInit.isLocalOnly || playlistId.startsWith("local_")) {
@@ -129,14 +128,18 @@ export const MainContent: React.FC<MainContentProps> = ({
             })),
           },
         );
-        // Just cache the playlist with its existing versions, using cleanPlaylistForStorage to convert
-        const cachedPlaylist =
-          playlistStore.cleanPlaylistForStorage(playlistToInit);
+        // Ensure playlist exists in DB and upsert provided versions
+        await playlistStore.getPlaylist(playlistId);
+        const initialVersions = playlistToInit.versions || [];
         console.debug(
-          `[MainContent] Cached playlist versions:`,
-          cachedPlaylist.versions?.length || 0,
+          `[MainContent] Upserting ${initialVersions.length} local versions into DB for ${playlistId}`,
         );
-        await playlistStore.cachePlaylist(cachedPlaylist);
+        if (initialVersions.length > 0) {
+          await playlistStore.addVersionsToPlaylist(
+            playlistId,
+            initialVersions,
+          );
+        }
       } else {
         // Initialize the playlist in store with error handling
         await playlistStore.initializePlaylist(playlistId, playlistToInit);
@@ -224,7 +227,6 @@ export const MainContent: React.FC<MainContentProps> = ({
     // Store cleanup function
     cleanupRef.current = () => {
       console.debug(`[MainContent] Cleaning up for playlist ${playlist.id}`);
-      playlistStore.stopPolling();
       if (initializationTimeoutRef.current) {
         clearTimeout(initializationTimeoutRef.current);
         initializationTimeoutRef.current = null;
