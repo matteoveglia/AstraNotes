@@ -356,9 +356,78 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
             `🎯 [CLEANUP] Database cleanup complete. Total playlists: ${updatedDatabasePlaylists.length} (flagged ${orphanedPlaylists.length} as deleted)`,
           );
 
-          // Update the databasePlaylists array to reflect the flagging
+                    // Update the databasePlaylists array to reflect the flagging
           databasePlaylists.splice(0); // Clear original array
           databasePlaylists.push(...updatedDatabasePlaylists); // Add updated playlists
+        }
+
+        // PURGE: Hard-delete deleted playlists older than 7 days to prevent database bloat
+        const DELETED_PLAYLIST_RETENTION_DAYS = 7;
+        const retentionCutoff = new Date();
+        retentionCutoff.setDate(retentionCutoff.getDate() - DELETED_PLAYLIST_RETENTION_DAYS);
+        const retentionCutoffStr = retentionCutoff.toISOString();
+
+        // Find deleted playlists that have expired retention period
+        const expiredDeletedPlaylists = databasePlaylists.filter(
+          (p: any) => p.deletedInFtrack && p.updatedAt < retentionCutoffStr,
+        );
+
+        if (expiredDeletedPlaylists.length > 0) {
+          console.log(
+            `🗑️ [PURGE] Found ${expiredDeletedPlaylists.length} deleted playlists older than ${DELETED_PLAYLIST_RETENTION_DAYS} days (cutoff: ${retentionCutoffStr}):`,
+            expiredDeletedPlaylists.map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt })),
+          );
+
+          // Hard-delete expired deleted playlists and all associated data
+          for (const playlist of expiredDeletedPlaylists) {
+            try {
+              console.log(`🗑️ [PURGE] Hard-deleting expired deleted playlist: ${playlist.name} (ID: ${playlist.id})`);
+
+              // Delete playlist entity
+              await db.playlists.delete(playlist.id);
+
+              // Delete all versions (including soft-deleted ones) and associated data
+              await db.transaction('rw', [db.versions, db.attachments, db.notes], async () => {
+                // Delete all versions for this playlist
+                const versionsToDelete = await db.versions.where('playlistId').equals(playlist.id).toArray();
+                if (versionsToDelete.length > 0) {
+                  await db.versions.bulkDelete(versionsToDelete.map(v => v.id));
+                  console.log(`🗑️ [PURGE] Deleted ${versionsToDelete.length} versions for playlist ${playlist.id}`);
+                }
+
+                // Delete all attachments for this playlist
+                const attachmentsToDelete = await db.attachments.where('playlistId').equals(playlist.id).toArray();
+                if (attachmentsToDelete.length > 0) {
+                  await db.attachments.bulkDelete(attachmentsToDelete.map(a => a.id));
+                  console.log(`🗑️ [PURGE] Deleted ${attachmentsToDelete.length} attachments for playlist ${playlist.id}`);
+                }
+
+                // Delete all notes for this playlist
+                const notesToDelete = await db.notes.where('playlistId').equals(playlist.id).toArray();
+                if (notesToDelete.length > 0) {
+                  await db.notes.bulkDelete(notesToDelete.map(n => n.id));
+                  console.log(`🗑️ [PURGE] Deleted ${notesToDelete.length} notes for playlist ${playlist.id}`);
+                }
+              });
+
+              console.log(`✅ [PURGE] Successfully purged deleted playlist: ${playlist.name}`);
+            } catch (error) {
+              console.error(`❌ [PURGE] Failed to purge deleted playlist ${playlist.id}:`, error);
+            }
+          }
+
+          // Reload database playlists after purge
+          const purgedDatabasePlaylists = projectId
+            ? await db.playlists.where('projectId').equals(projectId).toArray()
+            : await db.playlists.toArray();
+
+          console.log(`🗑️ [PURGE] Database purge complete. Total playlists: ${databasePlaylists.length} -> ${purgedDatabasePlaylists.length} (removed ${expiredDeletedPlaylists.length})`);
+
+          // Update the databasePlaylists array to reflect the purge
+          databasePlaylists.splice(0);
+          databasePlaylists.push(...purgedDatabasePlaylists);
+        } else {
+          console.log(`🗑️ [PURGE] No expired deleted playlists to purge (retention: ${DELETED_PLAYLIST_RETENTION_DAYS} days, cutoff: ${retentionCutoffStr})`);
         }
 
         // DEBUG: Let's also see what ftrack playlists we're getting
@@ -611,11 +680,18 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
                 playlist.isQuickNotes,
             );
 
-        console.log(
-          `📊 [FILTER] Showing ${filteredPlaylists.length} of ${allPlaylists.length} total playlists for project ${projectId || "none"}`,
+        // Do not preserve playlists flagged as deleted in ftrack on app reload
+        const filteredWithoutDeleted = filteredPlaylists.filter(
+          (p) => !p.deletedInFtrack,
         );
 
-        setPlaylists(filteredPlaylists); // Show only filtered playlists in UI
+        console.log(
+          `📊 [FILTER] Showing ${filteredWithoutDeleted.length} of ${allPlaylists.length} total playlists for project ${
+            projectId || "none"
+          } (excluded ${filteredPlaylists.length - filteredWithoutDeleted.length} deleted)`,
+        );
+
+        setPlaylists(filteredWithoutDeleted); // Hide deleted playlists in UI
 
         return {
           deletedPlaylists:

@@ -306,18 +306,24 @@ export function useNoteManagement(playlist: Playlist) {
         `[useNoteManagement] Loading drafts for playlist ${playlist.id}`,
       );
 
-      // Fetch versions and attachments in parallel for better performance
-      const [versions, attachments] = await Promise.all([
-        db.versions
-          .where("playlistId")
-          .equals(playlist.id)
-          .filter((v) => !v.isRemoved)
-          .toArray(),
+      // Fetch raw versions and attachments in parallel for better performance
+      const [dbVersions, attachments] = await Promise.all([
+        db.versions.where("playlistId").equals(playlist.id).toArray(),
         db.attachments.where("playlistId").equals(playlist.id).toArray(),
       ]);
 
+      // For playlists deleted in ftrack, we're in an in-session snapshot mode.
+      // We must include versions even if they are marked isRemoved in DB,
+      // but limit them to those currently shown in the UI snapshot (playlist.versions).
+      const versions = playlist.deletedInFtrack
+        ? dbVersions.filter((v) =>
+            (playlist.versions || []).some((av) => av.id === v.id),
+          )
+        : dbVersions.filter((v) => !v.isRemoved);
+
       console.debug(
-        `[useNoteManagement] Loaded ${versions.length} versions and ${attachments.length} attachments`,
+        `[useNoteManagement] Loaded ${versions.length} versions and ${attachments.length} attachments` +
+          (playlist.deletedInFtrack ? " (deleted-in-ftrack snapshot mode)" : ""),
       );
 
       // Skip if playlist ID has changed during DB queries
