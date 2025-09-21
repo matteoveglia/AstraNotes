@@ -37,7 +37,13 @@ export function usePlaylistModifications(
     // PHASE 4.6.2 FIX: Listen for playlist changes detected (not auto-applied)
     const handlePlaylistChangesDetected = (data: any) => {
       if (data.playlistId === playlist.id) {
-        const { addedCount, removedCount, addedVersions, removedVersions, freshVersions } = data;
+        const {
+          addedCount,
+          removedCount,
+          addedVersions,
+          removedVersions,
+          freshVersions,
+        } = data;
         if (addedCount > 0 || removedCount > 0) {
           setModifications({
             added: addedCount,
@@ -109,7 +115,10 @@ export function usePlaylistModifications(
     );
 
     // Set up event listeners
-    playlistStore.on("playlist-changes-detected", handlePlaylistChangesDetected);
+    playlistStore.on(
+      "playlist-changes-detected",
+      handlePlaylistChangesDetected,
+    );
     playlistStore.on("auto-refresh-failed", handleAutoRefreshFailed);
     playlistStore.on("playlist-refreshed", handlePlaylistRefreshed);
 
@@ -118,7 +127,10 @@ export function usePlaylistModifications(
       console.debug(
         `[usePlaylistModifications] Cleaning up event listeners for playlist ${playlist.id}`,
       );
-      playlistStore.off("playlist-changes-detected", handlePlaylistChangesDetected);
+      playlistStore.off(
+        "playlist-changes-detected",
+        handlePlaylistChangesDetected,
+      );
       playlistStore.off("auto-refresh-failed", handleAutoRefreshFailed);
       playlistStore.off("playlist-refreshed", handlePlaylistRefreshed);
     };
@@ -126,7 +138,12 @@ export function usePlaylistModifications(
 
   // PHASE 4.6.2 FIX: Simplified refresh that applies detected changes
   const applyPendingChanges = useCallback(async () => {
-    if (!pendingVersions || !modifications.addedVersions || !modifications.removedVersions) return;
+    if (
+      !pendingVersions ||
+      !modifications.addedVersions ||
+      !modifications.removedVersions
+    )
+      return;
 
     setIsRefreshing(true);
     console.debug(
@@ -144,11 +161,14 @@ export function usePlaylistModifications(
         playlist.id,
         pendingVersions,
         modifications.addedVersions,
-        modifications.removedVersions
+        modifications.removedVersions,
       );
 
       if (!result.success) {
-        console.error(`[usePlaylistModifications] Failed to apply refresh:`, result.error);
+        console.error(
+          `[usePlaylistModifications] Failed to apply refresh:`,
+          result.error,
+        );
         return false;
       }
 
@@ -163,7 +183,9 @@ export function usePlaylistModifications(
         onPlaylistUpdate(updatedPlaylist);
       }
 
-      console.debug(`[usePlaylistModifications] Successfully applied playlist refresh`);
+      console.debug(
+        `[usePlaylistModifications] Successfully applied playlist refresh`,
+      );
       return true;
     } catch (error) {
       console.error("Failed to apply playlist refresh:", error);
@@ -243,12 +265,12 @@ export function usePlaylistModifications(
       );
 
       const result = await playlistStore.directPlaylistRefresh(playlist.id);
-      
+
       if (result.success) {
         // Clear any pending modifications since we just refreshed
         setPendingVersions(null);
         setModifications({ added: 0, removed: 0 });
-        
+
         // Notify parent to update UI with fresh data
         if (onPlaylistUpdate) {
           const updatedPlaylist = await playlistStore.getPlaylist(playlist.id);
@@ -256,13 +278,16 @@ export function usePlaylistModifications(
             onPlaylistUpdate(updatedPlaylist);
           }
         }
-        
+
         console.debug(
           `[usePlaylistModifications] Direct refresh completed: +${result.addedCount || 0} -${result.removedCount || 0}`,
         );
         return true;
       } else {
-        console.error(`[usePlaylistModifications] Direct refresh failed:`, result.error);
+        console.error(
+          `[usePlaylistModifications] Direct refresh failed:`,
+          result.error,
+        );
         return false;
       }
     } catch (error) {

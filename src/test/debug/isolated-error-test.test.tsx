@@ -28,16 +28,20 @@ describe("Isolated Error Test", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-    
+
     // Get mock service
-    const { ftrackPlaylistService } = await import("@/services/ftrack/FtrackPlaylistService");
+    const { ftrackPlaylistService } = await import(
+      "@/services/ftrack/FtrackPlaylistService"
+    );
     mockFtrackService = ftrackPlaylistService;
   });
 
   it("should handle database errors gracefully during deduplication", async () => {
     // Mock a database error during cleanup
     const originalClear = db.playlists.clear;
-    vi.spyOn(db.playlists, 'clear').mockRejectedValueOnce(new Error("Database error"));
+    vi.spyOn(db.playlists, "clear").mockRejectedValueOnce(
+      new Error("Database error"),
+    );
 
     const ftrackPlaylist = TestDataFactory.createFtrackPlaylist({
       id: "ftrack-uuid-1",
@@ -56,7 +60,10 @@ describe("Isolated Error Test", () => {
 
     // Should not throw an error
     await act(async () => {
-      console.log("About to call loadPlaylists, result.current:", result.current);
+      console.log(
+        "About to call loadPlaylists, result.current:",
+        result.current,
+      );
       await result.current.loadPlaylists("project-123");
     });
 

@@ -285,7 +285,10 @@ export const MainContent: React.FC<MainContentProps> = ({
           setActivePlaylist(updated);
         }
       } catch (e) {
-        console.error("Failed to load updated playlist after direct refresh:", e);
+        console.error(
+          "Failed to load updated playlist after direct refresh:",
+          e,
+        );
       }
     };
 

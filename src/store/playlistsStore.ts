@@ -356,7 +356,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
             `🎯 [CLEANUP] Database cleanup complete. Total playlists: ${updatedDatabasePlaylists.length} (flagged ${orphanedPlaylists.length} as deleted)`,
           );
 
-                    // Update the databasePlaylists array to reflect the flagging
+          // Update the databasePlaylists array to reflect the flagging
           databasePlaylists.splice(0); // Clear original array
           databasePlaylists.push(...updatedDatabasePlaylists); // Add updated playlists
         }
@@ -364,7 +364,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         // PURGE: Hard-delete deleted playlists older than 7 days to prevent database bloat
         const DELETED_PLAYLIST_RETENTION_DAYS = 7;
         const retentionCutoff = new Date();
-        retentionCutoff.setDate(retentionCutoff.getDate() - DELETED_PLAYLIST_RETENTION_DAYS);
+        retentionCutoff.setDate(
+          retentionCutoff.getDate() - DELETED_PLAYLIST_RETENTION_DAYS,
+        );
         const retentionCutoffStr = retentionCutoff.toISOString();
 
         // Find deleted playlists that have expired retention period
@@ -375,59 +377,97 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         if (expiredDeletedPlaylists.length > 0) {
           console.log(
             `🗑️ [PURGE] Found ${expiredDeletedPlaylists.length} deleted playlists older than ${DELETED_PLAYLIST_RETENTION_DAYS} days (cutoff: ${retentionCutoffStr}):`,
-            expiredDeletedPlaylists.map((p) => ({ id: p.id, name: p.name, updatedAt: p.updatedAt })),
+            expiredDeletedPlaylists.map((p) => ({
+              id: p.id,
+              name: p.name,
+              updatedAt: p.updatedAt,
+            })),
           );
 
           // Hard-delete expired deleted playlists and all associated data
           for (const playlist of expiredDeletedPlaylists) {
             try {
-              console.log(`🗑️ [PURGE] Hard-deleting expired deleted playlist: ${playlist.name} (ID: ${playlist.id})`);
+              console.log(
+                `🗑️ [PURGE] Hard-deleting expired deleted playlist: ${playlist.name} (ID: ${playlist.id})`,
+              );
 
               // Delete playlist entity
               await db.playlists.delete(playlist.id);
 
               // Delete all versions (including soft-deleted ones) and associated data
-              await db.transaction('rw', [db.versions, db.attachments, db.notes], async () => {
-                // Delete all versions for this playlist
-                const versionsToDelete = await db.versions.where('playlistId').equals(playlist.id).toArray();
-                if (versionsToDelete.length > 0) {
-                  await db.versions.bulkDelete(versionsToDelete.map(v => v.id));
-                  console.log(`🗑️ [PURGE] Deleted ${versionsToDelete.length} versions for playlist ${playlist.id}`);
-                }
+              await db.transaction(
+                "rw",
+                [db.versions, db.attachments, db.notes],
+                async () => {
+                  // Delete all versions for this playlist
+                  const versionsToDelete = await db.versions
+                    .where("playlistId")
+                    .equals(playlist.id)
+                    .toArray();
+                  if (versionsToDelete.length > 0) {
+                    await db.versions.bulkDelete(
+                      versionsToDelete.map((v) => v.id),
+                    );
+                    console.log(
+                      `🗑️ [PURGE] Deleted ${versionsToDelete.length} versions for playlist ${playlist.id}`,
+                    );
+                  }
 
-                // Delete all attachments for this playlist
-                const attachmentsToDelete = await db.attachments.where('playlistId').equals(playlist.id).toArray();
-                if (attachmentsToDelete.length > 0) {
-                  await db.attachments.bulkDelete(attachmentsToDelete.map(a => a.id));
-                  console.log(`🗑️ [PURGE] Deleted ${attachmentsToDelete.length} attachments for playlist ${playlist.id}`);
-                }
+                  // Delete all attachments for this playlist
+                  const attachmentsToDelete = await db.attachments
+                    .where("playlistId")
+                    .equals(playlist.id)
+                    .toArray();
+                  if (attachmentsToDelete.length > 0) {
+                    await db.attachments.bulkDelete(
+                      attachmentsToDelete.map((a) => a.id),
+                    );
+                    console.log(
+                      `🗑️ [PURGE] Deleted ${attachmentsToDelete.length} attachments for playlist ${playlist.id}`,
+                    );
+                  }
 
-                // Delete all notes for this playlist
-                const notesToDelete = await db.notes.where('playlistId').equals(playlist.id).toArray();
-                if (notesToDelete.length > 0) {
-                  await db.notes.bulkDelete(notesToDelete.map(n => n.id));
-                  console.log(`🗑️ [PURGE] Deleted ${notesToDelete.length} notes for playlist ${playlist.id}`);
-                }
-              });
+                  // Delete all notes for this playlist
+                  const notesToDelete = await db.notes
+                    .where("playlistId")
+                    .equals(playlist.id)
+                    .toArray();
+                  if (notesToDelete.length > 0) {
+                    await db.notes.bulkDelete(notesToDelete.map((n) => n.id));
+                    console.log(
+                      `🗑️ [PURGE] Deleted ${notesToDelete.length} notes for playlist ${playlist.id}`,
+                    );
+                  }
+                },
+              );
 
-              console.log(`✅ [PURGE] Successfully purged deleted playlist: ${playlist.name}`);
+              console.log(
+                `✅ [PURGE] Successfully purged deleted playlist: ${playlist.name}`,
+              );
             } catch (error) {
-              console.error(`❌ [PURGE] Failed to purge deleted playlist ${playlist.id}:`, error);
+              console.error(
+                `❌ [PURGE] Failed to purge deleted playlist ${playlist.id}:`,
+                error,
+              );
             }
           }
 
           // Reload database playlists after purge
           const purgedDatabasePlaylists = projectId
-            ? await db.playlists.where('projectId').equals(projectId).toArray()
+            ? await db.playlists.where("projectId").equals(projectId).toArray()
             : await db.playlists.toArray();
 
-          console.log(`🗑️ [PURGE] Database purge complete. Total playlists: ${databasePlaylists.length} -> ${purgedDatabasePlaylists.length} (removed ${expiredDeletedPlaylists.length})`);
+          console.log(
+            `🗑️ [PURGE] Database purge complete. Total playlists: ${databasePlaylists.length} -> ${purgedDatabasePlaylists.length} (removed ${expiredDeletedPlaylists.length})`,
+          );
 
           // Update the databasePlaylists array to reflect the purge
           databasePlaylists.splice(0);
           databasePlaylists.push(...purgedDatabasePlaylists);
         } else {
-          console.log(`🗑️ [PURGE] No expired deleted playlists to purge (retention: ${DELETED_PLAYLIST_RETENTION_DAYS} days, cutoff: ${retentionCutoffStr})`);
+          console.log(
+            `🗑️ [PURGE] No expired deleted playlists to purge (retention: ${DELETED_PLAYLIST_RETENTION_DAYS} days, cutoff: ${retentionCutoffStr})`,
+          );
         }
 
         // DEBUG: Let's also see what ftrack playlists we're getting
@@ -454,7 +494,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         const formattedFtrackPlaylists = [];
 
         // CLEANUP: First, remove any duplicate database entries that may exist from previous race conditions
-        console.log("🧹 Cleaning up any existing duplicate database entries...");
+        console.log(
+          "🧹 Cleaning up any existing duplicate database entries...",
+        );
         const ftrackIdCounts = new Map<string, number>();
         for (const dbPlaylist of databasePlaylists) {
           if (dbPlaylist.ftrackId) {
@@ -466,12 +508,19 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         // Remove duplicates (keep the first one, delete the rest)
         for (const [ftrackId, count] of ftrackIdCounts.entries()) {
           if (count > 1) {
-            console.log(`🗑️ Found ${count} duplicates for ftrackId ${ftrackId}, removing ${count - 1} duplicates`);
-            const duplicates = await db.playlists.where("ftrackId").equals(ftrackId).toArray();
+            console.log(
+              `🗑️ Found ${count} duplicates for ftrackId ${ftrackId}, removing ${count - 1} duplicates`,
+            );
+            const duplicates = await db.playlists
+              .where("ftrackId")
+              .equals(ftrackId)
+              .toArray();
             // Keep the first one, delete the rest
             for (let i = 1; i < duplicates.length; i++) {
               await db.playlists.delete(duplicates[i].id);
-              console.log(`🗑️ Deleted duplicate playlist: ${duplicates[i].id} (${duplicates[i].name})`);
+              console.log(
+                `🗑️ Deleted duplicate playlist: ${duplicates[i].id} (${duplicates[i].name})`,
+              );
             }
           }
         }
@@ -481,7 +530,9 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           ? await db.playlists.where("projectId").equals(projectId).toArray()
           : await db.playlists.toArray();
 
-        console.log(`🧹 Cleanup complete. Database playlists: ${databasePlaylists.length} -> ${cleanedDatabasePlaylists.length}`);
+        console.log(
+          `🧹 Cleanup complete. Database playlists: ${databasePlaylists.length} -> ${cleanedDatabasePlaylists.length}`,
+        );
 
         // Convert cleaned database playlists to Playlist format and load their versions
         const databasePlaylistsFormatted: Playlist[] = await Promise.all(
@@ -543,104 +594,112 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
         );
 
         // RACE CONDITION FIX: Process all ftrack playlists atomically to prevent duplicates
-        const playlistResults = await db.transaction('rw', db.playlists, async () => {
-          const results = [];
-          
-          for (const ftrackPlaylist of fetchedPlaylists) {
-            try {
-              // ATOMIC: Check if we already have a database entry for this ftrack playlist
-              const existingEntry = await db.playlists
-                .where("ftrackId")
-                .equals(ftrackPlaylist.id)
-                .first();
+        const playlistResults = await db.transaction(
+          "rw",
+          db.playlists,
+          async () => {
+            const results = [];
 
-              let playlistId: string;
-              if (existingEntry) {
-                // Use existing stable UUID
-                playlistId = existingEntry.id;
-                console.log(
-                  `Using existing database entry for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`,
-                );
-              } else {
-                // Generate new stable UUID for this ftrack playlist
-                playlistId = crypto.randomUUID();
-                console.log(
-                  `Generated new stable UUID for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`,
-                );
+            for (const ftrackPlaylist of fetchedPlaylists) {
+              try {
+                // ATOMIC: Check if we already have a database entry for this ftrack playlist
+                const existingEntry = await db.playlists
+                  .where("ftrackId")
+                  .equals(ftrackPlaylist.id)
+                  .first();
 
-                // Create a clean serializable object for database storage
-                const playlistEntity = {
-                  id: playlistId, // STABLE UUID - never changes
-                  name: String(ftrackPlaylist.name),
-                  type: (ftrackPlaylist.type || "reviewsession") as
-                    | "reviewsession"
-                    | "list",
-                  localStatus: "synced" as const, // Ftrack native playlists are already "synced"
-                  ftrackSyncStatus: "synced" as const,
-                  ftrackId: String(ftrackPlaylist.id), // External reference only
-                  projectId: ftrackPlaylist.projectId
-                    ? String(ftrackPlaylist.projectId)
-                    : "", // Ensure string
-                  categoryId: ftrackPlaylist.categoryId
-                    ? String(ftrackPlaylist.categoryId)
-                    : undefined,
-                  categoryName: ftrackPlaylist.categoryName
-                    ? String(ftrackPlaylist.categoryName)
-                    : undefined,
-                  description: ftrackPlaylist.description
-                    ? String(ftrackPlaylist.description)
-                    : undefined,
-                  createdAt: ftrackPlaylist.createdAt
-                    ? String(ftrackPlaylist.createdAt)
-                    : new Date().toISOString(),
-                  updatedAt: ftrackPlaylist.updatedAt
-                    ? String(ftrackPlaylist.updatedAt)
-                    : new Date().toISOString(),
-                  syncedAt: new Date().toISOString(), // Mark as synced now
-                };
+                let playlistId: string;
+                if (existingEntry) {
+                  // Use existing stable UUID
+                  playlistId = existingEntry.id;
+                  console.log(
+                    `Using existing database entry for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`,
+                  );
+                } else {
+                  // Generate new stable UUID for this ftrack playlist
+                  playlistId = crypto.randomUUID();
+                  console.log(
+                    `Generated new stable UUID for ftrack playlist ${ftrackPlaylist.id}: ${playlistId}`,
+                  );
 
-                // ATOMIC: Store in database with stable UUID
-                await db.playlists.put(playlistEntity);
-                console.log(
-                  `Stored ftrack playlist in database: ${ftrackPlaylist.id} -> ${playlistId} (${ftrackPlaylist.name})`,
+                  // Create a clean serializable object for database storage
+                  const playlistEntity = {
+                    id: playlistId, // STABLE UUID - never changes
+                    name: String(ftrackPlaylist.name),
+                    type: (ftrackPlaylist.type || "reviewsession") as
+                      | "reviewsession"
+                      | "list",
+                    localStatus: "synced" as const, // Ftrack native playlists are already "synced"
+                    ftrackSyncStatus: "synced" as const,
+                    ftrackId: String(ftrackPlaylist.id), // External reference only
+                    projectId: ftrackPlaylist.projectId
+                      ? String(ftrackPlaylist.projectId)
+                      : "", // Ensure string
+                    categoryId: ftrackPlaylist.categoryId
+                      ? String(ftrackPlaylist.categoryId)
+                      : undefined,
+                    categoryName: ftrackPlaylist.categoryName
+                      ? String(ftrackPlaylist.categoryName)
+                      : undefined,
+                    description: ftrackPlaylist.description
+                      ? String(ftrackPlaylist.description)
+                      : undefined,
+                    createdAt: ftrackPlaylist.createdAt
+                      ? String(ftrackPlaylist.createdAt)
+                      : new Date().toISOString(),
+                    updatedAt: ftrackPlaylist.updatedAt
+                      ? String(ftrackPlaylist.updatedAt)
+                      : new Date().toISOString(),
+                    syncedAt: new Date().toISOString(), // Mark as synced now
+                  };
+
+                  // ATOMIC: Store in database with stable UUID
+                  await db.playlists.put(playlistEntity);
+                  console.log(
+                    `Stored ftrack playlist in database: ${ftrackPlaylist.id} -> ${playlistId} (${ftrackPlaylist.name})`,
+                  );
+                }
+
+                results.push({ ftrackPlaylist, playlistId });
+              } catch (error) {
+                console.error(
+                  `Failed to process ftrack playlist ${ftrackPlaylist.id}:`,
+                  error,
                 );
+                // Still include in results even if database operation failed
+                results.push({ ftrackPlaylist, playlistId: ftrackPlaylist.id });
               }
-              
-              results.push({ ftrackPlaylist, playlistId });
-            } catch (error) {
-              console.error(
-                `Failed to process ftrack playlist ${ftrackPlaylist.id}:`,
-                error,
-              );
-              // Still include in results even if database operation failed
-              results.push({ ftrackPlaylist, playlistId: ftrackPlaylist.id });
             }
-          }
-          
-          return results;
-        });
+
+            return results;
+          },
+        );
 
         // Format playlists for UI using the atomic transaction results
-         for (const { ftrackPlaylist, playlistId } of playlistResults) {
-            // Format for UI with stable UUID as id
-            formattedFtrackPlaylists.push({
-              ...ftrackPlaylist,
-              id: playlistId, // Use stable UUID as playlist ID
-              ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
-              projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
-              isLocalOnly: false, // Ftrack native playlists are not local-only
-              ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced
-            });
-         }
+        for (const { ftrackPlaylist, playlistId } of playlistResults) {
+          // Format for UI with stable UUID as id
+          formattedFtrackPlaylists.push({
+            ...ftrackPlaylist,
+            id: playlistId, // Use stable UUID as playlist ID
+            ftrackId: ftrackPlaylist.id, // Set ftrackId for refresh functionality
+            projectId: ftrackPlaylist.projectId, // CRITICAL FIX: Explicitly preserve projectId for UI filtering
+            isLocalOnly: false, // Ftrack native playlists are not local-only
+            ftrackSyncState: "synced" as const, // Ftrack native playlists are already synced
+          });
+        }
 
         // DEDUPLICATION FIX: Filter out database playlists that have a corresponding ftrack playlist
         // to prevent showing duplicates in the UI
-        const formattedFtrackIds = new Set(formattedFtrackPlaylists.map(p => p.id));
-        const uniqueDatabasePlaylists = databasePlaylistsFormatted.filter(dbPlaylist => 
-          !formattedFtrackIds.has(dbPlaylist.id)
+        const formattedFtrackIds = new Set(
+          formattedFtrackPlaylists.map((p) => p.id),
+        );
+        const uniqueDatabasePlaylists = databasePlaylistsFormatted.filter(
+          (dbPlaylist) => !formattedFtrackIds.has(dbPlaylist.id),
         );
 
-        console.log(`🔄 [DEDUP] Filtered ${databasePlaylistsFormatted.length - uniqueDatabasePlaylists.length} duplicate database playlists`);
+        console.log(
+          `🔄 [DEDUP] Filtered ${databasePlaylistsFormatted.length - uniqueDatabasePlaylists.length} duplicate database playlists`,
+        );
 
         const allPlaylists = [
           ...formattedFtrackPlaylists,

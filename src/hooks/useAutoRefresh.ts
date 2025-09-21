@@ -35,11 +35,15 @@ export function useAutoRefresh({
 
   // No-op functions to maintain API compatibility
   const startAutoRefresh = useCallback(async () => {
-    console.debug(`[useAutoRefresh] Auto-refresh disabled - startAutoRefresh is a no-op`);
+    console.debug(
+      `[useAutoRefresh] Auto-refresh disabled - startAutoRefresh is a no-op`,
+    );
   }, []);
 
   const stopAutoRefresh = useCallback(() => {
-    console.debug(`[useAutoRefresh] Auto-refresh disabled - stopAutoRefresh is a no-op`);
+    console.debug(
+      `[useAutoRefresh] Auto-refresh disabled - stopAutoRefresh is a no-op`,
+    );
   }, []);
 
   return {

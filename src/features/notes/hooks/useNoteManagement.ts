@@ -323,7 +323,9 @@ export function useNoteManagement(playlist: Playlist) {
 
       console.debug(
         `[useNoteManagement] Loaded ${versions.length} versions and ${attachments.length} attachments` +
-          (playlist.deletedInFtrack ? " (deleted-in-ftrack snapshot mode)" : ""),
+          (playlist.deletedInFtrack
+            ? " (deleted-in-ftrack snapshot mode)"
+            : ""),
       );
 
       // Skip if playlist ID has changed during DB queries

@@ -62,7 +62,7 @@ describe("Manual Version Addition Integration", () => {
     // Verify the version was added to the store
     expect(playlistStore.addVersionToPlaylist).toHaveBeenCalledWith(
       mockPlaylist.id,
-      newVersion
+      newVersion,
     );
   });
 
@@ -77,7 +77,7 @@ describe("Manual Version Addition Integration", () => {
     // This test verifies that the fix in MainContent.tsx is working
     // The fix removes setModifications calls for manually added versions
     // so they don't trigger the modifications banner
-    
+
     const mockPlaylist: Playlist = {
       id: "test-playlist-2",
       name: "Another Test Playlist",
@@ -112,7 +112,7 @@ describe("Manual Version Addition Integration", () => {
 
     expect(playlistStore.addVersionToPlaylist).toHaveBeenCalledWith(
       mockPlaylist.id,
-      manualVersion
+      manualVersion,
     );
   });
 });

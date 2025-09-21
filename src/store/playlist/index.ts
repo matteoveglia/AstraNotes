@@ -526,7 +526,10 @@ export class PlaylistStore extends SimpleEventEmitter {
     const versionEntities: VersionEntity[] = [];
     for (const v of versions) {
       const incoming = this.assetVersionToEntity(v, playlistId);
-      const existing = await this.repository.getVersion(playlistId, incoming.id);
+      const existing = await this.repository.getVersion(
+        playlistId,
+        incoming.id,
+      );
 
       if (existing) {
         versionEntities.push({
@@ -818,7 +821,7 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // PHASE 4.6.2 FIX: Do NOT automatically apply changes to database
       // Only detect and report changes - let user decide when to apply them
-      
+
       console.debug(
         `[PlaylistStore] Detected playlist changes for ${playlistId}: +${addedVersions.length} -${removedVersions.length}${nameUpdated ? " (name updated)" : ""} (NOT auto-applied)`,
       );
@@ -869,7 +872,7 @@ export class PlaylistStore extends SimpleEventEmitter {
     playlistId: string,
     freshVersions: AssetVersion[],
     addedVersions: AssetVersion[],
-    removedVersions: AssetVersion[]
+    removedVersions: AssetVersion[],
   ): Promise<{
     success: boolean;
     error?: string;
@@ -931,7 +934,9 @@ export class PlaylistStore extends SimpleEventEmitter {
     error?: string;
   }> {
     try {
-      console.debug(`[PlaylistStore] Direct refresh for playlist: ${playlistId}`);
+      console.debug(
+        `[PlaylistStore] Direct refresh for playlist: ${playlistId}`,
+      );
 
       // Get playlist entity to access ftrackId
       const entity = await this.repository.getPlaylist(playlistId);
@@ -1116,7 +1121,8 @@ export class PlaylistStore extends SimpleEventEmitter {
       const removed = await this.repository.getRemovedVersions(playlistId);
       const now = Date.now();
       for (const v of removed) {
-        const removedAt = typeof v.lastModified === "number" ? v.lastModified : now;
+        const removedAt =
+          typeof v.lastModified === "number" ? v.lastModified : now;
         if (now - removedAt > PlaylistStore.NOTE_PRESERVATION_TTL_MS) {
           await this.repository.clearRemovedVersionNoteData(playlistId, v.id);
           console.debug(
@@ -1249,14 +1255,18 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
 
   // =================== CONVERSION METHODS ===================
-  
+
   private entityToAssetVersion(entity: VersionEntity): AssetVersion {
     return {
       id: String(entity.id),
       name: String(entity.name || ""),
       version: Number(entity.version) || 0,
-      thumbnailUrl: typeof entity.thumbnailUrl === "string" ? entity.thumbnailUrl : undefined,
-      thumbnailId: typeof entity.thumbnailId === "string" ? entity.thumbnailId : undefined,
+      thumbnailUrl:
+        typeof entity.thumbnailUrl === "string"
+          ? entity.thumbnailUrl
+          : undefined,
+      thumbnailId:
+        typeof entity.thumbnailId === "string" ? entity.thumbnailId : undefined,
       reviewSessionObjectId:
         typeof entity.reviewSessionObjectId === "string"
           ? entity.reviewSessionObjectId
@@ -1309,7 +1319,8 @@ export class PlaylistStore extends SimpleEventEmitter {
     const isQuickNotes = String(entity.id).startsWith("quick-notes-");
     const isLocalOnly = isQuickNotes
       ? false
-      : entity.localStatus === "draft" || entity.ftrackSyncStatus === "not_synced";
+      : entity.localStatus === "draft" ||
+        entity.ftrackSyncStatus === "not_synced";
 
     const playlist: Playlist = {
       id: String(entity.id),

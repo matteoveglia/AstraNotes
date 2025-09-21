@@ -38,9 +38,11 @@ describe("Playlist Deduplication Integration Tests", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-    
+
     // Import service dynamically to get the mocked version
-    const { ftrackPlaylistService } = await import("@/services/ftrack/FtrackPlaylistService");
+    const { ftrackPlaylistService } = await import(
+      "@/services/ftrack/FtrackPlaylistService"
+    );
     mockFtrackService = vi.mocked(ftrackPlaylistService);
   });
 
@@ -60,7 +62,7 @@ describe("Playlist Deduplication Integration Tests", () => {
           name: "Test Playlist 1",
         }),
         TestDataFactory.createFtrackPlaylist({
-          id: "ftrack-uuid-2", 
+          id: "ftrack-uuid-2",
           ftrackId: "ftrack-456",
           name: "Test Playlist 2",
         }),
@@ -76,36 +78,51 @@ describe("Playlist Deduplication Integration Tests", () => {
 
       // Simulate concurrent refresh operations using store methods directly
       const refreshPromises = Array.from({ length: 3 }, () =>
-        store.loadPlaylists("project-123")
+        store.loadPlaylists("project-123"),
       );
 
       await Promise.all(refreshPromises);
 
       // Verify no duplicate database entries were created
       const dbPlaylists = await db.playlists.toArray();
-      
-      console.log("Database playlists after concurrent operations:", dbPlaylists.map((p) => ({ id: p.id, ftrackId: p.ftrackId || 'unknown', name: p.name })));
-      
+
+      console.log(
+        "Database playlists after concurrent operations:",
+        dbPlaylists.map((p) => ({
+          id: p.id,
+          ftrackId: p.ftrackId || "unknown",
+          name: p.name,
+        })),
+      );
+
       // Filter out Quick Notes playlists for this test
-      const nonQuickNotesPlaylists = dbPlaylists.filter(p => !p.id.startsWith("quick-notes-"));
-      
+      const nonQuickNotesPlaylists = dbPlaylists.filter(
+        (p) => !p.id.startsWith("quick-notes-"),
+      );
+
       // Should have exactly 2 playlists in database (one for each ftrack playlist)
       expect(nonQuickNotesPlaylists).toHaveLength(2);
-      
+
       // Verify each ftrack playlist has only one database entry
-      const playlist1Entries = nonQuickNotesPlaylists.filter(p => p.ftrackId === "ftrack-uuid-1");
-      const playlist2Entries = nonQuickNotesPlaylists.filter(p => p.ftrackId === "ftrack-uuid-2");
-      
+      const playlist1Entries = nonQuickNotesPlaylists.filter(
+        (p) => p.ftrackId === "ftrack-uuid-1",
+      );
+      const playlist2Entries = nonQuickNotesPlaylists.filter(
+        (p) => p.ftrackId === "ftrack-uuid-2",
+      );
+
       expect(playlist1Entries).toHaveLength(1);
       expect(playlist2Entries).toHaveLength(1);
-      
+
       // Verify the playlists have the correct metadata
       expect(playlist1Entries[0].name).toBe("Test Playlist 1");
       expect(playlist2Entries[0].name).toBe("Test Playlist 2");
 
       // Verify store state is consistent
       const finalStore = usePlaylistsStore.getState();
-      const storePlaylists = finalStore.playlists.filter(p => !p.isQuickNotes);
+      const storePlaylists = finalStore.playlists.filter(
+        (p) => !p.isQuickNotes,
+      );
       expect(storePlaylists).toHaveLength(2);
     });
 
@@ -150,7 +167,10 @@ describe("Playlist Deduplication Integration Tests", () => {
       await db.playlists.bulkAdd(duplicateEntries);
 
       // Verify duplicates exist
-      const beforeCleanup = await db.playlists.where("ftrackId").equals("ftrack-123").toArray();
+      const beforeCleanup = await db.playlists
+        .where("ftrackId")
+        .equals("ftrack-123")
+        .toArray();
       expect(beforeCleanup).toHaveLength(3);
 
       // Mock ftrack service to return the playlist
@@ -170,9 +190,12 @@ describe("Playlist Deduplication Integration Tests", () => {
       await store.loadPlaylists("project-123");
 
       // Verify cleanup occurred - should only have one entry now
-      const afterCleanup = await db.playlists.where("ftrackId").equals("ftrack-123").toArray();
+      const afterCleanup = await db.playlists
+        .where("ftrackId")
+        .equals("ftrack-123")
+        .toArray();
       expect(afterCleanup).toHaveLength(1);
-      
+
       // Verify the first (oldest) entry was kept
       expect(afterCleanup[0].id).toBe("db-uuid-1");
       expect(afterCleanup[0].createdAt).toBe("2024-01-01T00:00:00Z");
@@ -214,14 +237,19 @@ describe("Playlist Deduplication Integration Tests", () => {
 
       // Verify database version is preferred
       const finalStore = usePlaylistsStore.getState();
-      const targetPlaylist = finalStore.playlists.find((p: any) => p.ftrackId === "ftrack-123");
-      
+      const targetPlaylist = finalStore.playlists.find(
+        (p: any) => p.ftrackId === "ftrack-123",
+      );
+
       expect(targetPlaylist).toBeDefined();
       expect(targetPlaylist?.name).toBe("Database Version"); // Should keep database name
       expect(targetPlaylist?.id).toBe("db-uuid-1"); // Should keep database ID
 
       // Verify no duplicate was created in database
-      const dbPlaylists = await db.playlists.where("ftrackId").equals("ftrack-123").toArray();
+      const dbPlaylists = await db.playlists
+        .where("ftrackId")
+        .equals("ftrack-123")
+        .toArray();
       expect(dbPlaylists).toHaveLength(1);
       expect(dbPlaylists[0].name).toBe("Database Version");
     });
@@ -252,25 +280,37 @@ describe("Playlist Deduplication Integration Tests", () => {
 
       // Verify playlists were stored in database with stable UUIDs
       const dbPlaylists = await db.playlists.toArray();
-      console.log("Fourth test - All Database playlists:", dbPlaylists.map(p => ({ 
-        id: p.id, 
-        ftrackId: p.ftrackId || 'unknown', 
-        name: p.name,
-        isQuickNotes: p.id.startsWith("quick-notes-")
-      })));
-      
+      console.log(
+        "Fourth test - All Database playlists:",
+        dbPlaylists.map((p) => ({
+          id: p.id,
+          ftrackId: p.ftrackId || "unknown",
+          name: p.name,
+          isQuickNotes: p.id.startsWith("quick-notes-"),
+        })),
+      );
+
       // Filter out Quick Notes playlists for this test (identified by ID pattern)
-      const nonQuickNotesPlaylists = dbPlaylists.filter(p => !p.id.startsWith("quick-notes-"));
-      console.log("Fourth test - Non-Quick Notes playlists:", nonQuickNotesPlaylists.map(p => ({ 
-        id: p.id, 
-        ftrackId: p.ftrackId || 'unknown', 
-        name: p.name 
-      })));
+      const nonQuickNotesPlaylists = dbPlaylists.filter(
+        (p) => !p.id.startsWith("quick-notes-"),
+      );
+      console.log(
+        "Fourth test - Non-Quick Notes playlists:",
+        nonQuickNotesPlaylists.map((p) => ({
+          id: p.id,
+          ftrackId: p.ftrackId || "unknown",
+          name: p.name,
+        })),
+      );
       expect(nonQuickNotesPlaylists).toHaveLength(2);
 
       // Verify playlists exist with correct ftrackIds and have stable UUIDs
-      const playlist1 = nonQuickNotesPlaylists.find(p => p.ftrackId === "ftrack-uuid-1");
-      const playlist2 = nonQuickNotesPlaylists.find(p => p.ftrackId === "ftrack-uuid-2");
+      const playlist1 = nonQuickNotesPlaylists.find(
+        (p) => p.ftrackId === "ftrack-uuid-1",
+      );
+      const playlist2 = nonQuickNotesPlaylists.find(
+        (p) => p.ftrackId === "ftrack-uuid-2",
+      );
 
       expect(playlist1).toBeDefined();
       expect(playlist2).toBeDefined();
@@ -278,8 +318,12 @@ describe("Playlist Deduplication Integration Tests", () => {
       expect(playlist2?.name).toBe("New Playlist 2");
 
       // Verify stable UUIDs are generated (should be valid UUIDs, not the ftrack IDs)
-      expect(playlist1?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-      expect(playlist2?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+      expect(playlist1?.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+      expect(playlist2?.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
 
       // Store the generated UUIDs for stability check
       const playlist1Id = playlist1?.id;
@@ -289,11 +333,17 @@ describe("Playlist Deduplication Integration Tests", () => {
       await store.loadPlaylists("project-123");
 
       const dbPlaylistsAfterSecondLoad = await db.playlists.toArray();
-      const nonQuickNotesAfterSecondLoad = dbPlaylistsAfterSecondLoad.filter(p => !p.id.startsWith("quick-notes-"));
+      const nonQuickNotesAfterSecondLoad = dbPlaylistsAfterSecondLoad.filter(
+        (p) => !p.id.startsWith("quick-notes-"),
+      );
       expect(nonQuickNotesAfterSecondLoad).toHaveLength(2);
 
-      const playlist1AfterSecondLoad = nonQuickNotesAfterSecondLoad.find(p => p.ftrackId === "ftrack-uuid-1");
-      const playlist2AfterSecondLoad = nonQuickNotesAfterSecondLoad.find(p => p.ftrackId === "ftrack-uuid-2");
+      const playlist1AfterSecondLoad = nonQuickNotesAfterSecondLoad.find(
+        (p) => p.ftrackId === "ftrack-uuid-1",
+      );
+      const playlist2AfterSecondLoad = nonQuickNotesAfterSecondLoad.find(
+        (p) => p.ftrackId === "ftrack-uuid-2",
+      );
 
       // Verify UUIDs remained stable (same as before)
       expect(playlist1AfterSecondLoad?.id).toBe(playlist1Id);
@@ -309,7 +359,7 @@ describe("Playlist Deduplication Integration Tests", () => {
           id: `ftrack-uuid-${i}`,
           ftrackId: `ftrack-${i}`,
           name: `Test Playlist ${i}`,
-        })
+        }),
       );
 
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
@@ -321,24 +371,28 @@ describe("Playlist Deduplication Integration Tests", () => {
 
       // Perform 5 rapid consecutive refresh operations
       const refreshPromises = Array.from({ length: 5 }, () =>
-        store.loadPlaylists("project-123")
+        store.loadPlaylists("project-123"),
       );
 
       await Promise.all(refreshPromises);
 
       // Verify exactly 10 playlists in database (no duplicates, excluding Quick Notes)
       const dbPlaylists = await db.playlists.toArray();
-      const nonQuickNotesPlaylists = dbPlaylists.filter(p => !p.id.startsWith("quick-notes-"));
+      const nonQuickNotesPlaylists = dbPlaylists.filter(
+        (p) => !p.id.startsWith("quick-notes-"),
+      );
       expect(nonQuickNotesPlaylists).toHaveLength(10);
 
       // Verify each ftrackId appears exactly once
-      const ftrackIds = nonQuickNotesPlaylists.map(p => p.ftrackId);
+      const ftrackIds = nonQuickNotesPlaylists.map((p) => p.ftrackId);
       const uniqueFtrackIds = [...new Set(ftrackIds)];
       expect(uniqueFtrackIds).toHaveLength(10);
 
       // Verify store shows exactly 10 playlists
       const finalStore = usePlaylistsStore.getState();
-      expect(finalStore.playlists.filter((p: any) => !p.isQuickNotes)).toHaveLength(10);
+      expect(
+        finalStore.playlists.filter((p: any) => !p.isQuickNotes),
+      ).toHaveLength(10);
     });
 
     it("should handle mixed scenarios with existing database playlists and new ftrack playlists", async () => {
@@ -402,26 +456,36 @@ describe("Playlist Deduplication Integration Tests", () => {
 
       // Verify total count: 2 existing + 1 new = 3 playlists (excluding Quick Notes)
       const dbPlaylists = await db.playlists.toArray();
-      const nonQuickNotesPlaylists = dbPlaylists.filter(p => !p.id.startsWith("quick-notes-"));
+      const nonQuickNotesPlaylists = dbPlaylists.filter(
+        (p) => !p.id.startsWith("quick-notes-"),
+      );
       expect(nonQuickNotesPlaylists).toHaveLength(3);
 
       // Verify existing playlists kept database versions
-      const existingPlaylist1 = nonQuickNotesPlaylists.find(p => p.ftrackId === "existing-ftrack-1");
+      const existingPlaylist1 = nonQuickNotesPlaylists.find(
+        (p) => p.ftrackId === "existing-ftrack-1",
+      );
       expect(existingPlaylist1?.name).toBe("Existing DB Playlist 1");
       expect(existingPlaylist1?.id).toBe("existing-db-1");
 
-      const existingPlaylist2 = nonQuickNotesPlaylists.find(p => p.ftrackId === "existing-ftrack-2");
+      const existingPlaylist2 = nonQuickNotesPlaylists.find(
+        (p) => p.ftrackId === "existing-ftrack-2",
+      );
       expect(existingPlaylist2?.name).toBe("Existing DB Playlist 2");
       expect(existingPlaylist2?.id).toBe("existing-db-2");
 
       // Verify new playlist was stored
-      const newPlaylist = nonQuickNotesPlaylists.find(p => p.ftrackId === "new-ftrack-1");
+      const newPlaylist = nonQuickNotesPlaylists.find(
+        (p) => p.ftrackId === "new-ftrack-1",
+      );
       expect(newPlaylist?.name).toBe("New Ftrack Playlist");
       expect(newPlaylist?.id).not.toBe("new-ftrack-1"); // Should be a generated UUID, not the ftrack ID
 
       // Verify UI shows all playlists
       const finalStore = usePlaylistsStore.getState();
-      const nonQuickNotesInStore = finalStore.playlists.filter((p: any) => !p.isQuickNotes);
+      const nonQuickNotesInStore = finalStore.playlists.filter(
+        (p: any) => !p.isQuickNotes,
+      );
       expect(nonQuickNotesInStore).toHaveLength(3);
     });
   });
@@ -429,12 +493,14 @@ describe("Playlist Deduplication Integration Tests", () => {
   describe("Error Handling", () => {
     it.skip("should handle service errors gracefully during playlist loading", async () => {
       // Mock ftrack service to throw an error
-      mockFtrackService.getPlaylists.mockRejectedValueOnce(new Error("Ftrack service error"));
+      mockFtrackService.getPlaylists.mockRejectedValueOnce(
+        new Error("Ftrack service error"),
+      );
       mockFtrackService.getLists.mockResolvedValue([]);
 
       // Reset modules to ensure fresh store instance
       vi.resetModules();
-      
+
       // Use dynamic import to get fresh store instance
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
       const { result } = renderHook(() => usePlaylistsStore());

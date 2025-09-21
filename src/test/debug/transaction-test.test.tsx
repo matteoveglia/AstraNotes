@@ -25,12 +25,14 @@ describe("Transaction Debug Test", () => {
     await db.playlists.clear();
     await db.versions.clear();
     await db.attachments.clear();
-    
+
     // Reset mocks
     vi.clearAllMocks();
-    
+
     // Get mock service
-    const { ftrackPlaylistService } = await import("@/services/ftrack/FtrackPlaylistService");
+    const { ftrackPlaylistService } = await import(
+      "@/services/ftrack/FtrackPlaylistService"
+    );
     mockFtrackService = ftrackPlaylistService;
   });
 

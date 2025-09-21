@@ -17,12 +17,12 @@ describe("Hook Render Test", () => {
 
   it("should render hook and access loadPlaylists", async () => {
     const { result } = renderHook(() => usePlaylistsStore());
-    
+
     console.log("Hook result:", result.current);
     expect(result.current).toBeDefined();
     expect(result.current).not.toBeNull();
     expect(typeof result.current.loadPlaylists).toBe("function");
-    
+
     // Try to call loadPlaylists
     await act(async () => {
       try {
@@ -31,7 +31,7 @@ describe("Hook Render Test", () => {
         console.log("Expected error (no mock setup):", error);
       }
     });
-    
+
     // Hook should still be valid after the call
     expect(result.current).toBeDefined();
     expect(result.current).not.toBeNull();
@@ -40,14 +40,16 @@ describe("Hook Render Test", () => {
   it("should handle database error mock", async () => {
     // Mock a database error during cleanup
     const originalClear = db.playlists.clear;
-    vi.spyOn(db.playlists, 'clear').mockRejectedValueOnce(new Error("Database error"));
+    vi.spyOn(db.playlists, "clear").mockRejectedValueOnce(
+      new Error("Database error"),
+    );
 
     const { result } = renderHook(() => usePlaylistsStore());
-    
+
     console.log("Hook result before error:", result.current);
     expect(result.current).toBeDefined();
     expect(result.current).not.toBeNull();
-    
+
     // Try to call loadPlaylists with the mocked error
     await act(async () => {
       try {
@@ -56,10 +58,10 @@ describe("Hook Render Test", () => {
         console.log("Expected error:", error);
       }
     });
-    
+
     // Restore original method
     db.playlists.clear = originalClear;
-    
+
     // Hook should still be valid after the error
     console.log("Hook result after error:", result.current);
     expect(result.current).toBeDefined();

@@ -23,9 +23,11 @@ describe("Playlist Deduplication Performance Tests", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-    
+
     // Get mock service
-    const { ftrackPlaylistService } = await import("@/services/ftrack/FtrackPlaylistService");
+    const { ftrackPlaylistService } = await import(
+      "@/services/ftrack/FtrackPlaylistService"
+    );
     mockFtrackService = ftrackPlaylistService;
   });
 
@@ -44,7 +46,7 @@ describe("Playlist Deduplication Performance Tests", () => {
           ftrackId: `ftrack-${i}`,
           name: `Performance Test Playlist ${i}`,
           projectId: "project-123",
-        })
+        }),
       );
 
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
@@ -66,7 +68,7 @@ describe("Playlist Deduplication Performance Tests", () => {
 
       // Verify all playlists were processed correctly
       expect(result.current.playlists).toHaveLength(100);
-      
+
       const dbPlaylists = await db.playlists.toArray();
       expect(dbPlaylists).toHaveLength(100);
 
@@ -97,7 +99,7 @@ describe("Playlist Deduplication Performance Tests", () => {
             id: `ftrack-uuid-existing-${i}`,
             ftrackId: `existing-ftrack-${i}`,
             name: `Ftrack Version of Existing ${i}`,
-          })
+          }),
         ),
         // 50 new playlists (should be stored)
         ...Array.from({ length: 50 }, (_, i) =>
@@ -105,7 +107,7 @@ describe("Playlist Deduplication Performance Tests", () => {
             id: `ftrack-uuid-new-${i}`,
             ftrackId: `new-ftrack-${i}`,
             name: `New Ftrack Playlist ${i}`,
-          })
+          }),
         ),
       ];
 
@@ -128,18 +130,20 @@ describe("Playlist Deduplication Performance Tests", () => {
 
       // Verify correct deduplication: 50 existing + 50 new = 100 total
       expect(result.current.playlists).toHaveLength(100);
-      
+
       const dbPlaylists = await db.playlists.toArray();
       expect(dbPlaylists).toHaveLength(100);
 
       // Verify existing playlists kept their database names
-      const existingPlaylistsAfter = dbPlaylists.filter(p => 
-        p.ftrackId?.startsWith("existing-ftrack-")
+      const existingPlaylistsAfter = dbPlaylists.filter((p) =>
+        p.ftrackId?.startsWith("existing-ftrack-"),
       );
       expect(existingPlaylistsAfter).toHaveLength(50);
       expect(existingPlaylistsAfter[0].name).toMatch(/^Existing Playlist/);
 
-      console.log(`Processed 100 playlists (50 existing + 50 new) with deduplication in ${duration.toFixed(2)}ms`);
+      console.log(
+        `Processed 100 playlists (50 existing + 50 new) with deduplication in ${duration.toFixed(2)}ms`,
+      );
     });
   });
 
@@ -151,7 +155,7 @@ describe("Playlist Deduplication Performance Tests", () => {
           id: `ftrack-uuid-${i}`,
           ftrackId: `ftrack-${i}`,
           name: `Concurrent Test Playlist ${i}`,
-        })
+        }),
       );
 
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
@@ -165,7 +169,7 @@ describe("Playlist Deduplication Performance Tests", () => {
       const refreshPromises = Array.from({ length: 10 }, () =>
         act(async () => {
           await result.current.loadPlaylists("project-123");
-        })
+        }),
       );
 
       await Promise.all(refreshPromises);
@@ -181,11 +185,13 @@ describe("Playlist Deduplication Performance Tests", () => {
       expect(dbPlaylists).toHaveLength(20);
 
       // Verify each ftrackId appears exactly once
-      const ftrackIds = dbPlaylists.map(p => p.ftrackId);
+      const ftrackIds = dbPlaylists.map((p) => p.ftrackId);
       const uniqueFtrackIds = [...new Set(ftrackIds)];
       expect(uniqueFtrackIds).toHaveLength(20);
 
-      console.log(`Completed 10 concurrent refresh operations in ${duration.toFixed(2)}ms`);
+      console.log(
+        `Completed 10 concurrent refresh operations in ${duration.toFixed(2)}ms`,
+      );
     });
   });
 
@@ -197,7 +203,7 @@ describe("Playlist Deduplication Performance Tests", () => {
           id: `ftrack-uuid-${i}`,
           ftrackId: `ftrack-${i}`,
           name: `Memory Test Playlist ${i}`,
-        })
+        }),
       );
 
       mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
@@ -213,7 +219,7 @@ describe("Playlist Deduplication Performance Tests", () => {
 
         // Verify consistent state after each operation
         expect(result.current.playlists).toHaveLength(30);
-        
+
         const dbPlaylists = await db.playlists.toArray();
         expect(dbPlaylists).toHaveLength(30);
       }
@@ -223,11 +229,13 @@ describe("Playlist Deduplication Performance Tests", () => {
       expect(finalDbPlaylists).toHaveLength(30);
 
       // Verify each ftrackId appears exactly once
-      const ftrackIds = finalDbPlaylists.map(p => p.ftrackId);
+      const ftrackIds = finalDbPlaylists.map((p) => p.ftrackId);
       const uniqueFtrackIds = [...new Set(ftrackIds)];
       expect(uniqueFtrackIds).toHaveLength(30);
 
-      console.log("Completed 20 sequential refresh operations without memory leaks");
+      console.log(
+        "Completed 20 sequential refresh operations without memory leaks",
+      );
     });
   });
 
@@ -242,14 +250,17 @@ describe("Playlist Deduplication Performance Tests", () => {
         projectId: "project-123",
         localStatus: "synced" as const,
         ftrackSyncStatus: "synced" as const,
-        createdAt: `2024-01-01T${String(i).padStart(2, '0')}:00:00Z`,
-        updatedAt: `2024-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+        createdAt: `2024-01-01T${String(i).padStart(2, "0")}:00:00Z`,
+        updatedAt: `2024-01-01T${String(i).padStart(2, "0")}:00:00Z`,
       }));
 
       await db.playlists.bulkAdd(duplicateEntries);
 
       // Verify duplicates exist
-      const beforeCleanup = await db.playlists.where("ftrackId").equals("ftrack-123").toArray();
+      const beforeCleanup = await db.playlists
+        .where("ftrackId")
+        .equals("ftrack-123")
+        .toArray();
       expect(beforeCleanup).toHaveLength(100);
 
       // Mock ftrack service
@@ -277,13 +288,18 @@ describe("Playlist Deduplication Performance Tests", () => {
       expect(duration).toBeLessThan(3000); // 3 seconds
 
       // Verify cleanup occurred - should only have one entry now
-      const afterCleanup = await db.playlists.where("ftrackId").equals("ftrack-123").toArray();
+      const afterCleanup = await db.playlists
+        .where("ftrackId")
+        .equals("ftrack-123")
+        .toArray();
       expect(afterCleanup).toHaveLength(1);
-      
+
       // Verify the first (oldest) entry was kept
       expect(afterCleanup[0].id).toBe("duplicate-0");
 
-      console.log(`Cleaned up 100 duplicate entries in ${duration.toFixed(2)}ms`);
+      console.log(
+        `Cleaned up 100 duplicate entries in ${duration.toFixed(2)}ms`,
+      );
     });
   });
 });
