@@ -11,6 +11,12 @@ import { GlowEffect } from "@/components/ui/glow-effect";
 import { VersionFilter } from "@/features/versions/components/VersionFilter";
 import { RefreshCw } from "lucide-react";
 import { NoteStatus } from "@/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PublishingControlsProps {
   selectedCount: number;
@@ -90,18 +96,29 @@ export const PublishingControls: React.FC<PublishingControlsProps> = ({
 
       {/* Right-side controls: Refresh, Filter, and Menu */}
       {!isQuickNotes && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          title="Refresh Playlist"
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start">
+              <p>
+                Refresh applies the latest ftrack changes immediately: adds new
+                versions and removes missing ones. No confirmation step.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       <VersionFilter
         selectedStatuses={selectedStatuses}

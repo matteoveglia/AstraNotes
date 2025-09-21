@@ -264,6 +264,46 @@ export const MainContent: React.FC<MainContentProps> = ({
     return () => playlistStore.off("versions-added", handleVersionsAdded);
   }, [activePlaylist, onPlaylistUpdate]);
 
+  // React to local store updates (no ftrack polling). Ensures flags like deletedInFtrack update immediately
+  useEffect(() => {
+    const handlePlaylistUpdated = (data: any) => {
+      if (!data || data.playlistId !== activePlaylist.id) return;
+      const updates = data.updates || {};
+      setActivePlaylist((prev) => {
+        const next = { ...(prev as Playlist), ...updates };
+        if (onPlaylistUpdate) onPlaylistUpdate(next);
+        return next;
+      });
+    };
+
+    const handleDirectRefreshCompleted = async (data: any) => {
+      if (!data || data.playlistId !== activePlaylist.id) return;
+      try {
+        const updated = await playlistStore.getPlaylist(activePlaylist.id);
+        if (updated) {
+          if (onPlaylistUpdate) onPlaylistUpdate(updated);
+          setActivePlaylist(updated);
+        }
+      } catch (e) {
+        console.error("Failed to load updated playlist after direct refresh:", e);
+      }
+    };
+
+    playlistStore.on("playlist-updated", handlePlaylistUpdated);
+    playlistStore.on(
+      "playlist-direct-refresh-completed",
+      handleDirectRefreshCompleted,
+    );
+
+    return () => {
+      playlistStore.off("playlist-updated", handlePlaylistUpdated);
+      playlistStore.off(
+        "playlist-direct-refresh-completed",
+        handleDirectRefreshCompleted,
+      );
+    };
+  }, [activePlaylist.id, onPlaylistUpdate]);
+
   // Use custom hooks
   const { settings } = useSettings();
   const { fetchLabels } = useLabelStore();

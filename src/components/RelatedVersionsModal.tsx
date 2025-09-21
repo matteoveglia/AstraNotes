@@ -730,7 +730,6 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Related Versions for Shot: {shotName}</span>
             <div className="flex items-center gap-2 mr-8">
-              {/* Progressive loading pill (Phase 6.1) */}
               <AnimatePresence>
                 {progressiveLoading && (
                   <motion.div

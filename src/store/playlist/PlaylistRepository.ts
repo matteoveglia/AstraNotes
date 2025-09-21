@@ -24,6 +24,7 @@ export class PlaylistRepository implements PlaylistOperations {
       categoryId: entity.categoryId,
       categoryName: entity.categoryName,
       description: entity.description,
+      deletedInFtrack: entity.deletedInFtrack,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       syncedAt: entity.syncedAt,
@@ -161,6 +162,19 @@ export class PlaylistRepository implements PlaylistOperations {
     return records.map((record) => this.versionRecordToEntity(record));
   }
 
+  /**
+   * Gets removed versions (soft-deleted) for a playlist
+   */
+  async getRemovedVersions(playlistId: string): Promise<VersionEntity[]> {
+    const records = await db.versions
+      .where("playlistId")
+      .equals(playlistId)
+      .and((v) => !!v.isRemoved)
+      .toArray();
+
+    return records.map((record) => this.versionRecordToEntity(record));
+  }
+
   async getVersion(
     playlistId: string,
     versionId: string,
@@ -227,6 +241,20 @@ export class PlaylistRepository implements PlaylistOperations {
     versionId: string,
   ): Promise<void> {
     await this.updateVersion(playlistId, versionId, { isRemoved: true });
+  }
+
+  /**
+   * Clears note data for a removed version (after TTL)
+   */
+  async clearRemovedVersionNoteData(
+    playlistId: string,
+    versionId: string,
+  ): Promise<void> {
+    await this.updateVersion(playlistId, versionId, {
+      draftContent: undefined,
+      labelId: "",
+      attachments: [],
+    });
   }
 
   // =================== BULK OPERATIONS ===================
@@ -301,6 +329,7 @@ export class PlaylistRepository implements PlaylistOperations {
       categoryId: record.categoryId,
       categoryName: record.categoryName,
       description: record.description,
+      deletedInFtrack: record.deletedInFtrack,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       syncedAt: record.syncedAt,

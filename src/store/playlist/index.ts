@@ -63,6 +63,8 @@ export class PlaylistStore extends SimpleEventEmitter {
   private isAutoRefreshing = false;
   private currentAutoRefreshPlaylistId: string | null = null;
   private static readonly AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+  // Note preservation TTL (7 days)
+  private static readonly NOTE_PRESERVATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
   // Singleton initialization tracking
   private initializationPromises = new Map<string, Promise<void>>();
@@ -172,6 +174,11 @@ export class PlaylistStore extends SimpleEventEmitter {
 
       // Convert to UI model
       playlist = this.entityToPlaylist(entity, versions);
+      // Ensure flags like deletedInFtrack propagate from DB entity to UI playlist
+      playlist = {
+        ...playlist,
+        deletedInFtrack: Boolean((entity as any).deletedInFtrack),
+      };
       this.cache.setPlaylist(id, playlist);
 
       console.log(
@@ -507,9 +514,38 @@ export class PlaylistStore extends SimpleEventEmitter {
       }
     }
 
-    const versionEntities = versions.map((v) =>
-      this.assetVersionToEntity(v, playlistId),
-    );
+    // Preserve existing draft notes, labels, attachments and clear isRemoved on re-add
+    const versionEntities: VersionEntity[] = [];
+    for (const v of versions) {
+      const incoming = this.assetVersionToEntity(v, playlistId);
+      const existing = await this.repository.getVersion(playlistId, incoming.id);
+
+      if (existing) {
+        versionEntities.push({
+          ...incoming,
+          // Preserve note-related fields
+          draftContent: existing.draftContent,
+          labelId: existing.labelId,
+          noteStatus: existing.noteStatus,
+          // Preserve attachments if any
+          attachments: existing.attachments,
+          // Preserve metadata we care about
+          addedAt: existing.addedAt ?? incoming.addedAt,
+          lastModified: existing.lastModified ?? incoming.lastModified,
+          manuallyAdded: existing.manuallyAdded ?? incoming.manuallyAdded,
+          // Clear soft-delete flag when (re)adding
+          isRemoved: false,
+        });
+      } else {
+        versionEntities.push({
+          ...incoming,
+          // Ensure a defined labelId field for DB compatibility
+          labelId: incoming.labelId ?? "",
+          isRemoved: false,
+        });
+      }
+    }
+
     await this.repository.bulkAddVersions(playlistId, versionEntities);
     this.cache.invalidate(playlistId);
 
@@ -539,6 +575,8 @@ export class PlaylistStore extends SimpleEventEmitter {
     console.log(
       `[PlaylistStore] Removed version ${versionId} from playlist: ${playlistId}`,
     );
+    // Opportunistically purge old removed notes beyond TTL
+    await this.purgeExpiredRemovedNotes(playlistId);
     this.emit("version-removed", { playlistId, versionId });
   }
 
@@ -943,6 +981,44 @@ export class PlaylistStore extends SimpleEventEmitter {
         }
       }
 
+      // If playlist previously had ftrack versions but now returns none, flag as deleted in ftrack
+      const previouslyHadFtrackVersions = currentVersions.some(
+        (v) => !v.manuallyAdded,
+      );
+      if (previouslyHadFtrackVersions && addedVersions.length === 0 && freshVersions.length === 0) {
+        try {
+          await this.repository.updatePlaylist(playlistId, {
+            // @ts-ignore allow loose field in updates
+            deletedInFtrack: true,
+          } as any);
+
+          // Emit update event
+          this.emit("playlist-updated", {
+            playlistId,
+            updates: { deletedInFtrack: true },
+          });
+
+          // Update UI list immediately
+          const { playlists, setPlaylists } = usePlaylistsStore.getState();
+          const updatedList = playlists.map((p) =>
+            p.id === playlistId ? { ...p, deletedInFtrack: true } : p,
+          );
+          setPlaylists(updatedList);
+
+          console.debug(
+            `🏷️  [PlaylistStore] Flagged playlist ${playlistId} as deleted in ftrack`,
+          );
+        } catch (e) {
+          console.warn(
+            `[PlaylistStore] Failed to flag playlist ${playlistId} as deleted in ftrack:`,
+            e,
+          );
+        }
+      }
+
+      // Purge old removed versions' note data beyond TTL
+      await this.purgeExpiredRemovedNotes(playlistId);
+
       // Clear cache to force reload
       this.cache.invalidate(playlistId);
 
@@ -971,6 +1047,30 @@ export class PlaylistStore extends SimpleEventEmitter {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    }
+  }
+
+  /**
+   * Purges note data for removed versions older than TTL, preserving playlist-specific drafts for a week
+   */
+  private async purgeExpiredRemovedNotes(playlistId: string): Promise<void> {
+    try {
+      const removed = await this.repository.getRemovedVersions(playlistId);
+      const now = Date.now();
+      for (const v of removed) {
+        const removedAt = typeof v.lastModified === "number" ? v.lastModified : now;
+        if (now - removedAt > PlaylistStore.NOTE_PRESERVATION_TTL_MS) {
+          await this.repository.clearRemovedVersionNoteData(playlistId, v.id);
+          console.debug(
+            `[PlaylistStore] Purged preserved notes for removed version ${v.id} (older than TTL)`,
+          );
+        }
+      }
+    } catch (err) {
+      console.warn(
+        `[PlaylistStore] Failed purging expired removed notes for ${playlistId}:`,
+        err,
+      );
     }
   }
 
@@ -1091,59 +1191,73 @@ export class PlaylistStore extends SimpleEventEmitter {
   }
 
   // =================== CONVERSION METHODS ===================
+  
+  private entityToAssetVersion(entity: VersionEntity): AssetVersion {
+    return {
+      id: String(entity.id),
+      name: String(entity.name || ""),
+      version: Number(entity.version) || 0,
+      thumbnailUrl: typeof entity.thumbnailUrl === "string" ? entity.thumbnailUrl : undefined,
+      thumbnailId: typeof entity.thumbnailId === "string" ? entity.thumbnailId : undefined,
+      reviewSessionObjectId:
+        typeof entity.reviewSessionObjectId === "string"
+          ? entity.reviewSessionObjectId
+          : undefined,
+      createdAt: entity.createdAt || new Date().toISOString(),
+      updatedAt: entity.updatedAt || new Date().toISOString(),
+      manuallyAdded: Boolean(entity.manuallyAdded),
+    };
+  }
 
   private entityToPlaylist(
     entity: PlaylistEntity,
     versions?: VersionEntity[],
   ): Playlist {
-    return {
-      id: entity.id, // STABLE UUID - never changes
-      name: entity.name,
-      title: entity.name,
-      type: entity.type,
-      versions: versions
-        ? versions.map((v) => this.entityToAssetVersion(v))
-        : [],
-      notes: [], // Notes are separate from versions in this architecture
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+    const convertedVersions = Array.isArray(versions)
+      ? versions.map((v) => this.entityToAssetVersion(v))
+      : [];
 
-      // CRITICAL FIX: Include ftrackId from database entity
-      ftrackId: entity.ftrackId,
-
-      // Status mapping for UI compatibility
-      // CRITICAL FIX: Quick Notes should NEVER be considered local only
-      isLocalOnly: entity.id.startsWith("quick-notes-")
-        ? false
-        : entity.localStatus !== "synced",
-      ftrackSyncState:
-        entity.ftrackSyncStatus === "not_synced"
-          ? "pending"
-          : entity.ftrackSyncStatus,
-
-      // CRITICAL FIX: Add isQuickNotes flag
-      isQuickNotes: entity.id.startsWith("quick-notes-"),
-
-      // Additional metadata - CRITICAL FIX: Include ALL entity fields
-      projectId: entity.projectId,
-      categoryId: entity.categoryId,
-      categoryName: entity.categoryName,
-      description: entity.description,
+    const mapSyncState = (
+      s: PlaylistEntity["ftrackSyncStatus"],
+    ): Playlist["ftrackSyncState"] => {
+      switch (s) {
+        case "synced":
+          return "synced";
+        case "syncing":
+          return "syncing";
+        case "failed":
+          return "failed";
+        case "not_synced":
+        default:
+          return "pending";
+      }
     };
-  }
 
-  private entityToAssetVersion(entity: VersionEntity): AssetVersion {
-    return {
-      id: entity.id,
-      name: entity.name,
-      version: entity.version,
-      thumbnailUrl: entity.thumbnailUrl,
-      thumbnailId: entity.thumbnailId,
-      reviewSessionObjectId: entity.reviewSessionObjectId,
+    const isQuickNotes = String(entity.id).startsWith("quick-notes-");
+    const isLocalOnly = isQuickNotes
+      ? false
+      : entity.localStatus === "draft" || entity.ftrackSyncStatus === "not_synced";
+
+    const playlist: Playlist = {
+      id: String(entity.id),
+      name: String(entity.name || "Untitled"),
+      title: String(entity.name || "Untitled"),
+      versions: convertedVersions,
+      notes: [],
       createdAt: entity.createdAt || new Date().toISOString(),
       updatedAt: entity.updatedAt || new Date().toISOString(),
-      manuallyAdded: entity.manuallyAdded,
+      type: entity.type || "list",
+      categoryId: entity.categoryId,
+      categoryName: entity.categoryName,
+      isLocalOnly,
+      ftrackSyncState: mapSyncState(entity.ftrackSyncStatus),
+      deletedInFtrack: Boolean(entity.deletedInFtrack),
+      ftrackId: entity.ftrackId,
+      projectId: entity.projectId,
+      description: entity.description,
     };
+
+    return playlist;
   }
 
   private assetVersionToEntity(

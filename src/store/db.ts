@@ -29,6 +29,12 @@ export interface NoteAttachment {
 }
 
 /**
+ * Archived notes for removed versions (note preservation)
+ * Keyed by stable playlist UUID + version ID
+ */
+// Note preservation uses soft-deleted versions with isRemoved flag; no separate archive table
+
+/**
  * New unified playlist record with stable UUID identity
  * Uses stable UUIDs that never change, with separate external references
  */
@@ -145,6 +151,7 @@ export class AstraNotesDB extends Dexie {
   playlists!: Table<PlaylistRecord>;
   versions!: Table<VersionRecord>;
   attachments!: Table<NoteAttachment>;
+  // No separate archive table; preservation handled via soft deletes
 
   // Legacy tables removed - no migration needed per user directive
 
@@ -162,6 +169,8 @@ export class AstraNotesDB extends Dexie {
       attachments:
         "id, [versionId+playlistId], versionId, playlistId, noteId, createdAt",
     });
+
+    // No version 8 changes required for note preservation
 
     // Previous version maintained for upgrade path
     this.version(6).stores({

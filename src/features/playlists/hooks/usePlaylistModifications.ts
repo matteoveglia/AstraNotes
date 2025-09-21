@@ -159,12 +159,8 @@ export function usePlaylistModifications(
       // Get the updated playlist from cache
       const updatedPlaylist = await playlistStore.getPlaylist(playlist.id);
       if (updatedPlaylist && onPlaylistUpdate) {
-        // Convert to UI format and notify parent
-        const uiPlaylist = {
-          ...playlist,
-          versions: updatedPlaylist.versions || [],
-        };
-        onPlaylistUpdate(uiPlaylist);
+        // Notify parent with the fully updated playlist (propagates flags like deletedInFtrack)
+        onPlaylistUpdate(updatedPlaylist);
       }
 
       console.debug(`[usePlaylistModifications] Successfully applied playlist refresh`);
@@ -257,11 +253,7 @@ export function usePlaylistModifications(
         if (onPlaylistUpdate) {
           const updatedPlaylist = await playlistStore.getPlaylist(playlist.id);
           if (updatedPlaylist) {
-            const uiPlaylist = {
-              ...playlist,
-              versions: updatedPlaylist.versions || [],
-            };
-            onPlaylistUpdate(uiPlaylist);
+            onPlaylistUpdate(updatedPlaylist);
           }
         }
         

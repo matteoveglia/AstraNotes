@@ -37,6 +37,7 @@ pnpm-debug.log*
 *.sln
 *.sw?
 private
+AstraNotes_MockData
 
 # Environment variables
 .env

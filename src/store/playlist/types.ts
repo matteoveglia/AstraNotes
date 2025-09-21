@@ -27,6 +27,7 @@ export interface PlaylistEntity {
   categoryId?: string;
   categoryName?: string;
   description?: string;
+  deletedInFtrack?: boolean; // Flag if playlist was deleted in ftrack
 
   // Timestamps
   createdAt: string;
