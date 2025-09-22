@@ -83,8 +83,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // Update service settings
       ftrackAuthService.updateSettings(settings);
 
-      // Test connection with new settings and reload labels if successful
-      const connectionSuccess = await ftrackAuthService.testConnection();
+      // Test connection with new settings via hook to trigger global connecting pulse
+      const connectionSuccess = await testConnection();
       if (connectionSuccess) {
         // Reload labels with new credentials, preserving current selection
         await fetchLabels();
@@ -111,8 +111,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       // Update service settings before testing
       ftrackAuthService.updateSettings(settings);
-      await testConnection();
-      if (!isConnected) {
+      const ok = await testConnection();
+      if (!ok) {
         setError("Failed to connect. Please check your credentials.");
       }
     } catch (err) {
