@@ -14,7 +14,7 @@ import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink, X, Info, Users } from "lucide-react";
+import { Loader2, Workflow, ExternalLink, X, Info, Layers } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
@@ -617,7 +617,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                     onClick={handleRelatedVersionsToggle}
                     title="Related Versions"
                   >
-                    <Users className="h-4 w-4" />
+                    <Layers className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
