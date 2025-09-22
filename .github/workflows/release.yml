@@ -166,6 +166,11 @@ jobs:
           name: windows
           path: artifacts/windows
 
+      - name: Update version in tauri.conf.json
+        run: |
+          jq --arg v "${{ github.event.inputs.version }}" '.version=$v' src-tauri/tauri.conf.json > tmp && mv tmp src-tauri/tauri.conf.json
+          echo "Updated tauri.conf.json to version ${{ github.event.inputs.version }}"
+
       - name: Create or update draft release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -215,6 +220,8 @@ jobs:
                 }
               }
             }' > artifacts/latest.json
+          # Also save to repo root for committing
+          cp artifacts/latest.json latest.json
           echo "latest_json=artifacts/latest.json" >> $GITHUB_OUTPUT
 
       - name: Upload assets to the release
@@ -229,3 +236,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Draft release created: https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }}"
+
+      - name: Commit version changes back to repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes to commit
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            # Add the changed files
+            git add src-tauri/tauri.conf.json latest.json
+            
+            # Commit with a descriptive message
+            git commit -m "chore: bump version to v${{ github.event.inputs.version }} [skip ci]"
+            
+            # Push back to the repository
+            git push origin ${{ github.ref_name }}
+            
+            echo "Version changes committed and pushed back to repository"
+          fi
