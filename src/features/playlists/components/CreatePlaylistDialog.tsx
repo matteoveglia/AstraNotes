@@ -13,6 +13,7 @@ import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -271,6 +272,9 @@ export function CreatePlaylistDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Playlist</DialogTitle>
+          <DialogDescription>
+            Create a new playlist with selected versions or start with an empty playlist.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

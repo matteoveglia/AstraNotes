@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -88,6 +89,9 @@ export function SyncConflictDialog({
             <AlertCircle className="h-5 w-5 text-orange-500" />
             Playlist Name Conflict
           </DialogTitle>
+          <DialogDescription>
+            A playlist with this name already exists in ftrack. Choose how to resolve this conflict.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

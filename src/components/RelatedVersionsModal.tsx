@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
 import {
@@ -774,6 +774,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
               </div>
             </div>
           </DialogTitle>
+          <DialogDescription>
+            Select related versions from the same shot to add to your playlist.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Search and filters */}

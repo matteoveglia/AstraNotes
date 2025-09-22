@@ -9,6 +9,7 @@ import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -226,6 +227,9 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
             )}
             Reload Thumbnails
           </DialogTitle>
+          <DialogDescription>
+            Refreshing thumbnail images for the current playlist. Please wait for the process to complete.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

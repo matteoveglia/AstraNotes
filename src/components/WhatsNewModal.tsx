@@ -11,6 +11,7 @@ import { Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -90,6 +91,9 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
               What's New in AstraNotes
             </DialogTitle>
           </div>
+          <DialogDescription>
+            Discover the latest features, improvements, and bug fixes in this release.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="h-[500px] overflow-y-auto py-4">

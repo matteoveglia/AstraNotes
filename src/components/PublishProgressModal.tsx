@@ -9,6 +9,7 @@ import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -234,6 +235,9 @@ export const PublishProgressModal: React.FC<PublishProgressModalProps> = ({
             )}
             Publish Notes
           </DialogTitle>
+          <DialogDescription>
+            Publishing notes to ftrack. Please wait for the process to complete.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

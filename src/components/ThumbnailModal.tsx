@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { VideoPlayer } from "./VideoPlayer";
 import { videoService } from "../services/videoService";
@@ -256,6 +256,9 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
               )}
             </div>
           </DialogTitle>
+          <DialogDescription>
+            View thumbnail and play reviewable video for this version.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-center min-h-[400px] relative overflow-hidden">

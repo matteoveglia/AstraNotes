@@ -11,6 +11,7 @@ import { Settings, Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -195,6 +196,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>
+            Configure your FTrack connection and application preferences.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-7">
           {/* Left Column */}
