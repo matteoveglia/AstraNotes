@@ -43,10 +43,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { relatedNotesService } from "@/services/relatedNotesService";
 import { ShotNoteItem } from "./ShotNoteItem";
+import { NoteAttachmentViewer } from "./NoteAttachmentViewer";
 import { ThumbnailModal } from "./ThumbnailModal";
 import type {
   ShotNote,
   NoteLabel,
+  NoteAttachment,
   RelatedNotesFilter,
   RelatedNotesSortConfig,
   NotesLoadingError,
@@ -109,6 +111,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     versionName: string;
     versionNumber: number;
   } | null>(null);
+
+  // Attachment viewer state
+  const [attachmentViewerOpen, setAttachmentViewerOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<NoteAttachment | null>(null);
 
   // React 18 Concurrent features
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -317,10 +323,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     }
   };
 
-  // Handle attachment click (placeholder for now)
-  const handleAttachmentClick = (attachment: any) => {
-    console.log("Attachment clicked:", attachment);
-    // TODO: Implement attachment viewer in Phase 4
+  // Handle attachment click -> open viewer
+  const handleAttachmentClick = (attachment: NoteAttachment) => {
+    setSelectedAttachment(attachment);
+    setAttachmentViewerOpen(true);
   };
 
   // Handle retry
@@ -582,6 +588,13 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
           thumbnailId={selectedThumbnail.thumbnailId}
         />
       )}
+
+      {/* Attachment Viewer */}
+      <NoteAttachmentViewer
+        isOpen={attachmentViewerOpen}
+        onClose={() => setAttachmentViewerOpen(false)}
+        attachment={selectedAttachment}
+      />
     </>
   );
 };

@@ -59,7 +59,17 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
   // Get user display name
   const getUserDisplayName = () => {
     const fullName = `${note.user.firstName || ''} ${note.user.lastName || ''}`.trim();
-    return fullName || note.user.username;
+    if (fullName) {
+      return fullName;
+    }
+    
+    // Clean up username - remove email domain if present
+    const username = note.user.username;
+    if (username.includes('@')) {
+      return username.split('@')[0];
+    }
+    
+    return username;
   };
 
   // Get user initials for avatar fallback
@@ -72,12 +82,14 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
     return displayName.slice(0, 2).toUpperCase();
   };
 
-  // Get attachment icon based on type
+  // Get attachment icon based on type (supports MIME or extension like ".jpg")
   const getAttachmentIcon = (attachment: NoteAttachment) => {
-    if (attachment.type.startsWith('image/')) {
-      return <ImageIcon className="h-4 w-4" />;
-    }
-    if (attachment.type.includes('text') || attachment.type.includes('document')) {
+    const t = (attachment.type || '').toLowerCase();
+    const isImage = t.startsWith('image/') || [
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'
+    ].some(ext => t.endsWith(ext));
+    if (isImage) return <ImageIcon className="h-4 w-4" />;
+    if (t.includes('text') || t.includes('document') || t.endsWith('.pdf')) {
       return <FileText className="h-4 w-4" />;
     }
     return <File className="h-4 w-4" />;
@@ -126,9 +138,11 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
           <span className="font-medium text-zinc-900 dark:text-zinc-100">
             {getUserDisplayName()}
           </span>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            @{note.user.username}
-          </span>
+          {note.user.username !== getUserDisplayName() && (
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              @{note.user.username.includes('@') ? note.user.username.split('@')[0] : note.user.username}
+            </span>
+          )}
           <span className="text-zinc-300 dark:text-zinc-600">•</span>
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {formatTimestamp(note.createdAt)}
@@ -183,11 +197,11 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
         )}
       </div>
 
-      {/* Version Thumbnail */}
+      {/* Version Thumbnail (match NoteInput styling) */}
       <div className="shrink-0">
         <div
           className={cn(
-            "w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
+            "shrink-0 w-32 min-h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
             note.version.thumbnailId ? "cursor-pointer hover:opacity-80" : "cursor-default",
           )}
           onClick={note.version.thumbnailId ? handleThumbnailClick : undefined}
@@ -197,7 +211,7 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
             <ThumbnailSuspense
               thumbnailId={note.version.thumbnailId}
               alt={`${note.version.name} v${note.version.version}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               fallback={
                 <div className="relative flex h-full w-full flex-col items-center justify-center rounded-md bg-zinc-200 dark:bg-zinc-800">
                   <BorderTrail

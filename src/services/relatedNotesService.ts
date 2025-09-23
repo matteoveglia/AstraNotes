@@ -211,8 +211,8 @@ export class RelatedNotesService extends BaseFtrackClient {
     session: Session,
     shotName: string,
   ): Promise<RawNoteData[]> {
-    // First, diagnose the schema to understand what's available
-    await this.diagnoseNoteSchema(session);
+    // Diagnostic disabled to avoid noisy console logs on servers that don't support '*'
+    // await this.diagnoseNoteSchema(session);
 
     // Try multiple approaches in order of preference
     const approaches = [
@@ -491,11 +491,9 @@ export class RelatedNotesService extends BaseFtrackClient {
     try {
       const versionIdList = versionIds.map(id => `"${id}"`).join(', ');
       const query = `
-        select id, version, asset.name, thumbnail.id 
+        select id, version, asset.name, asset_id, thumbnail_id
         from AssetVersion 
-        join Asset on AssetVersion.asset_id = Asset.id
-        left join Component as thumbnail on AssetVersion.thumbnail_id = thumbnail.id
-        where AssetVersion.id in (${versionIdList})
+        where id in (${versionIdList})
       `;
       
       const result = await session.query(query);
@@ -504,9 +502,9 @@ export class RelatedNotesService extends BaseFtrackClient {
       (result?.data || []).forEach((version: any) => {
         versions[version.id] = {
           id: version.id,
-          name: version.asset.name,
-          version: version.version,
-          thumbnailId: version.thumbnail?.id,
+          name: version.asset?.name || 'Unknown Asset',
+          version: version.version || 0,
+          thumbnailId: version.thumbnail_id,
         };
       });
       
@@ -534,25 +532,56 @@ export class RelatedNotesService extends BaseFtrackClient {
 
     try {
       const noteIdList = noteIds.map(id => `"${id}"`).join(', ');
-      const query = `
-        select note_id, label.id, label.name, label.color
+      
+      // First get the label links
+      const linkQuery = `
+        select note_id, label_id
         from NoteLabelLink
-        join NoteLabel as label on NoteLabelLink.label_id = label.id
         where note_id in (${noteIdList})
       `;
       
-      const result = await session.query(query);
-      const labels: Record<string, NoteLabel[]> = {};
+      const linkResult = await session.query(linkQuery);
+      const labelLinks = linkResult?.data || [];
       
-      (result?.data || []).forEach((item: any) => {
-        if (!labels[item.note_id]) {
-          labels[item.note_id] = [];
+      if (labelLinks.length === 0) {
+        console.debug("[RelatedNotesService] No label links found");
+        return {};
+      }
+      
+      // Get unique label IDs
+      const labelIds = [...new Set(labelLinks.map((link: any) => link.label_id))];
+      const labelIdList = labelIds.map(id => `"${id}"`).join(', ');
+      
+      // Fetch label details
+      const labelQuery = `
+        select id, name, color
+        from NoteLabel
+        where id in (${labelIdList})
+      `;
+      
+      const labelResult = await session.query(labelQuery);
+      const labelData = labelResult?.data || [];
+      
+      // Create lookup map
+      const labelMap: Record<string, NoteLabel> = {};
+      labelData.forEach((label: any) => {
+        labelMap[label.id] = {
+          id: label.id,
+          name: label.name,
+          color: label.color,
+        };
+      });
+      
+      // Build final result
+      const labels: Record<string, NoteLabel[]> = {};
+      labelLinks.forEach((link: any) => {
+        if (!labels[link.note_id]) {
+          labels[link.note_id] = [];
         }
-        labels[item.note_id].push({
-          id: item.label.id,
-          name: item.label.name,
-          color: item.label.color,
-        });
+        const label = labelMap[link.label_id];
+        if (label) {
+          labels[link.note_id].push(label);
+        }
       });
       
       console.debug(
@@ -579,26 +608,57 @@ export class RelatedNotesService extends BaseFtrackClient {
 
     try {
       const noteIdList = noteIds.map(id => `"${id}"`).join(', ');
-      const query = `
-        select note_id, component.id, component.name, component.file_type, component.size
+      
+      // First get the note-component links
+      const linkQuery = `
+        select note_id, component_id
         from NoteComponent
-        join Component on NoteComponent.component_id = Component.id  
         where note_id in (${noteIdList})
       `;
       
-      const result = await session.query(query);
-      const attachments: Record<string, NoteAttachment[]> = {};
+      const linkResult = await session.query(linkQuery);
+      const componentLinks = linkResult?.data || [];
       
-      (result?.data || []).forEach((item: any) => {
-        if (!attachments[item.note_id]) {
-          attachments[item.note_id] = [];
+      if (componentLinks.length === 0) {
+        console.debug("[RelatedNotesService] No note components found");
+        return {};
+      }
+      
+      // Get unique component IDs
+      const componentIds = [...new Set(componentLinks.map((link: any) => link.component_id))];
+      const componentIdList = componentIds.map(id => `"${id}"`).join(', ');
+      
+      // Fetch component details
+      const componentQuery = `
+        select id, name, file_type, size
+        from Component
+        where id in (${componentIdList})
+      `;
+      
+      const componentResult = await session.query(componentQuery);
+      const componentData = componentResult?.data || [];
+      
+      // Create lookup map
+      const componentMap: Record<string, any> = {};
+      componentData.forEach((component: any) => {
+        componentMap[component.id] = {
+          id: component.id,
+          name: component.name,
+          type: component.file_type,
+          size: component.size,
+        };
+      });
+      
+      // Build final result
+      const attachments: Record<string, NoteAttachment[]> = {};
+      componentLinks.forEach((link: any) => {
+        if (!attachments[link.note_id]) {
+          attachments[link.note_id] = [];
         }
-        attachments[item.note_id].push({
-          id: item.component.id,
-          name: item.component.name,
-          type: item.component.file_type,
-          size: item.component.size,
-        });
+        const component = componentMap[link.component_id];
+        if (component) {
+          attachments[link.note_id].push(component);
+        }
       });
       
       console.debug(

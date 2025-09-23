@@ -64,9 +64,10 @@ export const NoteLabelPill: React.FC<NoteLabelPillProps> = ({
         className,
       )}
       style={{
-        backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`,
-        color: label.color,
-        borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`,
+        backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
+        // Stronger contrast: white text on dark colors, dark text on light colors
+        color: isLight ? "#111827" /* zinc-900 */ : "#ffffff",
+        borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`,
         borderWidth: '1px',
         borderStyle: 'solid',
       }}
