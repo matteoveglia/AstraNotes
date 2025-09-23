@@ -92,7 +92,8 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
             </DialogTitle>
           </div>
           <DialogDescription>
-            Discover the latest features, improvements, and bug fixes in this release.
+            Discover the latest features, improvements, and bug fixes in this
+            release.
           </DialogDescription>
         </DialogHeader>
 

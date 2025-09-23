@@ -148,55 +148,55 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
       {categories.length > 1 && (
         <div className="relative z-20">
           <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 py-1 z-20">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handlePreviousCategory}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePreviousCategory}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-          <div className="flex-1 text-center">
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 select-none">
-              {currentCategory?.name}
-            </h3>
-            <div className="flex justify-center gap-1 mt-1 select-none">
-              {categories.map((_, index) => {
-                // Check if this category contains the active playlist
-                const containsActivePlaylist =
-                  activePlaylistId &&
-                  categories[index]?.playlists.some(
-                    (p) => p.id === activePlaylistId,
+            <div className="flex-1 text-center">
+              <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 select-none">
+                {currentCategory?.name}
+              </h3>
+              <div className="flex justify-center gap-1 mt-1 select-none">
+                {categories.map((_, index) => {
+                  // Check if this category contains the active playlist
+                  const containsActivePlaylist =
+                    activePlaylistId &&
+                    categories[index]?.playlists.some(
+                      (p) => p.id === activePlaylistId,
+                    );
+
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full transition-colors relative",
+                        index === currentCategoryIndex
+                          ? "bg-blue-500"
+                          : "bg-zinc-300 dark:bg-zinc-600",
+                      )}
+                    >
+                      {containsActivePlaylist && (
+                        <div className="absolute inset-0 rounded-full ring-2 ring-blue-300 ring-offset-1" />
+                      )}
+                    </div>
                   );
-
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full transition-colors relative",
-                      index === currentCategoryIndex
-                        ? "bg-blue-500"
-                        : "bg-zinc-300 dark:bg-zinc-600",
-                    )}
-                  >
-                    {containsActivePlaylist && (
-                      <div className="absolute inset-0 rounded-full ring-2 ring-blue-300 ring-offset-1" />
-                    )}
-                  </div>
-                );
-              })}
+                })}
+              </div>
             </div>
-          </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleNextCategory}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNextCategory}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
           {/* Bottom fade for header */}
           <div className="absolute -bottom-4 left-0 right-0 h-4 bg-gradient-to-b from-background/95 to-transparent z-10 pointer-events-none" />

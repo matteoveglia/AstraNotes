@@ -6,7 +6,13 @@
  */
 
 import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { AssetVersion } from "@/types";
 import {
@@ -930,6 +936,14 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
                   </DropdownMenuItem>
                 </React.Fragment>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() =>
+                  setSortInfo({ field: "updatedAt", direction: "desc" })
+                }
+              >
+                Reset sorting
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -984,50 +998,67 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
             </div>
           ) : (
             <>
-              {/* Versions content */}
-              <div className="flex-1 min-h-0 overflow-auto relative">
-                {/* Removed transient switching overlay to avoid visual flash (Phase 5.10) */}
+              {/* Versions content with fixed gradient overlays */}
+              <div className="flex-1 min-h-0 relative">
+                {/* Overlays as siblings so they don't scroll */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white/90 dark:from-black/60 to-transparent z-10"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white/90 dark:from-black/60 to-transparent z-10"
+                />
 
-                {/* Reverted to "sync" now that item-level animations causing the flash are removed */}
-                <AnimatePresence mode="sync">
-                  <motion.div
-                    key={viewMode}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    {viewMode === "grid" ? (
-                      <RelatedVersionsGrid
-                        versions={paginatedVersions}
-                        selectedVersionIds={selectedAcrossPages}
-                        onVersionToggle={handleVersionToggle}
-                        onStatusUpdate={handleStatusUpdate}
-                        onShotStatusUpdate={handleShotStatusUpdate}
-                        availableStatuses={availableStatuses}
-                        availableShotStatuses={availableShotStatuses}
-                        versionDataCache={versionDataCache}
-                      />
-                    ) : (
-                      <RelatedVersionsList
-                        versions={paginatedVersions}
-                        selectedVersionIds={selectedAcrossPages}
-                        onVersionToggle={handleVersionToggle}
-                        onStatusUpdate={handleStatusUpdate}
-                        onShotStatusUpdate={handleShotStatusUpdate}
-                        availableStatuses={availableStatuses}
-                        availableShotStatuses={availableShotStatuses}
-                        versionDataCache={versionDataCache}
-                        onSelectAll={handleSelectAll}
-                        onSortChange={(
-                          field: string,
-                          direction: "asc" | "desc",
-                        ) => setSortInfo({ field: field as any, direction })}
-                        sortInfo={sortInfo as any}
-                      />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+                {/* Scroll area */}
+                <div className="absolute inset-0 overflow-auto">
+                  <div className="pt-3 pb-4">
+                    {/* Removed transient switching overlay to avoid visual flash (Phase 5.10) */}
+
+                    {/* Reverted to "sync" now that item-level animations causing the flash are removed */}
+                    <AnimatePresence mode="sync">
+                      <motion.div
+                        key={viewMode}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {viewMode === "grid" ? (
+                          <RelatedVersionsGrid
+                            versions={paginatedVersions}
+                            selectedVersionIds={selectedAcrossPages}
+                            onVersionToggle={handleVersionToggle}
+                            onStatusUpdate={handleStatusUpdate}
+                            onShotStatusUpdate={handleShotStatusUpdate}
+                            availableStatuses={availableStatuses}
+                            availableShotStatuses={availableShotStatuses}
+                            versionDataCache={versionDataCache}
+                          />
+                        ) : (
+                          <RelatedVersionsList
+                            versions={paginatedVersions}
+                            selectedVersionIds={selectedAcrossPages}
+                            onVersionToggle={handleVersionToggle}
+                            onStatusUpdate={handleStatusUpdate}
+                            onShotStatusUpdate={handleShotStatusUpdate}
+                            availableStatuses={availableStatuses}
+                            availableShotStatuses={availableShotStatuses}
+                            versionDataCache={versionDataCache}
+                            onSelectAll={handleSelectAll}
+                            onSortChange={(
+                              field: string,
+                              direction: "asc" | "desc",
+                            ) =>
+                              setSortInfo({ field: field as any, direction })
+                            }
+                            sortInfo={sortInfo as any}
+                          />
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
               </div>
             </>
           )}

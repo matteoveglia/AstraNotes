@@ -47,7 +47,7 @@ function ThumbnailImage({
     <img
       src={thumbnailUrl}
       alt={alt}
-      className={cn("object-cover", className)}
+      className={cn("block", className)}
       onClick={onClick}
       loading="lazy"
     />

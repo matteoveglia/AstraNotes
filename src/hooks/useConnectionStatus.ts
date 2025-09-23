@@ -41,8 +41,7 @@ export const useConnectionStatus = () => {
     setLastTested,
     setConnecting,
     setJustPolled,
-  } =
-    useConnectionStore();
+  } = useConnectionStore();
 
   useEffect(() => {
     // Only auto-test if we haven't tested in the last 5 minutes

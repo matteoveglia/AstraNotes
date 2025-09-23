@@ -273,7 +273,8 @@ export function CreatePlaylistDialog({
         <DialogHeader>
           <DialogTitle>Create New Playlist</DialogTitle>
           <DialogDescription>
-            Create a new playlist with selected versions or start with an empty playlist.
+            Create a new playlist with selected versions or start with an empty
+            playlist.
           </DialogDescription>
         </DialogHeader>
 

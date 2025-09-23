@@ -14,7 +14,15 @@ import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink, X, Info, Layers } from "lucide-react";
+import {
+  Loader2,
+  Workflow,
+  ExternalLink,
+  X,
+  Info,
+  Layers,
+  NotebookTabs,
+} from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
@@ -25,6 +33,7 @@ import { NoteAttachments, Attachment } from "./NoteAttachments";
 import { NoteStatusPanel } from "./NoteStatusPanel";
 import { VersionDetailsPanel } from "./VersionDetailsPanel";
 import { RelatedVersionsModal } from "./RelatedVersionsModal";
+import { RelatedNotesModal } from "./RelatedNotesModal";
 
 export interface NoteInputProps {
   versionName: string;
@@ -82,6 +91,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     useState(false);
   const [isRelatedVersionsModalOpen, setIsRelatedVersionsModalOpen] =
     useState(false);
+  const [isRelatedNotesModalOpen, setIsRelatedNotesModalOpen] = useState(false);
   const { settings } = useSettings();
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 
@@ -506,6 +516,10 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     setIsRelatedVersionsModalOpen(true);
   };
 
+  const handleRelatedNotesToggle = () => {
+    setIsRelatedNotesModalOpen(true);
+  };
+
   const handleRelatedVersionsSelect = (versions: AssetVersion[]) => {
     // The RelatedVersionsModal handles the actual playlist addition
     // This callback is called after successful addition for any additional handling
@@ -607,9 +621,18 @@ export const NoteInput: React.FC<NoteInputProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Three-button group: Related | Info | ftrack */}
+              {/* Four-button group: Related Notes | Related Versions | Info | ftrack */}
               <div className="relative">
                 <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-green-100 dark:hover:bg-green-900"
+                    onClick={handleRelatedNotesToggle}
+                    title="Related Notes"
+                  >
+                    <NotebookTabs className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -767,6 +790,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           currentAssetVersionId={assetVersionId}
           currentVersionName={versionName}
           onVersionsSelect={handleRelatedVersionsSelect}
+        />
+
+        {/* Related Notes Modal */}
+        <RelatedNotesModal
+          isOpen={isRelatedNotesModalOpen}
+          onClose={() => setIsRelatedNotesModalOpen(false)}
+          currentAssetVersionId={assetVersionId}
+          currentVersionName={versionName}
         />
       </div>
     </div>
