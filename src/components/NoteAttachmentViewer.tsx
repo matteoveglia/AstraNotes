@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { fetch } from "@tauri-apps/plugin-http";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { downloadDir, join } from "@tauri-apps/api/path";
+import { useToast } from "./ui/toast";
 
 interface NoteAttachmentViewerProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
   onClose,
   attachment,
 }) => {
+  const { showSuccess, showError } = useToast();
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
@@ -53,6 +55,15 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
     };
     load();
   }, [isOpen, attachment?.id]);
+
+  // Reset visual/loading state when modal closes to avoid jank on next open
+  useEffect(() => {
+    if (!isOpen) {
+      setImageLoading(false);
+      setDownloading(false);
+      setError(null);
+    }
+  }, [isOpen]);
 
   const isImage = (att?: NoteAttachment | null) => {
     if (!att) return false;
@@ -95,9 +106,11 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       // Write to Downloads folder
       await writeFile(filePath, bytes);
       console.log(`[NoteAttachmentViewer] Saved attachment to ${filePath}`);
+      showSuccess(`Downloaded to ${filePath}`);
     } catch (e) {
       console.error("[NoteAttachmentViewer] Download failed", e);
       setError("Failed to download file");
+      showError("Failed to download file");
     } finally {
       setDownloading(false);
     }
@@ -110,8 +123,24 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
           <DialogTitle className="flex items-center justify-between">
             <span className="truncate mr-4">{attachment?.name || "Attachment"}</span>
             <div className="flex items-center gap-2 mr-5">
-              <Button variant="default" size="sm" onClick={handleDownload} disabled={!url || downloading} className="flex items-center gap-2 ml-2">
-                <Download className="w-4 h-4" /> Download
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleDownload}
+                disabled={!url || downloading}
+                className="flex items-center gap-2 ml-2"
+                aria-busy={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" /> Download
+                  </>
+                )}
               </Button>
             </div>
           </DialogTitle>
@@ -122,18 +151,21 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-[300px] flex items-center justify-center relative">
+        <div className="min-h-[300px] relative">
+          {/* Centered overlay spinner to avoid jank */}
           <AnimatePresence mode="wait">
             {(loading || (isImage(attachment) && imageLoading)) && (
               <motion.div
-                key="loading"
+                key="loading-overlay"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-zinc-500 flex items-center gap-2"
+                className="absolute inset-0 flex items-center justify-center z-10"
               >
-                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" />
-                Loading attachment...
+                <div className="flex items-center gap-2 text-zinc-500 bg-black/0 p-2 rounded">
+                  <span className="animate-spin rounded-full h-6 w-6 border-b-2 border-current" />
+                  <span className="text-sm">Loading attachment...</span>
+                </div>
               </motion.div>
             )}
             {!loading && error && (
@@ -147,14 +179,14 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
                 {error}
               </motion.div>
             )}
-            {!loading && !error && url && isImage(attachment) && (
+            {!error && url && isImage(attachment) && (
               <motion.img
                 key="image"
                 src={url}
                 alt={attachment?.name || "Attachment"}
-                className="max-h-[70vh] max-w-full object-contain rounded"
+                className="max-h-[70vh] max-w-full object-contain block mx-auto"
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                animate={{ opacity: imageLoading ? 0.4 : 1 }}
                 exit={{ opacity: 0 }}
                 onLoad={() => setImageLoading(false)}
               />

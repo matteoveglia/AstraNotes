@@ -201,7 +201,7 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
       <div className="shrink-0">
         <div
           className={cn(
-            "shrink-0 w-32 min-h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden",
+            "shrink-0 w-32 h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden flex items-center justify-center",
             note.version.thumbnailId ? "cursor-pointer hover:opacity-80" : "cursor-default",
           )}
           onClick={note.version.thumbnailId ? handleThumbnailClick : undefined}
