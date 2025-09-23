@@ -33,17 +33,17 @@ export class RelatedNotesService extends BaseFtrackClient {
    * - "shot_010_lighting_v003" -> "shot_010"
    */
   extractShotName(versionName: string): string {
-    console.debug(
-      "[RelatedNotesService] Extracting shot name from:",
-      versionName,
-    );
+    const d = (...args: any[]) => {
+      if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
+        console.debug(...args);
+      }
+    };
+    d("[RelatedNotesService] Extracting shot name from:", versionName);
 
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      console.debug(
-        "[RelatedNotesService] No underscores found, returning full name",
-      );
+      d("[RelatedNotesService] No underscores found, returning full name");
       return versionName;
     }
 
@@ -53,31 +53,25 @@ export class RelatedNotesService extends BaseFtrackClient {
     // Pattern: SQ###_SH### (sequence and shot)
     if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
-      console.debug("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
+      d("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
     if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      console.debug(
-        "[RelatedNotesService] Detected shot_number pattern:",
-        shotName,
-      );
+      d("[RelatedNotesService] Detected shot_number pattern:", shotName);
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      console.debug(
-        "[RelatedNotesService] Detected shot code pattern:",
-        firstPart,
-      );
+      d("[RelatedNotesService] Detected shot code pattern:", firstPart);
       return firstPart;
     }
 
     // Default: use first part
-    console.debug("[RelatedNotesService] Using default first part:", firstPart);
+    d("[RelatedNotesService] Using default first part:", firstPart);
     return firstPart;
   }
 

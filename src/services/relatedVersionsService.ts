@@ -55,10 +55,12 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
    * - "shot_010_lighting_v003" -> "shot_010"
    */
   extractShotName(versionName: string): string {
-    console.debug(
-      "[RelatedVersionsService] Extracting shot name from:",
-      versionName,
-    );
+    const d = (...args: any[]) => {
+      if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
+        console.debug(...args);
+      }
+    };
+    d("[RelatedVersionsService] Extracting shot name from:", versionName);
 
     // Handle common naming patterns
     // Pattern 1: ASE0110_comp_000000_GMK -> ASE0110
@@ -69,9 +71,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      console.debug(
-        "[RelatedVersionsService] No underscores found, returning full name",
-      );
+      d("[RelatedVersionsService] No underscores found, returning full name");
       return versionName;
     }
 
@@ -87,37 +87,25 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     // Pattern: SQ###_SH### (sequence and shot)
     if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
-      console.debug(
-        "[RelatedVersionsService] Detected SQ_SH pattern:",
-        shotName,
-      );
+      d("[RelatedVersionsService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
     if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      console.debug(
-        "[RelatedVersionsService] Detected shot_number pattern:",
-        shotName,
-      );
+      d("[RelatedVersionsService] Detected shot_number pattern:", shotName);
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      console.debug(
-        "[RelatedVersionsService] Detected shot code pattern:",
-        firstPart,
-      );
+      d("[RelatedVersionsService] Detected shot code pattern:", firstPart);
       return firstPart;
     }
 
     // Default: use first part
-    console.debug(
-      "[RelatedVersionsService] Using default first part:",
-      firstPart,
-    );
+    d("[RelatedVersionsService] Using default first part:", firstPart);
     return firstPart;
   }
 
@@ -172,38 +160,29 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     try {
       const statuses: Record<string, VersionStatus> = {};
 
-      // For now, fetch statuses individually
-      // TODO: Optimize with true batch API calls when available
-      for (const versionId of versionIds) {
+      // Concurrency-limited fetches to speed up overall time while avoiding overload
+      const limit = 6;
+      const queue: Promise<void>[] = [];
+      let idx = 0;
+      const runNext = async () => {
+        const i = idx++;
+        if (i >= versionIds.length) return;
+        const versionId = versionIds[i];
         try {
           console.debug(
             `[RelatedVersionsService] Fetching status for version: ${versionId}`,
           );
-          // This call returns status IDs, we need to resolve them to status objects
           const statusData =
             await ftrackStatusService.fetchStatusPanelData(versionId);
-          console.debug(
-            `[RelatedVersionsService] Status data for ${versionId}:`,
-            statusData,
-          );
           if (statusData && statusData.versionStatusId) {
-            // Use the working getStatusesForEntity method instead of getStatusesForObjectType
             const allStatuses = await ftrackStatusService.getStatusesForEntity(
               "AssetVersion",
               versionId,
-            );
-            console.debug(
-              `[RelatedVersionsService] All statuses for ${versionId}:`,
-              allStatuses.length,
             );
             const statusObj = allStatuses.find(
               (s) => s.id === statusData.versionStatusId,
             );
             if (statusObj) {
-              console.debug(
-                `[RelatedVersionsService] Found status for ${versionId}:`,
-                statusObj,
-              );
               statuses[versionId] = statusObj;
             } else {
               console.warn(
@@ -221,9 +200,16 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
             versionId,
             error,
           );
-          // Continue with other versions
+        } finally {
+          await runNext();
         }
+      };
+
+      // Prime the pool
+      for (let i = 0; i < Math.min(limit, versionIds.length); i++) {
+        queue.push(runNext());
       }
+      await Promise.all(queue);
 
       console.debug(
         `[RelatedVersionsService] Returning ${Object.keys(statuses).length} version statuses`,
@@ -254,43 +240,33 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     try {
       const statuses: Record<string, ShotStatus> = {};
 
-      // For now, fetch statuses individually
-      // TODO: Optimize with true batch API calls when available
-      for (const versionId of versionIds) {
+      const limit = 6;
+      const queue: Promise<void>[] = [];
+      let idx = 0;
+      const runNext = async () => {
+        const i = idx++;
+        if (i >= versionIds.length) return;
+        const versionId = versionIds[i];
         try {
           console.debug(
             `[RelatedVersionsService] Fetching shot status for version: ${versionId}`,
           );
-          // This call returns status IDs, we need to resolve them to status objects
           const statusData =
             await ftrackStatusService.fetchStatusPanelData(versionId);
-          console.debug(
-            `[RelatedVersionsService] Shot status data for ${versionId}:`,
-            statusData,
-          );
           if (
             statusData &&
             statusData.parentStatusId &&
             statusData.parentType &&
             statusData.parentId
           ) {
-            // Use the working getStatusesForEntity method instead of getStatusesForObjectType
             const allStatuses = await ftrackStatusService.getStatusesForEntity(
               statusData.parentType,
               statusData.parentId,
-            );
-            console.debug(
-              `[RelatedVersionsService] All shot statuses for ${versionId}:`,
-              allStatuses.length,
             );
             const statusObj = allStatuses.find(
               (s) => s.id === statusData.parentStatusId,
             );
             if (statusObj) {
-              console.debug(
-                `[RelatedVersionsService] Found shot status for ${versionId}:`,
-                statusObj,
-              );
               statuses[versionId] = statusObj;
             } else {
               console.warn(
@@ -313,9 +289,15 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
             versionId,
             error,
           );
-          // Continue with other versions
+        } finally {
+          await runNext();
         }
+      };
+
+      for (let i = 0; i < Math.min(limit, versionIds.length); i++) {
+        queue.push(runNext());
       }
+      await Promise.all(queue);
 
       console.debug(
         `[RelatedVersionsService] Returning ${Object.keys(statuses).length} shot statuses`,

@@ -56,7 +56,9 @@ export function initLogCapture() {
 
   // Override console.debug
   console.debug = function (...args) {
-    captureLog("debug", args);
+    if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
+      captureLog("debug", args);
+    }
     originalConsole.debug.apply(console, args);
   };
 }

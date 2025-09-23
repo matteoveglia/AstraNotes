@@ -26,20 +26,39 @@ export class FtrackStatusService extends BaseFtrackClient {
   private schemaStatusMappingReady = false;
   private allWorkflowSchemas: any[] = [];
 
+  // Short-TTL cache and in-flight coalescing for status panel data
+  private statusPanelCache = new Map<string, { data: StatusPanelData; ts: number }>();
+  private statusPanelInFlight = new Map<string, Promise<StatusPanelData>>();
+  private readonly STATUS_PANEL_TTL_MS = 30 * 1000;
+
   /**
    * Fetch all necessary data for the status panel
    */
   async fetchStatusPanelData(assetVersionId: string): Promise<StatusPanelData> {
-    const session = await this.getSession();
-    console.debug(
-      "[FtrackStatusService] Fetching status panel data for asset version:",
-      assetVersionId,
-    );
+    // Serve from cache if fresh
+    const now = Date.now();
+    const cached = this.statusPanelCache.get(assetVersionId);
+    if (cached && now - cached.ts < this.STATUS_PANEL_TTL_MS) {
+      return cached.data;
+    }
 
-    try {
-      // CRITICAL FIX: Use the correct relationship path from schema
-      // AssetVersion -> asset.parent (not just parent)
-      const query = `select 
+    // Coalesce concurrent requests
+    const inFlight = this.statusPanelInFlight.get(assetVersionId);
+    if (inFlight) {
+      return await inFlight;
+    }
+
+    const fetchPromise = (async () => {
+      const session = await this.getSession();
+      try {
+        if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
+          console.debug(
+            "[FtrackStatusService] Fetching status panel data for asset version:",
+            assetVersionId,
+          );
+        }
+        // Use the correct relationship path: AssetVersion -> asset.parent
+        const query = `select 
         id,
         status_id,
         asset.parent.id,
@@ -50,31 +69,40 @@ export class FtrackStatusService extends BaseFtrackClient {
       from AssetVersion 
       where id is "${assetVersionId}"`;
 
-      const result = await session.query(query);
-      const version = result.data[0];
+        const result = await session.query(query);
+        const version = result.data[0];
 
-      if (!version) {
-        throw new Error("Asset version not found");
+        if (!version) {
+          throw new Error("Asset version not found");
+        }
+
+        const parent = version.asset.parent;
+
+        const data: StatusPanelData = {
+          versionId: version.id,
+          versionStatusId: version.status_id,
+          parentId: parent.id,
+          parentStatusId: parent.status_id,
+          parentType: parent.object_type.name,
+          projectId: parent.project.id,
+        };
+
+        // Cache the result
+        this.statusPanelCache.set(assetVersionId, { data, ts: now });
+        return data;
+      } catch (error) {
+        console.error(
+          `[FtrackStatusService] Failed to fetch status panel data for version ${assetVersionId}:`,
+          error,
+        );
+        throw error;
+      } finally {
+        this.statusPanelInFlight.delete(assetVersionId);
       }
+    })();
 
-      // Get the shot (parent) details
-      const parent = version.asset.parent;
-
-      return {
-        versionId: version.id,
-        versionStatusId: version.status_id,
-        parentId: parent.id,
-        parentStatusId: parent.status_id,
-        parentType: parent.object_type.name,
-        projectId: parent.project.id,
-      };
-    } catch (error) {
-      console.error(
-        `[FtrackStatusService] Failed to fetch status panel data for version ${assetVersionId}:`,
-        error,
-      );
-      throw error;
-    }
+    this.statusPanelInFlight.set(assetVersionId, fetchPromise);
+    return await fetchPromise;
   }
 
   /**
@@ -278,6 +306,10 @@ export class FtrackStatusService extends BaseFtrackClient {
   ): Promise<void> {
     const session = await this.getSession();
     await session.update(entityType, entityId, { status_id: statusId });
+    // Invalidate cache when updating an AssetVersion's status
+    if (entityType === "AssetVersion") {
+      this.statusPanelCache.delete(entityId);
+    }
   }
 }
 

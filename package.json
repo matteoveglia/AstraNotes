@@ -20,6 +20,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev -v",
+    "tauri:debug": "VITE_VERBOSE_DEBUG=true tauri dev -v",
     "tauri:build:mac": "node build.js mac",
     "tauri:build:macuniversal": "node build.js macuniversal",
     "tauri:build:win": "node build.js win",
