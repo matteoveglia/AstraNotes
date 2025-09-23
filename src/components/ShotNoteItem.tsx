@@ -213,20 +213,20 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
               alt={`${note.version.name} v${note.version.version}`}
               className="w-full h-full object-contain"
               fallback={
-                <div className="relative flex h-full w-full flex-col items-center justify-center rounded-md bg-zinc-200 dark:bg-zinc-800">
+                <div className="relative flex h-full w-full flex-col items-center justify-center rounded-md bg-zinc-200 px-5 py-2 dark:bg-zinc-800">
                   <BorderTrail
                     style={{
                       boxShadow:
                         "0px 0px 60px 30px rgb(255 255 255 / 50%), 0 0 100px 60px rgb(0 0 0 / 50%), 0 0 140px 90px rgb(0 0 0 / 50%)",
                     }}
-                    size={60}
+                    size={100}
                   />
                   <div
-                    className="flex h-full animate-pulse flex-col items-center justify-center space-y-1"
+                    className="flex h-full animate-pulse flex-col items-start justify-center space-y-2"
                     role="status"
-                    aria-label="Loading thumbnail..."
+                    aria-label="Loading..."
                   >
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
                 </div>
               }

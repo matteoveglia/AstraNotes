@@ -496,6 +496,13 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
                     </DropdownMenuItem>
                   </React.Fragment>
                 ))}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setSortConfig({ field: 'createdAt', direction: 'desc' })}
+                >
+                  Reset sorting
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
