@@ -11,9 +11,9 @@ import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { NoteLabelPill } from "./NoteLabelPill";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { 
-  Loader2, 
-  Paperclip, 
+import {
+  Loader2,
+  Paperclip,
   Download,
   Image as ImageIcon,
   FileText,
@@ -47,35 +47,36 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     // For older dates, show the actual date
     return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      month: "short",
+      day: "numeric",
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
     });
   };
 
   // Get user display name
   const getUserDisplayName = () => {
-    const fullName = `${note.user.firstName || ''} ${note.user.lastName || ''}`.trim();
+    const fullName =
+      `${note.user.firstName || ""} ${note.user.lastName || ""}`.trim();
     if (fullName) {
       return fullName;
     }
-    
+
     // Clean up username - remove email domain if present
     const username = note.user.username;
-    if (username.includes('@')) {
-      return username.split('@')[0];
+    if (username.includes("@")) {
+      return username.split("@")[0];
     }
-    
+
     return username;
   };
 
   // Get user initials for avatar fallback
   const getUserInitials = () => {
     const displayName = getUserDisplayName();
-    const parts = displayName.split(' ');
+    const parts = displayName.split(" ");
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
@@ -84,12 +85,14 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
 
   // Get attachment icon based on type (supports MIME or extension like ".jpg")
   const getAttachmentIcon = (attachment: NoteAttachment) => {
-    const t = (attachment.type || '').toLowerCase();
-    const isImage = t.startsWith('image/') || [
-      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'
-    ].some(ext => t.endsWith(ext));
+    const t = (attachment.type || "").toLowerCase();
+    const isImage =
+      t.startsWith("image/") ||
+      [".jpg", ".jpeg", ".png", ".gif", ".webp", ".tiff", ".bmp"].some((ext) =>
+        t.endsWith(ext),
+      );
     if (isImage) return <ImageIcon className="h-4 w-4" />;
-    if (t.includes('text') || t.includes('document') || t.endsWith('.pdf')) {
+    if (t.includes("text") || t.includes("document") || t.endsWith(".pdf")) {
       return <FileText className="h-4 w-4" />;
     }
     return <File className="h-4 w-4" />;
@@ -97,8 +100,8 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
 
   // Format file size
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (!bytes) return "";
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
@@ -112,10 +115,12 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
   };
 
   return (
-    <div className={cn(
-      "flex gap-4 p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors",
-      className
-    )}>
+    <div
+      className={cn(
+        "flex gap-4 p-4 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors",
+        className,
+      )}
+    >
       {/* User Avatar */}
       <div className="shrink-0">
         <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-sm font-medium text-zinc-600 dark:text-zinc-300">
@@ -140,7 +145,10 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
           </span>
           {note.user.username !== getUserDisplayName() && (
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
-              @{note.user.username.includes('@') ? note.user.username.split('@')[0] : note.user.username}
+              @
+              {note.user.username.includes("@")
+                ? note.user.username.split("@")[0]
+                : note.user.username}
             </span>
           )}
           <span className="text-zinc-300 dark:text-zinc-600">•</span>
@@ -165,11 +173,7 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
         {note.labels.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {note.labels.map((label) => (
-              <NoteLabelPill
-                key={label.id}
-                label={label}
-                size="sm"
-              />
+              <NoteLabelPill key={label.id} label={label} size="sm" />
             ))}
           </div>
         )}
@@ -182,7 +186,7 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
                 key={attachment.id}
                 onClick={() => handleAttachmentClick(attachment)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md text-sm text-zinc-700 dark:text-zinc-300 transition-colors"
-                title={`${attachment.name}${attachment.size ? ` (${formatFileSize(attachment.size)})` : ''}`}
+                title={`${attachment.name}${attachment.size ? ` (${formatFileSize(attachment.size)})` : ""}`}
               >
                 {getAttachmentIcon(attachment)}
                 <span className="truncate max-w-32">{attachment.name}</span>
@@ -202,10 +206,16 @@ export const ShotNoteItem: React.FC<ShotNoteItemProps> = ({
         <div
           className={cn(
             "shrink-0 w-32 h-[85px] bg-zinc-100 dark:bg-zinc-800 rounded overflow-hidden flex items-center justify-center",
-            note.version.thumbnailId ? "cursor-pointer hover:opacity-80" : "cursor-default",
+            note.version.thumbnailId
+              ? "cursor-pointer hover:opacity-80"
+              : "cursor-default",
           )}
           onClick={note.version.thumbnailId ? handleThumbnailClick : undefined}
-          title={note.version.thumbnailId ? "Click to view media" : "No thumbnail available"}
+          title={
+            note.version.thumbnailId
+              ? "Click to view media"
+              : "No thumbnail available"
+          }
         >
           {note.version.thumbnailId ? (
             <ThumbnailSuspense

@@ -4,7 +4,13 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Image as ImageIcon, Download } from "lucide-react";
 import type { NoteAttachment } from "@/types/relatedNotes";
@@ -28,6 +34,7 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
 }) => {
   const { showSuccess, showError } = useToast();
   const [url, setUrl] = useState<string | null>(null);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -39,12 +46,37 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       setLoading(true);
       setError(null);
       setUrl(null);
+      setDisplayUrl(null);
+      // Immediately mark as loading for images to ensure we show overlay and avoid stale image
+      if (isImage(attachment)) {
+        setImageLoading(true);
+      } else {
+        setImageLoading(false);
+      }
       try {
         const u = await ftrackVersionService.getComponentUrl(attachment.id);
+        if (!u) {
+          throw new Error("Attachment URL not available");
+        }
         setUrl(u);
-        // Start image-loading spinner for images
+        // Start preload for images; only reveal once fully loaded
         if (isImage(attachment)) {
-          setImageLoading(true);
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => resolve();
+              img.onerror = () => reject(new Error("Image failed to load"));
+              img.src = u;
+            });
+            setDisplayUrl(u);
+            setImageLoading(false);
+          } catch (e) {
+            console.error("[NoteAttachmentViewer] Image preload failed", e);
+            setError("Failed to load attachment");
+            setImageLoading(false);
+          }
+        } else {
+          setDisplayUrl(u);
         }
       } catch (e) {
         console.error("[NoteAttachmentViewer] Failed to get component URL", e);
@@ -62,13 +94,18 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       setImageLoading(false);
       setDownloading(false);
       setError(null);
+      setUrl(null);
+      setDisplayUrl(null);
     }
   }, [isOpen]);
 
   const isImage = (att?: NoteAttachment | null) => {
     if (!att) return false;
     const t = att.type?.toLowerCase() || "";
-    return t.startsWith("image/") || [".jpg", ".jpeg", ".png", ".gif", ".webp"].some((ext) => t.endsWith(ext));
+    return (
+      t.startsWith("image/") ||
+      [".jpg", ".jpeg", ".png", ".gif", ".webp"].some((ext) => t.endsWith(ext))
+    );
   };
 
   const handleDownload = async () => {
@@ -81,13 +118,13 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       if (attachment.type) {
         const type = attachment.type.toLowerCase();
         // If type looks like an extension (starts with '.') or a mime type
-        const ext = type.startsWith('.')
+        const ext = type.startsWith(".")
           ? type
-          : type.startsWith('image/')
-            ? `.${type.split('/')[1]}`
-            : type === 'application/pdf'
-              ? '.pdf'
-              : '';
+          : type.startsWith("image/")
+            ? `.${type.split("/")[1]}`
+            : type === "application/pdf"
+              ? ".pdf"
+              : "";
         if (ext && !filename.toLowerCase().endsWith(ext)) {
           filename += ext;
         }
@@ -98,7 +135,9 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       // Fetch binary data via Tauri HTTP plugin
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Download failed: ${response.status} ${response.statusText}`,
+        );
       }
       const buffer = await response.arrayBuffer();
       const bytes = new Uint8Array(buffer);
@@ -121,7 +160,9 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
       <DialogContent className="max-w-4xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span className="truncate mr-4">{attachment?.name || "Attachment"}</span>
+            <span className="truncate mr-4">
+              {attachment?.name || "Attachment"}
+            </span>
             <div className="flex items-center gap-2 mr-5">
               <Button
                 variant="default"
@@ -145,7 +186,9 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
             </div>
           </DialogTitle>
           <DialogDescription>
-            {attachment?.size ? `${(attachment.size / 1024).toFixed(0)} KB` : ""}
+            {attachment?.size
+              ? `${(attachment.size / 1024).toFixed(0)} KB`
+              : ""}
             {attachment?.name ? ` • ${attachment.name}` : ""}
             {attachment?.type ? ` • ${attachment.type}` : ""}
           </DialogDescription>
@@ -153,7 +196,7 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
 
         <div className="min-h-[300px] relative">
           {/* Centered overlay spinner to avoid jank */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {(loading || (isImage(attachment) && imageLoading)) && (
               <motion.div
                 key="loading-overlay"
@@ -179,10 +222,10 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
                 {error}
               </motion.div>
             )}
-            {!error && url && isImage(attachment) && (
+            {!error && displayUrl && isImage(attachment) && (
               <motion.img
-                key="image"
-                src={url}
+                key={displayUrl}
+                src={displayUrl}
                 alt={attachment?.name || "Attachment"}
                 className="max-h-[70vh] max-w-full object-contain block mx-auto"
                 initial={{ opacity: 0 }}
@@ -191,8 +234,14 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
                 onLoad={() => setImageLoading(false)}
               />
             )}
-            {!loading && !error && url && !isImage(attachment) && (
-              <motion.div key="fallback" className="flex flex-col items-center gap-2 text-zinc-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {!loading && !error && displayUrl && !isImage(attachment) && (
+              <motion.div
+                key="fallback"
+                className="flex flex-col items-center gap-2 text-zinc-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
                 <ImageIcon className="w-8 h-8" />
                 <p>Preview not supported. Use Download.</p>
               </motion.div>

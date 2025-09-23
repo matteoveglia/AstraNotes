@@ -90,7 +90,8 @@ export function SyncConflictDialog({
             Playlist Name Conflict
           </DialogTitle>
           <DialogDescription>
-            A playlist with this name already exists in ftrack. Choose how to resolve this conflict.
+            A playlist with this name already exists in ftrack. Choose how to
+            resolve this conflict.
           </DialogDescription>
         </DialogHeader>
 

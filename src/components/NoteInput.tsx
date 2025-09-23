@@ -14,7 +14,15 @@ import { NoteLabelSelect } from "./NoteLabelSelect";
 import { ThumbnailModal } from "./ThumbnailModal";
 import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { BorderTrail } from "@/components/ui/border-trail";
-import { Loader2, Workflow, ExternalLink, X, Info, Layers, NotebookTabs } from "lucide-react";
+import {
+  Loader2,
+  Workflow,
+  ExternalLink,
+  X,
+  Info,
+  Layers,
+  NotebookTabs,
+} from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
 import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
@@ -83,8 +91,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     useState(false);
   const [isRelatedVersionsModalOpen, setIsRelatedVersionsModalOpen] =
     useState(false);
-  const [isRelatedNotesModalOpen, setIsRelatedNotesModalOpen] =
-    useState(false);
+  const [isRelatedNotesModalOpen, setIsRelatedNotesModalOpen] = useState(false);
   const { settings } = useSettings();
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 

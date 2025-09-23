@@ -28,7 +28,7 @@ const mockRawNotes = [
     parent_type: "AssetVersion",
   },
   {
-    id: "note2", 
+    id: "note2",
     content: "Test note 2",
     created_date: "2024-01-02T11:00:00Z",
     user_id: "user2",
@@ -96,7 +96,7 @@ describe("RelatedNotesService", () => {
   beforeEach(() => {
     service = new RelatedNotesService();
     vi.clearAllMocks();
-    
+
     // Clear cache before each test
     service.clearCache();
   });
@@ -138,7 +138,7 @@ describe("RelatedNotesService", () => {
       mockSession.query
         .mockResolvedValueOnce({
           // Version IDs query
-          data: mockVersionIds.map(id => ({ id })),
+          data: mockVersionIds.map((id) => ({ id })),
         })
         .mockResolvedValueOnce({
           // Raw notes query
@@ -210,7 +210,7 @@ describe("RelatedNotesService", () => {
     it("should return empty array when no notes found", async () => {
       mockSession.query
         .mockResolvedValueOnce({
-          data: mockVersionIds.map(id => ({ id })), // Versions found
+          data: mockVersionIds.map((id) => ({ id })), // Versions found
         })
         .mockResolvedValueOnce({
           data: [], // No notes
@@ -223,7 +223,7 @@ describe("RelatedNotesService", () => {
     it("should handle missing user data gracefully", async () => {
       mockSession.query
         .mockResolvedValueOnce({
-          data: mockVersionIds.map(id => ({ id })),
+          data: mockVersionIds.map((id) => ({ id })),
         })
         .mockResolvedValueOnce({
           data: [mockRawNotes[0]], // One note
@@ -253,7 +253,7 @@ describe("RelatedNotesService", () => {
     it("should handle missing version data gracefully", async () => {
       mockSession.query
         .mockResolvedValueOnce({
-          data: mockVersionIds.map(id => ({ id })),
+          data: mockVersionIds.map((id) => ({ id })),
         })
         .mockResolvedValueOnce({
           data: [mockRawNotes[0]], // One note
@@ -291,7 +291,7 @@ describe("RelatedNotesService", () => {
   describe("caching", () => {
     const setupSuccessfulMocks = () => {
       mockSession.query
-        .mockResolvedValueOnce({ data: mockVersionIds.map(id => ({ id })) })
+        .mockResolvedValueOnce({ data: mockVersionIds.map((id) => ({ id })) })
         .mockResolvedValueOnce({ data: mockRawNotes })
         .mockResolvedValueOnce({ data: mockUsers })
         .mockResolvedValueOnce({ data: mockVersions })
@@ -301,17 +301,17 @@ describe("RelatedNotesService", () => {
 
     it("should cache results after first fetch", async () => {
       const shotName = "ASE0110";
-      
+
       // Setup mocks for first call
       setupSuccessfulMocks();
-      
+
       // First call should make API requests
       const result1 = await service.fetchNotesByShotName(shotName);
       expect(mockSession.query).toHaveBeenCalled();
-      
+
       // Reset mock to verify no new calls
       vi.clearAllMocks();
-      
+
       // Second call should use cache
       const result2 = await service.fetchNotesByShotName(shotName);
       expect(mockSession.query).not.toHaveBeenCalled();
@@ -320,20 +320,20 @@ describe("RelatedNotesService", () => {
 
     it("should clear cache for specific shot", async () => {
       const shotName = "ASE0110";
-      
+
       // Setup mocks for first call
       setupSuccessfulMocks();
-      
+
       // Fetch and cache
       await service.fetchNotesByShotName(shotName);
-      
+
       // Clear cache for this shot
       service.clearCache(shotName);
-      
+
       // Reset mock and setup for second call
       vi.clearAllMocks();
       setupSuccessfulMocks();
-      
+
       // Should make API call again
       await service.fetchNotesByShotName(shotName);
       expect(mockSession.query).toHaveBeenCalled();
@@ -342,21 +342,21 @@ describe("RelatedNotesService", () => {
     it("should clear all cache", async () => {
       const shotName1 = "ASE0110";
       const shotName2 = "ASE0120";
-      
+
       // Setup mocks for first calls
       setupSuccessfulMocks();
       await service.fetchNotesByShotName(shotName1);
-      
+
       setupSuccessfulMocks();
       await service.fetchNotesByShotName(shotName2);
-      
+
       // Clear all cache
       service.clearCache();
-      
+
       // Reset mock and setup for new call
       vi.clearAllMocks();
       setupSuccessfulMocks();
-      
+
       // Should make API call again
       await service.fetchNotesByShotName(shotName1);
       expect(mockSession.query).toHaveBeenCalled();
@@ -370,9 +370,9 @@ describe("RelatedNotesService", () => {
       try {
         await service.fetchNotesByShotName("ASE0110");
       } catch (error: any) {
-        expect(error).toHaveProperty('type', 'api');
-        expect(error).toHaveProperty('message');
-        expect(error).toHaveProperty('retryable', true);
+        expect(error).toHaveProperty("type", "api");
+        expect(error).toHaveProperty("message");
+        expect(error).toHaveProperty("retryable", true);
       }
     });
   });

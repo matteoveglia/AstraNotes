@@ -228,7 +228,8 @@ export const ThumbnailReloadModal: React.FC<ThumbnailReloadModalProps> = ({
             Reload Thumbnails
           </DialogTitle>
           <DialogDescription>
-            Refreshing thumbnail images for the current playlist. Please wait for the process to complete.
+            Refreshing thumbnail images for the current playlist. Please wait
+            for the process to complete.
           </DialogDescription>
         </DialogHeader>
 

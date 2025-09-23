@@ -11,14 +11,14 @@ import type { NoteLabel } from "@/types/relatedNotes";
 
 interface NoteLabelPillProps {
   label: NoteLabel;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
   onClick?: (labelId: string) => void;
   className?: string;
 }
 
 export const NoteLabelPill: React.FC<NoteLabelPillProps> = ({
   label,
-  size = 'sm',
+  size = "sm",
   onClick,
   className,
 }) => {
@@ -68,8 +68,8 @@ export const NoteLabelPill: React.FC<NoteLabelPillProps> = ({
         // Stronger contrast: white text on dark colors, dark text on light colors
         color: isLight ? "#111827" /* zinc-900 */ : "#ffffff",
         borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`,
-        borderWidth: '1px',
-        borderStyle: 'solid',
+        borderWidth: "1px",
+        borderStyle: "solid",
       }}
       onClick={onClick ? handleClick : undefined}
       title={onClick ? `Filter by ${label.name}` : label.name}

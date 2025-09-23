@@ -61,7 +61,11 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <motion.div
                       className="w-2.5 h-2.5 bg-orange-500 rounded-full"
                       animate={{ scale: [1, 1.25, 1], opacity: [1, 0.6, 1] }}
-                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     />
                   ) : isConnected ? (
                     // Connected: static green with one-time pulse right after a successful poll
@@ -80,13 +84,23 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <motion.div
                       className="w-2.5 h-2.5 bg-red-500 rounded-full"
                       animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     />
                   )}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{connecting ? "Connecting..." : isConnected ? "Connected" : "Disconnected"}</p>
+                <p>
+                  {connecting
+                    ? "Connecting..."
+                    : isConnected
+                      ? "Connected"
+                      : "Disconnected"}
+                </p>
               </TooltipContent>
             </Tooltip>
           </div>

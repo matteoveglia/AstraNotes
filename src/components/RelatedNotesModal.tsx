@@ -6,7 +6,13 @@
  */
 
 import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
@@ -15,6 +21,8 @@ import {
   Loader2,
   X,
   ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
   CircleSlash,
 } from "lucide-react";
 import {
@@ -87,7 +95,9 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [authorFilter, setAuthorFilter] = useState<string[]>([]);
   const [labelFilter, setLabelFilter] = useState<string[]>([]);
-  const [availableAuthors, setAvailableAuthors] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableAuthors, setAvailableAuthors] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [availableLabels, setAvailableLabels] = useState<NoteLabel[]>([]);
 
   // Pagination state
@@ -99,8 +109,8 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
   // Sort state
   const [sortConfig, setSortConfig] = useState<RelatedNotesSortConfig>({
-    field: 'createdAt',
-    direction: 'desc',
+    field: "createdAt",
+    direction: "desc",
   });
 
   // Thumbnail modal state
@@ -114,7 +124,8 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
   // Attachment viewer state
   const [attachmentViewerOpen, setAttachmentViewerOpen] = useState(false);
-  const [selectedAttachment, setSelectedAttachment] = useState<NoteAttachment | null>(null);
+  const [selectedAttachment, setSelectedAttachment] =
+    useState<NoteAttachment | null>(null);
 
   // React 18 Concurrent features
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -165,12 +176,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     abortControllerRef.current = new AbortController();
 
     try {
-      console.debug(
-        "[RelatedNotesModal] Fetching notes for shot:",
-        shotName,
-      );
+      console.debug("[RelatedNotesModal] Fetching notes for shot:", shotName);
 
-      const fetchedNotes = await relatedNotesService.fetchNotesByShotName(shotName);
+      const fetchedNotes =
+        await relatedNotesService.fetchNotesByShotName(shotName);
 
       // Filter out notes from the current version to avoid showing the user their own note
       const filteredNotes = fetchedNotes.filter(
@@ -187,20 +196,24 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
       // Extract unique authors and labels for filtering
       const authors = Array.from(
         new Map(
-          filteredNotes.map(note => [
+          filteredNotes.map((note) => [
             note.user.id,
             {
               id: note.user.id,
-              name: `${note.user.firstName || ''} ${note.user.lastName || ''}`.trim() || note.user.username,
-            }
-          ])
-        ).values()
+              name:
+                `${note.user.firstName || ""} ${note.user.lastName || ""}`.trim() ||
+                note.user.username,
+            },
+          ]),
+        ).values(),
       );
 
       const labels = Array.from(
         new Map(
-          filteredNotes.flatMap(note => note.labels).map(label => [label.id, label])
-        ).values()
+          filteredNotes
+            .flatMap((note) => note.labels)
+            .map((label) => [label.id, label]),
+        ).values(),
       );
 
       setAvailableAuthors(authors);
@@ -216,7 +229,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
         err,
       );
       setError({
-        type: 'api',
+        type: "api",
         message: `Failed to fetch notes for shot ${shotName}`,
         details: err,
         retryable: true,
@@ -237,8 +250,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
         (note) =>
           note.content.toLowerCase().includes(searchLower) ||
           note.user.username.toLowerCase().includes(searchLower) ||
-          `${note.user.firstName || ''} ${note.user.lastName || ''}`.toLowerCase().includes(searchLower) ||
-          note.version.name.toLowerCase().includes(searchLower)
+          `${note.user.firstName || ""} ${note.user.lastName || ""}`
+            .toLowerCase()
+            .includes(searchLower) ||
+          note.version.name.toLowerCase().includes(searchLower),
       );
     }
 
@@ -250,7 +265,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     // Apply label filter
     if (labelFilter.length > 0) {
       filtered = filtered.filter((note) =>
-        note.labels.some(label => labelFilter.includes(label.id))
+        note.labels.some((label) => labelFilter.includes(label.id)),
       );
     }
 
@@ -260,21 +275,25 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
       let aVal: any, bVal: any;
 
       switch (field) {
-        case 'createdAt':
+        case "createdAt":
           aVal = new Date(a.createdAt).getTime();
           bVal = new Date(b.createdAt).getTime();
           break;
-        case 'updatedAt':
+        case "updatedAt":
           aVal = new Date(a.updatedAt).getTime();
           bVal = new Date(b.updatedAt).getTime();
           break;
-        case 'author':
-          aVal = `${a.user.firstName || ''} ${a.user.lastName || ''}`.trim() || a.user.username;
-          bVal = `${b.user.firstName || ''} ${b.user.lastName || ''}`.trim() || b.user.username;
+        case "author":
+          aVal =
+            `${a.user.firstName || ""} ${a.user.lastName || ""}`.trim() ||
+            a.user.username;
+          bVal =
+            `${b.user.firstName || ""} ${b.user.lastName || ""}`.trim() ||
+            b.user.username;
           aVal = aVal.toLowerCase();
           bVal = bVal.toLowerCase();
           break;
-        case 'version':
+        case "version":
           aVal = a.version.name.toLowerCase();
           bVal = b.version.name.toLowerCase();
           break;
@@ -282,8 +301,8 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
           return 0;
       }
 
-      if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+      if (aVal < bVal) return direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return direction === "asc" ? 1 : -1;
       return 0;
     });
 
@@ -299,7 +318,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
   // Update total items when the filtered list changes
   useEffect(() => {
-    setPagination((prev) => ({ ...prev, totalItems: filteredAndSortedNotes.length }));
+    setPagination((prev) => ({
+      ...prev,
+      totalItems: filteredAndSortedNotes.length,
+    }));
   }, [filteredAndSortedNotes]);
 
   // Reset page to 1 when search or filter changes
@@ -311,7 +333,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
   // Handle thumbnail click
   const handleThumbnailClick = (versionId: string, thumbnailId?: string) => {
-    const note = notes.find(n => n.version.id === versionId);
+    const note = notes.find((n) => n.version.id === versionId);
     if (note) {
       setSelectedThumbnail({
         versionId,
@@ -334,6 +356,19 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     fetchNotes();
   };
 
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setPagination((prev) => ({ ...prev, currentPage: newPage }));
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPagination((prev) => ({
+      ...prev,
+      pageSize: newPageSize,
+      currentPage: 1,
+    }));
+  };
+
   // Summary text for pagination
   const summaryText = useMemo(() => {
     const visible = paginatedNotes.length;
@@ -344,7 +379,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
     if (filtered !== total) {
       text += ` of ${filtered} filtered`;
     }
-    text += ` of ${total} total note${total === 1 ? '' : 's'}`;
+    text += ` of ${total} total note${total === 1 ? "" : "s"}`;
 
     return text;
   }, [paginatedNotes.length, notes.length, filteredAndSortedNotes.length]);
@@ -377,7 +412,8 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
               </div>
             </DialogTitle>
             <DialogDescription>
-              View all notes from other versions in the same shot. Click thumbnails to view media.
+              View all notes from other versions in the same shot. Click
+              thumbnails or attachments to view media.
             </DialogDescription>
           </DialogHeader>
 
@@ -405,7 +441,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
                     <Filter className="h-4 w-4" />
                     <span>
                       {authorFilter.length > 0
-                        ? `${authorFilter.length} Author${authorFilter.length === 1 ? '' : 's'}`
+                        ? `${authorFilter.length} Author${authorFilter.length === 1 ? "" : "s"}`
                         : "Filter by Author"}
                     </span>
                   </Button>
@@ -483,7 +519,10 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() =>
-                        setSortConfig({ field: field as any, direction: "desc" })
+                        setSortConfig({
+                          field: field as any,
+                          direction: "desc",
+                        })
                       }
                       className={cn(
                         "flex justify-between",
@@ -499,7 +538,9 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => setSortConfig({ field: 'createdAt', direction: 'desc' })}
+                  onClick={() =>
+                    setSortConfig({ field: "createdAt", direction: "desc" })
+                  }
                 >
                   Reset sorting
                 </DropdownMenuItem>
@@ -510,7 +551,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
           {/* Content area */}
           <div className="flex-1 min-h-0 flex flex-col">
             {/* Summary */}
-            <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+            <div className="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
               {summaryText}
             </div>
 
@@ -553,32 +594,124 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
             )}
 
             {/* No results state */}
-            {!loading && !error && notes.length > 0 && filteredAndSortedNotes.length === 0 && (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center text-zinc-500 dark:text-zinc-400">
-                  <p className="text-lg mb-2">No matching notes</p>
-                  <p className="text-sm">
-                    Try adjusting your search or filter criteria.
-                  </p>
+            {!loading &&
+              !error &&
+              notes.length > 0 &&
+              filteredAndSortedNotes.length === 0 && (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center text-zinc-500 dark:text-zinc-400">
+                    <p className="text-lg mb-2">No matching notes</p>
+                    <p className="text-sm">
+                      Try adjusting your search or filter criteria.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Notes list */}
             {!loading && !error && paginatedNotes.length > 0 && (
-              <div className="flex-1 overflow-auto">
-                <div className="space-y-4">
-                  {paginatedNotes.map((note) => (
-                    <ShotNoteItem
-                      key={note.id}
-                      note={note}
-                      onThumbnailClick={handleThumbnailClick}
-                      onAttachmentClick={handleAttachmentClick}
-                    />
-                  ))}
+              <div className="flex-1 relative">
+                {/* Overlays are siblings of the scroll area so they don't scroll */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white/90 dark:from-black/60 to-transparent z-10"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white/90 dark:from-black/60 to-transparent z-10"
+                />
+
+                {/* Scroll area */}
+                <div className="absolute inset-0 overflow-auto">
+                  <div className="space-y-4 pt-8 pb-8">
+                    {paginatedNotes.map((note) => (
+                      <ShotNoteItem
+                        key={note.id}
+                        note={note}
+                        onThumbnailClick={handleThumbnailClick}
+                        onAttachmentClick={handleAttachmentClick}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
+            {/* Footer with pagination controls */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700 mt-2">
+              {paginatedNotes.length > 0 && (
+                <div className="flex items-center py-2 px-2 bg-zinc-50 dark:bg-zinc-800/50">
+                  {/* Left section – page size select and summary */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                      Show:
+                    </span>
+                    <Select
+                      value={pagination.pageSize.toString()}
+                      onValueChange={(value) =>
+                        handlePageSizeChange(parseInt(value))
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {summaryText}
+                    </span>
+                  </div>
+
+                  {/* Right section – page controls */}
+                  <div className="flex items-center gap-4 flex-1 justify-end">
+                    {Math.ceil(pagination.totalItems / pagination.pageSize) >
+                      1 && (
+                      <>
+                        <span className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                          Page {pagination.currentPage} of{" "}
+                          {Math.ceil(
+                            pagination.totalItems / pagination.pageSize,
+                          )}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handlePageChange(pagination.currentPage - 1)
+                            }
+                            disabled={pagination.currentPage <= 1}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handlePageChange(pagination.currentPage + 1)
+                            }
+                            disabled={
+                              pagination.currentPage >=
+                              Math.ceil(
+                                pagination.totalItems / pagination.pageSize,
+                              )
+                            }
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

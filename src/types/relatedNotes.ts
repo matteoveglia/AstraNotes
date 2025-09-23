@@ -68,8 +68,8 @@ export interface RelatedNotesFilter {
  * Sort configuration for related notes
  */
 export interface RelatedNotesSortConfig {
-  field: 'createdAt' | 'updatedAt' | 'author' | 'version';
-  direction: 'asc' | 'desc';
+  field: "createdAt" | "updatedAt" | "author" | "version";
+  direction: "asc" | "desc";
 }
 
 /**
@@ -149,14 +149,14 @@ export interface ShotNotesCache {
 export interface NotesLoadingProgress {
   current: number;
   total: number;
-  step: 'notes' | 'users' | 'versions' | 'labels' | 'attachments';
+  step: "notes" | "users" | "versions" | "labels" | "attachments";
 }
 
 /**
  * Error information for note loading failures
  */
 export interface NotesLoadingError {
-  type: 'network' | 'api' | 'parsing' | 'unknown';
+  type: "network" | "api" | "parsing" | "unknown";
   message: string;
   details?: any;
   retryable: boolean;

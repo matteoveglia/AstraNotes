@@ -53,10 +53,7 @@ export class RelatedNotesService extends BaseFtrackClient {
     // Pattern: SQ###_SH### (sequence and shot)
     if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
-      console.debug(
-        "[RelatedNotesService] Detected SQ_SH pattern:",
-        shotName,
-      );
+      console.debug("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
@@ -80,10 +77,7 @@ export class RelatedNotesService extends BaseFtrackClient {
     }
 
     // Default: use first part
-    console.debug(
-      "[RelatedNotesService] Using default first part:",
-      firstPart,
-    );
+    console.debug("[RelatedNotesService] Using default first part:", firstPart);
     return firstPart;
   }
 
@@ -93,18 +87,26 @@ export class RelatedNotesService extends BaseFtrackClient {
   private async diagnoseNoteSchema(session: Session): Promise<void> {
     try {
       console.debug("[RelatedNotesService] Diagnosing Note schema...");
-      
+
       // Try to get a single note to see available attributes
       const result = await session.query("select * from Note limit 1");
       if (result?.data?.length > 0) {
         const note = result.data[0];
-        console.debug("[RelatedNotesService] Available Note attributes:", Object.keys(note));
+        console.debug(
+          "[RelatedNotesService] Available Note attributes:",
+          Object.keys(note),
+        );
         console.debug("[RelatedNotesService] Sample Note data:", note);
       } else {
-        console.debug("[RelatedNotesService] No notes found for schema diagnosis");
+        console.debug(
+          "[RelatedNotesService] No notes found for schema diagnosis",
+        );
       }
     } catch (error) {
-      console.error("[RelatedNotesService] Failed to diagnose Note schema:", error);
+      console.error(
+        "[RelatedNotesService] Failed to diagnose Note schema:",
+        error,
+      );
     }
   }
 
@@ -117,8 +119,11 @@ export class RelatedNotesService extends BaseFtrackClient {
     shotName: string,
   ): Promise<RawNoteData[]> {
     try {
-      console.debug("[RelatedNotesService] Trying ReviewSessionObject approach for shot:", shotName);
-      
+      console.debug(
+        "[RelatedNotesService] Trying ReviewSessionObject approach for shot:",
+        shotName,
+      );
+
       // First, let's try the approach from the archived code that works
       const query = `
         select 
@@ -154,7 +159,10 @@ export class RelatedNotesService extends BaseFtrackClient {
       );
       return rawNotes;
     } catch (error) {
-      console.error("[RelatedNotesService] ReviewSessionObject approach failed:", error);
+      console.error(
+        "[RelatedNotesService] ReviewSessionObject approach failed:",
+        error,
+      );
       throw error;
     }
   }
@@ -167,8 +175,11 @@ export class RelatedNotesService extends BaseFtrackClient {
     shotName: string,
   ): Promise<RawNoteData[]> {
     try {
-      console.debug("[RelatedNotesService] Trying archived pattern approach for shot:", shotName);
-      
+      console.debug(
+        "[RelatedNotesService] Trying archived pattern approach for shot:",
+        shotName,
+      );
+
       // Use the exact query pattern that worked in the archived code
       const query = `
         select 
@@ -199,7 +210,10 @@ export class RelatedNotesService extends BaseFtrackClient {
       );
       return rawNotes;
     } catch (error) {
-      console.error("[RelatedNotesService] Archived pattern approach failed:", error);
+      console.error(
+        "[RelatedNotesService] Archived pattern approach failed:",
+        error,
+      );
       throw error;
     }
   }
@@ -222,13 +236,19 @@ export class RelatedNotesService extends BaseFtrackClient {
 
     for (let i = 0; i < approaches.length; i++) {
       try {
-        console.debug(`[RelatedNotesService] Trying approach ${i + 1}/${approaches.length}`);
+        console.debug(
+          `[RelatedNotesService] Trying approach ${i + 1}/${approaches.length}`,
+        );
         const result = await approaches[i]();
         if (result.length > 0) {
-          console.debug(`[RelatedNotesService] Approach ${i + 1} succeeded with ${result.length} notes`);
+          console.debug(
+            `[RelatedNotesService] Approach ${i + 1} succeeded with ${result.length} notes`,
+          );
           return result;
         }
-        console.debug(`[RelatedNotesService] Approach ${i + 1} returned 0 notes, trying next...`);
+        console.debug(
+          `[RelatedNotesService] Approach ${i + 1} returned 0 notes, trying next...`,
+        );
       } catch (error) {
         console.debug(`[RelatedNotesService] Approach ${i + 1} failed:`, error);
         if (i === approaches.length - 1) {
@@ -246,10 +266,7 @@ export class RelatedNotesService extends BaseFtrackClient {
    * Fetch all notes for versions from the same shot
    */
   async fetchNotesByShotName(shotName: string): Promise<ShotNote[]> {
-    console.debug(
-      "[RelatedNotesService] Fetching notes for shot:",
-      shotName,
-    );
+    console.debug("[RelatedNotesService] Fetching notes for shot:", shotName);
 
     // Check cache first
     const cached = this.getCachedNotes(shotName);
@@ -263,10 +280,13 @@ export class RelatedNotesService extends BaseFtrackClient {
 
     try {
       const session = await this.getSession();
-      
+
       // Step 1: Get all asset versions for this shot
-      const versionIds = await this.fetchVersionIdsByShotName(session, shotName);
-      
+      const versionIds = await this.fetchVersionIdsByShotName(
+        session,
+        shotName,
+      );
+
       if (versionIds.length === 0) {
         console.debug(
           "[RelatedNotesService] No versions found for shot:",
@@ -278,7 +298,7 @@ export class RelatedNotesService extends BaseFtrackClient {
       // Step 2: Get all notes for these versions using a subquery on AssetVersion by shot name
       // This avoids issues with server-specific schema differences and large IN lists
       const rawNotes = await this.fetchRawNotesByShotName(session, shotName);
-      
+
       if (rawNotes.length === 0) {
         console.debug(
           "[RelatedNotesService] No notes found for shot:",
@@ -303,7 +323,11 @@ export class RelatedNotesService extends BaseFtrackClient {
         shotName,
         error,
       );
-      throw this.createNotesError('api', `Failed to fetch notes for shot ${shotName}`, error);
+      throw this.createNotesError(
+        "api",
+        `Failed to fetch notes for shot ${shotName}`,
+        error,
+      );
     }
   }
 
@@ -320,10 +344,10 @@ export class RelatedNotesService extends BaseFtrackClient {
         select id from AssetVersion 
         where asset.name like "${shotName}%"
       `;
-      
+
       const result = await session.query(query);
       const versionIds = (result?.data || []).map((item: any) => item.id);
-      
+
       console.debug(
         `[RelatedNotesService] Found ${versionIds.length} versions for shot ${shotName}`,
       );
@@ -346,14 +370,14 @@ export class RelatedNotesService extends BaseFtrackClient {
     versionIds: string[],
   ): Promise<RawNoteData[]> {
     try {
-      const versionIdList = versionIds.map(id => `"${id}"`).join(', ');
+      const versionIdList = versionIds.map((id) => `"${id}"`).join(", ");
       const query = `
         select id, content, created_at, created_by_id, parent_id
         from Note
         where parent_id in (${versionIdList})
         order by created_at desc
       `;
-      
+
       const result = await session.query(query);
       const rawNotes = (result?.data || []).map((item: any) => ({
         id: item.id,
@@ -365,16 +389,11 @@ export class RelatedNotesService extends BaseFtrackClient {
         parent_id: item.parent_id,
         parent_type: "AssetVersion",
       }));
-      
-      console.debug(
-        `[RelatedNotesService] Found ${rawNotes.length} raw notes`,
-      );
+
+      console.debug(`[RelatedNotesService] Found ${rawNotes.length} raw notes`);
       return rawNotes;
     } catch (error) {
-      console.error(
-        "[RelatedNotesService] Failed to fetch raw notes:",
-        error,
-      );
+      console.error("[RelatedNotesService] Failed to fetch raw notes:", error);
       throw error;
     }
   }
@@ -390,9 +409,9 @@ export class RelatedNotesService extends BaseFtrackClient {
 
     try {
       // Extract unique IDs for batch fetching
-      const userIds = [...new Set(rawNotes.map(note => note.user_id))];
-      const versionIds = [...new Set(rawNotes.map(note => note.parent_id))];
-      const noteIds = rawNotes.map(note => note.id);
+      const userIds = [...new Set(rawNotes.map((note) => note.user_id))];
+      const versionIds = [...new Set(rawNotes.map((note) => note.parent_id))];
+      const noteIds = rawNotes.map((note) => note.id);
 
       // Batch fetch all related data
       const [users, versions, labels, attachments] = await Promise.all([
@@ -403,15 +422,15 @@ export class RelatedNotesService extends BaseFtrackClient {
       ]);
 
       // Process each note
-      const processedNotes: ShotNote[] = rawNotes.map(rawNote => {
+      const processedNotes: ShotNote[] = rawNotes.map((rawNote) => {
         const user = users[rawNote.user_id] || {
           id: rawNote.user_id,
-          username: 'Unknown User',
+          username: "Unknown User",
         };
-        
+
         const version = versions[rawNote.parent_id] || {
           id: rawNote.parent_id,
-          name: 'Unknown Version',
+          name: "Unknown Version",
           version: 0,
         };
 
@@ -447,16 +466,16 @@ export class RelatedNotesService extends BaseFtrackClient {
     if (userIds.length === 0) return {};
 
     try {
-      const userIdList = userIds.map(id => `"${id}"`).join(', ');
+      const userIdList = userIds.map((id) => `"${id}"`).join(", ");
       const query = `
         select id, username, first_name, last_name 
         from User 
         where id in (${userIdList})
       `;
-      
+
       const result = await session.query(query);
       const users: Record<string, any> = {};
-      
+
       (result?.data || []).forEach((user: any) => {
         users[user.id] = {
           id: user.id,
@@ -465,16 +484,13 @@ export class RelatedNotesService extends BaseFtrackClient {
           lastName: user.last_name,
         };
       });
-      
+
       console.debug(
         `[RelatedNotesService] Fetched ${Object.keys(users).length} users`,
       );
       return users;
     } catch (error) {
-      console.error(
-        "[RelatedNotesService] Failed to fetch user info:",
-        error,
-      );
+      console.error("[RelatedNotesService] Failed to fetch user info:", error);
       return {};
     }
   }
@@ -489,25 +505,25 @@ export class RelatedNotesService extends BaseFtrackClient {
     if (versionIds.length === 0) return {};
 
     try {
-      const versionIdList = versionIds.map(id => `"${id}"`).join(', ');
+      const versionIdList = versionIds.map((id) => `"${id}"`).join(", ");
       const query = `
         select id, version, asset.name, asset_id, thumbnail_id
         from AssetVersion 
         where id in (${versionIdList})
       `;
-      
+
       const result = await session.query(query);
       const versions: Record<string, any> = {};
-      
+
       (result?.data || []).forEach((version: any) => {
         versions[version.id] = {
           id: version.id,
-          name: version.asset?.name || 'Unknown Asset',
+          name: version.asset?.name || "Unknown Asset",
           version: version.version || 0,
           thumbnailId: version.thumbnail_id,
         };
       });
-      
+
       console.debug(
         `[RelatedNotesService] Fetched ${Object.keys(versions).length} versions`,
       );
@@ -531,37 +547,39 @@ export class RelatedNotesService extends BaseFtrackClient {
     if (noteIds.length === 0) return {};
 
     try {
-      const noteIdList = noteIds.map(id => `"${id}"`).join(', ');
-      
+      const noteIdList = noteIds.map((id) => `"${id}"`).join(", ");
+
       // First get the label links
       const linkQuery = `
         select note_id, label_id
         from NoteLabelLink
         where note_id in (${noteIdList})
       `;
-      
+
       const linkResult = await session.query(linkQuery);
       const labelLinks = linkResult?.data || [];
-      
+
       if (labelLinks.length === 0) {
         console.debug("[RelatedNotesService] No label links found");
         return {};
       }
-      
+
       // Get unique label IDs
-      const labelIds = [...new Set(labelLinks.map((link: any) => link.label_id))];
-      const labelIdList = labelIds.map(id => `"${id}"`).join(', ');
-      
+      const labelIds = [
+        ...new Set(labelLinks.map((link: any) => link.label_id)),
+      ];
+      const labelIdList = labelIds.map((id) => `"${id}"`).join(", ");
+
       // Fetch label details
       const labelQuery = `
         select id, name, color
         from NoteLabel
         where id in (${labelIdList})
       `;
-      
+
       const labelResult = await session.query(labelQuery);
       const labelData = labelResult?.data || [];
-      
+
       // Create lookup map
       const labelMap: Record<string, NoteLabel> = {};
       labelData.forEach((label: any) => {
@@ -571,7 +589,7 @@ export class RelatedNotesService extends BaseFtrackClient {
           color: label.color,
         };
       });
-      
+
       // Build final result
       const labels: Record<string, NoteLabel[]> = {};
       labelLinks.forEach((link: any) => {
@@ -583,7 +601,7 @@ export class RelatedNotesService extends BaseFtrackClient {
           labels[link.note_id].push(label);
         }
       });
-      
+
       console.debug(
         `[RelatedNotesService] Fetched labels for ${Object.keys(labels).length} notes`,
       );
@@ -607,37 +625,39 @@ export class RelatedNotesService extends BaseFtrackClient {
     if (noteIds.length === 0) return {};
 
     try {
-      const noteIdList = noteIds.map(id => `"${id}"`).join(', ');
-      
+      const noteIdList = noteIds.map((id) => `"${id}"`).join(", ");
+
       // First get the note-component links
       const linkQuery = `
         select note_id, component_id
         from NoteComponent
         where note_id in (${noteIdList})
       `;
-      
+
       const linkResult = await session.query(linkQuery);
       const componentLinks = linkResult?.data || [];
-      
+
       if (componentLinks.length === 0) {
         console.debug("[RelatedNotesService] No note components found");
         return {};
       }
-      
+
       // Get unique component IDs
-      const componentIds = [...new Set(componentLinks.map((link: any) => link.component_id))];
-      const componentIdList = componentIds.map(id => `"${id}"`).join(', ');
-      
+      const componentIds = [
+        ...new Set(componentLinks.map((link: any) => link.component_id)),
+      ];
+      const componentIdList = componentIds.map((id) => `"${id}"`).join(", ");
+
       // Fetch component details
       const componentQuery = `
         select id, name, file_type, size
         from Component
         where id in (${componentIdList})
       `;
-      
+
       const componentResult = await session.query(componentQuery);
       const componentData = componentResult?.data || [];
-      
+
       // Create lookup map
       const componentMap: Record<string, any> = {};
       componentData.forEach((component: any) => {
@@ -648,7 +668,7 @@ export class RelatedNotesService extends BaseFtrackClient {
           size: component.size,
         };
       });
-      
+
       // Build final result
       const attachments: Record<string, NoteAttachment[]> = {};
       componentLinks.forEach((link: any) => {
@@ -660,7 +680,7 @@ export class RelatedNotesService extends BaseFtrackClient {
           attachments[link.note_id].push(component);
         }
       });
-      
+
       console.debug(
         `[RelatedNotesService] Fetched attachments for ${Object.keys(attachments).length} notes`,
       );
@@ -680,13 +700,13 @@ export class RelatedNotesService extends BaseFtrackClient {
   private getCachedNotes(shotName: string): ShotNote[] | null {
     const cached = this.cache.get(shotName);
     if (!cached) return null;
-    
+
     const now = Date.now();
     if (now - cached.timestamp > cached.ttl) {
       this.cache.delete(shotName);
       return null;
     }
-    
+
     return cached.notes;
   }
 
@@ -698,7 +718,7 @@ export class RelatedNotesService extends BaseFtrackClient {
         this.cache.delete(oldestKey);
       }
     }
-    
+
     this.cache.set(shotName, {
       shotName,
       notes,
@@ -722,7 +742,7 @@ export class RelatedNotesService extends BaseFtrackClient {
    * Create standardized error objects
    */
   private createNotesError(
-    type: NotesLoadingError['type'],
+    type: NotesLoadingError["type"],
     message: string,
     details?: any,
   ): NotesLoadingError {
@@ -730,7 +750,7 @@ export class RelatedNotesService extends BaseFtrackClient {
       type,
       message,
       details,
-      retryable: type === 'network' || type === 'api',
+      retryable: type === "network" || type === "api",
     };
   }
 }
