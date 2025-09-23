@@ -245,6 +245,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
+          # Fetch latest changes from remote
+          git fetch origin
+          
           # Check if there are changes to commit
           if git diff --quiet && git diff --staged --quiet; then
             echo "No changes to commit"
@@ -254,6 +257,9 @@ jobs:
             
             # Commit with a descriptive message
             git commit -m "chore: bump version to v${{ github.event.inputs.version }} [skip ci]"
+            
+            # Pull with rebase to handle any remote changes
+            git pull --rebase origin ${{ github.ref_name }}
             
             # Push back to the repository
             git push origin ${{ github.ref_name }}
