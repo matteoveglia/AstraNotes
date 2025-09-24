@@ -1,118 +1,105 @@
 /**
  * @fileoverview ManualVersionAddition.test.tsx
- * Integration tests for manual version addition behavior
+ * Integration tests for manual version addition behavior using the modular playlist store
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { playlistStore } from "@/store/playlistStore";
-import { Playlist, AssetVersion } from "@/types";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { playlistStore } from "@/store/playlist";
+import { db } from "@/store/db";
+import type { AssetVersion, CreatePlaylistRequest } from "@/types";
 
-// Mock the store
-vi.mock("@/store/playlistStore", () => ({
-  playlistStore: {
-    addVersionToPlaylist: vi.fn(),
-    removeVersionFromPlaylist: vi.fn(),
-    cachePlaylist: vi.fn(),
-    cleanPlaylistForStorage: vi.fn((playlist) => playlist),
-    updatePlaylistAndRestartPolling: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-    stopAutoRefresh: vi.fn(),
-    startAutoRefresh: vi.fn(),
-  },
-}));
+async function seedPlaylist(overrides: Partial<CreatePlaylistRequest> = {}) {
+  const baseRequest: CreatePlaylistRequest = {
+    name: "Manual Addition Test Playlist",
+    type: "list",
+    projectId: "test-project",
+    description: "Manual addition integration test",
+    ...overrides,
+  };
+
+  return await playlistStore.createPlaylist(baseRequest);
+}
 
 describe("Manual Version Addition Integration", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    await db.playlists.clear();
+    await db.versions.clear();
+    playlistStore.clearCache();
   });
 
-  it("should call addVersionToPlaylist when manually adding versions", () => {
-    const mockPlaylist: Playlist = {
-      id: "test-playlist-1",
-      name: "Test Playlist",
-      title: "Test Playlist",
-      notes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      versions: [],
-    };
-
-    const newVersion: AssetVersion = {
-      id: "version-1",
-      name: "Test Version",
-      version: 1,
-      reviewSessionObjectId: "review-1",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      thumbnailId: "thumb-1",
-      thumbnailUrl: "http://example.com/thumb.jpg",
-      manuallyAdded: true,
-      user: {
-        id: "user-1",
-        username: "testuser",
-        firstName: "Test",
-        lastName: "User",
-      },
-    };
-
-    // Simulate manually adding a version
-    playlistStore.addVersionToPlaylist(mockPlaylist.id, newVersion);
-
-    // Verify the version was added to the store
-    expect(playlistStore.addVersionToPlaylist).toHaveBeenCalledWith(
-      mockPlaylist.id,
-      newVersion,
-    );
+  afterEach(async () => {
+    playlistStore.removeAllListeners();
+    await db.playlists.clear();
+    await db.versions.clear();
+    playlistStore.clearCache();
   });
 
-  it("should verify store methods are available", () => {
-    // Verify all required store methods exist
-    expect(playlistStore.addVersionToPlaylist).toBeDefined();
-    expect(playlistStore.cachePlaylist).toBeDefined();
-    expect(playlistStore.updatePlaylistAndRestartPolling).toBeDefined();
-  });
-
-  it("should handle manual version addition without modifications banner", () => {
-    // This test verifies that the fix in MainContent.tsx is working
-    // The fix removes setModifications calls for manually added versions
-    // so they don't trigger the modifications banner
-
-    const mockPlaylist: Playlist = {
-      id: "test-playlist-2",
-      name: "Another Test Playlist",
-      title: "Another Test Playlist",
-      notes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      versions: [],
-    };
+  it("persists manually added versions via addVersionToPlaylist alias", async () => {
+    const playlist = await seedPlaylist();
 
     const manualVersion: AssetVersion = {
       id: "manual-version-1",
       name: "Manual Test Version",
-      version: 2,
-      reviewSessionObjectId: "review-2",
+      version: 1,
+      manuallyAdded: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      thumbnailId: "thumb-2",
-      thumbnailUrl: "http://example.com/thumb2.jpg",
-      manuallyAdded: true,
-      user: {
-        id: "user-2",
-        username: "manualuser",
-        firstName: "Manual",
-        lastName: "User",
-      },
     };
 
-    // The key insight: manually added versions should not trigger
-    // the modifications banner because they are already persisted
-    playlistStore.addVersionToPlaylist(mockPlaylist.id, manualVersion);
+    await playlistStore.addVersionToPlaylist(playlist.id, manualVersion);
 
-    expect(playlistStore.addVersionToPlaylist).toHaveBeenCalledWith(
-      mockPlaylist.id,
-      manualVersion,
-    );
+    const storedPlaylist = await playlistStore.getPlaylist(playlist.id);
+    expect(storedPlaylist).toBeTruthy();
+    if (!storedPlaylist) throw new Error("Expected playlist to be defined");
+
+    const versions = storedPlaylist.versions ?? [];
+    expect(versions).toHaveLength(1);
+
+    const storedVersion = versions[0];
+    expect(storedVersion).toBeDefined();
+    expect(storedVersion?.id).toBe(manualVersion.id);
+    expect(storedVersion?.manuallyAdded).toBe(true);
+
+    const storedVersionRecord = await db.versions.get([
+      playlist.id,
+      manualVersion.id,
+    ]);
+    expect(storedVersionRecord).toBeTruthy();
+    expect(storedVersionRecord?.manuallyAdded).toBe(true);
+    expect(storedVersionRecord?.isRemoved).toBe(false);
+  });
+
+  it("exposes manual addition API surface on playlistStore", () => {
+    expect(typeof playlistStore.addVersionToPlaylist).toBe("function");
+    expect(typeof playlistStore.addVersionsToPlaylist).toBe("function");
+    expect(typeof playlistStore.removeVersionFromPlaylist).toBe("function");
+  });
+
+  it("emits versions-added events containing manual additions", async () => {
+    const playlist = await seedPlaylist({ name: "Event Emission Playlist" });
+
+    const listener = vi.fn();
+    playlistStore.on("versions-added", listener);
+
+    const manualVersion: AssetVersion = {
+      id: "manual-version-event",
+      name: "Manual Event Version",
+      version: 2,
+      manuallyAdded: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await playlistStore.addVersionToPlaylist(playlist.id, manualVersion);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    const payload = listener.mock.calls[0][0];
+    expect(payload.playlistId).toBe(playlist.id);
+    expect(payload.versions).toHaveLength(1);
+    expect(payload.versions[0].id).toBe(manualVersion.id);
+    expect(payload.versions[0].manuallyAdded).toBe(true);
+
+    playlistStore.off("versions-added", listener);
   });
 });

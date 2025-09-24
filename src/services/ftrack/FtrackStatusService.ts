@@ -28,7 +28,10 @@ export class FtrackStatusService extends BaseFtrackClient {
   private allWorkflowSchemas: any[] = [];
 
   // Short-TTL cache and in-flight coalescing for status panel data
-  private statusPanelCache = new Map<string, { data: StatusPanelData; ts: number }>();
+  private statusPanelCache = new Map<
+    string,
+    { data: StatusPanelData; ts: number }
+  >();
   private statusPanelInFlight = new Map<string, Promise<StatusPanelData>>();
   private readonly STATUS_PANEL_TTL_MS = 30 * 1000;
 
@@ -280,7 +283,10 @@ export class FtrackStatusService extends BaseFtrackClient {
       );
       return statuses;
     } catch (error) {
-      debugLog("[FtrackStatusService] Failed to fetch applicable statuses:", error);
+      debugLog(
+        "[FtrackStatusService] Failed to fetch applicable statuses:",
+        error,
+      );
       throw error;
     }
   }

@@ -231,9 +231,7 @@ const App: React.FC = () => {
           return;
         }
 
-        debugLog(
-          `Loading versions for active playlist: ${activePlaylistId}`,
-        );
+        debugLog(`Loading versions for active playlist: ${activePlaylistId}`);
 
         // CRITICAL FIX: Get the playlist to extract ftrackId for API call
         const currentPlaylist = playlists.find(

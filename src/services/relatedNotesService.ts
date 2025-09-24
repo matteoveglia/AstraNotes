@@ -39,7 +39,9 @@ export class RelatedNotesService extends BaseFtrackClient {
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      debugLog("[RelatedNotesService] No underscores found, returning full name");
+      debugLog(
+        "[RelatedNotesService] No underscores found, returning full name",
+      );
       return versionName;
     }
 

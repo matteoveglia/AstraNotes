@@ -56,7 +56,10 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
    * - "shot_010_lighting_v003" -> "shot_010"
    */
   extractShotName(versionName: string): string {
-    debugLog("[RelatedVersionsService] Extracting shot name from:", versionName);
+    debugLog(
+      "[RelatedVersionsService] Extracting shot name from:",
+      versionName,
+    );
 
     // Handle common naming patterns
     // Pattern 1: ASE0110_comp_000000_GMK -> ASE0110
@@ -67,7 +70,9 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      debugLog("[RelatedVersionsService] No underscores found, returning full name");
+      debugLog(
+        "[RelatedVersionsService] No underscores found, returning full name",
+      );
       return versionName;
     }
 
@@ -90,13 +95,19 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     // Pattern: shot_###
     if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      debugLog("[RelatedVersionsService] Detected shot_number pattern:", shotName);
+      debugLog(
+        "[RelatedVersionsService] Detected shot_number pattern:",
+        shotName,
+      );
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      debugLog("[RelatedVersionsService] Detected shot code pattern:", firstPart);
+      debugLog(
+        "[RelatedVersionsService] Detected shot code pattern:",
+        firstPart,
+      );
       return firstPart;
     }
 

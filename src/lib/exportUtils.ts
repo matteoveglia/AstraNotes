@@ -99,9 +99,7 @@ function getContrastingColor(hexColor: string | undefined | null): {
 } {
   const { r, g, b } = hexToRgb(hexColor);
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.6
-    ? { r: 0, g: 0, b: 0 }
-    : { r: 1, g: 1, b: 1 };
+  return luminance > 0.6 ? { r: 0, g: 0, b: 0 } : { r: 1, g: 1, b: 1 };
 }
 
 type PublishedNote = Omit<NoteExportData, "noteState"> & {
@@ -226,8 +224,8 @@ export async function exportPlaylistNotesToPDF(
   });
 
   const labelIdsNeeded = new Set(
-    Array.from(versionLabelIdMap.values()).filter(
-      (id): id is string => Boolean(id && id.trim()),
+    Array.from(versionLabelIdMap.values()).filter((id): id is string =>
+      Boolean(id && id.trim()),
     ),
   );
 
@@ -236,7 +234,10 @@ export async function exportPlaylistNotesToPDF(
     try {
       labelCatalog = await ftrackNoteService.getNoteLabels();
     } catch (error) {
-      console.warn("Failed to fetch note label metadata for PDF export:", error);
+      console.warn(
+        "Failed to fetch note label metadata for PDF export:",
+        error,
+      );
     }
   }
   const labelMap = new Map(labelCatalog.map((label) => [label.id, label]));
@@ -270,7 +271,10 @@ export async function exportPlaylistNotesToPDF(
 
     // If no published content, check for drafts
     if (!content) {
-      const draft = await playlistStore.getDraftContent(playlist.id, version.id);
+      const draft = await playlistStore.getDraftContent(
+        playlist.id,
+        version.id,
+      );
       if (draft && draft.trim()) {
         content = draft;
         noteState = "Draft";
@@ -373,15 +377,25 @@ export async function exportPlaylistNotesToPDF(
     x: number,
     yPos: number,
     size: number,
-    options: { bold?: boolean; italic?: boolean; color?: { r: number; g: number; b: number } } = {},
+    options: {
+      bold?: boolean;
+      italic?: boolean;
+      color?: { r: number; g: number; b: number };
+    } = {},
   ) => {
-    const font = options.bold ? fontBold : options.italic ? fontItalic : fontRegular;
+    const font = options.bold
+      ? fontBold
+      : options.italic
+        ? fontItalic
+        : fontRegular;
     pageRef.page.drawText(text, {
       x,
       y: yPos,
       size,
       font,
-      color: options.color ? rgb(options.color.r, options.color.g, options.color.b) : rgb(0, 0, 0),
+      color: options.color
+        ? rgb(options.color.r, options.color.g, options.color.b)
+        : rgb(0, 0, 0),
     });
   };
 
@@ -397,14 +411,22 @@ export async function exportPlaylistNotesToPDF(
   };
 
   // Keep reference to current page updated by ensureSpace
-  const pageRef = { page: firstPage, width, height } as { page: typeof firstPage; width: number; height: number };
+  const pageRef = { page: firstPage, width, height } as {
+    page: typeof firstPage;
+    width: number;
+    height: number;
+  };
 
   const drawWrappedText = (
     text: string,
     x: number,
     maxWidth: number,
     size: number,
-    opts: { bold?: boolean; italic?: boolean; color?: { r: number; g: number; b: number } } = {},
+    opts: {
+      bold?: boolean;
+      italic?: boolean;
+      color?: { r: number; g: number; b: number };
+    } = {},
   ) => {
     const words = text.split(/\s+/);
     let line = "";
@@ -478,7 +500,10 @@ export async function exportPlaylistNotesToPDF(
 
     const flushBuffer = () => {
       if (buffer.length === 0) return;
-      const maxSize = buffer.reduce((max, seg) => Math.max(max, seg.size), baseSize);
+      const maxSize = buffer.reduce(
+        (max, seg) => Math.max(max, seg.size),
+        baseSize,
+      );
       ensureSpace(lineHeight(maxSize));
 
       let offset = 0;
@@ -544,7 +569,8 @@ export async function exportPlaylistNotesToPDF(
           pushText(token.content);
           break;
         case "link_open": {
-          const href = (token.attrs || []).find((a: any) => a[0] === "href")?.[1] ?? "";
+          const href =
+            (token.attrs || []).find((a: any) => a[0] === "href")?.[1] ?? "";
           styleStack.push({ link: href });
           break;
         }
@@ -643,7 +669,8 @@ export async function exportPlaylistNotesToPDF(
           styleStack = styleStack.filter((s) => s !== "code");
           break;
         case "link_open": {
-          const href = (token.attrs || []).find((a: any) => a[0] === "href")?.[1] ?? "";
+          const href =
+            (token.attrs || []).find((a: any) => a[0] === "href")?.[1] ?? "";
           styleStack.push({ link: href });
           break;
         }
@@ -817,9 +844,15 @@ export async function exportPlaylistNotesToPDF(
           });
           const inline = tokens[i + 1];
           if (inline && inline.type === "inline") {
-            drawInlineTokens(inline.children || [], innerX, maxWidth - 10, baseSize);
+            drawInlineTokens(
+              inline.children || [],
+              innerX,
+              maxWidth - 10,
+              baseSize,
+            );
           }
-          while (i < tokens.length && tokens[i].type !== "blockquote_close") i++;
+          while (i < tokens.length && tokens[i].type !== "blockquote_close")
+            i++;
           y -= 6;
           break;
         }
@@ -962,7 +995,8 @@ export async function exportPlaylistNotesToPDF(
               baseSize,
             );
           }
-          while (i < tokens.length && tokens[i].type !== "blockquote_close") i++;
+          while (i < tokens.length && tokens[i].type !== "blockquote_close")
+            i++;
           height += 6;
           break;
         }
@@ -986,7 +1020,8 @@ export async function exportPlaylistNotesToPDF(
     const width = textWidth + paddingX * 2;
     const height = fontSize + paddingY * 2;
     const radius = height / 2;
-    const bg = label === "Published" ? rgb(0.2, 0.65, 0.3) : rgb(0.95, 0.76, 0.1);
+    const bg =
+      label === "Published" ? rgb(0.2, 0.65, 0.3) : rgb(0.95, 0.76, 0.1);
 
     const centerY = topY - radius;
     const bottomY = topY - height;
@@ -1031,7 +1066,12 @@ export async function exportPlaylistNotesToPDF(
   y -= lineHeight(18);
   drawText(`PLAYLIST: ${playlist.name}`, margin, y, 14, { bold: true });
   y -= 10;
-  pageRef.page.drawLine({ start: { x: margin, y }, end: { x: pageRef.width - margin, y }, thickness: 2, color: rgb(0,0,0) });
+  pageRef.page.drawLine({
+    start: { x: margin, y },
+    end: { x: pageRef.width - margin, y },
+    thickness: 2,
+    color: rgb(0, 0, 0),
+  });
   y -= 16;
 
   // General Notes
@@ -1047,13 +1087,21 @@ export async function exportPlaylistNotesToPDF(
   }
   // Separator
   ensureSpace(16);
-  pageRef.page.drawLine({ start: { x: margin, y }, end: { x: pageRef.width - margin, y }, thickness: 2, color: rgb(0,0,0) });
+  pageRef.page.drawLine({
+    start: { x: margin, y },
+    end: { x: pageRef.width - margin, y },
+    thickness: 2,
+    color: rgb(0, 0, 0),
+  });
   y -= 16;
 
   // Meta line: count
   ensureSpace(lineHeight(12));
   const versionLabel = includedCount === 1 ? "Version" : "Versions";
-  drawText(`${includedCount} ${versionLabel}`, margin, y, 12, { italic: true, color: { r: 0.4, g: 0.4, b: 0.4 } });
+  drawText(`${includedCount} ${versionLabel}`, margin, y, 12, {
+    italic: true,
+    color: { r: 0.4, g: 0.4, b: 0.4 },
+  });
   y -= 12;
 
   // Separator
@@ -1103,7 +1151,6 @@ export async function exportPlaylistNotesToPDF(
       metaLines.push(`Created By: ${item.publishedBy}`);
     }
 
-
     const headerHeight =
       NOTE_CARD_LAYOUT.contentTopOffset +
       NOTE_CARD_LAYOUT.titleFontSize +
@@ -1134,7 +1181,7 @@ export async function exportPlaylistNotesToPDF(
 
     // Draw card background with rounded corners
     const cornerRadius = 8;
-    
+
     // Main rectangle
     pageRef.page.drawRectangle({
       x: cardX + cornerRadius,
@@ -1143,7 +1190,7 @@ export async function exportPlaylistNotesToPDF(
       height: cardH,
       color: rgb(0.96, 0.96, 0.96),
     });
-    
+
     // Top and bottom rectangles
     pageRef.page.drawRectangle({
       x: cardX,
@@ -1152,7 +1199,7 @@ export async function exportPlaylistNotesToPDF(
       height: cardH - cornerRadius * 2,
       color: rgb(0.96, 0.96, 0.96),
     });
-    
+
     // Corner circles
     pageRef.page.drawCircle({
       x: cardX + cornerRadius,
@@ -1178,10 +1225,10 @@ export async function exportPlaylistNotesToPDF(
       size: cornerRadius,
       color: rgb(0.96, 0.96, 0.96),
     });
-    
+
     let leftX = leftXBase;
     let contentX = contentXBase;
-    
+
     // Draw thumbnail if present
     if (item.thumbnailBytes) {
       try {
@@ -1199,8 +1246,7 @@ export async function exportPlaylistNotesToPDF(
 
     // Draw label pills beneath thumbnail (supports multiple labels)
     if (item.labels && item.labels.length > 0) {
-      let labelY =
-        y - cardPadding - thumbH - NOTE_CARD_LAYOUT.labelTopGap;
+      let labelY = y - cardPadding - thumbH - NOTE_CARD_LAYOUT.labelTopGap;
       const baseX = leftX;
       for (const label of item.labels) {
         const text = label.name || label.id || "Label";
@@ -1216,7 +1262,7 @@ export async function exportPlaylistNotesToPDF(
         // Draw rounded pill
         const radius = pillHeight / 2;
         const pillCenterY = labelY - radius;
-        
+
         pageRef.page.drawCircle({
           x: baseX + radius,
           y: pillCenterY,
@@ -1255,7 +1301,7 @@ export async function exportPlaylistNotesToPDF(
     if (item.thumbnailBytes) {
       contentX = leftX + thumbW + 20;
     }
-    
+
     // Header section - align with top of thumbnail with configurable offset
     let innerY = y - cardPadding - NOTE_CARD_LAYOUT.contentTopOffset;
     drawText(
@@ -1282,7 +1328,7 @@ export async function exportPlaylistNotesToPDF(
     );
 
     innerY -= NOTE_CARD_LAYOUT.headerToMetaGap;
-    
+
     // Meta information
     if (metaLines.length > 0) {
       for (const ml of metaLines) {
@@ -1360,11 +1406,26 @@ export async function exportPlaylistNotesToPDF(
     // Header: Page X of Y on top-right
     const headerText = `Page ${i + 1} of ${total}`;
     const headerFontSize = 10;
-    const headerWidth = fontRegular.widthOfTextAtSize(headerText, headerFontSize);
-    p.drawText(headerText, { x: sz.width - margin - headerWidth, y: headerYAbs, size: headerFontSize, font: fontRegular, color: rgb(0,0,0) });
+    const headerWidth = fontRegular.widthOfTextAtSize(
+      headerText,
+      headerFontSize,
+    );
+    p.drawText(headerText, {
+      x: sz.width - margin - headerWidth,
+      y: headerYAbs,
+      size: headerFontSize,
+      font: fontRegular,
+      color: rgb(0, 0, 0),
+    });
     // Footer: playlist title italic gray on bottom-left
     const footerText = playlist.name;
-    p.drawText(footerText, { x: margin, y: footerYAbs, size: 10, font: fontItalic, color: rgb(0.5, 0.5, 0.5) });
+    p.drawText(footerText, {
+      x: margin,
+      y: footerYAbs,
+      size: 10,
+      font: fontItalic,
+      color: rgb(0.5, 0.5, 0.5),
+    });
   }
 
   const pdfBytes = await pdf.save();
@@ -1379,7 +1440,9 @@ async function fetchThumbnailBytes(componentId: string): Promise<Uint8Array> {
   const url = session.thumbnailUrl(componentId, { size: 256 });
   const res = await httpFetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to fetch thumbnail: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `Failed to fetch thumbnail: ${res.status} ${res.statusText}`,
+    );
   }
   const buf = await res.arrayBuffer();
   return new Uint8Array(buf);

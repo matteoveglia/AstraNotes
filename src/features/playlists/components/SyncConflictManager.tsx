@@ -23,7 +23,9 @@ export function SyncConflictManager() {
   debugLog("[SyncConflictManager] Component mounted and rendered");
 
   useEffect(() => {
-    debugLog("[SyncConflictManager] Setting up event listeners for sync conflicts");
+    debugLog(
+      "[SyncConflictManager] Setting up event listeners for sync conflicts",
+    );
 
     const handleSyncConflictDetected = (eventData: any) => {
       debugLog("[SyncConflictManager] Sync conflict detected:", eventData);

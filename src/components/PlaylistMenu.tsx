@@ -31,7 +31,10 @@ import {
 } from "./ui/alert-dialog";
 import { ThumbnailReloadModal } from "./ThumbnailReloadModal";
 import { usePlaylistsStore } from "../store/playlistsStore";
-import { exportPlaylistNotesToCSV, exportPlaylistNotesToPDF } from "../lib/exportUtils";
+import {
+  exportPlaylistNotesToCSV,
+  exportPlaylistNotesToPDF,
+} from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
 import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
 import {
@@ -67,7 +70,9 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfSummary, setPdfSummary] = useState("");
-  const [pdfScope, setPdfScope] = useState<"published" | "draft" | "both">("both");
+  const [pdfScope, setPdfScope] = useState<"published" | "draft" | "both">(
+    "both",
+  );
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const toast = useToast();
 
@@ -259,12 +264,14 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           <DialogHeader>
             <DialogTitle>Export Notes to PDF</DialogTitle>
             <DialogDescription>
-              Choose which notes to include and optionally add a summary before exporting your playlist to PDF.
+              Choose which notes to include and optionally add a summary before
+              exporting your playlist to PDF.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Optional: add a summary to include at the top of the PDF. All markdown is supported.
+              Optional: add a summary to include at the top of the PDF. All
+              markdown is supported.
             </p>
             <MarkdownEditor
               value={pdfSummary}
@@ -280,7 +287,8 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
                 value={pdfScope}
                 onValueChange={(val: string) => {
                   if (isExportingPdf) return;
-                  if (val === "published" || val === "draft" || val === "both") setPdfScope(val);
+                  if (val === "published" || val === "draft" || val === "both")
+                    setPdfScope(val);
                 }}
                 className={`inline-flex items-center gap-2 ${isExportingPdf ? "opacity-60 pointer-events-none" : ""}`}
               >
