@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Menu, Download, RefreshCw } from "lucide-react";
+import { Menu, Download, RefreshCw, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +31,12 @@ import {
 } from "./ui/alert-dialog";
 import { ThumbnailReloadModal } from "./ThumbnailReloadModal";
 import { usePlaylistsStore } from "../store/playlistsStore";
-import { exportPlaylistNotesToCSV } from "../lib/exportUtils";
+import { exportPlaylistNotesToCSV, exportPlaylistNotesToPDF } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
 import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MarkdownEditor } from "./MarkdownEditor";
+import * as ToggleGroup from "@radix-ui/react-toggle-group";
 
 interface PlaylistMenuProps {
   onClearAllNotes: () => void;
@@ -55,6 +58,9 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   >([]);
   const [clearAlertOpen, setClearAlertOpen] = useState(false);
   const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfSummary, setPdfSummary] = useState("");
+  const [pdfScope, setPdfScope] = useState<"published" | "draft" | "both">("both");
   const toast = useToast();
 
   const { playlists, activePlaylistId } = usePlaylistsStore();
@@ -114,6 +120,32 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
     setThumbnailModalOpen(true);
   };
 
+  // Open PDF dialog to collect optional summary
+  const handleExportPdfClick = () => {
+    setPdfDialogOpen(true);
+  };
+
+  // Confirm and run PDF export
+  const handleConfirmExportPdf = async () => {
+    if (!activePlaylistId) return;
+    const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
+    if (!activePlaylist) return;
+
+    try {
+      const fileName = await exportPlaylistNotesToPDF(activePlaylist, pdfSummary, pdfScope);
+      setPdfDialogOpen(false);
+      setPdfSummary("");
+      setPdfScope("both");
+      toast.showToast(
+        `Notes exported to PDF file in Downloads folder: ${fileName}`,
+        "success",
+      );
+    } catch (error) {
+      console.error("Failed to export notes to PDF:", error);
+      toast.showToast("Failed to export notes to PDF", "error");
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -129,6 +161,13 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           >
             <Download className="h-4 w-4" />
             Export Notes to CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handleExportPdfClick}
+            className="flex items-center gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            Export Notes to PDF
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -195,6 +234,64 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PDF Summary Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Export Notes to PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Optional: add a summary to include at the top of the PDF. All markdown is supported.
+            </p>
+            <MarkdownEditor
+              value={pdfSummary}
+              onChange={setPdfSummary}
+              placeholder="Write an optional summary for this export…"
+              minHeight="120px"
+            />
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Note Types to Export</div>
+              <ToggleGroup.Root
+                type="single"
+                value={pdfScope}
+                onValueChange={(val: string) => {
+                  if (val === "published" || val === "draft" || val === "both") setPdfScope(val);
+                }}
+                className="inline-flex items-center gap-2"
+              >
+                <ToggleGroup.Item
+                  value="published"
+                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "published" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                >
+                  Published Only
+                </ToggleGroup.Item>
+                <ToggleGroup.Item
+                  value="draft"
+                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "draft" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                >
+                  Draft Only
+                </ToggleGroup.Item>
+                <ToggleGroup.Item
+                  value="both"
+                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "both" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                >
+                  Both
+                </ToggleGroup.Item>
+              </ToggleGroup.Root>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setPdfDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmExportPdf} className="gap-2">
+              <FileText className="h-4 w-4" /> Export PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
