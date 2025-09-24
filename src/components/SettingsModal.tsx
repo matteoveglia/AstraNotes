@@ -186,6 +186,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const handleVerboseLoggingToggle = (checked: boolean) => {
+    setSettings({ ...settings, verboseLogging: checked });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -193,18 +197,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
-            Configure your FTrack connection and application preferences.
+            Configure your ftrack connection and application preferences.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-7">
           {/* Left Column */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="serverUrl">Ftrack URL</Label>
+              <Label htmlFor="serverUrl">ftrack URL</Label>
               <Input
                 id="serverUrl"
                 value={settings.serverUrl}
@@ -402,7 +406,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-            <div className="border-t pt-4 mt-4">
+            <div className="border-t pt-4 mt-4 space-y-4">
               <div className="flex justify-between items-center">
                 <div>
                   <h4 className="font-medium">Export Logs</h4>
@@ -420,6 +424,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <Download className="h-4 w-4" />
                   Export Logs
                 </Button>
+              </div>
+
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="font-medium">Verbose Debug Logging</h4>
+                  <p className="text-sm text-muted-foreground max-w-90">
+                    Enable additional debug output for troubleshooting. May
+                    impact performance while active.
+                  </p>
+                </div>
+                <Switch
+                  id="verbose-logging"
+                  checked={settings.verboseLogging}
+                  onCheckedChange={handleVerboseLoggingToggle}
+                  disabled={isLoading}
+                  className="self-center"
+                />
               </div>
             </div>
 

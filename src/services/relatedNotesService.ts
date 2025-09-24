@@ -6,6 +6,7 @@
 
 import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./ftrack/BaseFtrackClient";
+import { debugLog } from "@/lib/verboseLogging";
 import {
   ShotNote,
   NoteLabel,
@@ -33,17 +34,12 @@ export class RelatedNotesService extends BaseFtrackClient {
    * - "shot_010_lighting_v003" -> "shot_010"
    */
   extractShotName(versionName: string): string {
-    const d = (...args: any[]) => {
-      if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
-        console.debug(...args);
-      }
-    };
-    d("[RelatedNotesService] Extracting shot name from:", versionName);
+    debugLog("[RelatedNotesService] Extracting shot name from:", versionName);
 
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      d("[RelatedNotesService] No underscores found, returning full name");
+      debugLog("[RelatedNotesService] No underscores found, returning full name");
       return versionName;
     }
 
@@ -53,25 +49,25 @@ export class RelatedNotesService extends BaseFtrackClient {
     // Pattern: SQ###_SH### (sequence and shot)
     if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
-      d("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
+      debugLog("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
     if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      d("[RelatedNotesService] Detected shot_number pattern:", shotName);
+      debugLog("[RelatedNotesService] Detected shot_number pattern:", shotName);
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      d("[RelatedNotesService] Detected shot code pattern:", firstPart);
+      debugLog("[RelatedNotesService] Detected shot code pattern:", firstPart);
       return firstPart;
     }
 
     // Default: use first part
-    d("[RelatedNotesService] Using default first part:", firstPart);
+    debugLog("[RelatedNotesService] Using default first part:", firstPart);
     return firstPart;
   }
 

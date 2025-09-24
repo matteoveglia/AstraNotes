@@ -34,6 +34,7 @@ import { usePlaylistCreationStore } from "@/store/playlistCreationStore";
 import { useProjectStore } from "@/store/projectStore";
 import { CreatePlaylistRequest, Playlist, AssetVersion } from "@/types";
 import { Loader2, AlertCircle } from "lucide-react";
+import { debugLog } from "@/lib/verboseLogging";
 
 interface CreatePlaylistDialogProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export function CreatePlaylistDialog({
   preSelectedVersions = [],
   projectId,
 }: CreatePlaylistDialogProps) {
-  console.log("CreatePlaylistDialog render:", {
+  debugLog("CreatePlaylistDialog render:", {
     isOpen,
     preSelectedVersionsCount: preSelectedVersions.length,
     projectId,
@@ -224,13 +225,13 @@ export function CreatePlaylistDialog({
             : undefined,
       };
 
-      console.log("CreatePlaylistDialog: Creating playlist with versions:", {
+      debugLog("CreatePlaylistDialog: Creating playlist with versions:", {
         request,
         versionsCount: preSelectedVersions.length,
         versions: preSelectedVersions.map((v) => ({ id: v.id, name: v.name })),
       });
       const playlist = await createPlaylist(request, preSelectedVersions);
-      console.log("CreatePlaylistDialog: Playlist created:", {
+      debugLog("CreatePlaylistDialog: Playlist created:", {
         playlistId: playlist.id,
         versionsCount: playlist.versions?.length || 0,
         versions: playlist.versions?.map((v) => ({ id: v.id, name: v.name })),

@@ -7,6 +7,7 @@
 import { AssetVersion } from "@/types";
 import { ftrackVersionService } from "./ftrack/FtrackVersionService";
 import { ftrackStatusService } from "./ftrack/FtrackStatusService";
+import { debugLog } from "@/lib/verboseLogging";
 
 export interface VersionStatus {
   id: string;
@@ -55,12 +56,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
    * - "shot_010_lighting_v003" -> "shot_010"
    */
   extractShotName(versionName: string): string {
-    const d = (...args: any[]) => {
-      if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
-        console.debug(...args);
-      }
-    };
-    d("[RelatedVersionsService] Extracting shot name from:", versionName);
+    debugLog("[RelatedVersionsService] Extracting shot name from:", versionName);
 
     // Handle common naming patterns
     // Pattern 1: ASE0110_comp_000000_GMK -> ASE0110
@@ -87,25 +83,25 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     // Pattern: SQ###_SH### (sequence and shot)
     if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
-      d("[RelatedVersionsService] Detected SQ_SH pattern:", shotName);
+      debugLog("[RelatedVersionsService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
     if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      d("[RelatedVersionsService] Detected shot_number pattern:", shotName);
+      debugLog("[RelatedVersionsService] Detected shot_number pattern:", shotName);
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      d("[RelatedVersionsService] Detected shot code pattern:", firstPart);
+      debugLog("[RelatedVersionsService] Detected shot code pattern:", firstPart);
       return firstPart;
     }
 
     // Default: use first part
-    d("[RelatedVersionsService] Using default first part:", firstPart);
+    debugLog("[RelatedVersionsService] Using default first part:", firstPart);
     return firstPart;
   }
 

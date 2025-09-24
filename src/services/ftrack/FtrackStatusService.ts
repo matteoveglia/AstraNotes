@@ -1,4 +1,5 @@
 import { BaseFtrackClient } from "./BaseFtrackClient";
+import { debugLog } from "@/lib/verboseLogging";
 
 interface Status {
   id: string;
@@ -51,12 +52,10 @@ export class FtrackStatusService extends BaseFtrackClient {
     const fetchPromise = (async () => {
       const session = await this.getSession();
       try {
-        if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
-          console.debug(
-            "[FtrackStatusService] Fetching status panel data for asset version:",
-            assetVersionId,
-          );
-        }
+        debugLog(
+          "[FtrackStatusService] Fetching status panel data for asset version:",
+          assetVersionId,
+        );
         // Use the correct relationship path: AssetVersion -> asset.parent
         const query = `select 
         id,
@@ -114,9 +113,7 @@ export class FtrackStatusService extends BaseFtrackClient {
     }
 
     try {
-      console.debug(
-        "[FtrackStatusService] Initializing schema status mappings...",
-      );
+      debugLog("[FtrackStatusService] Initializing schema status mappings...");
 
       const session = await this.getSession();
 
@@ -188,7 +185,7 @@ export class FtrackStatusService extends BaseFtrackClient {
       }
 
       this.schemaStatusMappingReady = true;
-      console.debug(
+      debugLog(
         "[FtrackStatusService] Schema status mappings initialized successfully",
       );
     } catch (error) {
@@ -209,7 +206,7 @@ export class FtrackStatusService extends BaseFtrackClient {
     await this.ensureStatusMappingsInitialized();
 
     if (!this.schemaStatusMappingReady) {
-      console.debug("[FtrackStatusService] Mapping not ready, returning empty");
+      debugLog("[FtrackStatusService] Mapping not ready, returning empty");
       return [];
     }
 
@@ -223,7 +220,7 @@ export class FtrackStatusService extends BaseFtrackClient {
 
       const entityData = entityQuery.data[0];
       if (!entityData) {
-        console.debug(
+        debugLog(
           `[FtrackStatusService] Entity not found: ${entityType} ${entityId}`,
         );
         return [];
@@ -231,7 +228,7 @@ export class FtrackStatusService extends BaseFtrackClient {
 
       const projectSchemaId = entityData.project?.project_schema_id;
       if (!projectSchemaId) {
-        console.debug(
+        debugLog(
           `[FtrackStatusService] No project_schema_id for entity: ${entityType} ${entityId}`,
         );
         return [];
@@ -248,7 +245,7 @@ export class FtrackStatusService extends BaseFtrackClient {
         const workflowSchemaId = schema?.asset_version_workflow_schema_id;
 
         if (!workflowSchemaId) {
-          console.debug(
+          debugLog(
             `[FtrackStatusService] No asset_version_workflow_schema_id for ProjectSchema ${projectSchemaId}`,
           );
           return [];
@@ -266,7 +263,7 @@ export class FtrackStatusService extends BaseFtrackClient {
             color: s.color,
           })) || [];
 
-        console.debug(
+        debugLog(
           `[FtrackStatusService] AssetVersion workflow schema ${workflowSchemaId} statuses:`,
           statuses,
         );
@@ -277,16 +274,13 @@ export class FtrackStatusService extends BaseFtrackClient {
       const statuses =
         this.schemaStatusMapping[projectSchemaId]?.[entityType] || [];
 
-      console.debug(
+      debugLog(
         `[FtrackStatusService] Statuses for ${entityType} (${entityId}) in ProjectSchema ${projectSchemaId}:`,
         statuses,
       );
       return statuses;
     } catch (error) {
-      console.debug(
-        "[FtrackStatusService] Failed to fetch applicable statuses:",
-        error,
-      );
+      debugLog("[FtrackStatusService] Failed to fetch applicable statuses:", error);
       throw error;
     }
   }

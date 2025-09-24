@@ -16,6 +16,7 @@ interface Settings {
   apiKey: string;
   apiUser: string;
   defaultLabelId?: string;
+  verboseLogging: boolean;
 }
 
 interface SettingsState {
@@ -31,6 +32,7 @@ export const useSettings = create<SettingsState>()(
         apiKey: "",
         apiUser: "",
         defaultLabelId: undefined,
+        verboseLogging: import.meta.env.VITE_VERBOSE_DEBUG === "true",
       },
       setSettings: (newSettings) => set({ settings: newSettings }),
     }),

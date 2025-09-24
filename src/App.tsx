@@ -16,6 +16,7 @@ import { useAppEventListeners } from "./hooks/useAppEventListeners";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
 import { ftrackPlaylistService } from "./services/ftrack/FtrackPlaylistService";
+import { debugLog } from "@/lib/verboseLogging";
 
 const App: React.FC = () => {
   // Initialise cross-cutting hooks (moved out of this component)
@@ -65,7 +66,7 @@ const App: React.FC = () => {
   // New function to load both review sessions and lists
   const loadPlaylistsWithLists = useCallback(
     async (projectId?: string | null) => {
-      console.log("loadPlaylistsWithLists called:", {
+      debugLog("loadPlaylistsWithLists called:", {
         providedProjectId: projectId,
         currentSelectedProjectId: selectedProjectId,
         hasValidatedSelectedProject,
@@ -85,14 +86,14 @@ const App: React.FC = () => {
           (p) => p.id === quickNotesId,
         );
         if (!hasQuickNotes) {
-          console.log(
+          debugLog(
             "Quick Notes missing from state, will be added by setPlaylists()",
           );
         }
 
         // Set Quick Notes as active if no project is selected
         if (!actualProjectId || !hasValidatedSelectedProject) {
-          console.log("No validated project - showing only Quick Notes");
+          debugLog("No validated project - showing only Quick Notes");
           const quickNotesId = getQuickNotesId();
           if (!activePlaylistId || activePlaylistId !== quickNotesId) {
             setActivePlaylist(quickNotesId);
@@ -102,7 +103,7 @@ const App: React.FC = () => {
         }
 
         // CRITICAL FIX: Use the store's loadPlaylists which includes cleanup logic
-        console.log("Using store's loadPlaylists (includes cleanup)...");
+        debugLog("Using store's loadPlaylists (includes cleanup)...");
         // CRITICAL FIX: loadPlaylists() now fetches BOTH Review Sessions AND Lists with proper deduplication
         // Remove redundant second fetch that was causing duplicates
         // PROJECT FILTERING FIX: Pass actualProjectId to enable project filtering
@@ -113,7 +114,7 @@ const App: React.FC = () => {
           loadResult.deletedPlaylists &&
           loadResult.deletedPlaylists.length > 0
         ) {
-          console.log(
+          debugLog(
             "🧹 [STARTUP CLEANUP] Removed orphaned playlists during app startup:",
             loadResult.deletedPlaylists.map((p) => `${p.name} (${p.id})`),
           );
@@ -125,7 +126,7 @@ const App: React.FC = () => {
               (deleted) => deleted.id === activePlaylistId,
             )
           ) {
-            console.log(
+            debugLog(
               "🚨 [STARTUP CLEANUP] Active playlist was deleted during startup - redirecting to Quick Notes",
             );
             const quickNotesId = getQuickNotesId();
@@ -134,7 +135,7 @@ const App: React.FC = () => {
           }
         }
 
-        console.log(
+        debugLog(
           "Playlists loaded with proper deduplication - no additional fetching needed",
         );
       } catch (error) {
@@ -165,7 +166,7 @@ const App: React.FC = () => {
           activePlaylistId === quickNotesId &&
           !loadedVersionsRef.current[quickNotesId]
         ) {
-          console.log("Loading Quick Notes versions from database only...");
+          debugLog("Loading Quick Notes versions from database only...");
           try {
             const databaseVersions =
               await playlistStore.getPlaylistVersions(quickNotesId);
@@ -194,7 +195,7 @@ const App: React.FC = () => {
             );
 
             loadedVersionsRef.current[quickNotesId] = true;
-            console.log(
+            debugLog(
               `Quick Notes loaded ${assetVersions.length} versions from database`,
             );
           } catch (error) {
@@ -210,7 +211,7 @@ const App: React.FC = () => {
         currentPlaylist?.isLocalOnly ||
         activePlaylistId?.startsWith("local_")
       ) {
-        console.log(
+        debugLog(
           `Skipping version loading for local playlist: ${activePlaylistId} (isLocalOnly: ${currentPlaylist?.isLocalOnly})`,
         );
         if (activePlaylistId) {
@@ -230,7 +231,7 @@ const App: React.FC = () => {
           return;
         }
 
-        console.log(
+        debugLog(
           `Loading versions for active playlist: ${activePlaylistId}`,
         );
 
@@ -239,7 +240,7 @@ const App: React.FC = () => {
           (p) => p.id === activePlaylistId,
         );
         if (!currentPlaylist?.ftrackId) {
-          console.log(
+          debugLog(
             `[App] Playlist ${activePlaylistId} has no ftrackId - skipping ftrack version loading`,
           );
           // Still try to load database versions
@@ -267,7 +268,7 @@ const App: React.FC = () => {
           currentPlaylist.ftrackId,
         );
 
-        console.log(
+        debugLog(
           `Received ${ftrackVersions.length} versions from ftrack service`,
         );
 
@@ -277,7 +278,7 @@ const App: React.FC = () => {
           ftrackVersions,
         );
 
-        console.log(
+        debugLog(
           `Using ${mergedVersions.length} merged versions (ftrack + database)`,
         );
 
@@ -289,7 +290,7 @@ const App: React.FC = () => {
           ),
         );
 
-        console.log(
+        debugLog(
           `Updated playlists state. Active playlist now has ${mergedVersions.length} versions`,
         );
 
@@ -298,7 +299,7 @@ const App: React.FC = () => {
           loadedVersionsRef.current[activePlaylistId] = true;
         }
 
-        console.log(
+        debugLog(
           `Marked playlist ${activePlaylistId} as loaded. LoadedVersionsRef:`,
           loadedVersionsRef.current,
         );
@@ -315,14 +316,14 @@ const App: React.FC = () => {
   // Handle project changes
   const handleProjectChange = useCallback(
     (projectId: string | null) => {
-      console.log("Project changed:", projectId);
+      debugLog("Project changed:", projectId);
 
       if (projectId) {
         // CRITICAL FIX: Pass the actual projectId parameter instead of using closure
         loadPlaylistsWithLists(projectId);
       } else {
         // Project cleared - don't load anything
-        console.log("Project cleared - not loading playlists");
+        debugLog("Project cleared - not loading playlists");
       }
     },
     [loadPlaylistsWithLists],
@@ -330,14 +331,13 @@ const App: React.FC = () => {
 
   // Reload when project changes or validation completes
   useEffect(() => {
-    console.log("Project state changed:", {
+    debugLog("Project state changed:", {
       selectedProjectId,
       hasValidatedSelectedProject,
     });
 
     if (selectedProjectId && hasValidatedSelectedProject) {
-      // Only load when we have a validated project selection
-      console.log("Loading playlists for project:", selectedProjectId);
+      debugLog("Loading playlists for project:", selectedProjectId);
 
       // FIX ISSUE #1: Clear playlist state immediately to prevent flash of old data
       setLocalPlaylists([]);
@@ -347,7 +347,7 @@ const App: React.FC = () => {
       loadPlaylistsWithLists(selectedProjectId);
     } else {
       // No project selected or not validated - clear project playlists but keep Quick Notes
-      console.log(
+      debugLog(
         "No validated project - clearing project playlists, keeping Quick Notes",
       );
 
@@ -373,7 +373,7 @@ const App: React.FC = () => {
       // Clear the loaded versions cache when clearing project (except Quick Notes)
       const newCache = { [quickNotesId]: true };
       loadedVersionsRef.current = newCache;
-      console.log("Cleared loadedVersionsRef cache except Quick Notes");
+      debugLog("Cleared loadedVersionsRef cache except Quick Notes");
     }
   }, [
     selectedProjectId,
@@ -475,7 +475,7 @@ const App: React.FC = () => {
   };
 
   const handleMainContentPlaylistUpdate = (updatedPlaylist: Playlist) => {
-    console.log("handleMainContentPlaylistUpdate called:", {
+    debugLog("handleMainContentPlaylistUpdate called:", {
       playlistId: updatedPlaylist.id,
       playlistName: updatedPlaylist.name,
       versionsCount: updatedPlaylist.versions?.length || 0,
@@ -500,11 +500,11 @@ const App: React.FC = () => {
       const updated = [...playlists];
       updated[existingIndex] = updatedPlaylist;
       setLocalPlaylists(updated);
-      console.log("Updated existing playlist in App state");
+      debugLog("Updated existing playlist in App state");
     } else {
       // Add new playlist
       setLocalPlaylists([...playlists, updatedPlaylist]);
-      console.log("Added new playlist to App state");
+      debugLog("Added new playlist to App state");
     }
   };
 
@@ -557,19 +557,17 @@ const App: React.FC = () => {
     hasValidatedSelectedProject || selectedProjectId === null;
 
   // Debug logging for development only
-  if (process.env.NODE_ENV === "development") {
-    console.log("App rendering decision:", {
-      activePlaylistId,
-      hasActivePlaylistData: !!activePlaylistData,
-      isQuickNotes: activePlaylistData?.isQuickNotes,
-      hasLoadedVersions: activePlaylistId
-        ? !!loadedVersionsRef.current[activePlaylistId]
-        : false,
-      loadingVersions,
-      isPlaylistReady,
-      versionsCount: activePlaylistData?.versions?.length || 0,
-    });
-  }
+  debugLog("App rendering decision:", {
+    activePlaylistId,
+    hasActivePlaylistData: !!activePlaylistData,
+    isQuickNotes: activePlaylistData?.isQuickNotes,
+    hasLoadedVersions: activePlaylistId
+      ? !!loadedVersionsRef.current[activePlaylistId]
+      : false,
+    loadingVersions,
+    isPlaylistReady,
+    versionsCount: activePlaylistData?.versions?.length || 0,
+  });
 
   return (
     <div className="h-screen flex flex-col select-none">

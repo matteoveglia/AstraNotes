@@ -7,6 +7,7 @@
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { downloadDir, join } from "@tauri-apps/api/path";
 import { message } from "@tauri-apps/plugin-dialog";
+import { isVerboseLoggingEnabled } from "./verboseLogging";
 
 // Store for captured logs
 interface LogEntry {
@@ -56,7 +57,7 @@ export function initLogCapture() {
 
   // Override console.debug
   console.debug = function (...args) {
-    if (import.meta.env.VITE_VERBOSE_DEBUG === "true") {
+    if (isVerboseLoggingEnabled()) {
       captureLog("debug", args);
     }
     originalConsole.debug.apply(console, args);
