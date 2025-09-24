@@ -361,6 +361,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     size="default"
                     onClick={async () => {
                       if (updateAvailable) {
+                        if (isUpdating) return;
                         setIsUpdating(true);
                         // Reset update state before installing the update
                         useUpdateStore.getState().resetUpdateState();
@@ -372,17 +373,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setIsUpdating(false);
                         }
                       } else {
-                        silentCheckForUpdates(true);
+                        if (isUpdating) return;
+                        setIsUpdating(true);
+                        try {
+                          await silentCheckForUpdates(true);
+                        } catch (err) {
+                          console.error("Failed to check for updates:", err);
+                        } finally {
+                          setIsUpdating(false);
+                        }
                       }
                     }}
                     disabled={isLoading || isUpdating}
                     className="relative z-10"
                   >
-                    {isUpdating
-                      ? "Installing..."
-                      : updateAvailable
-                        ? "Update Now"
-                        : "Check for Updates"}
+                    {isUpdating ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                        {updateAvailable ? "Installing..." : "Checking..."}
+                      </span>
+                    ) : updateAvailable ? (
+                      "Update Now"
+                    ) : (
+                      "Check for Updates"
+                    )}
                   </Button>
                 </div>
               </div>
