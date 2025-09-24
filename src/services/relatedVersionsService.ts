@@ -67,7 +67,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     const parts = versionName.split("_");
 
     if (parts.length === 0) {
-      d("[RelatedVersionsService] No underscores found, returning full name");
+      debugLog("[RelatedVersionsService] No underscores found, returning full name");
       return versionName;
     }
 
