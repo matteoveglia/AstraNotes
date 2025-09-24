@@ -11,6 +11,7 @@ import {
 } from "./SyncConflictDialog";
 import { playlistStore } from "@/store/playlist";
 import { useToast } from "@/components/ui/toast";
+import { debugLog } from "@/lib/verboseLogging";
 
 export function SyncConflictManager() {
   const [conflictDetails, setConflictDetails] =
@@ -19,15 +20,13 @@ export function SyncConflictManager() {
   const { showToast, showError } = useToast();
 
   // Add mount detection
-  console.debug("[SyncConflictManager] Component mounted and rendered");
+  debugLog("[SyncConflictManager] Component mounted and rendered");
 
   useEffect(() => {
-    console.debug(
-      "[SyncConflictManager] Setting up event listeners for sync conflicts",
-    );
+    debugLog("[SyncConflictManager] Setting up event listeners for sync conflicts");
 
     const handleSyncConflictDetected = (eventData: any) => {
-      console.debug("[SyncConflictManager] Sync conflict detected:", eventData);
+      debugLog("[SyncConflictManager] Sync conflict detected:", eventData);
 
       setConflictDetails({
         playlistId: eventData.playlistId,
@@ -39,7 +38,7 @@ export function SyncConflictManager() {
     };
 
     const handleSyncConflictResolved = (eventData: any) => {
-      console.debug("[SyncConflictManager] Sync conflict resolved:", eventData);
+      debugLog("[SyncConflictManager] Sync conflict resolved:", eventData);
 
       // Close dialog
       setConflictDetails(null);
@@ -62,7 +61,7 @@ export function SyncConflictManager() {
     const handleSyncCompleted = (eventData: any) => {
       // If we're processing a conflict resolution, this means the retry succeeded
       if (isProcessing) {
-        console.debug(
+        debugLog(
           "[SyncConflictManager] Conflict resolution sync completed:",
           eventData,
         );

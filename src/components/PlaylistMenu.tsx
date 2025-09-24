@@ -34,7 +34,14 @@ import { usePlaylistsStore } from "../store/playlistsStore";
 import { exportPlaylistNotesToCSV, exportPlaylistNotesToPDF } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
 import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MarkdownEditor } from "./MarkdownEditor";
 import * as ToggleGroup from "@radix-ui/react-toggle-group";
 
@@ -251,6 +258,9 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Export Notes to PDF</DialogTitle>
+            <DialogDescription>
+              Choose which notes to include and optionally add a summary before exporting your playlist to PDF.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">

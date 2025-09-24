@@ -22,6 +22,7 @@ import { Playlist, AssetVersion, NoteStatus } from "@/types";
 import { playlistStore } from "../store/playlist";
 import { usePlaylistsStore } from "../store/playlistsStore";
 import { RefreshCw, ExternalLink } from "lucide-react";
+import { debugLog } from "@/lib/verboseLogging";
 import { useSettings } from "../store/settingsStore";
 import { motion, AnimatePresence } from "motion/react";
 import { open } from "@tauri-apps/plugin-shell";
@@ -1068,7 +1069,7 @@ export const MainContent: React.FC<MainContentProps> = ({
                 activePlaylist.ftrackSyncState === "pending" &&
                 (hasVersionsToSync || hasManuallyAdded);
 
-              console.log("Sync button condition check:", {
+              debugLog("Sync button condition check:", {
                 playlistId: activePlaylist.id,
                 isQuickNotes: activePlaylist.isQuickNotes,
                 isLocalOnly: activePlaylist.isLocalOnly,
