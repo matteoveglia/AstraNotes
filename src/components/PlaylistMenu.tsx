@@ -61,6 +61,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfSummary, setPdfSummary] = useState("");
   const [pdfScope, setPdfScope] = useState<"published" | "draft" | "both">("both");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const toast = useToast();
 
   const { playlists, activePlaylistId } = usePlaylistsStore();
@@ -127,22 +128,32 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
 
   // Confirm and run PDF export
   const handleConfirmExportPdf = async () => {
-    if (!activePlaylistId) return;
+    if (!activePlaylistId || isExportingPdf) return;
     const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
     if (!activePlaylist) return;
 
     try {
-      const fileName = await exportPlaylistNotesToPDF(activePlaylist, pdfSummary, pdfScope);
-      setPdfDialogOpen(false);
-      setPdfSummary("");
-      setPdfScope("both");
+      setIsExportingPdf(true);
+
+      const fileName = await exportPlaylistNotesToPDF(
+        activePlaylist,
+        pdfSummary,
+        pdfScope,
+      );
+
       toast.showToast(
         `Notes exported to PDF file in Downloads folder: ${fileName}`,
         "success",
       );
+
+      setPdfDialogOpen(false);
+      setPdfSummary("");
+      setPdfScope("both");
     } catch (error) {
       console.error("Failed to export notes to PDF:", error);
       toast.showToast("Failed to export notes to PDF", "error");
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -250,6 +261,7 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
               onChange={setPdfSummary}
               placeholder="Write an optional summary for this export…"
               minHeight="120px"
+              disabled={isExportingPdf}
             />
             <div className="space-y-2">
               <div className="text-sm font-medium">Note Types to Export</div>
@@ -257,25 +269,29 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
                 type="single"
                 value={pdfScope}
                 onValueChange={(val: string) => {
+                  if (isExportingPdf) return;
                   if (val === "published" || val === "draft" || val === "both") setPdfScope(val);
                 }}
-                className="inline-flex items-center gap-2"
+                className={`inline-flex items-center gap-2 ${isExportingPdf ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <ToggleGroup.Item
                   value="published"
-                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "published" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                  className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${pdfScope === "published" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"}`}
+                  disabled={isExportingPdf}
                 >
                   Published Only
                 </ToggleGroup.Item>
                 <ToggleGroup.Item
                   value="draft"
-                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "draft" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                  className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${pdfScope === "draft" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"}`}
+                  disabled={isExportingPdf}
                 >
                   Draft Only
                 </ToggleGroup.Item>
                 <ToggleGroup.Item
                   value="both"
-                  className={`px-3 py-1.5 rounded-md border text-sm ${pdfScope === "both" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800"}`}
+                  className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${pdfScope === "both" ? "bg-zinc-900 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"}`}
+                  disabled={isExportingPdf}
                 >
                   Both
                 </ToggleGroup.Item>
@@ -283,11 +299,30 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setPdfDialogOpen(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setPdfDialogOpen(false)}
+              className="transition-colors hover:bg-secondary/80"
+              disabled={isExportingPdf}
+            >
               Cancel
             </Button>
-            <Button onClick={handleConfirmExportPdf} className="gap-2">
-              <FileText className="h-4 w-4" /> Export PDF
+            <Button
+              onClick={handleConfirmExportPdf}
+              className="gap-2 transition-colors hover:bg-primary/90"
+              disabled={isExportingPdf}
+              aria-busy={isExportingPdf}
+            >
+              {isExportingPdf ? (
+                <>
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  Exporting…
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4" /> Export PDF
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
