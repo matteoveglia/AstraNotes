@@ -33,14 +33,17 @@ const DEFAULT_LABEL_HEX = "#3b82f6"; // Tailwind blue-500 fallback
 
 // Layout knobs for the per-version note cards in the PDF export. Tweak here for spacing/sizing.
 const NOTE_CARD_LAYOUT = {
-  titleFontSize: 13, // Font size for the version title inside each card
+  titleFontSize: 12, // Font size for the version title inside each card
+  noteFontSize: 10, // Base font size for note body markdown
+  metaFontSize: 8, // Font size for metadata rows (Version Created / Created By)
+  metaLabelGap: 4, // Horizontal spacing between metadata label and value
   contentTopOffset: 12, // Vertical breathing room between card top padding and the title
-  headerToMetaGap: 18, // Distance between the bottom of the title and the first metadata line
-  metaLineHeight: 12, // Line height used for each metadata row (e.g. created date, created by)
-  metaSeparatorGapTop: 2, // Space between the last metadata line and the separator rule
-  metaSeparatorGapBottom: 12, // Space between the separator and the note content
+  headerToMetaGap: 20, // Distance between the bottom of the title and the first metadata line
+  metaLineHeight: 11, // Line spacing used for each metadata row
+  metaSeparatorGapTop: 1, // Space between the last metadata line and the separator rule
+  metaSeparatorGapBottom: 10, // Space between the separator and the note content
   metaSeparatorThickness: 0.75, // Thickness of the metadata separator rule
-  metaToNoteGap: 6, // Additional gap after the separator before note content begins
+  metaToNoteGap: 10, // Additional gap after the separator before note content begins
   noteBottomPadding: 3, // Extra slack below the note body to avoid cramped padding
   labelTopGap: 8, // Gap between the thumbnail bottom and the first label pill
   labelSpacing: 4, // Vertical spacing between stacked label pills
@@ -48,7 +51,7 @@ const NOTE_CARD_LAYOUT = {
     fontSize: 9, // Font size used inside the Draft/Published status pill
     paddingX: 9, // Horizontal pill padding
     paddingY: 4, // Vertical pill padding
-    verticalOffset: 6, // Offset to align the pill slightly above the title baseline
+    verticalOffset: 7, // Offset to align the pill slightly above the title baseline
   },
 };
 
@@ -1283,13 +1286,29 @@ export async function exportPlaylistNotesToPDF(
     // Meta information
     if (metaLines.length > 0) {
       for (const ml of metaLines) {
-        pageRef.page.drawText(ml, {
+        const [label, value] = ml.split(": ");
+        const metaFontSize = NOTE_CARD_LAYOUT.metaFontSize;
+        const labelText = label ? `${label}:` : "";
+        const labelWidth = fontBold.widthOfTextAtSize(labelText, metaFontSize);
+
+        pageRef.page.drawText(labelText, {
           x: contentX,
           y: innerY,
-          size: 10,
-          font: fontItalic,
-          color: rgb(0.5, 0.5, 0.5),
+          size: metaFontSize,
+          font: fontBold,
+          color: rgb(0.4, 0.4, 0.4),
         });
+
+        if (value) {
+          pageRef.page.drawText(value, {
+            x: contentX + labelWidth + NOTE_CARD_LAYOUT.metaLabelGap,
+            y: innerY,
+            size: metaFontSize,
+            font: fontItalic,
+            color: rgb(0.4, 0.4, 0.4),
+          });
+        }
+
         innerY -= NOTE_CARD_LAYOUT.metaLineHeight;
       }
 
@@ -1313,7 +1332,7 @@ export async function exportPlaylistNotesToPDF(
       item.content,
       contentX,
       cardX + cardW - cardPadding - contentX,
-      11,
+      NOTE_CARD_LAYOUT.noteFontSize,
     );
     const renderedNoteBottom = y - NOTE_CARD_LAYOUT.noteBottomPadding;
     y = previousY;
