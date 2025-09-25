@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect, RefObject } from "react";
 
 interface UseVideoPlaybackProps {
-  videoRef: RefObject<HTMLVideoElement>;
+  videoRef: RefObject<HTMLVideoElement | null>;
   onError?: () => void;
   onLoad?: () => void;
 }

@@ -5,8 +5,8 @@
 import React, { useState, useCallback, useEffect, RefObject } from "react";
 
 interface UseTimelineScrubbingProps {
-  videoRef: RefObject<HTMLVideoElement>;
-  timelineRef: RefObject<HTMLDivElement>;
+  videoRef: RefObject<HTMLVideoElement | null>;
+  timelineRef: RefObject<HTMLDivElement | null>;
   duration: number;
   onScrubStart?: () => void;
   onScrubEnd?: (finalTime: number) => void;

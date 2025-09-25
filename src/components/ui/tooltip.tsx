@@ -15,14 +15,19 @@ const Tooltip = TooltipPrimitive.Root;
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> & {
-    side?: "top" | "right" | "bottom" | "left";
-  }
->(({ className, sideOffset = 4, side = "top", ...props }, ref) => (
+type TooltipContentProps = React.ComponentPropsWithRef<
+  typeof TooltipPrimitive.Content
+> & {
+  side?: "top" | "right" | "bottom" | "left";
+};
+
+const TooltipContent = ({
+  className,
+  sideOffset = 4,
+  side = "top",
+  ...props
+}: TooltipContentProps) => (
   <TooltipPrimitive.Content
-    ref={ref}
     sideOffset={sideOffset}
     side={side}
     className={cn(
@@ -31,7 +36,7 @@ const TooltipContent = React.forwardRef<
     )}
     {...props}
   />
-));
+);
 
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 

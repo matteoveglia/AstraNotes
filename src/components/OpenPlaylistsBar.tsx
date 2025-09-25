@@ -20,40 +20,40 @@ interface PlaylistTabProps {
   onClose?: () => void;
 }
 
-const PlaylistTab = React.forwardRef<HTMLDivElement, PlaylistTabProps>(
-  ({ playlist, isActive, onClick, onClose }, ref) => (
-    <motion.div
-      ref={ref}
-      layout
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.2 }}
-      className="flex-none"
+const PlaylistTab = ({
+  playlist,
+  isActive,
+  onClick,
+  onClose,
+}: PlaylistTabProps) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.2 }}
+    className="flex-none"
+  >
+    <Button
+      variant={isActive ? "default" : "outline"}
+      className="justify-start group relative min-w-[120px]"
+      onClick={onClick}
     >
-      <Button
-        variant={isActive ? "default" : "outline"}
-        className="justify-start group relative min-w-[120px]"
-        onClick={onClick}
-      >
-        <span className="truncate mr-6">{playlist.title}</span>
-        {!playlist.isQuickNotes && onClose && (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </div>
-        )}
-      </Button>
-    </motion.div>
-  ),
+      <span className="truncate mr-6">{playlist.title}</span>
+      {!playlist.isQuickNotes && onClose && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        >
+          <X className="h-4 w-4" />
+        </div>
+      )}
+    </Button>
+  </motion.div>
 );
-
-PlaylistTab.displayName = "PlaylistTab";
 
 interface OpenPlaylistsBarProps {
   playlists: Playlist[];

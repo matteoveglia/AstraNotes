@@ -41,9 +41,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onError,
   onLoad,
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
 
   // Original state that might remain or be adjusted
   const [frameRate, setFrameRate] = useState(24); // Default 24fps

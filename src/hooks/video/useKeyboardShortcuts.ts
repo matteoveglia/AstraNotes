@@ -5,8 +5,8 @@
 import { useEffect, useCallback, RefObject } from "react";
 
 interface UseKeyboardShortcutsProps {
-  videoRef: RefObject<HTMLVideoElement>;
-  containerRef: RefObject<HTMLDivElement>; // For focus check
+  videoRef: RefObject<HTMLVideoElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>; // For focus check
   frameStep: number;
   togglePlayPause: () => void;
   onFrameNavigation?: () => void; // Callback when frame navigation occurs

@@ -25,11 +25,14 @@ export const useVideoControls = ({
   isPlaying = false, // Default to false, can be passed from playback hook
 }: UseVideoControlsProps): UseVideoControlsReturn => {
   const [showControls, setShowControls] = useState(initialShowState);
-  const hideControlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const hideControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const clearHideControlsTimeout = useCallback(() => {
     if (hideControlsTimeoutRef.current) {
       clearTimeout(hideControlsTimeoutRef.current);
+      hideControlsTimeoutRef.current = null;
     }
   }, []);
 
