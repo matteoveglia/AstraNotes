@@ -5,8 +5,7 @@
  */
 
 import { AssetVersion } from "@/types";
-import { ftrackVersionService } from "./ftrack/FtrackVersionService";
-import { ftrackStatusService } from "./ftrack/FtrackStatusService";
+import { versionClient, statusClient } from "@/services/client";
 import { debugLog } from "@/lib/verboseLogging";
 
 export interface VersionStatus {
@@ -76,24 +75,36 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       return versionName;
     }
 
-    // Common patterns:
-    // 1. If first part looks like shot code (ASE, SQ, etc.), use it
-    // 2. If we have SQ###_SH### pattern, use both parts
-    // 3. If we have shot_### pattern, use first two parts
-    // 4. Default: use first part
+    const [firstPart, secondPart, thirdPart] = parts;
 
-    const firstPart = parts[0];
-    const secondPart = parts[1];
+    const isLettersOnly = (value: string | undefined) =>
+      !!value && /^[A-Za-z]+$/.test(value);
+    const isDigitsOnly = (value: string | undefined) =>
+      !!value && /^\d+$/.test(value);
+
+    // Pattern: PROJECTCODE + sequence digits + shot digits (e.g. BBB_000_0050)
+    if (
+      isLettersOnly(firstPart) &&
+      isDigitsOnly(secondPart) &&
+      isDigitsOnly(thirdPart)
+    ) {
+      const shotName = `${firstPart}_${secondPart}_${thirdPart}`;
+      debugLog(
+        "[RelatedVersionsService] Detected project_shot pattern:",
+        shotName,
+      );
+      return shotName;
+    }
 
     // Pattern: SQ###_SH### (sequence and shot)
-    if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
+    if (firstPart?.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
       debugLog("[RelatedVersionsService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
-    if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
+    if (firstPart?.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
       debugLog(
         "[RelatedVersionsService] Detected shot_number pattern:",
@@ -103,17 +114,20 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
-    if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
+    if (firstPart?.match(/^[A-Z]{2,4}\d+$/i)) {
       debugLog(
         "[RelatedVersionsService] Detected shot code pattern:",
-        firstPart,
       );
       return firstPart;
     }
 
-    // Default: use first part
-    debugLog("[RelatedVersionsService] Using default first part:", firstPart);
-    return firstPart;
+    // Default: use first component
+    const fallback = firstPart ?? versionName;
+    debugLog(
+      "[RelatedVersionsService] Using default first part:",
+      fallback,
+    );
+    return fallback;
   }
 
   /**
@@ -127,7 +141,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
 
     try {
       // Use the existing search functionality to find versions matching the shot name
-      const versions = await ftrackVersionService.searchVersions({
+      const versions = await versionClient().searchVersions({
         searchTerm: shotName,
         limit: 1000, // Get a large number to capture all related versions
       });
@@ -179,10 +193,11 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
           console.debug(
             `[RelatedVersionsService] Fetching status for version: ${versionId}`,
           );
+          const statusService = statusClient();
           const statusData =
-            await ftrackStatusService.fetchStatusPanelData(versionId);
+            await statusService.fetchStatusPanelData(versionId);
           if (statusData && statusData.versionStatusId) {
-            const allStatuses = await ftrackStatusService.getStatusesForEntity(
+            const allStatuses = await statusService.getStatusesForEntity(
               "AssetVersion",
               versionId,
             );
@@ -258,15 +273,16 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
           console.debug(
             `[RelatedVersionsService] Fetching shot status for version: ${versionId}`,
           );
+          const statusService = statusClient();
           const statusData =
-            await ftrackStatusService.fetchStatusPanelData(versionId);
+            await statusService.fetchStatusPanelData(versionId);
           if (
             statusData &&
             statusData.parentStatusId &&
             statusData.parentType &&
             statusData.parentId
           ) {
-            const allStatuses = await ftrackStatusService.getStatusesForEntity(
+            const allStatuses = await statusService.getStatusesForEntity(
               statusData.parentType,
               statusData.parentId,
             );
@@ -331,7 +347,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     );
 
     try {
-      const statuses = await ftrackStatusService.getStatusesForEntity(
+      const statuses = await statusClient().getStatusesForEntity(
         "AssetVersion",
         versionId,
       );
@@ -356,7 +372,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
     );
 
     try {
-      const statuses = await ftrackStatusService.getStatusesForEntity(
+      const statuses = await statusClient().getStatusesForEntity(
         "Shot",
         shotId,
       );
@@ -390,7 +406,7 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
       for (const versionId of versionIds) {
         try {
           const versionDetails =
-            await ftrackVersionService.fetchVersionDetails(versionId);
+            await versionClient().fetchVersionDetails(versionId);
           if (versionDetails) {
             details[versionId] = versionDetails;
           }

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
-import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
+import { statusClient } from "@/services/client";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
 // Import the new NoteAttachments component
@@ -530,7 +530,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Fetch projectId for this asset version
   useEffect(() => {
-    ftrackStatusService
+    statusClient()
       .fetchStatusPanelData(assetVersionId)
       .then((data) => setFtrackProjectId(data.projectId))
       .catch((err) =>

@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
+import { playlistClient } from "@/services/client";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { useProjectStore } from "@/store/projectStore";
 import { playlistStore } from "@/store/playlist";
@@ -296,9 +296,10 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       const databasePlaylists = await db.playlists.toArray();
 
       // Get current ftrack playlists
+      const client = playlistClient();
       const [reviewSessions, lists] = await Promise.all([
-        ftrackPlaylistService.getPlaylists(selectedProjectId),
-        ftrackPlaylistService.getLists(selectedProjectId),
+        client.getPlaylists(selectedProjectId),
+        client.getLists(selectedProjectId),
       ]);
       const fetchedPlaylists = [...reviewSessions, ...lists];
 

@@ -4,11 +4,14 @@ import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
 
-// Minimal mock to avoid external requests if any code path touches services
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylistVersions: vi.fn(async () => []),
-  },
+const { mockGetPlaylistVersions } = vi.hoisted(() => ({
+  mockGetPlaylistVersions: vi.fn(async () => []),
+}));
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylistVersions: mockGetPlaylistVersions,
+  })),
 }));
 
 describe("PlaylistStore conversions", () => {
@@ -19,6 +22,8 @@ describe("PlaylistStore conversions", () => {
     await db.playlists.clear();
     await db.versions.clear();
     await db.attachments.clear();
+    mockGetPlaylistVersions.mockReset();
+    mockGetPlaylistVersions.mockImplementation(async () => []);
   });
 
   it("maps PlaylistEntity -> Playlist (entityToPlaylist)", async () => {

@@ -23,6 +23,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAppModeStore } from "@/store/appModeStore";
+import { CheckCircle2 } from "lucide-react";
 
 interface TopBarProps {
   onLoadPlaylists: () => Promise<void>;
@@ -44,6 +46,8 @@ export const TopBar: React.FC<TopBarProps> = ({
     useUpdateStore();
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
+  const { appMode } = useAppModeStore();
+  const isDemoMode = appMode === "demo";
 
   return (
     <TooltipProvider>
@@ -56,7 +60,9 @@ export const TopBar: React.FC<TopBarProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center">
-                  {connecting ? (
+                  {isDemoMode ? (
+                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+                  ) : connecting ? (
                     // Connecting: orange pulsing (infinite)
                     <motion.div
                       className="w-2.5 h-2.5 bg-orange-500 rounded-full"
@@ -95,11 +101,13 @@ export const TopBar: React.FC<TopBarProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>
-                  {connecting
-                    ? "Connecting..."
-                    : isConnected
-                      ? "Connected"
-                      : "Disconnected"}
+                  {isDemoMode
+                    ? "Demo Mode"
+                    : connecting
+                      ? "Connecting..."
+                      : isConnected
+                        ? "Connected"
+                        : "Disconnected"}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -107,7 +115,19 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           <ProjectSelector onProjectChange={onProjectChange} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {isDemoMode && (
+            <motion.div
+              role="status"
+              aria-live="polite"
+              className="flex items-center gap-1 rounded-full border border-emerald-300/60 dark:border-emerald-800/60 bg-gradient-to-r from-green-100 via-emerald-100 to-green-200 dark:from-emerald-900/70 dark:via-emerald-800/70 dark:to-emerald-900/70 px-3 py-1 text-xs font-medium text-emerald-900 dark:text-emerald-200 shadow-sm"
+              animate={{ opacity: [1, 0.85, 1], scale: [1, 1.05, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Demo Mode</span>
+            </motion.div>
+          )}
           {shouldShowNotification() && (
             <Tooltip>
               <TooltipTrigger asChild>

@@ -4,7 +4,7 @@
  * Eliminates manual loading state management in NoteStatusPanel.
  */
 
-import { ftrackStatusService } from "./ftrack/FtrackStatusService";
+import { statusClient } from "@/services/client";
 
 interface Status {
   id: string;
@@ -133,14 +133,15 @@ async function performFetch(
 ): Promise<StatusPanelResult> {
   try {
     // Fetch current status data first
+    const statusService = statusClient();
     const statusPanelData =
-      await ftrackStatusService.fetchStatusPanelData(assetVersionId);
+      await statusService.fetchStatusPanelData(assetVersionId);
 
     // Fetch applicable statuses for version and parent
     const [versionStatuses, parentStatuses] = await Promise.all([
-      ftrackStatusService.getStatusesForEntity("AssetVersion", assetVersionId),
+      statusService.getStatusesForEntity("AssetVersion", assetVersionId),
       statusPanelData.parentId && statusPanelData.parentType
-        ? ftrackStatusService.getStatusesForEntity(
+        ? statusService.getStatusesForEntity(
             statusPanelData.parentType,
             statusPanelData.parentId,
           )
@@ -231,7 +232,9 @@ export async function updateEntityStatusSuspense(
     }
 
     // Perform the actual server update
-    await ftrackStatusService.updateEntityStatus(
+    const statusService = statusClient();
+
+    await statusService.updateEntityStatus(
       entityType,
       entityId,
       statusId,

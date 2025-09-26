@@ -3,12 +3,16 @@ import { usePlaylistsStore } from "../../store/playlistsStore";
 import { db } from "@/store/db";
 import { TestDataFactory } from "../utils/testHelpers";
 
-// Mock ftrack services
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylists: vi.fn(),
-    getLists: vi.fn(),
-  },
+const { mockGetPlaylists, mockGetLists } = vi.hoisted(() => ({
+  mockGetPlaylists: vi.fn(),
+  mockGetLists: vi.fn(),
+}));
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylists: mockGetPlaylists,
+    getLists: mockGetLists,
+  })),
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({
@@ -18,8 +22,6 @@ vi.mock("@/services/ftrack/FtrackNoteService", () => ({
 }));
 
 describe("Transaction Debug Test", () => {
-  let mockFtrackService: any;
-
   beforeEach(async () => {
     // Clear database
     await db.playlists.clear();
@@ -28,12 +30,10 @@ describe("Transaction Debug Test", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-
-    // Get mock service
-    const { ftrackPlaylistService } = await import(
-      "@/services/ftrack/FtrackPlaylistService"
-    );
-    mockFtrackService = ftrackPlaylistService;
+    mockGetPlaylists.mockReset();
+    mockGetLists.mockReset();
+    mockGetPlaylists.mockResolvedValue([]);
+    mockGetLists.mockResolvedValue([]);
   });
 
   it("should store playlists in database during loadPlaylists", async () => {
@@ -47,8 +47,8 @@ describe("Transaction Debug Test", () => {
     ];
 
     // Mock ftrack service
-    mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
-    mockFtrackService.getLists.mockResolvedValue([]);
+    mockGetPlaylists.mockResolvedValue(ftrackPlaylists);
+    mockGetLists.mockResolvedValue([]);
 
     // Call loadPlaylists
     const { loadPlaylists } = usePlaylistsStore.getState();

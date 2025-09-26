@@ -9,6 +9,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { Session } from "@ftrack/api";
 import { useThumbnailSettingsStore } from "../store/thumbnailSettingsStore";
 import { ftrackAuthService } from "@/services/ftrack/FtrackAuthService";
+import { useAppModeStore } from "@/store/appModeStore";
 
 // Cache for thumbnail blob URLs (by thumbnailId)
 const thumbnailCache = new Map<string, string>();
@@ -20,6 +21,107 @@ const thumbnailPromiseCache = new Map<string, Promise<string | null>>();
 let globalCacheUpdateCallback:
   | ((versionId: string, url: string) => void)
   | null = null;
+
+const DEMO_PLACEHOLDER_THUMBNAIL =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='225' viewBox='0 0 400 225'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%' stop-color='%233361ff'/%3E%3Cstop offset='100%' stop-color='%23099d9d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='225' fill='url(%23g)'/%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, sans-serif' font-size='24' fill='%23ffffff'%3EDemo Thumbnail%3C/text%3E%3C/svg%3E";
+
+type DemoComponentMappings = {
+  componentToThumbnail: Map<string, string>;
+};
+
+let demoComponentMappingsPromise: Promise<DemoComponentMappings> | null = null;
+
+const demoThumbnailModules = import.meta.glob("../assets/demo/thumbnails/*", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>;
+
+const demoThumbnailMap = new Map<string, string>();
+
+const registerDemoThumbnail = (filename: string, url: string) => {
+  const normalized = filename.toLowerCase();
+  const variants = [
+    normalized,
+    normalized.replace(/^\//, ""),
+    `thumbnails/${normalized}`,
+    `/thumbnails/${normalized}`,
+  ];
+
+  for (const variant of variants) {
+    if (!demoThumbnailMap.has(variant)) {
+      demoThumbnailMap.set(variant, url);
+    }
+  }
+};
+
+Object.entries(demoThumbnailModules).forEach(([path, url]) => {
+  const segments = path.split("/");
+  const filename = segments[segments.length - 1];
+  if (filename) {
+    registerDemoThumbnail(filename, url);
+  }
+});
+
+const resolveDemoThumbnailAsset = (filename: string | undefined): string | null => {
+  if (!filename) {
+    return null;
+  }
+
+  const normalized = filename.replace(/\\/g, "/").trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const direct = demoThumbnailMap.get(normalized);
+  if (direct) {
+    return direct;
+  }
+
+  const basename = normalized.split("/").pop();
+  if (basename && demoThumbnailMap.has(basename)) {
+    return demoThumbnailMap.get(basename) ?? null;
+  }
+
+  return null;
+};
+
+const ensureDemoComponentMappings = (): Promise<DemoComponentMappings> => {
+  if (!demoComponentMappingsPromise) {
+    demoComponentMappingsPromise = import("@/services/mock/demoSeed").then(({ demoSeed }) => {
+      const componentToThumbnail = new Map<string, string>();
+
+      for (const version of demoSeed.assetVersions) {
+        for (const componentId of version.componentIds) {
+          if (!componentToThumbnail.has(componentId)) {
+            componentToThumbnail.set(componentId, version.thumbnailFilename);
+          }
+        }
+      }
+
+      return { componentToThumbnail } satisfies DemoComponentMappings;
+    });
+  }
+
+  return demoComponentMappingsPromise;
+};
+
+const resolveDemoThumbnailUrl = async (componentId: string): Promise<string> => {
+  try {
+    const { componentToThumbnail } = await ensureDemoComponentMappings();
+    const filename = componentToThumbnail.get(componentId);
+    const assetUrl = resolveDemoThumbnailAsset(filename ?? undefined);
+    if (assetUrl) {
+      return assetUrl;
+    }
+  } catch (error) {
+    console.error("[ThumbnailService] Failed to resolve demo thumbnail", {
+      componentId,
+      error,
+    });
+  }
+
+  return DEMO_PLACEHOLDER_THUMBNAIL;
+};
 
 interface ThumbnailOptions {
   size?: number;
@@ -62,11 +164,36 @@ export function getThumbnailSuspense(
   }
 
   const { size } = useThumbnailSettingsStore.getState();
+  const { appMode } = useAppModeStore.getState();
   const cacheKey = `${componentId}-${size || "default"}`;
 
   // If we have it in cache, return immediately
   if (thumbnailCache.has(cacheKey)) {
     return thumbnailCache.get(cacheKey) || null;
+  }
+
+  if (appMode === "demo") {
+    if (thumbnailPromiseCache.has(cacheKey)) {
+      throw thumbnailPromiseCache.get(cacheKey);
+    }
+
+    const promise = resolveDemoThumbnailUrl(componentId)
+      .then((url) => {
+        thumbnailPromiseCache.delete(cacheKey);
+        thumbnailCache.set(cacheKey, url);
+        return url;
+      })
+      .catch((error) => {
+        thumbnailPromiseCache.delete(cacheKey);
+        console.error("[ThumbnailService] Demo thumbnail resolution failed", {
+          componentId,
+          error,
+        });
+        return DEMO_PLACEHOLDER_THUMBNAIL;
+      });
+
+    thumbnailPromiseCache.set(cacheKey, promise);
+    throw promise;
   }
 
   // If we have a promise in flight, throw it (Suspense will catch it)
@@ -106,6 +233,12 @@ async function fetchThumbnailPromise(
 ): Promise<string | null> {
   try {
     const { size } = useThumbnailSettingsStore.getState();
+    const { appMode } = useAppModeStore.getState();
+
+    if (appMode === "demo") {
+      const url = await resolveDemoThumbnailUrl(componentId);
+      return url;
+    }
 
     // Get ftrack session
     const session = await ftrackAuthService.getSession();
@@ -162,14 +295,11 @@ export async function fetchThumbnail(
     return null;
   }
 
-  //console.debug('[ThumbnailService] Received component ID:', componentId);
-
   // Check cache first
   const { size } = useThumbnailSettingsStore.getState();
+  const { appMode } = useAppModeStore.getState();
   const cacheKey = `${componentId}-${size || "default"}`;
-  //console.debug('[ThumbnailService] Checking cache for thumbnail ID:', cacheKey);
   if (thumbnailCache.has(cacheKey)) {
-    //console.debug('[ThumbnailService] Using cached thumbnail for', componentId);
     const cachedUrl = thumbnailCache.get(cacheKey) || null;
 
     // Update global cache if we have the versionId
@@ -180,15 +310,23 @@ export async function fetchThumbnail(
     return cachedUrl;
   }
 
-  try {
-    //console.debug('[ThumbnailService] Fetching thumbnail for', componentId);
-    // Generate the thumbnail URL using the ftrack API
-    const thumbnailUrl = session.thumbnailUrl(componentId, { size });
-    //console.debug('[ThumbnailService] Generated thumbnail URL:', thumbnailUrl);
+  if (appMode === "demo") {
+    try {
+      const url = await resolveDemoThumbnailUrl(componentId);
+      thumbnailCache.set(cacheKey, url);
+      if (versionId && globalCacheUpdateCallback) {
+        globalCacheUpdateCallback(versionId, url);
+      }
+      return url;
+    } catch (error) {
+      console.error("[ThumbnailService] Failed to resolve demo thumbnail:", error);
+      return DEMO_PLACEHOLDER_THUMBNAIL;
+    }
+  }
 
-    // Use Tauri HTTP plugin to fetch the thumbnail (bypassing CORS)
+  try {
+    const thumbnailUrl = session.thumbnailUrl(componentId, { size });
     const response = await fetch(thumbnailUrl);
-    //console.debug('[ThumbnailService] Response status:', response.status);
 
     if (!response.ok) {
       throw new Error(
@@ -196,21 +334,12 @@ export async function fetchThumbnail(
       );
     }
 
-    // Get the binary data
     const binaryData = await response.arrayBuffer();
-    //console.debug('[ThumbnailService] Received binary data of length:', binaryData.byteLength);
-
-    // Convert binary data to a Blob
     const blob = new Blob([binaryData], { type: "image/jpeg" });
-
-    // Create a blob URL
     const blobUrl = URL.createObjectURL(blob);
-    //console.debug('[ThumbnailService] Created blob URL:', blobUrl);
 
-    // Cache the blob URL
     thumbnailCache.set(cacheKey, blobUrl);
 
-    // Update global cache if we have the versionId
     if (versionId && globalCacheUpdateCallback) {
       globalCacheUpdateCallback(versionId, blobUrl);
     }
@@ -244,6 +373,7 @@ export async function forceRefreshThumbnail(
   }
 
   const { size } = useThumbnailSettingsStore.getState();
+  const { appMode } = useAppModeStore.getState();
   const cacheKey = `${componentId}-${size || "default"}`;
 
   // Remove from cache first to force refresh
@@ -255,7 +385,13 @@ export async function forceRefreshThumbnail(
     thumbnailCache.delete(cacheKey);
   }
 
-  // Fetch fresh thumbnail
+  if (appMode === "demo") {
+    const url = await resolveDemoThumbnailUrl(componentId);
+    thumbnailCache.set(cacheKey, url);
+    return url;
+  }
+
+  // Fetch fresh thumbnail in real mode
   return fetchThumbnail(componentId, session, options, versionId);
 }
 

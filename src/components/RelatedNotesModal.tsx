@@ -49,7 +49,7 @@ import {
 } from "./ui/tooltip";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { relatedNotesService } from "@/services/relatedNotesService";
+import { relatedNotesClient } from "@/services/relatedNotesService";
 import { ShotNoteItem } from "./ShotNoteItem";
 import { NoteAttachmentViewer } from "./NoteAttachmentViewer";
 import { ThumbnailModal } from "./ThumbnailModal";
@@ -135,7 +135,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
 
   // Extract shot name from current version
   const shotName = useMemo(() => {
-    return relatedNotesService.extractShotName(currentVersionName);
+    return relatedNotesClient().extractShotName(currentVersionName);
   }, [currentVersionName]);
 
   // Fetch notes when modal opens
@@ -179,7 +179,7 @@ export const RelatedNotesModal: React.FC<RelatedNotesModalProps> = ({
       console.debug("[RelatedNotesModal] Fetching notes for shot:", shotName);
 
       const fetchedNotes =
-        await relatedNotesService.fetchNotesByShotName(shotName);
+        await relatedNotesClient().fetchNotesByShotName(shotName);
 
       // Filter out notes from the current version to avoid showing the user their own note
       const filteredNotes = fetchedNotes.filter(

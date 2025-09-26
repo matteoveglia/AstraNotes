@@ -14,7 +14,7 @@ import {
 import { Button } from "./ui/button";
 import { Image as ImageIcon, Download } from "lucide-react";
 import type { NoteAttachment } from "@/types/relatedNotes";
-import { ftrackVersionService } from "@/services/ftrack/FtrackVersionService";
+import { versionClient } from "@/services/client";
 import { motion, AnimatePresence } from "motion/react";
 import { fetch } from "@tauri-apps/plugin-http";
 import { writeFile } from "@tauri-apps/plugin-fs";
@@ -54,7 +54,7 @@ export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
         setImageLoading(false);
       }
       try {
-        const u = await ftrackVersionService.getComponentUrl(attachment.id);
+        const u = await versionClient().getComponentUrl(attachment.id);
         if (!u) {
           throw new Error("Attachment URL not available");
         }

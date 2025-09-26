@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLabelStore } from "@/store/labelStore";
 import { useProjectStore } from "@/store/projectStore";
-import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
+import { statusClient } from "@/services/client";
 
 /**
  * Handles one-time application startup tasks such as
@@ -15,7 +15,7 @@ export function useAppInitializer(): void {
     Promise.all([
       loadProjects(),
       fetchLabels(),
-      ftrackStatusService.ensureStatusMappingsInitialized().catch((error) => {
+      statusClient().ensureStatusMappingsInitialized().catch((error) => {
         console.error("Failed to initialize status mappings:", error);
       }),
     ]).catch((error) => {

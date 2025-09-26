@@ -4,12 +4,16 @@ import { usePlaylistsStore } from "@/store/playlistsStore";
 import { db } from "@/store/db";
 import { TestDataFactory } from "@/test/utils/testHelpers";
 
-// Mock ftrack services
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylists: vi.fn(),
-    getLists: vi.fn(),
-  },
+const { mockGetPlaylists, mockGetLists } = vi.hoisted(() => ({
+  mockGetPlaylists: vi.fn(),
+  mockGetLists: vi.fn(),
+}));
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylists: mockGetPlaylists,
+    getLists: mockGetLists,
+  })),
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({
@@ -19,8 +23,6 @@ vi.mock("@/services/ftrack/FtrackNoteService", () => ({
 }));
 
 describe("Isolated Error Test", () => {
-  let mockFtrackService: any;
-
   beforeEach(async () => {
     // Clear all database tables
     await db.playlists.clear();
@@ -28,12 +30,10 @@ describe("Isolated Error Test", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-
-    // Get mock service
-    const { ftrackPlaylistService } = await import(
-      "@/services/ftrack/FtrackPlaylistService"
-    );
-    mockFtrackService = ftrackPlaylistService;
+    mockGetPlaylists.mockReset();
+    mockGetLists.mockReset();
+    mockGetPlaylists.mockResolvedValue([]);
+    mockGetLists.mockResolvedValue([]);
   });
 
   it("should handle database errors gracefully during deduplication", async () => {
@@ -49,8 +49,8 @@ describe("Isolated Error Test", () => {
       name: "Test Playlist",
     });
 
-    mockFtrackService.getPlaylists.mockResolvedValue([ftrackPlaylist]);
-    mockFtrackService.getLists.mockResolvedValue([]);
+    mockGetPlaylists.mockResolvedValue([ftrackPlaylist]);
+    mockGetLists.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlaylistsStore());
 

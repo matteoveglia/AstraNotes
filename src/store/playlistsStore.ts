@@ -10,7 +10,7 @@
 
 import { create } from "zustand";
 import { Playlist } from "@/types";
-import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
+import { playlistClient } from "@/services/client";
 import { db } from "./db";
 import { useProjectStore } from "./projectStore";
 
@@ -250,9 +250,10 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
           "Loading playlists from ftrack with project filter:",
           projectId,
         );
+        const client = playlistClient();
         const [reviewSessions, lists, databasePlaylists] = await Promise.all([
-          ftrackPlaylistService.getPlaylists(projectId), // Review Sessions with project filter
-          ftrackPlaylistService.getLists(projectId), // Lists with project filter
+          client.getPlaylists(projectId), // Review Sessions with project filter
+          client.getLists(projectId), // Lists with project filter
           // CRITICAL FIX: Load ONLY playlists for the current project from database
           projectId
             ? db.playlists.where("projectId").equals(projectId).toArray()
@@ -798,7 +799,7 @@ export const usePlaylistsStore = create<PlaylistsState>()((set, get) => {
       setError(null);
 
       try {
-        const fresh = await ftrackPlaylistService.getPlaylists();
+        const fresh = await playlistClient().getPlaylists();
         const freshPlaylist = fresh.find((p) => p.id === playlistId);
 
         if (!freshPlaylist) {

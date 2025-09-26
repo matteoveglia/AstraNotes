@@ -49,6 +49,7 @@ export const NoteLabelPill: React.FC<NoteLabelPillProps> = ({
 
   const rgb = hexToRgb(label.color);
   const isLight = isLightColor(label.color);
+  const textColor = isLight ? "#111827" : label.color;
 
   const sizeClasses = {
     sm: "text-xs px-2 py-0.5",
@@ -64,10 +65,9 @@ export const NoteLabelPill: React.FC<NoteLabelPillProps> = ({
         className,
       )}
       style={{
-        backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`,
-        // Stronger contrast: white text on dark colors, dark text on light colors
-        color: isLight ? "#111827" /* zinc-900 */ : "#ffffff",
-        borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`,
+        backgroundColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${isLight ? 0.22 : 0.14})`,
+        color: textColor,
+        borderColor: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${isLight ? 0.45 : 0.6})`,
         borderWidth: "1px",
         borderStyle: "solid",
       }}

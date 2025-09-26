@@ -7,7 +7,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ftrackPlaylistService } from "../services/ftrack/FtrackPlaylistService";
+import { playlistClient } from "@/services/client";
 import type { Project } from "@/types";
 
 interface ProjectState {
@@ -50,7 +50,7 @@ export const useProjectStore = create<ProjectState>()(
         set({ isLoading: true, error: null });
 
         try {
-          const projects = await ftrackPlaylistService.getProjects();
+          const projects = await playlistClient().getProjects();
 
           // Validate selected project exists after loading projects
           const { selectedProjectId } = get();

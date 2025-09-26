@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
+import { noteClient } from "@/services/client";
 import { playlistStore } from "@/store/playlist";
 
 interface PublishResult {
@@ -42,7 +42,7 @@ export function useNotePublishing(
             try {
               const content = noteDrafts[versionId];
               const labelId = noteLabelIds[versionId];
-              await ftrackNoteService.publishNote(versionId, content, labelId);
+              await noteClient().publishNote(versionId, content, labelId);
               return { success: true, versionId } as PublishResult;
             } catch (error) {
               console.error(
@@ -111,7 +111,7 @@ export function useNotePublishing(
           .map(async ([versionId, content]) => {
             try {
               const labelId = noteLabelIds[versionId];
-              await ftrackNoteService.publishNote(versionId, content, labelId);
+              await noteClient().publishNote(versionId, content, labelId);
               return { success: true, versionId } as PublishResult;
             } catch (error) {
               console.error(

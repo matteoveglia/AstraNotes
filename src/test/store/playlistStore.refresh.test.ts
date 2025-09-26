@@ -4,16 +4,15 @@ import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
 
-// Mock ftrack service with controllable response
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => {
-  return {
-    ftrackPlaylistService: {
-      getPlaylistVersions: vi.fn(async (_playlistId: string) => []),
-    },
-  };
-});
+const { mockGetPlaylistVersions } = vi.hoisted(() => ({
+  mockGetPlaylistVersions: vi.fn(async (_playlistId: string) => []),
+}));
 
-const mockedService = await import("@/services/ftrack/FtrackPlaylistService");
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylistVersions: mockGetPlaylistVersions,
+  })),
+}));
 
 describe("PlaylistStore refresh flows", () => {
   const repo = new PlaylistRepository();
@@ -24,6 +23,8 @@ describe("PlaylistStore refresh flows", () => {
     await db.versions.clear();
     await db.attachments.clear();
     vi.clearAllMocks();
+    mockGetPlaylistVersions.mockReset();
+    mockGetPlaylistVersions.mockImplementation(async (_playlistId: string) => []);
   });
 
   async function seedSyncedPlaylist(id: string) {
@@ -53,9 +54,7 @@ describe("PlaylistStore refresh flows", () => {
     ]);
 
     // Fresh has B, C
-    (
-      mockedService.ftrackPlaylistService.getPlaylistVersions as any
-    ).mockResolvedValue([
+    mockGetPlaylistVersions.mockResolvedValue([
       { id: "B", name: "B", version: 1, createdAt: now, updatedAt: now },
       { id: "C", name: "C", version: 1, createdAt: now, updatedAt: now },
     ]);

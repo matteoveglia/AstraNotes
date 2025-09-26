@@ -7,15 +7,44 @@ import {
   TestConsoleHelpers,
 } from "../utils/testHelpers";
 
-// Mock new ftrack services
+const {
+  mockGetPlaylistVersions,
+  mockGetPlaylists,
+  mockGetLists,
+  mockCreateReviewSession,
+  mockAddVersionsToPlaylist,
+  playlistServiceMock,
+} = vi.hoisted(() => {
+  const mockGetPlaylistVersions = vi.fn();
+  const mockGetPlaylists = vi.fn();
+  const mockGetLists = vi.fn();
+  const mockCreateReviewSession = vi.fn();
+  const mockAddVersionsToPlaylist = vi.fn();
+
+  const playlistServiceMock = {
+    getPlaylistVersions: mockGetPlaylistVersions,
+    getPlaylists: mockGetPlaylists,
+    getLists: mockGetLists,
+    createReviewSession: mockCreateReviewSession,
+    addVersionsToPlaylist: mockAddVersionsToPlaylist,
+  };
+
+  return {
+    mockGetPlaylistVersions,
+    mockGetPlaylists,
+    mockGetLists,
+    mockCreateReviewSession,
+    mockAddVersionsToPlaylist,
+    playlistServiceMock,
+  };
+});
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => playlistServiceMock),
+}));
+
 vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylistVersions: vi.fn(),
-    getPlaylists: vi.fn(),
-    getLists: vi.fn(),
-    createReviewSession: vi.fn(),
-    addVersionsToPlaylist: vi.fn(),
-  },
+  ftrackPlaylistService: playlistServiceMock,
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({
@@ -26,8 +55,8 @@ vi.mock("@/services/ftrack/FtrackNoteService", () => ({
 
 // Import store AFTER setting up mocks
 import { playlistStore } from "@/store/playlist";
-import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
+import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 
 describe("Critical Workflows Integration Tests", () => {
   beforeEach(async () => {
@@ -35,6 +64,16 @@ describe("Critical Workflows Integration Tests", () => {
     playlistStore.clearCache();
     TestConsoleHelpers.mockConsole();
     vi.clearAllMocks();
+    mockGetPlaylistVersions.mockReset();
+    mockGetPlaylists.mockReset();
+    mockGetLists.mockReset();
+    mockCreateReviewSession.mockReset();
+    mockAddVersionsToPlaylist.mockReset();
+    mockGetPlaylistVersions.mockResolvedValue([]);
+    mockGetPlaylists.mockResolvedValue([]);
+    mockGetLists.mockResolvedValue([]);
+    playlistServiceMock.getPlaylistVersions.mockReset();
+    playlistServiceMock.getPlaylistVersions.mockResolvedValue([]);
   });
 
   afterEach(async () => {
@@ -77,21 +116,15 @@ describe("Critical Workflows Integration Tests", () => {
         await TestScenarios.setupRefreshScenario();
 
       // Mock ftrack to return fresh versions
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
-        freshVersions,
-      );
+      mockGetPlaylistVersions.mockResolvedValue(freshVersions);
 
       // The refresh should work now that ftrackId is preserved
       const result = await playlistStore.refreshPlaylist(playlist.id);
       expect(result.success).toBe(true);
 
       // Verify API was called with ftrackId, not database UUID
-      expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
-        "ftrack-123",
-      );
-      expect(
-        ftrackPlaylistService.getPlaylistVersions,
-      ).not.toHaveBeenCalledWith(playlist.id);
+      expect(mockGetPlaylistVersions).toHaveBeenCalledWith("ftrack-123");
+      expect(mockGetPlaylistVersions).not.toHaveBeenCalledWith(playlist.id);
     });
   });
 

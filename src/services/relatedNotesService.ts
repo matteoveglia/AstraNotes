@@ -20,6 +20,8 @@ import {
   NotesLoadingProgress,
   NotesLoadingError,
 } from "@/types/relatedNotes";
+import { useAppModeStore } from "@/store/appModeStore";
+import { mockRelatedNotesService } from "@/services/mock/MockRelatedNotesService";
 
 export class RelatedNotesService extends BaseFtrackClient {
   private cache: Map<string, ShotNotesCache> = new Map();
@@ -45,32 +47,57 @@ export class RelatedNotesService extends BaseFtrackClient {
       return versionName;
     }
 
-    const firstPart = parts[0];
-    const secondPart = parts[1];
+    const [firstPart, secondPart, thirdPart] = parts;
+
+    const isLettersOnly = (value: string | undefined) =>
+      !!value && /^[A-Za-z]+$/.test(value);
+    const isDigitsOnly = (value: string | undefined) =>
+      !!value && /^\d+$/.test(value);
+
+    // Pattern: PROJECTCODE + sequence digits + shot digits (e.g. BBB_000_0050)
+    if (
+      isLettersOnly(firstPart) &&
+      isDigitsOnly(secondPart) &&
+      isDigitsOnly(thirdPart)
+    ) {
+      const shotName = `${firstPart}_${secondPart}_${thirdPart}`;
+      debugLog(
+        "[RelatedNotesService] Detected project_shot pattern:",
+        shotName,
+      );
+      return shotName;
+    }
 
     // Pattern: SQ###_SH### (sequence and shot)
-    if (firstPart.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
+    if (firstPart?.match(/^SQ\d+$/i) && secondPart?.match(/^SH\d+$/i)) {
       const shotName = `${firstPart}_${secondPart}`;
       debugLog("[RelatedNotesService] Detected SQ_SH pattern:", shotName);
       return shotName;
     }
 
     // Pattern: shot_###
-    if (firstPart.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
+    if (firstPart?.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      debugLog("[RelatedNotesService] Detected shot_number pattern:", shotName);
+      debugLog(
+        "[RelatedNotesService] Detected shot_number pattern:",
+        shotName,
+      );
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
-    if (firstPart.match(/^[A-Z]{2,4}\d+$/i)) {
-      debugLog("[RelatedNotesService] Detected shot code pattern:", firstPart);
+    if (firstPart?.match(/^[A-Z]{2,4}\d+$/i)) {
+      debugLog(
+        "[RelatedNotesService] Detected shot code pattern:",
+        firstPart,
+      );
       return firstPart;
     }
 
     // Default: use first part
-    debugLog("[RelatedNotesService] Using default first part:", firstPart);
-    return firstPart;
+    const fallback = firstPart ?? versionName;
+    debugLog("[RelatedNotesService] Using default first part:", fallback);
+    return fallback;
   }
 
   /**
@@ -748,3 +775,11 @@ export class RelatedNotesService extends BaseFtrackClient {
 }
 
 export const relatedNotesService = new RelatedNotesService();
+
+export const relatedNotesClient = () => {
+  const { appMode } = useAppModeStore.getState();
+  if (appMode === "demo") {
+    return mockRelatedNotesService;
+  }
+  return relatedNotesService;
+};

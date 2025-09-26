@@ -4,7 +4,7 @@
  * Eliminates manual loading state management in VersionDetailsPanel.
  */
 
-import { ftrackVersionService } from "./ftrack/FtrackVersionService";
+import { versionClient } from "@/services/client";
 import { suspensePerformanceMonitor } from "@/utils/suspensePerformance";
 
 interface VersionDetails {
@@ -94,8 +94,7 @@ async function performFetch(assetVersionId: string): Promise<VersionDetails> {
   );
 
   try {
-    const result =
-      await ftrackVersionService.fetchVersionDetails(assetVersionId);
+    const result = await versionClient().fetchVersionDetails(assetVersionId);
     if (!result) {
       throw new Error(`Version details not found for ID: ${assetVersionId}`);
     }

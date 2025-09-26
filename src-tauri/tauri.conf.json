@@ -28,7 +28,13 @@
       "capabilities": [
         "default"
       ],
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' asset: http://asset.localhost data: blob:",
+      "assetProtocol": {
+        "scope": [
+          "**"
+        ],
+        "enable": true
+      }
     }
   },
   "bundle": {

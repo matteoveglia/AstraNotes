@@ -2,14 +2,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
 import { playlistStore } from "@/store/playlist";
-import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
 import type { Playlist, AssetVersion } from "@/types";
 
-// Mock ftrackPlaylistService
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylistVersions: vi.fn(),
-  },
+const { mockGetPlaylistVersions } = vi.hoisted(() => ({
+  mockGetPlaylistVersions: vi.fn(),
+}));
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylistVersions: mockGetPlaylistVersions,
+  })),
 }));
 
 // Mock console methods to avoid noise in tests
@@ -70,6 +72,8 @@ describe("Playlist Refresh Workflow Integration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetPlaylistVersions.mockReset();
+    mockGetPlaylistVersions.mockResolvedValue([]);
     consoleSpy.mockClear();
   });
 
@@ -81,9 +85,7 @@ describe("Playlist Refresh Workflow Integration", () => {
   describe("Ftrack Playlist Refresh", () => {
     it("should successfully refresh ftrack playlist using ftrackId", async () => {
       // Mock the ftrack service to return updated versions
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
-        mockFtrackVersions,
-      );
+      mockGetPlaylistVersions.mockResolvedValue(mockFtrackVersions);
 
       const { result } = renderHook(() =>
         usePlaylistModifications(mockFtrackPlaylist),
@@ -95,12 +97,12 @@ describe("Playlist Refresh Workflow Integration", () => {
       });
 
       // Verify ftrack API was called with ftrackId, not database UUID
-      expect(ftrackPlaylistService.getPlaylistVersions).toHaveBeenCalledWith(
+      expect(mockGetPlaylistVersions).toHaveBeenCalledWith(
         "ftrack-playlist-123",
       );
-      expect(
-        ftrackPlaylistService.getPlaylistVersions,
-      ).not.toHaveBeenCalledWith("test-playlist-uuid");
+      expect(mockGetPlaylistVersions).not.toHaveBeenCalledWith(
+        "test-playlist-uuid",
+      );
 
       // Verify modifications were detected
       expect(result.current.modifications.added).toBe(1); // version-2 is new
@@ -123,9 +125,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         ],
       };
 
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
-        mockFtrackVersions,
-      );
+      mockGetPlaylistVersions.mockResolvedValue(mockFtrackVersions);
 
       const { result } = renderHook(() =>
         usePlaylistModifications(playlistWithOldVersion),
@@ -166,9 +166,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         ],
       };
 
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockResolvedValue(
-        mockFtrackVersions,
-      );
+      mockGetPlaylistVersions.mockResolvedValue(mockFtrackVersions);
 
       const { result } = renderHook(() =>
         usePlaylistModifications(playlistWithManualVersion),
@@ -197,7 +195,7 @@ describe("Playlist Refresh Workflow Integration", () => {
       });
 
       // Should not call ftrack API for local playlists
-      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalled();
+      expect(mockGetPlaylistVersions).not.toHaveBeenCalled();
 
       // Should log appropriate message
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -220,7 +218,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         expect(success).toBe(false);
       });
 
-      expect(ftrackPlaylistService.getPlaylistVersions).not.toHaveBeenCalled();
+      expect(mockGetPlaylistVersions).not.toHaveBeenCalled();
     });
   });
 
@@ -231,9 +229,7 @@ describe("Playlist Refresh Workflow Integration", () => {
         .mockImplementation(() => {});
 
       // Mock API to throw error
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockRejectedValue(
-        new Error("API Error"),
-      );
+      mockGetPlaylistVersions.mockRejectedValue(new Error("API Error"));
 
       const { result } = renderHook(() =>
         usePlaylistModifications(mockFtrackPlaylist),
@@ -256,7 +252,7 @@ describe("Playlist Refresh Workflow Integration", () => {
 
   describe("Refresh State Management", () => {
     it("should manage isRefreshing state correctly", async () => {
-      vi.mocked(ftrackPlaylistService.getPlaylistVersions).mockImplementation(
+      mockGetPlaylistVersions.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve(mockFtrackVersions), 10),

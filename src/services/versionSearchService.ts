@@ -4,7 +4,7 @@
  * Provides better user experience with automatic loading coordination.
  */
 
-import { ftrackVersionService } from "./ftrack/FtrackVersionService";
+import { versionClient } from "@/services/client";
 import type { AssetVersion } from "@/types";
 
 // Cache for search results
@@ -76,16 +76,14 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
   const { searchTerm, projectId } = params;
 
   try {
-    // Handle multi-version search (comma-separated)
     if (searchTerm.includes(",")) {
       const versionTerms = searchTerm
         .split(",")
         .map((term) => term.trim())
         .filter((term) => term.length > 0);
 
-      // Search for each version term individually
       const searchPromises = versionTerms.map((term) =>
-        ftrackVersionService.searchVersions({
+        versionClient().searchVersions({
           searchTerm: term,
           projectId,
         }),
@@ -93,7 +91,6 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
 
       const searchResults = await Promise.all(searchPromises);
 
-      // Combine and deduplicate results
       const combinedResults = searchResults.flat();
       const uniqueResults = combinedResults.filter(
         (version, index, self) =>
@@ -101,19 +98,17 @@ async function performSearch(params: SearchParams): Promise<AssetVersion[]> {
       );
 
       return uniqueResults;
-    } else {
-      // Regular single search
-      return await ftrackVersionService.searchVersions({
-        searchTerm,
-        projectId,
-      });
     }
+
+    return await versionClient().searchVersions({
+      searchTerm,
+      projectId,
+    });
   } catch (error) {
     console.error("[VersionSearchService] Search operation failed:", error);
     return [];
   }
 }
-
 /**
  * Clears the search cache for a specific query or all queries
  */

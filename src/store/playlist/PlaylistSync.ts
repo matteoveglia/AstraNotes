@@ -39,7 +39,7 @@ class SimpleEventEmitter {
 
 import { PlaylistRepository } from "./PlaylistRepository";
 import { PlaylistCache } from "./PlaylistCache";
-import { ftrackPlaylistService } from "@/services/ftrack/FtrackPlaylistService";
+import { playlistClient } from "@/services/client";
 import { PlaylistEntity, SyncOperations, PlaylistEvent } from "./types";
 import { CreatePlaylistRequest } from "@/types";
 
@@ -49,7 +49,7 @@ export class PlaylistSync extends SimpleEventEmitter implements SyncOperations {
   constructor(
     private repository: PlaylistRepository,
     private cache: PlaylistCache,
-    private ftrackService: typeof ftrackPlaylistService,
+    private ftrackService = playlistClient(),
   ) {
     super();
     console.log("[PlaylistSync] Initialized with stable UUID architecture");

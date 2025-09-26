@@ -4,11 +4,14 @@ import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
 
-// Mock ftrack service
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylistVersions: vi.fn(async () => []),
-  },
+const { mockGetPlaylistVersions } = vi.hoisted(() => ({
+  mockGetPlaylistVersions: vi.fn(async () => []),
+}));
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => ({
+    getPlaylistVersions: mockGetPlaylistVersions,
+  })),
 }));
 
 describe("MainContent local-only init smoke test", () => {
@@ -19,6 +22,9 @@ describe("MainContent local-only init smoke test", () => {
     await db.playlists.clear();
     await db.versions.clear();
     vi.clearAllMocks();
+    mockGetPlaylistVersions.mockReset();
+    mockGetPlaylistVersions.mockImplementation(async () => []);
+    mockGetPlaylistVersions.mockReset();
   });
 
   it("can initialize and retrieve local playlist with versions", async () => {

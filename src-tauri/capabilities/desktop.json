@@ -9,6 +9,42 @@
     "main"
   ],
   "permissions": [
-    "updater:default"
+    "updater:default",
+    "fs:allow-download-read",
+    "fs:allow-download-meta",
+    "fs:allow-download-read-recursive",
+    "fs:allow-download-meta-recursive",
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        {
+          "path": "$HOME/Downloads/AstraNotes_MockData/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read",
+      "allow": [
+        {
+          "path": "$HOME/Downloads/AstraNotes_MockData/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "$HOME/Downloads/AstraNotes_MockData/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "$HOME/Downloads/AstraNotes_MockData/**"
+        }
+      ]
+    }
   ]
 }

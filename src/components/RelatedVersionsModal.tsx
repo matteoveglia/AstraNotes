@@ -62,7 +62,7 @@ import {
 import { useToast } from "./ui/toast";
 import { playlistStore } from "@/store/playlist";
 import { usePlaylistsStore } from "@/store/playlistsStore";
-import { ftrackStatusService } from "@/services/ftrack/FtrackStatusService";
+import { statusClient } from "@/services/client";
 
 interface RelatedVersionsModalProps {
   isOpen: boolean;
@@ -201,8 +201,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       const firstVersionId = versions[0].id;
 
       // For shot statuses, we need to get the parent entity from status panel data
-      const statusData =
-        await ftrackStatusService.fetchStatusPanelData(firstVersionId);
+      const statusService = statusClient();
+      const statusData = await statusService.fetchStatusPanelData(firstVersionId);
 
       const promises = [
         relatedVersionsService.fetchAllVersionStatuses(firstVersionId),
@@ -245,9 +245,10 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       });
 
       // Call ftrack service to update status
-      await ftrackStatusService.updateEntityStatus(
-        versionId,
+      const statusService = statusClient();
+      await statusService.updateEntityStatus(
         "AssetVersion",
+        versionId,
         newStatusId,
       );
       console.debug(
@@ -272,8 +273,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
     );
     try {
       // Get the parent entity information from status panel data
-      const statusData =
-        await ftrackStatusService.fetchStatusPanelData(versionId);
+      const statusService = statusClient();
+      const statusData = await statusService.fetchStatusPanelData(versionId);
       if (!statusData?.parentId || !statusData?.parentType) {
         console.warn(
           `[RelatedVersionsModal] No parent entity found for version ${versionId}`,
@@ -294,9 +295,9 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
       });
 
       // Call ftrack service to update the parent entity status
-      await ftrackStatusService.updateEntityStatus(
-        statusData.parentId,
+      await statusService.updateEntityStatus(
         statusData.parentType,
+        statusData.parentId,
         newStatusId,
       );
       console.debug(

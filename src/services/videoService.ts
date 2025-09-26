@@ -4,7 +4,11 @@
  * Handles caching of video URLs and availability status.
  */
 
-import { ftrackVersionService } from "./ftrack/FtrackVersionService";
+import { versionClient } from "@/services/client";
+import { useAppModeStore } from "@/store/appModeStore";
+import { exists } from "@tauri-apps/plugin-fs";
+import { homeDir, join } from "@tauri-apps/api/path";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 interface VideoCache {
   [versionId: string]: {
@@ -35,6 +39,19 @@ class VideoService {
       `[VideoService] Checking video availability for version: ${versionId}`,
     );
 
+    const { appMode } = useAppModeStore.getState();
+    if (appMode === "demo") {
+      const localPath = await this.resolveDemoFilePath(versionId);
+      const isAvailable = !!localPath;
+
+      this.availability[versionId] = {
+        isAvailable,
+        lastChecked: Date.now(),
+      };
+
+      return isAvailable;
+    }
+
     // Check cache first
     const cached = this.availability[versionId];
     if (
@@ -51,8 +68,7 @@ class VideoService {
       console.log(
         `[VideoService] Fetching components for version: ${versionId}`,
       );
-      const components =
-        await ftrackVersionService.getVersionComponents(versionId);
+      const components = await versionClient().getVersionComponents(versionId);
 
       console.log(
         `[VideoService] Found ${components.length} components for version ${versionId}:`,
@@ -122,6 +138,8 @@ class VideoService {
   async getVideoUrl(versionId: string): Promise<string | null> {
     console.log(`[VideoService] Getting video URL for version: ${versionId}`);
 
+    const { appMode } = useAppModeStore.getState();
+
     // Check cache first
     const cached = this.cache[versionId];
     if (cached && Date.now() - cached.lastAccessed < this.CACHE_DURATION) {
@@ -130,12 +148,31 @@ class VideoService {
       return cached.url;
     }
 
+    if (appMode === "demo") {
+      const localPath = await this.resolveDemoFilePath(versionId);
+      if (!localPath) {
+        return null;
+      }
+
+      this.cache[versionId] = {
+        url: localPath,
+        lastAccessed: Date.now(),
+        componentId: versionId,
+      };
+
+      this.availability[versionId] = {
+        isAvailable: true,
+        lastChecked: Date.now(),
+      };
+
+      return localPath;
+    }
+
     try {
       console.log(
         `[VideoService] Fetching components for video URL: ${versionId}`,
       );
-      const components =
-        await ftrackVersionService.getVersionComponents(versionId);
+      const components = await versionClient().getVersionComponents(versionId);
 
       // Try to find the 1080p component first
       let reviewableComponent = components.find(
@@ -170,9 +207,7 @@ class VideoService {
       console.log(
         `[VideoService] Getting URL for component: ${reviewableComponent.name} (${reviewableComponent.id})`,
       );
-      const url = await ftrackVersionService.getComponentUrl(
-        reviewableComponent.id,
-      );
+      const url = await versionClient().getComponentUrl(reviewableComponent.id);
 
       if (url) {
         console.log(
@@ -260,6 +295,48 @@ class VideoService {
         return acc + url.length * 2; // Rough estimate in bytes
       }, 0),
     };
+  }
+
+  private async resolveDemoFilePath(versionId: string): Promise<string | null> {
+    try {
+      const components = await versionClient().getVersionComponents(versionId);
+      if (!components || components.length === 0) {
+        return null;
+      }
+
+      const movieFilename = components[0]?.metadata?.movieFilename as
+        | string
+        | null
+        | undefined;
+
+      if (!movieFilename) {
+        return null;
+      }
+
+      const downloadsDir = await homeDir();
+      const basePath = await join(downloadsDir, "Downloads", "AstraNotes_MockData");
+      const fullPath = await join(basePath, movieFilename.replace(/^\//, ""));
+
+      const fileExists = await exists(fullPath).catch((error) => {
+        console.warn("[VideoService] Failed to stat demo file", { fullPath, error });
+        return false;
+      });
+
+      if (!fileExists) {
+        console.warn(
+          `[VideoService] Demo MOV not found at ${fullPath}. Using thumbnail fallback.`,
+        );
+        return null;
+      }
+
+      return convertFileSrc(fullPath);
+    } catch (error) {
+      console.error("[VideoService] Error resolving demo file path", {
+        versionId,
+        error,
+      });
+      return null;
+    }
   }
 }
 

@@ -15,7 +15,7 @@ import { useAppInitializer } from "./hooks/useAppInitializer";
 import { useAppEventListeners } from "./hooks/useAppEventListeners";
 import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
-import { ftrackPlaylistService } from "./services/ftrack/FtrackPlaylistService";
+import { playlistClient } from "@/services/client";
 import { debugLog } from "@/lib/verboseLogging";
 
 const App: React.FC = () => {
@@ -262,7 +262,7 @@ const App: React.FC = () => {
         }
 
         // CRITICAL FIX: Use ftrackId for API call instead of database UUID
-        const ftrackVersions = await ftrackPlaylistService.getPlaylistVersions(
+        const ftrackVersions = await playlistClient().getPlaylistVersions(
           currentPlaylist.ftrackId,
         );
 

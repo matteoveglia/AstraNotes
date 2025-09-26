@@ -41,6 +41,18 @@ import { exportLogs } from "../lib/logExporter";
 import { getVersion } from "@tauri-apps/api/app";
 import { useUpdateStore } from "../store/updateStore";
 import { GlowEffect } from "@/components/ui/glow-effect";
+import { useAppModeStore, type AppMode } from "@/store/appModeStore";
+import { switchAppMode } from "@/services/appMode/switchAppMode";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SettingsModalProps {
   onLoadPlaylists: () => Promise<void>;
@@ -62,6 +74,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const { updateAvailable, updateVersion } = useUpdateStore();
+  const { appMode } = useAppModeStore();
+  const isDemoMode = appMode === "demo";
+  const [isModeDialogOpen, setIsModeDialogOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +96,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSave = async () => {
     try {
+      if (isDemoMode) {
+        return;
+      }
+
       setIsLoading(true);
       // Update service settings
       ftrackAuthService.updateSettings(settings);
@@ -105,6 +126,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleTestConnection = async () => {
+    if (isDemoMode) {
+      return;
+    }
+
     setIsTesting(true);
     setError(null);
 
@@ -126,6 +151,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleInputChange =
     (field: keyof typeof settings) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isDemoMode) {
+        return;
+      }
       setSettings({ ...settings, [field]: e.target.value });
       // Reset error when settings change
       setError(null);
@@ -190,6 +218,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setSettings({ ...settings, verboseLogging: checked });
   };
 
+  const openModeDialog = (mode: AppMode) => {
+    setPendingMode(mode);
+    setIsModeDialogOpen(true);
+  };
+
+  const closeModeDialog = () => {
+    if (isSwitchingMode) {
+      return;
+    }
+    setPendingMode(null);
+    setIsModeDialogOpen(false);
+  };
+
+  const confirmModeSwitch = async () => {
+    if (!pendingMode) {
+      return;
+    }
+
+    setIsSwitchingMode(true);
+    setError(null);
+
+    try {
+      await switchAppMode(pendingMode, {
+        onBeforeReset: onCloseAllPlaylists,
+      });
+    } catch (err) {
+      console.error("Failed to switch application mode:", err);
+      setError("Failed to switch application mode. Please try again.");
+    } finally {
+      setIsSwitchingMode(false);
+      setPendingMode(null);
+      setIsModeDialogOpen(false);
+    }
+  };
+
+  const demoButtonLabel = isDemoMode ? "Disable Demo Mode" : "Enable Demo Mode";
+
+  const demoButtonDescription = isDemoMode
+    ? "Exit Demo Mode and return to the live ftrack workflow."
+    : "Launch AstraNotes offline with the bundled demo dataset.";
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -214,6 +283,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={settings.serverUrl}
                 onChange={handleInputChange("serverUrl")}
                 placeholder="e.g. https://yourserver.ftrackapp.com"
+                disabled={isDemoMode || isLoading}
               />
             </div>
 
@@ -225,6 +295,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={settings.apiKey}
                 onChange={handleInputChange("apiKey")}
                 placeholder="Your ftrack API key"
+                disabled={isDemoMode || isLoading}
               />
             </div>
 
@@ -235,6 +306,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={settings.apiUser}
                 onChange={handleInputChange("apiUser")}
                 placeholder="Your ftrack account email"
+                disabled={isDemoMode || isLoading}
               />
             </div>
 
@@ -243,19 +315,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center space-x-1">
                 <div
                   className={`w-2 h-2 rounded-full ${
-                    isConnected
+                    isDemoMode
                       ? "bg-green-500"
-                      : isTesting
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
+                      : isConnected
+                        ? "bg-green-500"
+                        : isTesting
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
                   }`}
                 />
                 <span className="capitalize">
-                  {isConnected
-                    ? "Connected"
-                    : isTesting
-                      ? "Testing"
-                      : "Disconnected"}
+                  {isDemoMode
+                    ? "Demo"
+                    : isConnected
+                      ? "Connected"
+                      : isTesting
+                        ? "Testing"
+                        : "Disconnected"}
                 </span>
               </div>
             </div>
@@ -266,11 +342,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Button
                 variant="outline"
                 onClick={handleTestConnection}
-                disabled={isTesting || isLoading}
+                disabled={isTesting || isLoading || isDemoMode}
               >
                 {isTesting ? "Testing..." : "Test Connection"}
               </Button>
-              <Button onClick={handleSave} disabled={isTesting || isLoading}>
+              <Button
+                onClick={handleSave}
+                disabled={isTesting || isLoading || isDemoMode}
+              >
                 Save Credentials
               </Button>
             </div>
@@ -462,9 +541,75 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </Button>
               </div>
             </div>
+
+            <div className="border-t pt-4 mt-4 space-y-3">
+              <div>
+                <h3 className="font-medium">Demo Mode</h3>
+                <p className="text-sm text-muted-foreground max-w-72">
+                  Run AstraNotes completely offline using the bundled Big Buck Bunny
+                  dataset. Optional demo MOV files can be placed in
+                  <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                    ~/Downloads/AstraNotes_MockData
+                  </code>
+                  to unlock richer previews. Switching modes will clear cached data and
+                  restart the app.
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground flex-1">
+                  {demoButtonDescription}
+                </p>
+                <Button
+                  variant={isDemoMode ? "secondary" : "default"}
+                  size="default"
+                  onClick={() => openModeDialog(isDemoMode ? "real" : "demo")}
+                  disabled={isSwitchingMode}
+                >
+                  {isSwitchingMode ? "Switching..." : demoButtonLabel}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={isModeDialogOpen} onOpenChange={(open) => (!open ? closeModeDialog() : openModeDialog(pendingMode ?? (isDemoMode ? "real" : "demo")))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingMode === "demo"
+                ? "Enable Demo Mode?"
+                : "Disable Demo Mode?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm">
+              <p>
+                {pendingMode === "demo"
+                  ? "Demo Mode runs AstraNotes offline with temporary mock data, clears cached playlists, and restarts the app."
+                  : "Disabling Demo Mode clears temporary demo data, restores the live ftrack workflow, and restarts the app."}
+              </p>
+              <p>
+                Optional demo MOV files can be stored in
+                <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                  ~/Downloads/AstraNotes_MockData
+                </code>
+                . If they are missing, AstraNotes will fall back to thumbnails only.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeModeDialog} disabled={isSwitchingMode}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmModeSwitch} disabled={isSwitchingMode}>
+              {isSwitchingMode
+                ? "Switching..."
+                : pendingMode === "demo"
+                  ? "Enable Demo Mode"
+                  : "Disable Demo Mode"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import { Playlist, NoteStatus } from "@/types";
 import { playlistStore } from "@/store/playlist";
 import { db, type NoteAttachment } from "@/store/db";
-import { ftrackNoteService } from "@/services/ftrack/FtrackNoteService";
+import { noteClient } from "@/services/client";
 import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
 import { useErrorHandler, categorizeError } from "@/utils/errorHandling";
@@ -625,13 +625,12 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing note for ${versionId} with ${attachments.length} attachments`,
             );
 
-            const noteId =
-              await ftrackNoteService.publishNoteWithAttachmentsAPI(
-                versionId,
-                content,
-                attachments,
-                labelId,
-              );
+            const noteId = await noteClient().publishNoteWithAttachmentsAPI(
+              versionId,
+              content,
+              attachments,
+              labelId,
+            );
 
             if (noteId) {
               console.debug(
@@ -792,13 +791,12 @@ export function useNoteManagement(playlist: Playlist) {
               `[useNoteManagement] Publishing ALL notes - version ${versionId} with ${attachments.length} attachments and labelId: "${labelId}"`,
             );
 
-            const noteId =
-              await ftrackNoteService.publishNoteWithAttachmentsAPI(
-                versionId,
-                content,
-                attachments,
-                labelId,
-              );
+            const noteId = await noteClient().publishNoteWithAttachmentsAPI(
+              versionId,
+              content,
+              attachments,
+              labelId,
+            );
 
             if (noteId) {
               console.debug(
@@ -940,7 +938,7 @@ export function useNoteManagement(playlist: Playlist) {
           `[useNoteManagement] Publishing note for ${versionId} (${versionDisplay}) with ${attachments.length} attachments`,
         );
 
-        const noteId = await ftrackNoteService.publishNoteWithAttachmentsAPI(
+        const noteId = await noteClient().publishNoteWithAttachmentsAPI(
           versionId,
           content,
           attachments,

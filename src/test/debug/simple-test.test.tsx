@@ -3,17 +3,19 @@ import { renderHook, act } from "@testing-library/react";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { db } from "@/store/db";
 
-// Mock ftrack services
-vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: {
-    getPlaylists: vi.fn(),
-    getLists: vi.fn(),
-  },
+const mockGetPlaylists = vi.fn();
+const mockGetLists = vi.fn();
+
+const playlistClientMock = {
+  getPlaylists: mockGetPlaylists,
+  getLists: mockGetLists,
+};
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => playlistClientMock),
 }));
 
 describe("Simple Debug Test", () => {
-  let mockFtrackService: any;
-
   beforeEach(async () => {
     // Clear all database tables
     await db.playlists.clear();
@@ -21,12 +23,8 @@ describe("Simple Debug Test", () => {
 
     // Reset mocks
     vi.clearAllMocks();
-
-    // Get mock service
-    const { ftrackPlaylistService } = await import(
-      "@/services/ftrack/FtrackPlaylistService"
-    );
-    mockFtrackService = ftrackPlaylistService;
+    mockGetPlaylists.mockReset();
+    mockGetLists.mockReset();
   });
 
   afterEach(async () => {
@@ -37,8 +35,8 @@ describe("Simple Debug Test", () => {
 
   it("should be able to call loadPlaylists without errors", async () => {
     // Mock empty responses
-    mockFtrackService.getPlaylists.mockResolvedValue([]);
-    mockFtrackService.getLists.mockResolvedValue([]);
+    mockGetPlaylists.mockResolvedValue([]);
+    mockGetLists.mockResolvedValue([]);
 
     const { result } = renderHook(() => usePlaylistsStore());
 

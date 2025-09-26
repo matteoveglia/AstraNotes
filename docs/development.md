@@ -33,7 +33,14 @@ This document describes how to set up the development environment and build Astr
    pnpm tauri:dev
    ```
 
-## Build
+## Demo Mode (Mock Data)
+
+- Toggle between live ftrack data and the bundled demo dataset from the Settings modal (or via `useAppModeStore.setMode("demo")`).
+- In Demo Mode, services resolve through façade clients (`versionClient()`, `statusClient()`, `relatedNotesClient()`) that call mock implementations seeded from `src/services/mock/demoSeed.ts`.
+- Related Versions and Related Notes modals now operate entirely on the mock dataset, including status updates and note metadata.
+- When adding new features, prefer routing external calls through the appropriate client in `src/services/client/index.ts` so Demo Mode continues to function without network access.
+- Regenerate the dataset with `pnpm generate:demo-seed --mock-root=/path/to/AstraNotes_MockData` (defaults to `~/Downloads/AstraNotes_MockData` when the flag/env var is omitted).
+
 
 AstraNotes uses a custom build script for building platform-specific binaries:
 
@@ -41,7 +48,6 @@ AstraNotes uses a custom build script for building platform-specific binaries:
 ```bash
 pnpm tauri:build:mac
 ```
-
 ### macOS (Universal) - Not Tested:
 ```bash
 pnpm tauri:build:macuniversal
