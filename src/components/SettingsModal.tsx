@@ -57,11 +57,13 @@ import {
 interface SettingsModalProps {
   onLoadPlaylists: () => Promise<void>;
   onCloseAllPlaylists: () => void;
+  onboardingTargetId?: string;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLoadPlaylists,
   onCloseAllPlaylists,
+  onboardingTargetId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
@@ -273,7 +275,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Settings">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Settings"
+          {...(onboardingTargetId
+            ? { "data-onboarding-target": onboardingTargetId }
+            : {})}
+        >
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>

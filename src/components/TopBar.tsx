@@ -179,6 +179,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             onModalShouldClose={onWhatsNewClose}
           />
           <SettingsModal
+            onboardingTargetId="settings-button"
             onLoadPlaylists={onLoadPlaylists}
             onCloseAllPlaylists={onCloseAllPlaylists}
           />
