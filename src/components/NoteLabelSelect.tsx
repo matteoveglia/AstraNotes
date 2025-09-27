@@ -17,6 +17,7 @@ import {
 import { cn } from "../lib/utils";
 import { useLabelStore } from "../store/labelStore";
 import { useSettings } from "../store/settingsStore";
+import { useAppModeStore } from "@/store/appModeStore";
 
 interface NoteLabelSelectProps {
   value: string;
@@ -31,6 +32,8 @@ export const NoteLabelSelect = forwardRef<
 >(({ value, onChange, className, disabled }, ref) => {
   const { labels, fetchLabels } = useLabelStore();
   const { settings } = useSettings();
+  const { appMode } = useAppModeStore();
+  const isDemoMode = appMode === "demo";
   const hasSetDefault = useRef(false);
   const [internalValue, setInternalValue] = useState<string>(value || "");
 
@@ -50,26 +53,47 @@ export const NoteLabelSelect = forwardRef<
 
   // Only set default label once when component mounts and labels are available
   useEffect(() => {
-    if (labels.length > 0) {
-      // If we have a valid value already, just mark as initialized
-      if (internalValue && labels.some((label) => label.id === internalValue)) {
-        hasSetDefault.current = true;
-      }
-      // Otherwise, if we haven't set a default yet, set it now
-      else if (!hasSetDefault.current) {
-        // Use the default label from settings if available, otherwise use the first label
-        const defaultLabelId =
-          settings.defaultLabelId &&
-          labels.find((l) => l.id === settings.defaultLabelId)
-            ? settings.defaultLabelId
-            : labels[0].id;
-
-        hasSetDefault.current = true;
-        setInternalValue(defaultLabelId);
-        onChange(defaultLabelId);
-      }
+    if (labels.length === 0) {
+      return;
     }
-  }, [labels, settings.defaultLabelId, internalValue, onChange]);
+
+    const firstLabelId = labels[0].id;
+
+    if (isDemoMode) {
+      hasSetDefault.current = true;
+      const hasValidValue =
+        internalValue && labels.some((label) => label.id === internalValue);
+
+      if (!hasValidValue) {
+        const defaultId = firstLabelId;
+        if (internalValue !== defaultId) {
+          setInternalValue(defaultId);
+          onChange(defaultId);
+        }
+      }
+      return;
+    }
+
+    // If we have a valid value already, just mark as initialized
+    if (internalValue && labels.some((label) => label.id === internalValue)) {
+      hasSetDefault.current = true;
+      return;
+    }
+
+    // Otherwise, if we haven't set a default yet, set it now
+    if (!hasSetDefault.current) {
+      // Use the default label from settings if available, otherwise use the first label
+      const defaultLabelId =
+        settings.defaultLabelId &&
+        labels.find((l) => l.id === settings.defaultLabelId)
+          ? settings.defaultLabelId
+          : firstLabelId;
+
+      hasSetDefault.current = true;
+      setInternalValue(defaultLabelId);
+      onChange(defaultLabelId);
+    }
+  }, [isDemoMode, labels, settings.defaultLabelId, internalValue, onChange]);
 
   const selectedLabel = labels.find((label) => label.id === internalValue);
 

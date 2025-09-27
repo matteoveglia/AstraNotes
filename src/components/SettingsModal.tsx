@@ -259,6 +259,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     ? "Exit Demo Mode and return to live mode."
     : "Run AstraNotes offline using mock Big Buck Bunny™ data. Switching modes will clear cached data and restart the app.";
 
+  const defaultLabelValue = (() => {
+    const firstLabelId = labels[0]?.id ?? "";
+    if (isDemoMode) {
+      const currentIsValid =
+        settings.defaultLabelId &&
+        labels.some((label) => label.id === settings.defaultLabelId);
+      return currentIsValid ? settings.defaultLabelId! : firstLabelId;
+    }
+    return settings.defaultLabelId || firstLabelId;
+  })();
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -359,7 +370,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <Label htmlFor="default-label">Default Note Label</Label>
                   <Select
-                    value={settings.defaultLabelId || labels[0]?.id}
+                    value={defaultLabelValue}
                     onValueChange={(value) =>
                       setSettings({ ...settings, defaultLabelId: value })
                     }

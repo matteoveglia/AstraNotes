@@ -23,8 +23,17 @@ const componentMetadata = new Map(
   ),
 );
 
+interface SearchVersionsOptions {
+  searchTerm: string;
+  limit?: number;
+  projectId?: string;
+}
+
 export const mockVersionService = {
-  async searchVersions({ searchTerm }: { searchTerm: string }): Promise<AssetVersion[]> {
+  async searchVersions({
+    searchTerm,
+    limit = 50,
+  }: SearchVersionsOptions): Promise<AssetVersion[]> {
     await latency();
 
     const term = searchTerm.trim().toLowerCase();
@@ -32,9 +41,11 @@ export const mockVersionService = {
       return [];
     }
 
-    return seededVersions.filter((version) =>
+    const filtered = seededVersions.filter((version) =>
       version.name.toLowerCase().includes(term) || version.id.toLowerCase().includes(term),
     );
+
+    return filtered.slice(0, limit);
   },
   async getVersionComponents(versionId: string) {
     await latency();

@@ -6,7 +6,7 @@
  */
 
 import { create } from "zustand";
-import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
+import { noteClient } from "@/services/client";
 
 interface Label {
   id: string;
@@ -28,7 +28,7 @@ export const useLabelStore = create<LabelStore>((set) => ({
   fetchLabels: async () => {
     try {
       set({ isLoading: true, error: null });
-      const labels = await ftrackNoteService.getNoteLabels();
+      const labels = await noteClient().getNoteLabels();
       set({ labels, isLoading: false });
     } catch (error) {
       set({ error: error as Error, isLoading: false });
