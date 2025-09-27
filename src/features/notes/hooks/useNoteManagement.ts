@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/toast";
 import { useApiWithNotifications } from "@/utils/network";
 import { useErrorHandler, categorizeError } from "@/utils/errorHandling";
 import { Attachment } from "@/components/NoteAttachments";
+import { emitOnboardingEvent } from "@/onboarding/events";
 
 export function useNoteManagement(playlist: Playlist) {
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);

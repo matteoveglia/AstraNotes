@@ -1031,7 +1031,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4" data-onboarding-target="notes-panel">
           {!isInitializing &&
           (modifications.added > 0 ||
             modifications.removed > 0 ||
@@ -1081,33 +1081,37 @@ export const MainContent: React.FC<MainContentProps> = ({
               });
               return shouldShowSync;
             })() && (
-              <SyncPlaylistButton
-                playlist={activePlaylist}
-                versionsToSync={activePlaylist.versions || []}
-                onSyncSuccess={handleSyncSuccess}
-                onSyncError={handleSyncError}
-              />
+              <div data-onboarding-target="sync-playlist-button">
+                <SyncPlaylistButton
+                  playlist={activePlaylist}
+                  versionsToSync={activePlaylist.versions || []}
+                  onSyncSuccess={handleSyncSuccess}
+                  onSyncError={handleSyncError}
+                />
+              </div>
             )}
-            <PublishingControls
-              selectedCount={selectedVersions.length}
-              draftCount={getDraftCount()}
-              isPublishing={isPublishing}
-              onPublishSelected={publishSelectedNotes}
-              onPublishAll={publishAllNotes}
-              onClearAllNotes={clearAllNotes}
-              onSetAllLabels={setAllLabels}
-              onClearAllSelections={clearAllSelections}
-              isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
-              isRefreshing={isRefreshing}
-              onRefresh={directRefresh}
-              refreshDisabled={Boolean(activePlaylist.deletedInFtrack)}
-              selectedStatuses={selectedStatuses}
-              selectedLabels={selectedLabels}
-              selectedVersions={selectedVersions}
-              onStatusChange={setSelectedStatuses}
-              onLabelChange={setSelectedLabels}
-              onClearFilters={handleClearFilters}
-            />
+            <div data-onboarding-target="publishing-controls">
+              <PublishingControls
+                selectedCount={selectedVersions.length}
+                draftCount={getDraftCount()}
+                isPublishing={isPublishing}
+                onPublishSelected={publishSelectedNotes}
+                onPublishAll={publishAllNotes}
+                onClearAllNotes={clearAllNotes}
+                onSetAllLabels={setAllLabels}
+                onClearAllSelections={clearAllSelections}
+                isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+                isRefreshing={isRefreshing}
+                onRefresh={directRefresh}
+                refreshDisabled={Boolean(activePlaylist.deletedInFtrack)}
+                selectedStatuses={selectedStatuses}
+                selectedLabels={selectedLabels}
+                selectedVersions={selectedVersions}
+                onStatusChange={setSelectedStatuses}
+                onLabelChange={setSelectedLabels}
+                onClearFilters={handleClearFilters}
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -1139,17 +1143,19 @@ export const MainContent: React.FC<MainContentProps> = ({
       </CardContent>
 
       {!isInitializing && (
-        <SearchPanel
-          onVersionSelect={handleVersionSelect}
-          onVersionsSelect={handleVersionsSelect}
-          onClearAdded={handleClearAdded}
-          hasManuallyAddedVersions={Boolean(
-            activePlaylist.versions?.some((v) => v.manuallyAdded),
-          )}
-          isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
-          currentVersions={activePlaylist.versions || []}
-          onPlaylistCreated={handlePlaylistCreated}
-        />
+        <div data-onboarding-target="version-search">
+          <SearchPanel
+            onVersionSelect={handleVersionSelect}
+            onVersionsSelect={handleVersionsSelect}
+            onClearAdded={handleClearAdded}
+            hasManuallyAddedVersions={Boolean(
+              activePlaylist.versions?.some((v) => v.manuallyAdded),
+            )}
+            isQuickNotes={Boolean(activePlaylist.isQuickNotes)}
+            currentVersions={activePlaylist.versions || []}
+            onPlaylistCreated={handlePlaylistCreated}
+          />
+        </div>
       )}
 
       {/* Publish Progress Modal */}

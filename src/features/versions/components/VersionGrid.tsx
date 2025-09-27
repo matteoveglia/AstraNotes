@@ -193,6 +193,7 @@ export const VersionGrid: React.FC<VersionGridProps> = ({
       exit="exit"
       variants={gridVariants}
       className="space-y-5 py-5"
+      data-onboarding-target="version-grid"
     >
       {versions.map((version, index) => (
         <VersionGridItem

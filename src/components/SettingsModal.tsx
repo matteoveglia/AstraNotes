@@ -53,6 +53,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import { emitOnboardingEvent } from "@/onboarding/events";
 
 interface SettingsModalProps {
   onLoadPlaylists: () => Promise<void>;
@@ -65,6 +67,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onCloseAllPlaylists,
   onboardingTargetId,
 }) => {
+  const {
+    shouldOpenSettingsModal,
+    setShouldOpenSettingsModal,
+    resetProgress: resetOnboardingProgress,
+    start: startOnboarding,
+    hasCompleted: onboardingHasCompleted,
+    isActive: onboardingIsActive,
+  } = useOnboardingStore((state) => ({
+    shouldOpenSettingsModal: state.shouldOpenSettingsModal,
+    setShouldOpenSettingsModal: state.setShouldOpenSettingsModal,
+    resetProgress: state.resetProgress,
+    start: state.start,
+    hasCompleted: state.hasCompleted,
+    isActive: state.isActive,
+  }));
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
   const { labels, fetchLabels } = useLabelStore();
@@ -81,6 +98,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isModeDialogOpen, setIsModeDialogOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setShouldOpenSettingsModal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (shouldOpenSettingsModal && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [shouldOpenSettingsModal, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      emitOnboardingEvent("settingsOpen");
+      if (shouldOpenSettingsModal) {
+        setShouldOpenSettingsModal(false);
+      }
+    }
+  }, [isOpen, shouldOpenSettingsModal, setShouldOpenSettingsModal]);
+
+  const handleReplayTutorial = () => {
+    resetOnboardingProgress();
+    setShouldOpenSettingsModal(false);
+    handleDialogOpenChange(false);
+    setTimeout(() => {
+      startOnboarding(0);
+    }, 0);
+  };
 
   useEffect(() => {
     if (isOpen) {

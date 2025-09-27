@@ -69,6 +69,7 @@ export function QuickNotesToPlaylistButton({
               size="sm"
               onClick={handleCreateClick}
               className="h-8 gap-2"
+              data-onboarding-target="quick-notes-convert"
             >
               <ListPlus className="h-4 w-4" />
               Create Playlist

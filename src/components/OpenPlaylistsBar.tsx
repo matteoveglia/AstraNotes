@@ -71,7 +71,10 @@ export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
   onCloseAll,
 }) => {
   return (
-    <div className="h-14 border-t bg-background relative">
+    <div
+      className="h-14 border-t bg-background relative"
+      data-onboarding-target="open-playlists-bar"
+    >
       {playlists.length > 1 && (
         <div className="absolute right-0 top-0 bottom-0 flex items-center bg-background px-4 z-10">
           <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-background" />

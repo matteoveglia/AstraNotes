@@ -609,7 +609,10 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     !selectedProjectId || !hasValidatedSelectedProject;
 
   return (
-    <div className="w-72 border-r p-4 relative flex flex-col h-full">
+    <div
+      className="w-72 border-r p-4 relative flex flex-col h-full"
+      data-onboarding-target="playlist-panel"
+    >
       <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="text-lg font-bold">Playlists</h2>
         <div className="flex items-center gap-1">
@@ -654,6 +657,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                 size="lg"
                 onClick={() => onPlaylistSelect(quickNotesPlaylist.id)}
                 className="w-full justify-start text-left mb-1"
+                data-onboarding-target="quick-notes-tab"
               >
                 <span className="truncate flex-1">
                   {quickNotesPlaylist.title}
