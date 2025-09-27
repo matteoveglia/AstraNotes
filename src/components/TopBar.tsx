@@ -24,7 +24,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAppModeStore } from "@/store/appModeStore";
-import { CheckCircle2 } from "lucide-react";
 
 interface TopBarProps {
   onLoadPlaylists: () => Promise<void>;
@@ -122,9 +121,8 @@ export const TopBar: React.FC<TopBarProps> = ({
               aria-live="polite"
               className="flex items-center gap-1 rounded-full border border-emerald-300/60 dark:border-emerald-800/60 bg-gradient-to-r from-green-100 via-emerald-100 to-green-200 dark:from-emerald-900/70 dark:via-emerald-800/70 dark:to-emerald-900/70 px-3 py-1 text-xs font-medium text-emerald-900 dark:text-emerald-200 shadow-sm"
               animate={{ opacity: [1, 0.85, 1], scale: [1, 1.05, 1] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
-              <CheckCircle2 className="h-3.5 w-3.5" />
               <span>Demo Mode</span>
             </motion.div>
           )}

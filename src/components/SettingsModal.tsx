@@ -256,8 +256,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const demoButtonLabel = isDemoMode ? "Disable Demo Mode" : "Enable Demo Mode";
 
   const demoButtonDescription = isDemoMode
-    ? "Exit Demo Mode and return to the live ftrack workflow."
-    : "Launch AstraNotes offline with the bundled demo dataset.";
+    ? "Exit Demo Mode and return to live mode."
+    : "Run AstraNotes offline using mock Big Buck Bunny™ data. Switching modes will clear cached data and restart the app.";
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -545,22 +545,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="border-t pt-4 mt-4 space-y-3">
               <div>
                 <h3 className="font-medium">Demo Mode</h3>
-                <p className="text-sm text-muted-foreground max-w-72">
-                  Run AstraNotes completely offline using the bundled Big Buck Bunny
-                  dataset. Optional demo MOV files can be placed in
-                  <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                    ~/Downloads/AstraNotes_MockData
-                  </code>
-                  to unlock richer previews. Switching modes will clear cached data and
-                  restart the app.
-                </p>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground flex-1">
                   {demoButtonDescription}
                 </p>
                 <Button
-                  variant={isDemoMode ? "secondary" : "default"}
+                  variant="default"
                   size="default"
                   onClick={() => openModeDialog(isDemoMode ? "real" : "demo")}
                   disabled={isSwitchingMode}
@@ -587,13 +578,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ? "Demo Mode runs AstraNotes offline with temporary mock data, clears cached playlists, and restarts the app."
                   : "Disabling Demo Mode clears temporary demo data, restores the live ftrack workflow, and restarts the app."}
               </p>
-              <p>
-                Optional demo MOV files can be stored in
-                <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                  ~/Downloads/AstraNotes_MockData
-                </code>
-                . If they are missing, AstraNotes will fall back to thumbnails only.
-              </p>
+              {pendingMode === "demo" && (
+                <p>
+                  Optional demo MOV files can be downloaded from{" "}
+                  <a
+                    href="https://drive.google.com/file/d/1oAtv3SXF21z1TcA_27aCD6KNZEbGxd9_/view?usp=sharing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-semibold text-blue-500 hover:text-blue-600"
+                  >
+                    here
+                  </a>
+                  {" "}and stored in your download folder, e.g.
+                  <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+                    ~/Downloads/AstraNotes_MockData
+                  </code>
+                  . If they are missing, AstraNotes will fall back to thumbnails only.
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

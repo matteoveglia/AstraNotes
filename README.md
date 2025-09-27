@@ -59,9 +59,8 @@ These settings can be updated anytime through the settings panel.
 
 - **What it is**: A self-contained Big Buck Bunny dataset bundled with AstraNotes so you can explore playlists, notes, and status flows without an ftrack account.
 - **How to enable**: Open the Settings panel and click **Enable Demo Mode**. A confirmation dialog explains that caches will be cleared and the app will restart in mock mode.
-- **How to disable**: Return to Settings and click **Disable Demo Mode** to restore the live ftrack workflow.
-- **Optional media**: Place the `AstraNotes_MockData` archive under `~/Downloads/` to unlock MOV previews. If the clips are missing, AstraNotes falls back to thumbnails.
-- **Regenerating the seed**: Run `pnpm generate:demo-seed --mock-root=/path/to/AstraNotes_MockData` to rebuild `src/services/mock/demoSeed.ts` after updating the CSVs.
+- **How to disable**: Return to Settings and click **Disable Demo Mode** to restore the live ftrack connection.
+- **Optional media**: Place the `AstraNotes_MockData` archive under `~/Downloads/` to unlock MOV previews. If the clips are missing, AstraNotes falls back to thumbnails. You can download the demo data from [here](https://drive.google.com/file/d/1oAtv3SXF21z1TcA_27aCD6KNXEbGxd9_/view?usp=sharing).
 
 ## Troubleshooting
 
@@ -101,4 +100,4 @@ Copyright © 2025 Astra Lumen Images Inc. All rights reserved.
 
 ## Media Attribution
 
-Demo thumbnails and preview clips are derived from [Big Buck Bunny](https://peach.blender.org/), © 2008 Blender Foundation. Used under the [Creative Commons Attribution 3.0 Unported License](https://creativecommons.org/licenses/by/3.0/).
+Demo thumbnails and preview clips are derived from [Big Buck Bunny](https://peach.blender.org/), © 2008 Blender Foundation. Used under the [Creative Commons Attribution 3.0 License](https://creativecommons.org/licenses/by/3.0/).
