@@ -28,6 +28,7 @@ interface PlaylistListProps {
   error?: string | null;
   onSelect: (playlist: Playlist) => void;
   activePlaylistId: string | null;
+  onNavigateCategory?: (direction: "previous" | "next") => void;
 }
 
 export const PlaylistList: React.FC<PlaylistListProps> = ({
@@ -36,6 +37,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
   error = null,
   onSelect,
   activePlaylistId,
+  onNavigateCategory,
 }) => {
   const [currentCategoryIndex, setCurrentCategoryIndex] = React.useState(0);
   const [previousCategoriesRef] = React.useState<{
@@ -102,6 +104,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
     setCurrentCategoryIndex((prev) =>
       prev > 0 ? prev - 1 : categories.length - 1,
     );
+    onNavigateCategory?.("previous");
   };
 
   const handleNextCategory = () => {
@@ -109,6 +112,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
     setCurrentCategoryIndex((prev) =>
       prev < categories.length - 1 ? prev + 1 : 0,
     );
+    onNavigateCategory?.("next");
   };
 
   // Reset user navigation flag when active playlist changes to allow automatic navigation
@@ -153,6 +157,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
               size="sm"
               onClick={handlePreviousCategory}
               className="h-8 w-8 p-0"
+              data-onboarding-target="playlist-category-nav"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -194,6 +199,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
               size="sm"
               onClick={handleNextCategory}
               className="h-8 w-8 p-0"
+              data-onboarding-target="playlist-category-nav"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -225,7 +231,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                 No playlists in this category
               </div>
             ) : (
-              currentCategory.playlists.map((playlist: PlaylistWithStatus) => {
+              currentCategory.playlists.map((playlist: PlaylistWithStatus, index) => {
                 const isSelected =
                   playlist.id === activePlaylistId &&
                   activePlaylistId !== "__no_selection__";
@@ -248,6 +254,7 @@ export const PlaylistList: React.FC<PlaylistListProps> = ({
                         ? `ftrack List: ${playlist.name}${playlist.isOpen ? " (Open)" : " (Closed)"}`
                         : `Review Session: ${playlist.name}`
                     }
+                    data-onboarding-target={index === 0 ? "playlist-first-item" : undefined}
                   >
                     <span className="truncate flex-1">{playlist.name}</span>
                     <div className="flex items-center gap-1">

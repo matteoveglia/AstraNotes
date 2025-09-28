@@ -37,6 +37,7 @@ import { PlaylistList } from "./PlaylistList";
 import { PlaylistPanelEmptyState } from "./EmptyStates";
 import { CreatePlaylistDialog } from "@/features/playlists/components/CreatePlaylistDialog";
 import { db } from "@/store/db";
+import { emitOnboardingEvent } from "@/onboarding/events";
 
 interface PlaylistItemProps {
   playlist: PlaylistWithStatus;
@@ -347,6 +348,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
           "[PlaylistPanel] Using parent refresh function for proper state sync",
         );
         await onRefresh(); // This will update store and trigger App.tsx re-render
+        emitOnboardingEvent("playlistRefreshed");
 
         // Check if active playlist was deleted and redirect to Quick Notes if needed
         const { playlists: freshPlaylists } = usePlaylistsStore.getState();
@@ -371,6 +373,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
       } else {
         console.debug("[PlaylistPanel] Using fallback direct store refresh");
         refreshResult = await loadPlaylists();
+        emitOnboardingEvent("playlistRefreshed");
       }
 
       // Check if any playlists were deleted during refresh (fallback path only)
@@ -608,6 +611,17 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
   const shouldShowEmptyState =
     !selectedProjectId || !hasValidatedSelectedProject;
 
+  const handleNavigateCategory = (direction: "previous" | "next") => {
+    setUserHasNavigated(true);
+    setCurrentCategoryIndex((prev) => {
+      if (direction === "previous") {
+        return prev > 0 ? prev - 1 : categories.length - 1;
+      }
+      return prev < categories.length - 1 ? prev + 1 : 0;
+    });
+    emitOnboardingEvent("playlistCategoryNavigated");
+  };
+
   return (
     <div
       className="w-72 border-r p-4 relative flex flex-col h-full"
@@ -622,6 +636,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             onClick={handleCreatePlaylist}
             disabled={shouldShowEmptyState}
             className="h-8 w-8 p-0"
+            data-onboarding-target="playlist-create-button"
             title="Create new playlist"
           >
             <Plus className="w-4 h-4" />
@@ -632,6 +647,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
             onClick={handleRefreshClick}
             disabled={isRefreshing || shouldShowEmptyState}
             className={cn("h-8 w-8 p-0", isRefreshing)}
+            data-onboarding-target="playlist-refresh-button"
             title="Refresh playlists"
           >
             <RefreshCw
@@ -680,7 +696,12 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                   categories={categories}
                   loading={loading}
                   error={error}
-                  onSelect={(playlist) => onPlaylistSelect(playlist.id)}
+                  onSelect={(playlist) => {
+                    onPlaylistSelect(playlist.id);
+                    if (!playlist.isQuickNotes) {
+                      emitOnboardingEvent("reviewPlaylistOpened");
+                    }
+                  }}
                   activePlaylistId={
                     // If Quick Notes is active, don't show any carousel playlist as selected
                     quickNotesPlaylist &&
@@ -688,6 +709,7 @@ export const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                       ? null
                       : activePlaylist
                   }
+                  onNavigateCategory={handleNavigateCategory}
                 />
               </motion.div>
 

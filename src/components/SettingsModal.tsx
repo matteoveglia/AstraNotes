@@ -364,7 +364,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           
           {/* Left Column */}
           <div className="space-y-4">
-          <div className="border p-4 rounded-md bg-muted/30">
+            <div className="border p-4 rounded-md bg-muted/30">
               <h1 className="text-3xl font-semibold mb-2 text-center">
                 AstraNotes
               </h1>
@@ -383,87 +383,98 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </a>
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="serverUrl">ftrack URL</Label>
-              <Input
-                id="serverUrl"
-                value={settings.serverUrl}
-                onChange={handleInputChange("serverUrl")}
-                placeholder="e.g. https://yourserver.ftrackapp.com"
-                disabled={isDemoMode || isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">API Key</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                value={settings.apiKey}
-                onChange={handleInputChange("apiKey")}
-                placeholder="Your ftrack API key"
-                disabled={isDemoMode || isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apiUser">API User</Label>
-              <Input
-                id="apiUser"
-                value={settings.apiUser}
-                onChange={handleInputChange("apiUser")}
-                placeholder="Your ftrack account email"
-                disabled={isDemoMode || isLoading}
-              />
-            </div>
-
-            <div className="flex items-center space-x-2 text-sm">
-              <div className="font-medium">Connection Status:</div>
-              <div className="flex items-center space-x-1">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    isDemoMode
-                      ? "bg-green-500"
-                      : isConnected
-                        ? "bg-green-500"
-                        : isTesting
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
-                  }`}
+            <div
+              className="space-y-4"
+              data-onboarding-target="settings-overview"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="serverUrl">ftrack URL</Label>
+                <Input
+                  id="serverUrl"
+                  value={settings.serverUrl}
+                  onChange={handleInputChange("serverUrl")}
+                  placeholder="e.g. https://yourserver.ftrackapp.com"
+                  disabled={isDemoMode || isLoading}
                 />
-                <span className="capitalize">
-                  {isDemoMode
-                    ? "Demo"
-                    : isConnected
-                      ? "Connected"
-                      : isTesting
-                        ? "Testing"
-                        : "Disconnected"}
-                </span>
               </div>
-            </div>
 
-            {error && <div className="text-red-500 text-sm">{error}</div>}
+              <div className="space-y-2">
+                <Label htmlFor="apiKey">API Key</Label>
+                <Input
+                  id="apiKey"
+                  type="password"
+                  value={settings.apiKey}
+                  onChange={handleInputChange("apiKey")}
+                  placeholder="Your ftrack API key"
+                  disabled={isDemoMode || isLoading}
+                />
+              </div>
 
-            <div className="flex justify-end space-x-2 pb-2 pt-1">
-              <Button
-                variant="outline"
-                onClick={handleTestConnection}
-                disabled={isTesting || isLoading || isDemoMode}
-              >
-                {isTesting ? "Testing..." : "Test Connection"}
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isTesting || isLoading || isDemoMode}
-              >
-                Save Credentials
-              </Button>
+              <div className="space-y-2">
+                <Label htmlFor="apiUser">API User</Label>
+                <Input
+                  id="apiUser"
+                  value={settings.apiUser}
+                  onChange={handleInputChange("apiUser")}
+                  placeholder="Your ftrack account email"
+                  disabled={isDemoMode || isLoading}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 text-sm">
+                <div className="font-medium">Connection Status:</div>
+                <div className="flex items-center space-x-1">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      isDemoMode
+                        ? "bg-green-500"
+                        : isConnected
+                          ? "bg-green-500"
+                          : isTesting
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                    }`}
+                  />
+                  <span className="capitalize">
+                    {isDemoMode
+                      ? "Demo"
+                      : isConnected
+                        ? "Connected"
+                        : isTesting
+                          ? "Testing"
+                          : "Disconnected"}
+                  </span>
+                </div>
+              </div>
+
+              {error && <div className="text-red-500 text-sm">{error}</div>}
+
+              <div className="flex justify-end space-x-2 pb-2 pt-1">
+                <Button
+                  variant="outline"
+                  onClick={handleTestConnection}
+                  disabled={isTesting || isLoading || isDemoMode}
+                >
+                  {isTesting ? "Testing..." : "Test Connection"}
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={isTesting || isLoading || isDemoMode}
+                >
+                  Save Credentials
+                </Button>
+              </div>
             </div>
 
             <div className="border-t pt-4 mt-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Onboarding</h4>
+                    <p className="text-sm text-muted-foreground max-w-56">
+                      Select the onboarding experience you want to have
+                    </p>
+                  </div>
                   <Label htmlFor="default-label">Default Note Label</Label>
                   <Select
                     value={defaultLabelValue}
@@ -642,6 +653,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   size="default"
                   onClick={() => openModeDialog(isDemoMode ? "real" : "demo")}
                   disabled={isSwitchingMode}
+                  data-onboarding-target="demo-mode-toggle"
                 >
                   {isSwitchingMode ? "Switching..." : demoButtonLabel}
                 </Button>

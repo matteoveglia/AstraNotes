@@ -40,6 +40,7 @@ import { VersionGrid } from "@/features/versions/components/VersionGrid";
 import { SearchPanel } from "@/features/versions/components/SearchPanel";
 import { SyncPlaylistButton } from "@/features/playlists/components/SyncPlaylistButton";
 import { PublishProgressModal } from "./PublishProgressModal";
+import { emitOnboardingEvent } from "@/onboarding/events";
 import {
   Tooltip,
   TooltipContent,
@@ -535,6 +536,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         // because they're already persisted to the database and don't need
         // the modifications banner (which is for auto-refresh changes)
       });
+
+      emitOnboardingEvent("versionAdded");
     } catch (error) {
       console.error("Failed to add version to playlist:", error);
     }
@@ -617,6 +620,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         console.log(
           `Successfully added ${addedCount} versions to playlist ${activePlaylist.id}`,
         );
+
+        emitOnboardingEvent("versionAdded");
       }
     } catch (error) {
       console.error("Failed to add multiple versions to playlist:", error);
@@ -799,6 +804,8 @@ export const MainContent: React.FC<MainContentProps> = ({
         playlistName: activePlaylist.name,
       },
     );
+
+    emitOnboardingEvent("playlistSynced");
   };
 
   const handleSyncError = (error: string) => {

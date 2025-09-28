@@ -4,7 +4,10 @@ export type OnboardingEvent =
   | "playlistCreated"
   | "versionAdded"
   | "playlistSynced"
-  | "notesPublished";
+  | "notesPublished"
+  | "playlistRefreshed"
+  | "playlistCategoryNavigated"
+  | "reviewPlaylistOpened";
 
 export type OnboardingEventListener = (event: OnboardingEvent) => void;
 

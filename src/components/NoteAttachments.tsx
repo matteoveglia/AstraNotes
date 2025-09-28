@@ -390,6 +390,7 @@ export const NoteAttachments: React.FC<NoteAttachmentsProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onPaste={handlePaste}
+      data-onboarding-trigger="attachment"
     >
       <div className="relative flex items-center">
         <Button
