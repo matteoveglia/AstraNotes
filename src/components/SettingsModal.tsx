@@ -75,6 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
   const resetOnboardingProgress = useOnboardingStore((s) => s.resetProgress);
   const startOnboarding = useOnboardingStore((s) => s.start);
+  const requestTutorialStart = useOnboardingStore((s) => s.requestStart);
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
   const { labels, fetchLabels } = useLabelStore();
@@ -91,6 +92,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isModeDialogOpen, setIsModeDialogOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+  const [isTutorialDialogOpen, setIsTutorialDialogOpen] = useState(false);
+  const [isStartingTutorial, setIsStartingTutorial] = useState(false);
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -202,39 +205,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setError(null);
     };
 
+  const performCacheReset = async () => {
+    // Close the modal first
+    setIsOpen(false);
+
+    // Reset any polling that might be happening (legacy API; optional)
+    (playlistStore as any).stopAutoRefresh?.();
+
+    // Clear thumbnail cache
+    clearThumbnailCache();
+
+    // Reset UI state
+    onCloseAllPlaylists();
+
+    // Use the enhanced clearCache method that wipes ALL database tables
+    // This includes the new unified tables and any legacy tables
+    await db.clearCache();
+
+    // Note: clearCache() already handles:
+    // - Deleting entire database
+    // - Preserving essential localStorage settings
+    // - Setting minimal required state
+    // - Full page reload
+  };
+
+  const notifyCacheError = (err: unknown) => {
+    console.error("Failed to clear cache:", err);
+    alert(
+      "Failed to clear cache: " +
+        (err instanceof Error ? err.message : String(err)),
+    );
+  };
+
   const handleClearCache = async () => {
     try {
       setIsLoading(true);
-
-      // Close the modal first
-      setIsOpen(false);
-
-      // Reset any polling that might be happening (legacy API; optional)
-      (playlistStore as any).stopAutoRefresh?.();
-
-      // Clear thumbnail cache
-      clearThumbnailCache();
-
-      // Reset UI state
-      onCloseAllPlaylists();
-
-      // Use the enhanced clearCache method that wipes ALL database tables
-      // This includes the new unified tables and any legacy tables
-      await db.clearCache();
-
-      // Note: clearCache() already handles:
-      // - Deleting entire database
-      // - Preserving essential localStorage settings
-      // - Setting minimal required state
-      // - Full page reload
+      await performCacheReset();
     } catch (err) {
-      console.error("Failed to clear cache:", err);
-      alert(
-        "Failed to clear cache: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
+      notifyCacheError(err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTutorialRestart = async () => {
+    if (isStartingTutorial) return;
+    setIsStartingTutorial(true);
+    try {
+      resetOnboardingProgress();
+      requestTutorialStart();
+      setIsTutorialDialogOpen(false);
+      setShouldOpenSettingsModal(false);
+      await performCacheReset();
+    } catch (err) {
+      notifyCacheError(err);
+      setIsStartingTutorial(false);
     }
   };
 
@@ -622,6 +647,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </Button>
               </div>
             </div>
+
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-medium">Guided Tutorial</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Restart the onboarding walkthrough. This will wipe local
+                    data and restart the app.
+                  </p>
+                </div>
+                <Button
+                  variant="default"
+                  size="default"
+                  onClick={() => setIsTutorialDialogOpen(true)}
+                  disabled={isLoading || isStartingTutorial}
+                  data-onboarding-target="tutorial-restart"
+                >
+                  {isStartingTutorial ? "Preparing..." : "Restart Tutorial"}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -670,6 +716,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 : pendingMode === "demo"
                   ? "Enable Demo Mode"
                   : "Disable Demo Mode"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isTutorialDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsTutorialDialogOpen(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restart Guided Tutorial?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm">
+              <p>
+                We&apos;ll clear cached playlists, versions, notes, and restart
+                AstraNotes to launch the onboarding tutorial from the
+                beginning.
+              </p>
+              <p className="font-medium">
+                This will remove any unsaved local changes. Your ftrack data is
+                unaffected.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setIsTutorialDialogOpen(false)}
+              disabled={isStartingTutorial}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleTutorialRestart}
+              disabled={isStartingTutorial}
+            >
+              {isStartingTutorial ? "Restarting..." : "Continue"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

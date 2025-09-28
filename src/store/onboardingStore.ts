@@ -32,6 +32,7 @@ interface PersistedState {
   isReplaying: boolean;
   flowVersion: number;
   lastCompletedStepIndex: number | null;
+  startRequested: boolean;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -124,6 +125,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         isReplaying,
         flowVersion,
         lastCompletedStepIndex,
+        startRequested,
       }: OnboardingState): PersistedState => ({
         hasCompleted,
         currentStepIndex,
@@ -131,6 +133,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         isReplaying,
         flowVersion,
         lastCompletedStepIndex,
+        startRequested,
       }),
       migrate: (persisted: PersistedState | undefined, _v: number) => {
         if (!persisted) return persisted as any;
@@ -142,6 +145,7 @@ export const useOnboardingStore = create<OnboardingState>()(
             isReplaying: false,
             flowVersion: FLOW_VERSION,
             lastCompletedStepIndex: null,
+            startRequested: false,
           } as PersistedState;
         }
         return persisted;

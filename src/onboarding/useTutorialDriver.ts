@@ -7,6 +7,7 @@ import { subscribeOnboardingEvents } from "@/onboarding/events";
 async function loadDriver(): Promise<any | null> {
   try {
     const mod: any = await import("driver.js");
+    await import("driver.js/dist/driver.css");
     // driver.js v1 exports default class Driver
     return mod?.driver || mod?.default || mod;
   } catch (e) {
@@ -41,7 +42,8 @@ export function useTutorialDriver() {
         popover: {
           title: s.title,
           description: s.description,
-          side: "bottom",
+          side: "right",
+          align: "start",
         },
       }));
 
