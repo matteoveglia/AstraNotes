@@ -67,21 +67,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onCloseAllPlaylists,
   onboardingTargetId,
 }) => {
-  const {
-    shouldOpenSettingsModal,
-    setShouldOpenSettingsModal,
-    resetProgress: resetOnboardingProgress,
-    start: startOnboarding,
-    hasCompleted: onboardingHasCompleted,
-    isActive: onboardingIsActive,
-  } = useOnboardingStore((state) => ({
-    shouldOpenSettingsModal: state.shouldOpenSettingsModal,
-    setShouldOpenSettingsModal: state.setShouldOpenSettingsModal,
-    resetProgress: state.resetProgress,
-    start: state.start,
-    hasCompleted: state.hasCompleted,
-    isActive: state.isActive,
-  }));
+  const shouldOpenSettingsModal = useOnboardingStore(
+    (s) => s.shouldOpenSettingsModal,
+  );
+  const setShouldOpenSettingsModal = useOnboardingStore(
+    (s) => s.setShouldOpenSettingsModal,
+  );
+  const resetOnboardingProgress = useOnboardingStore((s) => s.resetProgress);
+  const startOnboarding = useOnboardingStore((s) => s.start);
   const [isOpen, setIsOpen] = useState(false);
   const { settings, setSettings } = useSettings();
   const { labels, fetchLabels } = useLabelStore();
@@ -293,6 +286,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       await switchAppMode(pendingMode, {
         onBeforeReset: onCloseAllPlaylists,
       });
+      if (pendingMode === "demo") {
+        emitOnboardingEvent("demoModeEnabled");
+      }
     } catch (err) {
       console.error("Failed to switch application mode:", err);
       setError("Failed to switch application mode. Please try again.");
@@ -321,15 +317,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   })();
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Settings"
-          {...(onboardingTargetId
-            ? { "data-onboarding-target": onboardingTargetId }
-            : {})}
+          data-onboarding-target="settings-button"
+          onClick={() => handleDialogOpenChange(true)}
         >
           <Settings className="h-5 w-5" />
         </Button>
@@ -342,8 +336,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-7">
+          
           {/* Left Column */}
           <div className="space-y-4">
+          <div className="border p-4 rounded-md bg-muted/30">
+              <h1 className="text-3xl font-semibold mb-2 text-center">
+                AstraNotes
+              </h1>
+              <p className="text-sm text-muted-foreground text-center mb-2">
+                Version: {appVersion}
+              </p>
+              <p className="text-sm text-muted-foreground text-center">
+                by{" "}
+                <a
+                  href="https://astralumen.co/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                >
+                  Astra Lumen Images
+                </a>
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="serverUrl">ftrack URL</Label>
               <Input
@@ -467,27 +481,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Right Column */}
           <div className="space-y-4">
-            <div className="border p-4 rounded-md bg-muted/30">
-              <h1 className="text-3xl font-semibold mb-2 text-center">
-                AstraNotes
-              </h1>
-              <p className="text-sm text-muted-foreground text-center mb-2">
-                Version: {appVersion}
-              </p>
-              <p className="text-sm text-muted-foreground text-center">
-                by{" "}
-                <a
-                  href="https://astralumen.co/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium hover:underline"
-                >
-                  Astra Lumen Images
-                </a>
-              </p>
-            </div>
-
-            <div className="border-t pt-4 mt-4">
+            <div className="">
               <div className="flex justify-between items-center">
                 <div>
                   <h4 className="font-medium">Updates</h4>

@@ -6,7 +6,7 @@
  * @component
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { ArrowUpCircle } from "lucide-react";
 import { useUpdateStore } from "../store/updateStore";
@@ -48,9 +48,23 @@ export const TopBar: React.FC<TopBarProps> = ({
   const { appMode } = useAppModeStore();
   const isDemoMode = appMode === "demo";
 
+  const topBarBackground = useMemo(() => {
+    if (theme === "dark") {
+      return isDemoMode
+        ? "oklch(0.2016 0.0474 138.18)" // Demo Mode
+        : "oklch(0.19 0.0491 311.56)"; // ftrack Mode
+    }
+    return isDemoMode
+      ? "oklch(0.9951 0.0049 138.18)" // Demo Mode
+      : "oklch(0.9851 0.0056 311.65)"; // ftrack Mode
+  }, [isDemoMode, theme]);
+
   return (
     <TooltipProvider>
-      <div className="h-12 border-b bg-background flex items-center justify-between px-4">
+      <div
+        className="h-12 border-b flex items-center justify-between px-4"
+        style={{ backgroundColor: topBarBackground }}
+      >
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 select-none">

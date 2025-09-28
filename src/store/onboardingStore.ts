@@ -132,25 +132,19 @@ export const useOnboardingStore = create<OnboardingState>()(
         flowVersion,
         lastCompletedStepIndex,
       }),
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.error("Failed to rehydrate onboarding store", error);
-          return;
-        }
-        if (!state) {
-          return;
-        }
-        if (state.flowVersion !== FLOW_VERSION) {
-          set({
+      migrate: (persisted: PersistedState | undefined, _v: number) => {
+        if (!persisted) return persisted as any;
+        if (persisted.flowVersion !== FLOW_VERSION) {
+          return {
             hasCompleted: false,
             currentStepIndex: 0,
             isActive: false,
             isReplaying: false,
             flowVersion: FLOW_VERSION,
             lastCompletedStepIndex: null,
-            startRequested: false,
-          });
+          } as PersistedState;
         }
+        return persisted;
       },
     },
   ),

@@ -17,11 +17,13 @@ import { videoService } from "./services/videoService";
 import { NoProjectSelectedState } from "./components/EmptyStates";
 import { playlistClient } from "@/services/client";
 import { debugLog } from "@/lib/verboseLogging";
+import { useTutorialDriver } from "@/onboarding/useTutorialDriver";
 
 const App: React.FC = () => {
   // Initialise cross-cutting hooks (moved out of this component)
   useThemeManager();
   useAppInitializer();
+  useTutorialDriver();
   const { shouldShowModal, hideModal } = useWhatsNew();
 
   // Theme effects have been moved to useThemeManager
