@@ -16,6 +16,7 @@ export const TutorialControls: React.FC = () => {
   const start = useOnboardingStore((s) => s.start);
   const consumeResume = useOnboardingStore((s) => s.consumeResume);
   const cancelStartRequest = useOnboardingStore((s) => s.cancelStartRequest);
+  const advance = useOnboardingStore((s) => s.advance);
 
   const showResume = !isActive && (resumeStepIndex !== null || startRequested);
   const showControls = isActive || showResume;
@@ -83,6 +84,15 @@ export const TutorialControls: React.FC = () => {
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Back
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => advance()}
+            disabled={effectiveStepIndex >= totalSteps - 1}
+            className="flex items-center gap-1"
+          >
+            Next
           </Button>
           <Button
             variant="ghost"

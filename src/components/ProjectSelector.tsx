@@ -70,6 +70,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           "flex items-center gap-2 min-w-[200px] relative",
           className,
         )}
+        data-onboarding-target="project-selector"
       >
         <div className="relative flex-1">
           {shouldShowGlow && (

@@ -69,7 +69,20 @@ export function useTutorialDriver() {
         animate: true,
         allowClose: true,
         overlayOpacity: 0.45,
+        showButtons: ["next", "previous", "close"],
         steps,
+        onNextClick: () => {
+          advance();
+          return true;
+        },
+        onPrevClick: () => {
+          back();
+          return true;
+        },
+        onCloseClick: () => {
+          skip();
+          return true;
+        },
       });
       driverRef.current = drv;
 
@@ -80,13 +93,15 @@ export function useTutorialDriver() {
 
       // Wire event subscriptions to auto-advance
       unsub = subscribeOnboardingEvents((event) => {
-        const waiting = onboardingSteps[currentStepIndex]?.waitFor?.event;
+        const onboardingState = useOnboardingStore.getState();
+        const stepIndex = onboardingState.currentStepIndex;
+        const waiting = onboardingSteps[stepIndex]?.waitFor?.event;
         if (waiting && waiting === event) {
           try {
             drv.moveNext?.();
           } catch {}
           advance();
-          if (currentStepIndex + 1 >= onboardingSteps.length) {
+          if (stepIndex + 1 >= onboardingSteps.length) {
             complete();
           }
         }
@@ -108,11 +123,11 @@ export function useTutorialDriver() {
   // Ensure driver shows correct step when index changes
   useEffect(() => {
     const drv = driverRef.current;
-    if (!drv) return;
+    if (!drv || !isActive) return;
     try {
       drv.drive(currentStepIndex);
     } catch {}
-  }, [currentStepIndex]);
+  }, [currentStepIndex, isActive]);
 
   // Auto-start if a start is requested
   useEffect(() => {

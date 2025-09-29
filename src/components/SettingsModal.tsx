@@ -99,6 +99,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsOpen(open);
     if (!open) {
       setShouldOpenSettingsModal(false);
+      emitOnboardingEvent("settingsClosed");
     }
   };
 
@@ -485,12 +486,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="border-t pt-4 mt-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Onboarding</h4>
-                    <p className="text-sm text-muted-foreground max-w-56">
-                      Select the onboarding experience you want to have
-                    </p>
-                  </div>
                   <Label htmlFor="default-label">Default Note Label</Label>
                   <Select
                     value={defaultLabelValue}

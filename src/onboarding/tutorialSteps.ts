@@ -3,6 +3,8 @@ export type OnboardingStepId =
   | "openSettings"
   | "settingsOverview"
   | "enableDemoMode"
+  | "closeSettings"
+  | "selectProject"
   | "playlistOrientation"
   | "playlistCreate"
   | "playlistRefresh"
@@ -29,6 +31,7 @@ export interface OnboardingStep {
   waitFor?: {
     event:
       | "settingsOpen"
+      | "settingsClosed"
       | "demoModeEnabled"
       | "playlistCreated"
       | "versionAdded"
@@ -65,11 +68,25 @@ export const onboardingSteps: OnboardingStep[] = [
   },
   {
     id: "enableDemoMode",
-    title: "Enable Demo Mode",
+    title: "Demo Mode",
     description:
       "This button toggles Demo Mode for exploring AstraNotes with sample data; the tutorial auto-enables it for you when needed.",
     waitFor: { event: "demoModeEnabled" },
     selector: '[data-onboarding-target="demo-mode-toggle"]',
+  },
+  {
+    id: "closeSettings",
+    title: "Close Settings",
+    description:
+      "Close the Settings modal to continue exploring the main interface.",
+    waitFor: { event: "settingsClosed" },
+  },
+  {
+    id: "selectProject",
+    title: "Select Demo Project",
+    description:
+      "Click the project dropdown and select **Big Buck Bunny** to load the demo playlists and versions.",
+    selector: '[data-onboarding-target="project-selector"]',
   },
   {
     id: "playlistOrientation",

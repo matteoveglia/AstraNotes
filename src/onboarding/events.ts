@@ -1,5 +1,6 @@
 export type OnboardingEvent =
   | "settingsOpen"
+  | "settingsClosed"
   | "demoModeEnabled"
   | "playlistCreated"
   | "versionAdded"
