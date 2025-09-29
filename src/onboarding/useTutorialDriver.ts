@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { onboardingSteps } from "@/onboarding/tutorialSteps";
 import { useOnboardingStore } from "@/store/onboardingStore";
-import { subscribeOnboardingEvents } from "@/onboarding/events";
+import {
+  subscribeOnboardingEvents,
+  emitOnboardingEvent,
+} from "@/onboarding/events";
+import { useAppModeStore } from "@/store/appModeStore";
+import { switchAppMode } from "@/services/appMode/switchAppMode";
 
 // Lazy load driver.js at runtime to avoid hard dependency during build
 async function loadDriver(): Promise<any | null> {
@@ -20,11 +25,23 @@ export function useTutorialDriver() {
   const isActive = useOnboardingStore((s) => s.isActive);
   const startRequested = useOnboardingStore((s) => s.startRequested);
   const currentStepIndex = useOnboardingStore((s) => s.currentStepIndex);
+  const resumeStepIndex = useOnboardingStore((s) => s.resumeStepIndex);
+  const resumeOpenSettings = useOnboardingStore((s) => s.resumeOpenSettings);
+  const resumeShouldAutoStart = useOnboardingStore(
+    (s) => s.resumeShouldAutoStart,
+  );
+  const setShouldOpenSettingsModal = useOnboardingStore(
+    (s) => s.setShouldOpenSettingsModal,
+  );
+  const consumeResume = useOnboardingStore((s) => s.consumeResume);
+  const cancelStartRequest = useOnboardingStore((s) => s.cancelStartRequest);
   const start = useOnboardingStore((s) => s.start);
   const advance = useOnboardingStore((s) => s.advance);
   const complete = useOnboardingStore((s) => s.complete);
+  const appMode = useAppModeStore((s) => s.appMode);
 
   const driverRef = useRef<any | null>(null);
+  const switchingToDemoRef = useRef(false);
 
   // Initialize driver when onboarding is active
   useEffect(() => {
@@ -99,8 +116,99 @@ export function useTutorialDriver() {
 
   // Auto-start if a start is requested
   useEffect(() => {
-    if (startRequested && !isActive) {
-      start(0);
+    if (
+      !isActive &&
+      resumeStepIndex !== null &&
+      resumeOpenSettings &&
+      appMode === "demo"
+    ) {
+      setShouldOpenSettingsModal(true);
     }
-  }, [startRequested, isActive, start]);
+  }, [
+    appMode,
+    isActive,
+    resumeStepIndex,
+    resumeOpenSettings,
+    setShouldOpenSettingsModal,
+  ]);
+
+  useEffect(() => {
+    if (resumeShouldAutoStart && appMode !== "demo") {
+      if (!switchingToDemoRef.current) {
+        switchingToDemoRef.current = true;
+        (async () => {
+          try {
+            await switchAppMode("demo");
+            emitOnboardingEvent("demoModeEnabled");
+          } catch (error) {
+            console.error("[Onboarding] Failed to auto-switch to demo mode", error);
+          } finally {
+            switchingToDemoRef.current = false;
+          }
+        })();
+      }
+      return;
+    }
+
+    if (
+      resumeShouldAutoStart &&
+      resumeStepIndex !== null &&
+      resumeStepIndex >= 0 &&
+      resumeStepIndex < onboardingSteps.length &&
+      !isActive &&
+      appMode === "demo"
+    ) {
+      start(resumeStepIndex);
+      consumeResume();
+    }
+  }, [
+    resumeShouldAutoStart,
+    resumeStepIndex,
+    isActive,
+    appMode,
+    start,
+    consumeResume,
+  ]);
+  useEffect(() => {
+    if (startRequested && !isActive) {
+      if (appMode !== "demo") {
+        const onboardingState = useOnboardingStore.getState();
+        onboardingState.scheduleResume(0, { autoStart: true, openSettings: true });
+        cancelStartRequest();
+        if (!switchingToDemoRef.current) {
+          switchingToDemoRef.current = true;
+          (async () => {
+            try {
+              await switchAppMode("demo");
+              emitOnboardingEvent("demoModeEnabled");
+            } catch (error) {
+              console.error(
+                "[Onboarding] Failed to auto-switch to demo mode",
+                error,
+              );
+              onboardingState.requestStart();
+            } finally {
+              switchingToDemoRef.current = false;
+            }
+          })();
+        }
+        return;
+      }
+
+      const targetStep = resumeStepIndex ?? currentStepIndex ?? 0;
+      start(targetStep);
+      if (resumeStepIndex !== null) {
+        consumeResume();
+      }
+    }
+  }, [
+    startRequested,
+    isActive,
+    start,
+    resumeStepIndex,
+    currentStepIndex,
+    appMode,
+    cancelStartRequest,
+    consumeResume,
+  ]);
 }

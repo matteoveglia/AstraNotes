@@ -52,7 +52,7 @@ export const onboardingSteps: OnboardingStep[] = [
     id: "openSettings",
     title: "Open Settings",
     description:
-      "Start by opening the Settings panel to review your connection or switch to Demo Mode.",
+      "Click the Settings gear in the top toolbar so we can walk through the controls together.",
     selector: '[data-onboarding-target="settings-button"]',
     waitFor: { event: "settingsOpen" },
   },
@@ -60,14 +60,14 @@ export const onboardingSteps: OnboardingStep[] = [
     id: "settingsOverview",
     title: "Connect Later, Explore Now",
     description:
-      "Here’s where you’ll add your ftrack server URL, API user, and API key. You can come back any time to update credentials or tweak preferences before going live.",
+      "Review where credentials live and remember you can return here any time before connecting to ftrack for real.",
     selector: '[data-onboarding-target="settings-overview"]',
   },
   {
     id: "enableDemoMode",
     title: "Enable Demo Mode",
     description:
-      "Toggle Demo Mode to explore AstraNotes with a rich sample project. We’ll restart with demo data ready to use.",
+      "This button toggles Demo Mode for exploring AstraNotes with sample data; the tutorial auto-enables it for you when needed.",
     waitFor: { event: "demoModeEnabled" },
     selector: '[data-onboarding-target="demo-mode-toggle"]',
   },
@@ -144,21 +144,21 @@ export const onboardingSteps: OnboardingStep[] = [
     id: "noteEditor",
     title: "Write Notes",
     description:
-      "Use the markdown editor to capture feedback with rich formatting, checklists, and embedded context.",
+      "Click inside the markdown editor to type rich feedback with formatting, checklists, and embedded context.",
     selector: '[data-onboarding-target="note-editor"]',
   },
   {
     id: "noteAttachments",
     title: "Attach References",
     description:
-      "Add screenshots or annotated frames so reviewers see exactly what you mean.",
+      "Use **Add Attachments** or drag images here so reviewers see exactly what you mean.",
     selector: '[data-onboarding-target="note-attachments"]',
   },
   {
     id: "noteStatuses",
     title: "Manage Statuses",
     description:
-      "Track each note’s progression—draft, ready, or published—so the team stays aligned.",
+      "Open the statuses menu to mark notes as draft, ready, or published to keep the team aligned.",
     selector: '[data-onboarding-target="note-statuses"]',
   },
   {

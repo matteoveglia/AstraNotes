@@ -620,10 +620,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 </span>
               </div>
             </div>
-            <div
-              className="flex items-center gap-2"
-              data-onboarding-target="note-related"
-            >
+            <div className="flex items-center gap-2">
               {/* Four-button group: Related Notes | Related Versions | Info | ftrack */}
               <div className="relative">
                 <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -675,94 +672,110 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <div className="flex-1" data-onboarding-target="note-editor">
-                  <div className="flex gap-2">
-                    <MarkdownEditor
-                      ref={markdownEditorRef}
-                      value={content}
-                      onChange={handleChange}
-                      disabled={status === "published"}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {status !== "empty" &&
-                      (content.trim() !== "" || attachments.length > 0) && (
-                        <div className="flex items-center justify-between w-full mt-3">
-                          {/* Use items-center to vertically align buttons/components in this row */}
-                          <div className="flex gap-2 items-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleClear}
-                              className="text-zinc-500 dark:text-zinc-300 hover:text-zinc-100"
-                            >
-                              Clear
-                            </Button>
+              {/* Remove button if manually added */}
+              {manuallyAdded && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center hover:bg-red-100 text-red-600 hover:text-red-700"
+                  onClick={onRemove}
+                  title="Remove this version"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
 
-                            {/* Add the attachment component */}
-                            <div data-onboarding-target="note-attachments">
-                              <NoteAttachments
-                                attachments={attachments}
-                                onAddAttachments={handleAddAttachments}
-                                onRemoveAttachment={handleRemoveAttachment}
-                                disabled={status === "published"}
-                              />
-                            </div>
-
-                            {/* Add the status panel button and container */}
-                            <div
-                              className="relative"
-                              data-onboarding-target="note-statuses"
-                            >
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center space-x-1"
-                                onClick={handleStatusPanelToggle}
-                              >
-                                <Workflow className="h-4 w-4" />
-                                <span>Statuses</span>
-                              </Button>
-                              {isStatusPanelOpen && (
-                                <NoteStatusPanel
-                                  assetVersionId={assetVersionId}
-                                  onClose={() => setIsStatusPanelOpen(false)}
-                                  className=""
-                                />
-                              )}
-                            </div>
-                          </div>
-                          <NoteLabelSelect
-                            value={labelId ?? ""}
-                            onChange={handleLabelChange}
-                            disabled={status === "published"}
-                            className="h-8 w-40"
-                          />
-                        </div>
-                      )}
-                  </div>
-                </div>
-
-                <div
-                  onClick={
-                    status === "empty" || status === "published"
-                      ? undefined
-                      : onSelectToggle
-                  }
-                  className={cn(
-                    "w-5 rounded-full transition-colors", // Reverted to original size/alignment
-                    status === "empty" || status === "published"
-                      ? "cursor-default"
-                      : "cursor-pointer",
-                    getStatusColor(),
-                  )}
-                  title={getStatusTitle()}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <div
+                className="flex gap-2"
+                data-onboarding-target="note-editor"
+              >
+                <MarkdownEditor
+                  ref={markdownEditorRef}
+                  value={content}
+                  onChange={handleChange}
+                  disabled={status === "published"}
+                  className="w-full"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                {status !== "empty" &&
+                  (content.trim() !== "" || attachments.length > 0) && (
+                    <div className="flex items-center justify-between w-full mt-3">
+                      {/* Use items-center to vertically align buttons/components in this row */}
+                      <div className="flex gap-2 items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClear}
+                          className="text-zinc-500 dark:text-zinc-300 hover:text-zinc-100"
+                        >
+                          Clear
+                        </Button>
+
+                        {/* Add the attachment component */}
+                        <div data-onboarding-target="note-attachments">
+                          <NoteAttachments
+                            attachments={attachments}
+                            onAddAttachments={handleAddAttachments}
+                            onRemoveAttachment={handleRemoveAttachment}
+                            disabled={status === "published"}
+                          />
+                        </div>
+
+                        {/* Add the status panel button and container */}
+                        <div
+                          className="relative"
+                          data-onboarding-target="note-statuses"
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center space-x-1"
+                            onClick={handleStatusPanelToggle}
+                          >
+                            <Workflow className="h-4 w-4" />
+                            <span>Statuses</span>
+                          </Button>
+                          {isStatusPanelOpen && (
+                            <NoteStatusPanel
+                              assetVersionId={assetVersionId}
+                              onClose={() => setIsStatusPanelOpen(false)}
+                              className=""
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <NoteLabelSelect
+                        value={labelId ?? ""}
+                        onChange={handleLabelChange}
+                        disabled={status === "published"}
+                        className="h-8 w-40"
+                      />
+                    </div>
+                  )}
+              </div>
             </div>
+
+            <div
+              onClick={
+                status === "empty" || status === "published"
+                  ? undefined
+                  : onSelectToggle
+              }
+              className={cn(
+                "w-5 rounded-full transition-colors", // Reverted to original size/alignment
+                status === "empty" || status === "published"
+                  ? "cursor-default"
+                  : "cursor-pointer",
+                getStatusColor(),
+              )}
+              title={getStatusTitle()}
+            />
           </div>
         </div>
 

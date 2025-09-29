@@ -252,8 +252,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isStartingTutorial) return;
     setIsStartingTutorial(true);
     try {
-      resetOnboardingProgress();
-      requestTutorialStart();
+      const onboardingStore = useOnboardingStore.getState();
+      onboardingStore.resetProgress();
+      onboardingStore.scheduleResume(0, { openSettings: true, autoStart: true });
+
+      const appModeStore = useAppModeStore.getState();
+      if (appModeStore.appMode !== "real") {
+        appModeStore.setMode("real", { silent: true });
+      }
+
       setIsTutorialDialogOpen(false);
       setShouldOpenSettingsModal(false);
       await performCacheReset();
@@ -308,6 +315,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setError(null);
 
     try {
+      if (pendingMode === "demo") {
+        const onboardingState = useOnboardingStore.getState();
+        if (onboardingState.isActive || onboardingState.startRequested) {
+          onboardingState.scheduleResume(onboardingState.currentStepIndex + 1, {
+            autoStart: true,
+          });
+        }
+      }
+
       await switchAppMode(pendingMode, {
         onBeforeReset: onCloseAllPlaylists,
       });

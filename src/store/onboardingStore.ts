@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-const FLOW_VERSION = 1;
+const FLOW_VERSION = 2;
 
 interface OnboardingState {
   hasCompleted: boolean;
@@ -12,6 +12,9 @@ interface OnboardingState {
   lastCompletedStepIndex: number | null;
   startRequested: boolean;
   shouldOpenSettingsModal: boolean;
+  resumeStepIndex: number | null;
+  resumeOpenSettings: boolean;
+  resumeShouldAutoStart: boolean;
   start(stepIndex?: number): void;
   advance(): void;
   back(): void;
@@ -23,6 +26,11 @@ interface OnboardingState {
   cancelStartRequest(): void;
   resetProgress(): void;
   setShouldOpenSettingsModal(value: boolean): void;
+  scheduleResume(
+    stepIndex: number,
+    options?: { openSettings?: boolean; autoStart?: boolean },
+  ): void;
+  consumeResume(): void;
 }
 
 interface PersistedState {
@@ -33,6 +41,9 @@ interface PersistedState {
   flowVersion: number;
   lastCompletedStepIndex: number | null;
   startRequested: boolean;
+  resumeStepIndex: number | null;
+  resumeOpenSettings: boolean;
+  resumeShouldAutoStart: boolean;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
@@ -46,6 +57,9 @@ export const useOnboardingStore = create<OnboardingState>()(
       lastCompletedStepIndex: null,
       startRequested: false,
       shouldOpenSettingsModal: false,
+      resumeStepIndex: null,
+      resumeOpenSettings: false,
+      resumeShouldAutoStart: false,
       start(stepIndex = 0) {
         const state = get();
         set({
@@ -109,10 +123,26 @@ export const useOnboardingStore = create<OnboardingState>()(
           lastCompletedStepIndex: null,
           startRequested: false,
           shouldOpenSettingsModal: false,
+          resumeStepIndex: null,
+          resumeOpenSettings: false,
+          resumeShouldAutoStart: false,
         });
       },
       setShouldOpenSettingsModal(value) {
         set({ shouldOpenSettingsModal: value });
+      },
+      scheduleResume(stepIndex, options) {
+        set({
+          resumeStepIndex: stepIndex,
+          resumeOpenSettings: options?.openSettings ?? false,
+          resumeShouldAutoStart: options?.autoStart ?? false,
+          startRequested: false,
+          isActive: false,
+          currentStepIndex: stepIndex,
+        });
+      },
+      consumeResume() {
+        set({ resumeStepIndex: null, resumeOpenSettings: false, resumeShouldAutoStart: false });
       },
     }),
     {
@@ -126,6 +156,9 @@ export const useOnboardingStore = create<OnboardingState>()(
         flowVersion,
         lastCompletedStepIndex,
         startRequested,
+        resumeStepIndex,
+        resumeOpenSettings,
+        resumeShouldAutoStart,
       }: OnboardingState): PersistedState => ({
         hasCompleted,
         currentStepIndex,
@@ -134,6 +167,9 @@ export const useOnboardingStore = create<OnboardingState>()(
         flowVersion,
         lastCompletedStepIndex,
         startRequested,
+        resumeStepIndex,
+        resumeOpenSettings,
+        resumeShouldAutoStart,
       }),
       migrate: (persisted: PersistedState | undefined, _v: number) => {
         if (!persisted) return persisted as any;
@@ -146,9 +182,17 @@ export const useOnboardingStore = create<OnboardingState>()(
             flowVersion: FLOW_VERSION,
             lastCompletedStepIndex: null,
             startRequested: false,
+            resumeStepIndex: null,
+            resumeOpenSettings: false,
+            resumeShouldAutoStart: false,
           } as PersistedState;
         }
-        return persisted;
+        return {
+          ...persisted,
+          resumeStepIndex: persisted.resumeStepIndex ?? null,
+          resumeOpenSettings: persisted.resumeOpenSettings ?? false,
+          resumeShouldAutoStart: persisted.resumeShouldAutoStart ?? false,
+        };
       },
     },
   ),

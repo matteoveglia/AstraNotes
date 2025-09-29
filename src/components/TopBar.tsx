@@ -16,6 +16,7 @@ import { useThemeStore } from "../store/themeStore";
 import { WhatsNewModal } from "./WhatsNewModal";
 import { SettingsModal } from "./SettingsModal";
 import { ProjectSelector } from "./ProjectSelector";
+import { TutorialControls } from "./TutorialControls";
 import { motion } from "motion/react";
 import {
   Tooltip,
@@ -129,6 +130,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <ProjectSelector onProjectChange={onProjectChange} />
         </div>
         <div className="flex items-center gap-2">
+          <TutorialControls />
           {isDemoMode && (
             <motion.div
               role="status"
