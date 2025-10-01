@@ -16,12 +16,12 @@ import { ThumbnailSuspense } from "./ui/ThumbnailSuspense";
 import { BorderTrail } from "@/components/ui/border-trail";
 import {
   Loader2,
-  Workflow,
   ExternalLink,
   X,
   Info,
   Layers,
   NotebookTabs,
+  ListCheck,
 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
@@ -34,6 +34,12 @@ import { NoteStatusPanel } from "./NoteStatusPanel";
 import { VersionDetailsPanel } from "./VersionDetailsPanel";
 import { RelatedVersionsModal } from "./RelatedVersionsModal";
 import { RelatedNotesModal } from "./RelatedNotesModal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 export interface NoteInputProps {
   versionName: string;
@@ -623,45 +629,88 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             <div className="flex items-center gap-2">
               {/* Four-button group: Related Notes | Related Versions | Info | ftrack */}
               <div className="relative">
-                <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-green-100 dark:hover:bg-green-900"
-                    onClick={handleRelatedNotesToggle}
-                    title="Related Notes"
-                  >
-                    <NotebookTabs className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-purple-100 dark:hover:bg-purple-900"
-                    onClick={handleRelatedVersionsToggle}
-                    title="Related Versions"
-                  >
-                    <Layers className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
-                    onClick={handleVersionDetailsPanelToggle}
-                    title="Version Details"
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
-                    onClick={handleOpenInFtrack}
-                    title="Open in ftrack"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
+                <TooltipProvider delayDuration={2000}>
+                  <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
+                          onClick={handleStatusPanelToggle}
+                          aria-label="Statuses"
+                        >
+                          <ListCheck className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Statuses</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-green-100 dark:hover:bg-green-900"
+                          onClick={handleRelatedNotesToggle}
+                          aria-label="Related Notes"
+                        >
+                          <NotebookTabs className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Related Notes</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-purple-100 dark:hover:bg-purple-900"
+                          onClick={handleRelatedVersionsToggle}
+                          aria-label="Related Versions"
+                        >
+                          <Layers className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Related Versions</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
+                          onClick={handleVersionDetailsPanelToggle}
+                          aria-label="Version Details"
+                        >
+                          <Info className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Version Details</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
+                          onClick={handleOpenInFtrack}
+                          aria-label="Open in ftrack"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Open in ftrack</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
 
+                {isStatusPanelOpen && (
+                  <NoteStatusPanel
+                    assetVersionId={assetVersionId}
+                    onClose={() => setIsStatusPanelOpen(false)}
+                    className="left-0 right-auto"
+                  />
+                )}
                 {/* Version Details Panel - positioned outside button group to avoid clipping */}
                 {isVersionDetailsPanelOpen && (
                   <VersionDetailsPanel
@@ -721,26 +770,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                           disabled={status === "published"}
                         />
 
-                        {/* Add the status panel button and container */}
-                        <div className="relative">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center space-x-1"
-                            onClick={handleStatusPanelToggle}
-                          >
-                            <Workflow className="h-4 w-4" />
-                            <span>Statuses</span>
-                          </Button>
-                          {isStatusPanelOpen && (
-                            <NoteStatusPanel
-                              assetVersionId={assetVersionId}
-                              onClose={() => setIsStatusPanelOpen(false)}
-                              className=""
-                            />
-                          )}
-                        </div>
                       </div>
                       <NoteLabelSelect
                         value={labelId ?? ""}
