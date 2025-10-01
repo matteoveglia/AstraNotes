@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { useSettings } from "@/store/settingsStore";
+import { useAppModeStore } from "@/store/appModeStore";
 import { statusClient } from "@/services/client";
 // Import our custom MarkdownEditor
 import { MarkdownEditor, MarkdownEditorRef } from "./MarkdownEditor";
@@ -40,6 +41,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 export interface NoteInputProps {
   versionName: string;
@@ -99,6 +107,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
     useState(false);
   const [isRelatedNotesModalOpen, setIsRelatedNotesModalOpen] = useState(false);
   const { settings } = useSettings();
+  const appMode = useAppModeStore((state) => state.appMode);
+  const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
   const [ftrackProjectId, setFtrackProjectId] = useState<string>("");
 
   useEffect(() => {
@@ -546,6 +556,11 @@ export const NoteInput: React.FC<NoteInputProps> = ({
 
   // Handler to open the asset version in ftrack
   const handleOpenInFtrack = () => {
+    if (appMode === "demo") {
+      setIsDemoDialogOpen(true);
+      return;
+    }
+
     const baseUrl = settings.serverUrl.replace(/\/$/, "");
     if (!baseUrl || !assetVersionId || !ftrackProjectId) return;
     const url = `${baseUrl}/#slideEntityId=${assetVersionId}&slideEntityType=assetversion&view=versions_v1&itemId=projects&entityId=${ftrackProjectId}&entityType=show`;
@@ -629,16 +644,17 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             <div className="flex items-center gap-2">
               {/* Four-button group: Related Notes | Related Versions | Info | ftrack */}
               <div className="relative">
-                <TooltipProvider delayDuration={2000}>
+                <TooltipProvider delayDuration={500}>
                   <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
+                          className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-orange-100 dark:hover:bg-orange-900"
                           onClick={handleStatusPanelToggle}
                           aria-label="Statuses"
+                          data-status-panel-trigger
                         >
                           <ListCheck className="h-4 w-4" />
                         </Button>
@@ -681,6 +697,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                           className="rounded-none border-r border-zinc-200 dark:border-zinc-700 hover:bg-blue-100 dark:hover:bg-blue-900"
                           onClick={handleVersionDetailsPanelToggle}
                           aria-label="Version Details"
+                          data-version-panel-trigger
                         >
                           <Info className="h-4 w-4" />
                         </Button>
@@ -692,7 +709,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="rounded-none hover:bg-purple-100 dark:hover:bg-purple-900"
+                          className="rounded-none hover:bg-red-100 dark:hover:bg-red-900"
                           onClick={handleOpenInFtrack}
                           aria-label="Open in ftrack"
                         >
@@ -708,7 +725,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                   <NoteStatusPanel
                     assetVersionId={assetVersionId}
                     onClose={() => setIsStatusPanelOpen(false)}
-                    className="left-0 right-auto"
+                    className=""
                   />
                 )}
                 {/* Version Details Panel - positioned outside button group to avoid clipping */}
@@ -726,7 +743,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="flex items-center hover:bg-red-100 text-red-600 hover:text-red-700"
                   onClick={onRemove}
                   title="Remove this version"
                 >
@@ -828,6 +844,19 @@ export const NoteInput: React.FC<NoteInputProps> = ({
           currentAssetVersionId={assetVersionId}
           currentVersionName={versionName}
         />
+
+        <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Available in Live Mode</DialogTitle>
+              <DialogDescription>
+                In live mode, this button opens the version in ftrack.
+                Demo mode keeps navigation inside AstraNotes so you can explore
+                safely.
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

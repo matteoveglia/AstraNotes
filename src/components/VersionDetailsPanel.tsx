@@ -51,9 +51,19 @@ export function VersionDetailsPanel({
           if (onClose) onClose();
         }}
         onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-version-panel-trigger]")) {
+            event.preventDefault();
+            return;
+          }
           if (onClose) onClose();
         }}
         onFocusOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-version-panel-trigger]")) {
+            event.preventDefault();
+            return;
+          }
           if (onClose) onClose();
         }}
       >

@@ -30,20 +30,18 @@ interface Status {
 
 interface StatusPanelContentProps {
   assetVersionId: string;
-  shouldOpenUpward: boolean;
   onClose?: () => void;
+}
+
+interface StatusPanelSuspenseProps extends StatusPanelContentProps {
+  shouldOpenUpward: boolean;
   className?: string;
 }
 
 /**
  * Internal component that uses Suspense-compatible fetch
  */
-function StatusPanelContent({
-  assetVersionId,
-  shouldOpenUpward,
-  onClose,
-  className,
-}: StatusPanelContentProps) {
+function StatusPanelContent({ assetVersionId, onClose }: StatusPanelContentProps) {
   // This will throw a promise if fetch is loading (Suspense will catch it)
   const { currentStatuses, versionStatuses, parentStatuses } =
     fetchStatusPanelDataSuspense(assetVersionId);
@@ -87,18 +85,7 @@ function StatusPanelContent({
   };
 
   return (
-    <motion.div
-      initial={false} // Disable initial animation to prevent re-animation on updates
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      key={`status-panel-${assetVersionId}`} // Stable key tied to asset version
-      className={cn(
-        "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
-        shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
-        className,
-      )}
-    >
+    <>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
@@ -184,7 +171,7 @@ function StatusPanelContent({
           </div>
         )}
       </div>
-    </motion.div>
+    </>
   );
 }
 
@@ -192,26 +179,12 @@ function StatusPanelContent({
  * Loading skeleton for status panel
  */
 function StatusPanelLoading({
-  shouldOpenUpward,
   onClose,
-  className,
 }: {
-  shouldOpenUpward: boolean;
   onClose?: () => void;
-  className?: string;
 }) {
   return (
-    <motion.div
-      initial={false} // Disable initial animation for loading state
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.1 }}
-      key="status-panel-loading"
-      className={cn(
-        "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
-        shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
-        className,
-      )}
-    >
+    <>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">
           Update Status
@@ -229,32 +202,45 @@ function StatusPanelLoading({
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
       </div>
-    </motion.div>
+    </>
   );
 }
 
 /**
  * Suspense-wrapped status panel component
  */
-export const StatusPanelSuspense: React.FC<StatusPanelContentProps> = (
-  props,
-) => {
+export const StatusPanelSuspense: React.FC<StatusPanelSuspenseProps> = ({
+  assetVersionId,
+  shouldOpenUpward,
+  onClose,
+  className,
+}) => {
   // Don't render anything if no asset version ID
-  if (!props.assetVersionId) {
+  if (!assetVersionId) {
     return null;
   }
 
+  const containerClassName = cn(
+    "absolute right-0 z-50 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg p-4",
+    shouldOpenUpward ? "bottom-full mb-2" : "top-full mt-2",
+    className,
+  );
+
   return (
-    <Suspense
-      fallback={
-        <StatusPanelLoading
-          shouldOpenUpward={props.shouldOpenUpward}
-          onClose={props.onClose}
-          className={props.className}
-        />
-      }
+    <motion.div
+      initial={{
+        opacity: 0,
+        scale: 0.95,
+        y: shouldOpenUpward ? 8 : -8,
+      }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: shouldOpenUpward ? 8 : -8 }}
+      transition={{ type: "spring", duration: 0.25 }}
+      className={containerClassName}
     >
-      <StatusPanelContent {...props} />
-    </Suspense>
+      <Suspense fallback={<StatusPanelLoading onClose={onClose} />}>
+        <StatusPanelContent assetVersionId={assetVersionId} onClose={onClose} />
+      </Suspense>
+    </motion.div>
   );
 };

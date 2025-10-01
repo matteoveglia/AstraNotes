@@ -47,7 +47,8 @@ export function NoteStatusPanel({
           const target = event.target as HTMLElement;
           if (
             target.closest("[data-select-trigger]") ||
-            target.closest("[data-select-content]")
+            target.closest("[data-select-content]") ||
+            target.closest("[data-status-panel-trigger]")
           ) {
             event.preventDefault();
             return;
@@ -58,7 +59,8 @@ export function NoteStatusPanel({
           const target = event.target as HTMLElement;
           if (
             target.closest("[data-select-trigger]") ||
-            target.closest("[data-select-content]")
+            target.closest("[data-select-content]") ||
+            target.closest("[data-status-panel-trigger]")
           ) {
             event.preventDefault();
             return;

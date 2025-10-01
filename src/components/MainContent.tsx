@@ -26,6 +26,7 @@ import { debugLog } from "@/lib/verboseLogging";
 import { useSettings } from "../store/settingsStore";
 import { motion, AnimatePresence } from "motion/react";
 import { open } from "@tauri-apps/plugin-shell";
+import { useAppModeStore } from "@/store/appModeStore";
 
 // Import custom hooks
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
@@ -46,6 +47,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 interface MainContentProps {
   playlist: Playlist;
@@ -84,6 +92,8 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Hover state for playlist title
   const [isPlaylistTitleHovered, setIsPlaylistTitleHovered] = useState(false);
+  const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
+  const appMode = useAppModeStore((state) => state.appMode);
 
   // Memoize playlist initialization to prevent unnecessary re-initializations
   const initializePlaylist = useCallback(async (playlistToInit: Playlist) => {
@@ -701,6 +711,11 @@ export const MainContent: React.FC<MainContentProps> = ({
 
   // Handler to open playlist in ftrack
   const handleOpenPlaylistInFtrack = async () => {
+    if (appMode === "demo") {
+      setIsDemoDialogOpen(true);
+      return;
+    }
+
     // NEW: Handle local playlists properly
     if (activePlaylist.id.startsWith("local_") || activePlaylist.isLocalOnly) {
       console.log("Cannot open local playlist in ftrack - not yet synced");
@@ -908,22 +923,24 @@ export const MainContent: React.FC<MainContentProps> = ({
                     </TooltipProvider>
                   )}
                 </p>
-                <AnimatePresence>
-                  {isPlaylistTitleHovered &&
-                    !activePlaylist.isQuickNotes &&
-                    !activePlaylist.isLocalOnly && (
-                      <motion.div
-                        initial={{ opacity: 0, x: -10, scale: 1 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -10, scale: 1 }}
-                        transition={{ duration: 0.1, ease: "easeOut" }}
-                        onClick={handleOpenPlaylistInFtrack}
-                        className="cursor-pointer"
-                      >
-                        <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
-                      </motion.div>
-                    )}
-                </AnimatePresence>
+                {!activePlaylist.isQuickNotes &&
+                  !activePlaylist.isLocalOnly && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Open playlist in ftrack"
+                            onClick={handleOpenPlaylistInFtrack}
+                            className="cursor-pointer select-none bg-transparent p-0"
+                          >
+                            <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Open in ftrack</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
               </div>
             </div>
           </div>
@@ -983,23 +1000,25 @@ export const MainContent: React.FC<MainContentProps> = ({
                     </span>
                   )}
               </CardTitle>
-              <AnimatePresence>
-                {isPlaylistTitleHovered &&
-                  !isInitializing &&
-                  !activePlaylist.isQuickNotes &&
-                  !activePlaylist.isLocalOnly && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -10, scale: 1 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -10, scale: 1 }}
-                      transition={{ duration: 0.1, ease: "easeOut" }}
-                      onClick={handleOpenPlaylistInFtrack}
-                      className="cursor-pointer select-none"
-                    >
-                      <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                    </motion.div>
-                  )}
-              </AnimatePresence>
+              {!isInitializing &&
+                !activePlaylist.isQuickNotes &&
+                !activePlaylist.isLocalOnly && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Open playlist in ftrack"
+                          onClick={handleOpenPlaylistInFtrack}
+                          className="cursor-pointer select-none bg-transparent p-0"
+                        >
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Open in ftrack</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
             </div>
             <p className="text-sm text-muted-foreground min-h-[1.25rem]">
               {isInitializing &&
@@ -1159,6 +1178,19 @@ export const MainContent: React.FC<MainContentProps> = ({
         versionsToPublish={versionsToPublish}
         onPublish={publishNotesSequentially}
       />
+
+      <Dialog open={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Available in Live Mode</DialogTitle>
+            <DialogDescription>
+              In live mode, this button opens the playlist in ftrack.
+              Demo mode keeps navigation inside AstraNotes so you can explore
+              safely.
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

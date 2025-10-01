@@ -111,10 +111,13 @@ Fields retrieved:
 Fields retrieved:
 - **id** (string)
 - **username** (string)
-
 ## 13. Asset.Parent (Shot / Task Parent)
 Fields retrieved via `AssetVersion.asset.parent`:
 - **id** (string)
 - **status_id** (string)
 - **object_type.name** (string, e.g., "Shot")
 - **project.id** (string) 
+
+## 14. Custom Attributes
+AstraNotes does **not** rely on any project-specific custom attributes today.
+All functionality runs on standard ftrack fields returned by the queries documented above.
