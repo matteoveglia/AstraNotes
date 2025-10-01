@@ -21,6 +21,20 @@ async function loadDriver(): Promise<any | null> {
   }
 }
 
+const HIGHLIGHT_CLASS = "onboarding-highlight";
+
+function addHighlight(element?: Element | null) {
+  if (element instanceof HTMLElement) {
+    element.classList.add(HIGHLIGHT_CLASS);
+  }
+}
+
+function removeHighlight(element?: Element | null) {
+  if (element instanceof HTMLElement) {
+    element.classList.remove(HIGHLIGHT_CLASS);
+  }
+}
+
 export function useTutorialDriver() {
   const isActive = useOnboardingStore((s) => s.isActive);
   const startRequested = useOnboardingStore((s) => s.startRequested);
@@ -37,6 +51,9 @@ export function useTutorialDriver() {
   const cancelStartRequest = useOnboardingStore((s) => s.cancelStartRequest);
   const start = useOnboardingStore((s) => s.start);
   const advance = useOnboardingStore((s) => s.advance);
+  const back = useOnboardingStore((s) => s.back);
+  const skip = useOnboardingStore((s) => s.skip);
+  const scheduleResume = useOnboardingStore((s) => s.scheduleResume);
   const complete = useOnboardingStore((s) => s.complete);
   const appMode = useAppModeStore((s) => s.appMode);
 
@@ -68,8 +85,9 @@ export function useTutorialDriver() {
         showProgress: true,
         animate: true,
         allowClose: true,
-        overlayOpacity: 0.45,
+        overlayOpacity: 0,
         showButtons: ["next", "previous", "close"],
+        disableActiveInteraction: false,
         steps,
         onNextClick: () => {
           advance();
@@ -80,8 +98,33 @@ export function useTutorialDriver() {
           return true;
         },
         onCloseClick: () => {
-          skip();
+          const state = useOnboardingStore.getState();
+          const activeEl = drv.getActiveElement?.();
+          removeHighlight(activeEl);
+          scheduleResume(state.currentStepIndex, {
+            openSettings: false,
+            autoStart: false,
+          });
+          drv.destroy?.();
+          driverRef.current = null;
           return true;
+        },
+        onPopoverRender: (popover: any) => {
+          // Prevent clicks on popover from closing tutorial
+          if (popover.wrapper) {
+            popover.wrapper.addEventListener('click', (e: Event) => {
+              e.stopPropagation();
+            });
+          }
+        },
+        onHighlighted: (element: Element | undefined) => {
+          addHighlight(element);
+        },
+        onDeselected: (element: Element | undefined) => {
+          removeHighlight(element);
+        },
+        onDestroyed: (element: Element | undefined) => {
+          removeHighlight(element);
         },
       });
       driverRef.current = drv;
@@ -97,12 +140,20 @@ export function useTutorialDriver() {
         const stepIndex = onboardingState.currentStepIndex;
         const waiting = onboardingSteps[stepIndex]?.waitFor?.event;
         if (waiting && waiting === event) {
-          try {
-            drv.moveNext?.();
-          } catch {}
-          advance();
-          if (stepIndex + 1 >= onboardingSteps.length) {
-            complete();
+          const advanceToNext = () => {
+            try {
+              drv.moveNext?.();
+            } catch {}
+            advance();
+            if (stepIndex + 1 >= onboardingSteps.length) {
+              complete();
+            }
+          };
+
+          if (event === "settingsOpen") {
+            setTimeout(advanceToNext, 200);
+          } else {
+            advanceToNext();
           }
         }
       });
@@ -113,6 +164,8 @@ export function useTutorialDriver() {
     return () => {
       destroyed = true;
       if (unsub) unsub();
+      const activeEl = driverRef.current?.getActiveElement?.();
+      removeHighlight(activeEl);
       try {
         driverRef.current?.destroy?.();
       } catch {}

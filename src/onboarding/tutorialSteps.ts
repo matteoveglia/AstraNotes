@@ -4,6 +4,7 @@ export type OnboardingStepId =
   | "settingsOverview"
   | "enableDemoMode"
   | "closeSettings"
+  | "openProjectSelector"
   | "selectProject"
   | "playlistOrientation"
   | "playlistCreate"
@@ -33,6 +34,8 @@ export interface OnboardingStep {
       | "settingsOpen"
       | "settingsClosed"
       | "demoModeEnabled"
+      | "projectSelectorOpened"
+      | "projectSelected"
       | "playlistCreated"
       | "versionAdded"
       | "playlistSynced"
@@ -78,8 +81,17 @@ export const onboardingSteps: OnboardingStep[] = [
     id: "closeSettings",
     title: "Close Settings",
     description:
-      "Close the Settings modal to continue exploring the main interface.",
+      "Click the X button in the top-right corner to close the Settings modal.",
+    selector: '[data-onboarding-target="settings-close-button"]',
     waitFor: { event: "settingsClosed" },
+  },
+  {
+    id: "openProjectSelector",
+    title: "Open Project Picker",
+    description:
+      "Open the project dropdown so we can load the demo data together.",
+    selector: '[data-onboarding-target="project-selector"]',
+    waitFor: { event: "projectSelectorOpened" },
   },
   {
     id: "selectProject",
@@ -87,6 +99,7 @@ export const onboardingSteps: OnboardingStep[] = [
     description:
       "Click the project dropdown and select **Big Buck Bunny** to load the demo playlists and versions.",
     selector: '[data-onboarding-target="project-selector"]',
+    waitFor: { event: "projectSelected" },
   },
   {
     id: "playlistOrientation",

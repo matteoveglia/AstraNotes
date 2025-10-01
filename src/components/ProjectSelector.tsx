@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { emitOnboardingEvent } from "@/onboarding/events";
 
 interface ProjectSelectorProps {
   /** Callback when project selection changes */
@@ -53,6 +54,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     const projectId = value === "none" ? null : value;
     setSelectedProject(projectId);
     onProjectChange?.(projectId);
+    if (projectId) {
+      emitOnboardingEvent("projectSelected");
+    }
   };
 
   const handleClear = () => {
@@ -86,6 +90,11 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           <Select
             value={selectedProjectId || "none"}
             onValueChange={handleValueChange}
+            onOpenChange={(open) => {
+              if (open) {
+                emitOnboardingEvent("projectSelectorOpened");
+              }
+            }}
             disabled={isLoading}
           >
             <SelectTrigger

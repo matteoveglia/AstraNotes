@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Play, RotateCcw, XCircle } from "lucide-react";
+import { Play, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { onboardingSteps } from "@/onboarding/tutorialSteps";
@@ -18,8 +18,7 @@ export const TutorialControls: React.FC = () => {
   const cancelStartRequest = useOnboardingStore((s) => s.cancelStartRequest);
   const advance = useOnboardingStore((s) => s.advance);
 
-  const showResume = !isActive && (resumeStepIndex !== null || startRequested);
-  const showControls = isActive || showResume;
+  const showControls = isActive || resumeStepIndex !== null || startRequested;
 
   const totalSteps = onboardingSteps.length;
 
@@ -42,9 +41,7 @@ export const TutorialControls: React.FC = () => {
     const target = resumeStepIndex ?? currentStepIndex ?? 0;
     start(target);
     cancelStartRequest();
-    if (resumeStepIndex !== null) {
-      consumeResume();
-    }
+    consumeResume();
   };
 
   const handleExit = () => {
@@ -56,13 +53,17 @@ export const TutorialControls: React.FC = () => {
   const stepNumber = Math.min(effectiveStepIndex + 1, totalSteps);
   const stepTitle = onboardingSteps[effectiveStepIndex]?.title ?? "Tutorial";
 
+  const canNavigate = isActive;
+  const canResume = !isActive && (resumeStepIndex !== null || startRequested);
+
   return (
     <div
       className={cn(
-        "hidden lg:flex items-center gap-2 rounded-md border border-zinc-300/80 bg-white/75 px-3 py-1 text-sm shadow-sm",
+        "hidden lg:flex items-center gap-2 rounded-md border border-zinc-300/80 bg-white/75 px-3 py-1 text-sm shadow-sm z-[9999]",
         "dark:border-zinc-700/80 dark:bg-zinc-900/80",
       )}
       data-onboarding-target="tutorial-toolbar"
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col">
         <span className="font-medium text-zinc-700 dark:text-zinc-200">
@@ -73,48 +74,49 @@ export const TutorialControls: React.FC = () => {
         </span>
       </div>
 
-      {isActive ? (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => back()}
-            disabled={(currentStepIndex ?? 0) <= 0}
-            className="flex items-center gap-1"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Back
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => advance()}
-            disabled={effectiveStepIndex >= totalSteps - 1}
-            className="flex items-center gap-1"
-          >
-            Next
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleExit}
-            className="flex items-center gap-1 text-red-600 hover:text-red-700 dark:text-red-400"
-          >
-            <XCircle className="h-3.5 w-3.5" />
-            Exit
-          </Button>
-        </div>
-      ) : (
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => back()}
+          disabled={!canNavigate || (currentStepIndex ?? 0) <= 0}
+        >
+          Back
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => advance()}
+          disabled={!canNavigate || effectiveStepIndex >= totalSteps - 1}
+        >
+          Next
+        </Button>
         <Button
           variant="secondary"
           size="sm"
           onClick={handleResume}
+          disabled={!canResume}
           className="flex items-center gap-1"
         >
-          <Play className="h-3.5 w-3.5" />
-          Resume
+          {canResume ? (
+            <>
+              <Play className="h-3.5 w-3.5" />
+              Resume
+            </>
+          ) : (
+            <>Resume</>
+          )}
         </Button>
-      )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleExit}
+          className="flex items-center gap-1 text-red-600 hover:text-red-700 dark:text-red-400"
+        >
+          <XCircle className="h-3.5 w-3.5" />
+          Exit
+        </Button>
+      </div>
     </div>
   );
 };

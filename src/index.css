@@ -243,6 +243,14 @@
 }
 
 @layer utilities {
+  .onboarding-highlight {
+    position: relative !important;
+    outline: 3px solid hsl(210 100% 55% / 0.95) !important;
+    box-shadow: 0 0 0 6px hsl(210 100% 55% / 0.15) !important;
+    border-radius: 10px !important;
+    transition: outline 120ms ease, box-shadow 120ms ease;
+  }
+
   /* Custom deep drop shadow for modal dialogs */
   .shadow-3xl {
     box-shadow: 0 40px 70px -10px rgba(0, 0, 0, 0.45);
