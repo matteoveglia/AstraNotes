@@ -1,6 +1,6 @@
 // :copyright: Copyright (c) 2024 ftrack
 // Generated on 2024-11-14T19:48:57.572Z using schema
-// from an instance running version 24.10.10-b625b2aef24bb16376294e36406b0f2587704d65 using server on https://gmunk.ftrackapp.com
+// from an instance running version 24.10.10-b625b2aef24bb16376294e36406b0f2587704d65 using server on https://server.ftrackapp.com
 // Not intended to modify manually
 
 export interface Action {

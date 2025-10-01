@@ -267,16 +267,16 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-center min-h-[400px] relative overflow-hidden">
+        <div className="flex items-center justify-center min-h-[60vh] relative">
           <AnimatePresence mode="wait">
             {videoError && (
               <motion.div
                 key="error"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-col items-center gap-4 text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center"
               >
                 <AlertCircle className="w-12 h-12 text-red-500" />
                 <div>
@@ -298,16 +298,16 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
             {showVideo && videoUrl && !videoError && (
               <motion.div
                 key="video"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="w-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 flex items-center justify-center"
               >
                 <VideoPlayer
                   src={videoUrl}
                   title={`${versionName} - v${versionNumber}`}
-                  className="w-full max-h-[70vh]"
+                  className="w-full h-full"
                   onError={handleVideoError}
                   onLoad={() => console.debug("Video loaded successfully")}
                 />
@@ -317,11 +317,11 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
             {!showVideo && !videoError && thumbnailId && (
               <motion.div
                 key="thumbnail"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="relative"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 flex items-center justify-center"
               >
                 {isRefreshingThumbnail && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
@@ -331,9 +331,9 @@ export const ThumbnailModal: React.FC<ThumbnailModalProps> = ({
                 <ThumbnailSuspense
                   thumbnailId={thumbnailId}
                   alt={`${versionName} - v${versionNumber}`}
-                  className="max-h-[70vh] max-w-full object-contain"
+                  className="max-h-full max-w-full object-contain"
                   fallback={
-                    <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="flex items-center justify-center w-full h-full">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-current" />
                     </div>
                   }

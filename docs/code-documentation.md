@@ -6,13 +6,13 @@ This document provides an overview of the custom hooks, services, backend logic,
 
 AstraNotes follows a modular architecture with clear separation of concerns:
 
-- **Frontend**: React 18 with TypeScript, Tailwind CSS v4, and shadcn/ui components
-- **Performance**: React Concurrent Mode with Suspense, useDeferredValue, and startTransition
-- **State Management**: Zustand for UI state, modular store architecture for business logic
+- **Frontend**: React 19 with TypeScript, Tailwind CSS v4, and shadcn/ui + Radix components
+- **Performance**: React concurrency primitives (Suspense, `useDeferredValue`, `startTransition`) for responsive UIs
+- **State Management**: Zustand stores per domain (e.g. playlists, app mode, whats new) with modular business layers
 - **Database**: IndexedDB via Dexie for local data persistence with stable UUID architecture
 - **Backend**: Tauri 2 for desktop integration and file system access
 - **Testing**: Vitest with React Testing Library, emphasis on integration testing
-- **External APIs**: ftrack integration via @ftrack/api
+-- **External APIs**: ftrack integration via `@ftrack/api` behind a demo-aware client facade
 
 ## Backend Logic (`src-tauri/src`)
 
@@ -84,12 +84,12 @@ Components and logic are organized by feature domain:
 - **Purpose**: Playlist creation and synchronization
 
 ### Versions Feature (`src/features/versions`)
-- **Components**: VersionGrid, VersionItem, SearchPanel, ModificationsBanner
+-- **Components**: VersionGrid, VersionItem, `VersionSearch`, SearchPanel, ModificationsBanner
 - **Hooks**: useVersionSelection, useThumbnailLoading, useNoteManagement
 - **Purpose**: Version browsing, selection, and management
 
 ### Related Versions Feature (`src/components` & `src/services`)
-- **Components**: RelatedVersionsModal, RelatedVersionsGrid, RelatedVersionsList, RelatedVersionItem, StatusSelector
+-**Components**: RelatedVersionsModal, RelatedVersionsGrid, RelatedVersionsList, RelatedVersionItem, StatusSelector
 - **Services**: relatedVersionsService (progressive data fetching & caching)
 - **Purpose**: Display all asset versions that share the same shot as the current version, with powerful search, filtering, status editing, and multi-select capabilities. Versions can be added directly to the active playlist.
 
@@ -101,7 +101,7 @@ Components and logic are organized by feature domain:
 
 This custom hook manages the connection status to the ftrack server.
 
-- **State Management**: Uses a Zustand store (`useConnectionStore`) to persist connection state (`isConnected`, `lastTested`).
+-- **State Management**: Uses a Zustand store (`useConnectionStore`) to persist connection state (`isConnected`, `lastTested`).
 - **`isConnected`**: Boolean state indicating if the connection to ftrack is currently active.
 - **`lastTested`**: Timestamp (number) of the last connection test.
 - **`setConnected(connected: boolean)`**: Action to update the connection status.
@@ -113,7 +113,8 @@ This custom hook manages the connection status to the ftrack server.
         - Tests the connection immediately on mount if it hasn't been tested in the last 5 minutes.
         - Sets up an interval timer to automatically test the connection every 30 seconds using `ftrackService.testConnection()`.
         - Cleans up the interval timer on unmount.
-- **Dependencies**: `useEffect`, `create` (Zustand), `ftrackService`.
+- **Dependencies**: `useEffect`, `create` (Zustand), `ftrackAuthService`, `useAppModeStore`.
+- **Demo Mode Handling**: Automatically reports a healthy connection when `appMode === "demo"` to avoid unnecessary polling.
 
 #### `useDebounce.ts`
 
@@ -143,40 +144,44 @@ Manages the What's New modal display logic and integrates with the update system
 - **`useKeyboardShortcuts.ts`**: Keyboard shortcuts for video navigation
 - **`useTimelineScrubbing.ts`**: Timeline scrubbing and frame-accurate navigation
 
-### Feature-Specific Hooks
-
 Each feature directory contains domain-specific hooks that encapsulate business logic and provide clean APIs for components.
 
 ## Services (`src/services`)
 
-### `ftrack.ts` (`FtrackService`)
+### `services/client/index.ts`
 
-A class-based service encapsulating all interactions with the ftrack API.
+Provides demo-aware façade helpers (`playlistClient`, `versionClient`, `statusClient`, `noteClient`, `authClient`) that route calls to real ftrack services or mock services based on the current `appMode` store. This keeps Demo Mode functional without network access.
 
-#### Core Functionality
-- **Session Management**: Initializes and maintains ftrack API sessions
-- **Playlist Operations**: Fetches playlists and versions from ftrack
-- **Note Management**: Creates and publishes notes with attachments
-- **Search**: Version search with caching and filtering
-- **Status Management**: Workflow status updates and schema handling
+### `ftrack` services
 
-#### Key Methods
-- `getPlaylists()`: Fetches all ReviewSession entities
-- `getPlaylistVersions(playlistId)`: Fetches versions for a specific playlist
-- `publishNote()`: Creates notes with various attachment strategies
-- `searchVersions()`: Searches for versions with local caching
-- `testConnection()`: Validates ftrack connectivity
+Split responsibilities across focused TypeScript modules:
 
-#### Error Handling
-- Uses custom `FtrackApiError` class for typed error handling
-- Implements retry logic with exponential backoff
-- Provides detailed error context for debugging
+#### `FtrackPlaylistService`
+
+- Playlist CRUD and synchronization helpers
+- Review session reconciliation and conflict handling
+
+#### `FtrackVersionService`
+
+- Version search and retrieval APIs
+- Thumbnail metadata hydration
+
+#### `FtrackStatusService`
+
+- Workflow schema resolution
+- Status mutation utilities and cache helpers
+
+#### `FtrackNoteService`
+
+- Note publishing, label management, and attachment wiring
+
+#### `FtrackAuthService`
+
+- Session lifecycle management and connection testing used by `useConnectionStatus`
 
 ### `thumbnailService.ts`
 
 Provides functions for fetching and caching thumbnails from ftrack.
-
-- **Caching**: Uses a `Map` (`thumbnailCache`) to store fetched thumbnail blob URLs, keyed by `componentId-size`.
 - **`fetchThumbnail(componentId, session, options?)`**: Fetches thumbnails with size options and caching
 - **`clearThumbnailCache()`**: Cleans up blob URLs to prevent memory leaks
 - **CORS Handling**: Uses Tauri's fetch to bypass browser CORS restrictions
@@ -210,7 +215,9 @@ Provides progressive data fetching and caching for related versions.
 ### Additional Services
 
 - **`githubService.ts`**: GitHub API integration for What's New feature
+- **`releaseNotesService.ts`**: Fetches and caches release notes displayed in `WhatsNewModal`
 - **`videoService.ts`**: Video processing and playback utilities
+- **`exportUtils.ts`**: CSV and PDF export helpers (leverages `pdf-lib` for rich playlist PDFs)
 
 ## Testing Architecture (`src/test`)
 
@@ -296,7 +303,7 @@ const versions = await db.versions.where('[playlistId+id]').between(
 ### Library Utilities (`src/lib`)
 - **`settings.ts`**: Application settings management
 - **`updater.ts`**: Update checking and installation
-- **`exportUtils.ts`**: Data export functionality
+- **`exportUtils.ts`**: Data export functionality (CSV + PDF playlist exports with thumbnails and metadata)
 - **`logExporter.ts`**: Diagnostic log generation
 
 ## Type System (`src/types`)
