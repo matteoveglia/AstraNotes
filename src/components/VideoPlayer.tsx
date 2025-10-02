@@ -12,7 +12,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Volume1, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useVideoPlayback,
@@ -47,6 +47,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Original state that might remain or be adjusted
   const [frameRate, setFrameRate] = useState(24); // Default 24fps
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [previousVolume, setPreviousVolume] = useState(1);
+  const [isVolumePopoverVisible, setIsVolumePopoverVisible] = useState(false);
   // const frameUpdateRef = useRef<number>(); // This was for an animation frame, check if still needed or how to integrate
 
   const FRAME_STEP = 1 / 30; // Universal frame stepping
@@ -173,10 +177,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [duration, videoRef]);
 
-  // Cleanup for any raw animation frames (if frameUpdateRef was used)
-  // useEffect(() => {
-  //   return () => {
-  //     if (frameUpdateRef.current) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const handleVolumeChange = () => {
+      setVolume(video.volume);
+      const muted = video.muted || video.volume === 0;
+      setIsMuted(muted);
+      if (!muted && video.volume > 0) {
+        setPreviousVolume(video.volume);
+      }
+    };
+
+    handleVolumeChange();
+    video.addEventListener("volumechange", handleVolumeChange);
+
+    return () => {
+      video.removeEventListener("volumechange", handleVolumeChange);
+    };
+  }, [duration]);
+
+  const hideVolumePopoverTimeoutRef = useRef<number | null>(null);
+  const sliderAreaRef = useRef<HTMLDivElement | null>(null);
+  const isAdjustingVolumeRef = useRef(false);
+
+  const cancelHideVolumePopover = useCallback(() => {
+    if (hideVolumePopoverTimeoutRef.current !== null) {
+      window.clearTimeout(hideVolumePopoverTimeoutRef.current);
+      hideVolumePopoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleHideVolumePopover = useCallback(() => {
+    cancelHideVolumePopover();
+    hideVolumePopoverTimeoutRef.current = window.setTimeout(() => {
+      setIsVolumePopoverVisible(false);
+      hideVolumePopoverTimeoutRef.current = null;
+    }, 150);
+  }, [cancelHideVolumePopover]);
+
+  useEffect(() => {
+    return () => {
+      cancelHideVolumePopover();
+    };
+  }, [cancelHideVolumePopover]);
   //       cancelAnimationFrame(frameUpdateRef.current);
   //     }
   //   };
@@ -202,6 +249,112 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Determine effective current time for display: if dragging, use dragTime.
   const effectiveCurrentTime = isDragging ? dragTime : currentTime;
 
+  const updateVolumeFromClientY = useCallback(
+    (clientY: number) => {
+      const video = videoRef.current;
+      const slider = sliderAreaRef.current;
+      if (!video || !slider) {
+        return;
+      }
+
+      const rect = slider.getBoundingClientRect();
+      if (rect.height === 0) {
+        return;
+      }
+
+      const relative = rect.bottom - clientY;
+      const percent = Math.min(Math.max(relative / rect.height, 0), 1);
+
+      video.volume = percent;
+
+      if (percent === 0) {
+        video.muted = true;
+        setIsMuted(true);
+      } else {
+        if (video.muted) {
+          video.muted = false;
+        }
+        setIsMuted(false);
+        setPreviousVolume(percent);
+      }
+
+      setVolume(percent);
+    },
+    [],
+  );
+
+  const handleVolumePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      cancelHideVolumePopover();
+      setIsVolumePopoverVisible(true);
+      setShowControls(true);
+      clearHideControlsTimeout();
+      isAdjustingVolumeRef.current = true;
+      updateVolumeFromClientY(event.clientY);
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        if (!isAdjustingVolumeRef.current) {
+          return;
+        }
+        updateVolumeFromClientY(moveEvent.clientY);
+      };
+
+      const handlePointerUp = () => {
+        isAdjustingVolumeRef.current = false;
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+        scheduleHideVolumePopover();
+        resetHideControlsTimeout();
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp, { once: true });
+    },
+    [
+      cancelHideVolumePopover,
+      clearHideControlsTimeout,
+      resetHideControlsTimeout,
+      scheduleHideVolumePopover,
+      setShowControls,
+      updateVolumeFromClientY,
+    ],
+  );
+
+  const handleMuteToggle = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    if (isMuted || video.volume === 0) {
+      const restoredVolume = previousVolume > 0 ? previousVolume : 0.5;
+      video.muted = false;
+      video.volume = restoredVolume;
+      setVolume(restoredVolume);
+      setIsMuted(false);
+    } else {
+      const volumeToStore = video.volume > 0 ? video.volume : volume || 0.5;
+      setPreviousVolume(volumeToStore);
+      video.volume = 0;
+      video.muted = true;
+      setVolume(0);
+      setIsMuted(true);
+    }
+  }, [isMuted, previousVolume, volume]);
+
+  const VolumeIcon = useMemo(() => {
+    if (isMuted || volume === 0) {
+      return VolumeX;
+    }
+
+    if (volume < 0.5) {
+      return Volume1;
+    }
+
+    return Volume2;
+  }, [isMuted, volume]);
+
   const progressPercent =
     duration > 0 ? (effectiveCurrentTime / duration) * 100 : 0;
   // dragPercent is essentially progressPercent now as dragTime is part of effectiveCurrentTime logic
@@ -213,6 +366,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Controls visibility logic: useVideoControls handles mouse move/leave.
   // Specific calls to setShowControls(true/false) can still be made.
+
+  const volumePercent = Math.round((isMuted ? 0 : volume) * 100);
+
+  const handleVolumeAreaEnter = useCallback(() => {
+    cancelHideVolumePopover();
+    setIsVolumePopoverVisible(true);
+    setShowControls(true);
+    clearHideControlsTimeout();
+  }, [cancelHideVolumePopover, clearHideControlsTimeout, setShowControls]);
+
+  const handleVolumeAreaLeave = useCallback(() => {
+    if (isAdjustingVolumeRef.current) {
+      return;
+    }
+    scheduleHideVolumePopover();
+    resetHideControlsTimeout();
+  }, [resetHideControlsTimeout, scheduleHideVolumePopover]);
 
   return (
     <div
@@ -250,10 +420,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <div
         className={cn(
           "absolute inset-0 flex flex-col justify-end transition-opacity duration-300",
-          showControls ? "opacity-100" : "opacity-0 pointer-events-none", // Added pointer-events-none when hidden
+          showControls ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
       >
-        <div className="absolute top-4 right-4 text-white/80 text-sm bg-black/40 rounded px-2 font-mono">
+        <div className="absolute top-4 right-4 rounded-2xl border border-white/10 bg-zinc-900/70 px-3 py-2 font-bold text-white shadow-[0_12px_32px_-16px_rgba(12,12,19,0.9)]">
           {duration > 0 && (
             <div className="text-right">
               <div className="text-[0.725rem]">
@@ -286,7 +456,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           // Disable button if loading to prevent interaction issues?
           disabled={isLoading}
         >
-          <div className="bg-black/50 rounded-full p-4 group-hover:bg-black/70 transition-all">
+          <div className="rounded-full border  border-white/10 bg-zinc-900/65 hover:bg-zinc-900/80 p-4 text-white shadow-[0_18px_38px_-18px_rgba(12,12,19,0.85)] transition-all">
             {isPlaying ? (
               <Pause className="w-8 h-8 text-white" />
             ) : (
@@ -295,32 +465,34 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </button>
 
-        <div className="bg-gradient-to-t from-black to-transparent p-4">
-          <div className="flex items-center gap-3 text-white text-sm">
-            <span>{formatTime(effectiveCurrentTime)}</span>
+        <div className="px-5 pb-6">
+          <div className="flex items-center gap-5 rounded-[2.5rem] border border-white/10 bg-zinc-900/75 px-3.5  text-white shadow-[0_24px_45px_-22px_rgba(12,12,19,0.85)]">
+            <span className="text-sm font-bold text-white">
+              {formatTime(effectiveCurrentTime)}
+            </span>
 
             <div className="flex-1 relative">
               <div
                 ref={timelineRef}
-                className="h-3 bg-white/30 rounded cursor-pointer relative select-none"
+                className="relative h-2 cursor-pointer select-none rounded-full bg-white/15"
                 onMouseDown={handleTimelineMouseDown} // From useTimelineScrubbing
               >
                 <div
                   className={cn(
-                    "h-full bg-white rounded",
+                    "h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500",
                     isDragging ? "" : "transition-all duration-75",
                   )}
                   style={{ width: `${progressPercent}%` }}
                 />
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-blue-600 cursor-grab active:cursor-grabbing"
-                  style={{ left: `${progressPercent}%`, marginLeft: "-6px" }} // Use marginLeft to center small handle
+                  className="absolute top-1/2 -translate-y-1/2 h-3 w-4 cursor-grab rounded-full border border-white/40 bg-white shadow-[0_6px_12px_rgba(15,23,42,0.45)] active:cursor-grabbing"
+                  style={{ left: `${progressPercent}%`, marginLeft: "-8px" }}
                 />
               </div>
 
               {isDragging && (
                 <div
-                  className="absolute -top-8 bg-black/75 text-white text-xs rounded px-2 py-1 pointer-events-none whitespace-nowrap"
+                  className="absolute -top-10 rounded-2xl border border-white/10 bg-zinc-900/70 px-2 py-1 text-xs font-bold text-white shadow-[0_10px_28px_-18px_rgba(12,12,19,0.9)] pointer-events-none whitespace-nowrap"
                   style={{
                     left: `${progressPercent}%`,
                     transform: "translateX(-50%)",
@@ -333,14 +505,79 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               )}
             </div>
 
-            <span>{formatTime(duration)}</span>
+            <span className="text-sm font-bold text-white">
+              {formatTime(duration)}
+            </span>
+
+            <div
+              className="relative ml-auto flex items-center"
+              onMouseEnter={handleVolumeAreaEnter}
+              onMouseLeave={handleVolumeAreaLeave}
+            >
+              <button
+                type="button"
+                onClick={handleMuteToggle}
+                className="rounded-full p-2.5 text-white"
+                aria-label={
+                  isMuted || volume === 0 ? "Unmute audio" : "Mute audio"
+                }
+                title={
+                  isMuted || volume === 0 ? "Unmute audio" : "Mute audio"
+                }
+              >
+                <VolumeIcon className="h-4.5 w-4.5" />
+              </button>
+
+              <div
+                className={cn(
+                  "absolute bottom-full right-0 left-[-0.1rem] mb-1 flex flex-col items-center transition-all duration-200 ease-out",
+                  isVolumePopoverVisible
+                    ? "pointer-events-auto translate-y-0 opacity-100"
+                    : "pointer-events-none translate-y-2 opacity-0",
+                )}
+                onMouseEnter={handleVolumeAreaEnter}
+                onMouseLeave={handleVolumeAreaLeave}
+              >
+                <div className="flex min-h-[2rem] w-[2.5rem] flex-col items-center rounded-3xl border border-white/10 bg-zinc-900/70 pt-3 text-white shadow-[0_12px_32px_-14px_rgba(12,12,19,0.85)]">
+                  <span className="text-[0.74rem] mb-6 font-bold tracking-wide text-white">
+                    {volumePercent}
+                  </span>
+
+                  <div
+                    ref={sliderAreaRef}
+                    className="relative h-28 w-10 cursor-pointer touch-none select-none"
+                    role="slider"
+                    aria-label="Adjust volume"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={volumePercent}
+                    onPointerDown={handleVolumePointerDown}
+                  >
+                    <div className="absolute left-1/2 top-[-0.5rem] bottom-4 w-1.5 -translate-x-1/2 rounded-full bg-white/32" />
+
+                    <div
+                      className="absolute left-1/2 bottom-4 w-1.5 -translate-x-1/2 rounded-full bg-gradient-to-t from-blue-500 via-sky-400 to-sky-300"
+                      style={{ height: `calc(${volumePercent}% * 0.88)` }}
+                    />
+
+                    <div
+                      className="absolute left-1/2 w-3 h-5 rounded-full border border-white/35 bg-gradient-to-br from-white to-slate-100 shadow-[0_6px_14px_rgba(15,23,42,0.4)]"
+                      style={{
+                        bottom: `calc(${volumePercent}% * 0.88 + 20px)`,
+                        transform: "translate(-50%, 50%)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Keyboard hints - consider making visibility tied to showControls or always visible on hover of parent */}
-      <div className="absolute top-4 left-4 text-white text-xs bg-black/50 rounded px-2 py-1 opacity-0 focus-within:opacity-100 group-hover:opacity-100 peer-focus:opacity-100 hover:opacity-100 transition-opacity whitespace-nowrap">
-        <div className="font-semibold mb-1">Controls:</div>
+      <div className="absolute top-4 left-4 rounded-2xl border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs text-white opacity-0 shadow-[0_12px_28px_-18px_rgba(12,12,19,0.85)] transition-opacity whitespace-nowrap focus-within:opacity-100 group-hover:opacity-100 peer-focus:opacity-100 hover:opacity-100">
+        <div className="mb-1 font-semibold">Controls:</div>
         <div>← → Frame navigation</div>
         <div>Space = Play/Pause</div>
         <div>Click/Drag timeline to scrub</div>
