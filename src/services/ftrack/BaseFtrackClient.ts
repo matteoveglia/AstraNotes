@@ -1,6 +1,7 @@
 import { Session } from "@ftrack/api";
 import type { FtrackSettings } from "@/types";
 import { safeConsoleError } from "@/utils/errorHandling";
+import { debugLog } from "@/lib/verboseLogging";
 
 /**
  * BaseFtrackClient
@@ -32,6 +33,11 @@ export class BaseFtrackClient {
    * Persist settings and reset the shared session.
    */
   updateSettings(settings: FtrackSettings) {
+    debugLog("[BaseFtrackClient] updateSettings invoked", {
+      hasServerUrl: Boolean(settings.serverUrl),
+      hasApiKey: Boolean(settings.apiKey),
+      hasApiUser: Boolean(settings.apiUser),
+    });
     BaseFtrackClient.settings = { ...settings };
     if (typeof window !== "undefined") {
       localStorage.setItem("ftrackSettings", JSON.stringify(settings));
@@ -43,8 +49,12 @@ export class BaseFtrackClient {
    * Returns the shared Session instance, creating it if necessary.
    */
   async getSession(): Promise<Session> {
+    debugLog("[BaseFtrackClient] getSession requested", {
+      sessionState: BaseFtrackClient.sessionState.kind,
+    });
     const existing = BaseFtrackClient.getExistingSession();
     if (existing) {
+      debugLog("[BaseFtrackClient] Reusing cached session");
       return existing;
     }
 
@@ -65,11 +75,18 @@ export class BaseFtrackClient {
 
   async testConnection(): Promise<boolean> {
     try {
+      debugLog("[BaseFtrackClient] testConnection starting");
       const session = await this.ensureSession();
       if (!session) return false;
       const result = await session.query("select id from User limit 1");
+      debugLog("[BaseFtrackClient] testConnection result", {
+        hasData: Boolean(result?.data?.length),
+      });
       return !!result?.data?.length;
     } catch (err) {
+      debugLog("[BaseFtrackClient] testConnection error", {
+        errorName: err instanceof Error ? err.name : typeof err,
+      });
       return false;
     }
   }
@@ -89,9 +106,17 @@ export class BaseFtrackClient {
     }
 
     const saved = window.localStorage.getItem("ftrackSettings");
+    debugLog("[BaseFtrackClient] ensureSettingsLoaded invoked", {
+      storageHit: Boolean(saved),
+    });
     if (saved) {
       try {
         this.settings = JSON.parse(saved) as FtrackSettings;
+        debugLog("[BaseFtrackClient] Settings loaded from storage", {
+          hasServerUrl: Boolean(this.settings?.serverUrl),
+          hasApiKey: Boolean(this.settings?.apiKey),
+          hasApiUser: Boolean(this.settings?.apiUser),
+        });
       } catch (err) {
         console.error("[BaseFtrackClient] Failed to parse saved settings", err);
         this.settings = null;
@@ -117,10 +142,14 @@ export class BaseFtrackClient {
         safeConsoleError("[BaseFtrackClient] Failed to close session", err);
       }
     }
+    debugLog("[BaseFtrackClient] Resetting shared session state");
     this.sessionState = { kind: "idle" };
   }
 
   private static ensureSessionInitializing(): Promise<Session | null> {
+    debugLog("[BaseFtrackClient] ensureSessionInitializing invoked", {
+      sessionState: this.sessionState.kind,
+    });
     if (this.sessionState.kind === "initializing") {
       return this.sessionState.promise;
     }
@@ -130,7 +159,13 @@ export class BaseFtrackClient {
     }
 
     const settings = this.settings;
+    debugLog("[BaseFtrackClient] ensureSessionInitializing settings snapshot", {
+      hasServerUrl: Boolean(settings?.serverUrl),
+      hasApiKey: Boolean(settings?.apiKey),
+      hasApiUser: Boolean(settings?.apiUser),
+    });
     if (!settings?.serverUrl || !settings?.apiKey || !settings?.apiUser) {
+      debugLog("[BaseFtrackClient] Missing credentials; aborting session init");
       return Promise.resolve(null);
     }
 
@@ -145,13 +180,16 @@ export class BaseFtrackClient {
           },
         );
         await session.initializing;
+        debugLog("[BaseFtrackClient] Session initialised successfully");
         this.sessionState = { kind: "ready", session };
         return session;
       } catch (error) {
-        safeConsoleError(
-          "[BaseFtrackClient] Failed to initialise session",
-          error,
-        );
+        safeConsoleError("[BaseFtrackClient] Failed to initialise session", error);
+        debugLog("[BaseFtrackClient] Session init failed", {
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage:
+            error instanceof Error ? error.message : String(error ?? ""),
+        });
         this.sessionState = { kind: "idle" };
         return null;
       }

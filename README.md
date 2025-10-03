@@ -40,6 +40,16 @@ Download the latest release for your platform:
 - [Windows Installer (.msi)](https://github.com/matteoveglia/AstraNotes/releases/latest)
 - [macOS App (.dmg)](https://github.com/matteoveglia/AstraNotes/releases/latest)
 
+### macOS Gatekeeper
+
+macOS blocks apps from unsigned developers by adding a quarantine flag. Because AstraNotes is a hobby project without a paid Apple developer certificate, you must remove that flag after installing:
+
+```bash
+xattr -rd com.apple.quarantine /Applications/AstraNotes.app
+```
+
+Run the command in Terminal after dragging AstraNotes into `/Applications/`. Without it, the app will not launch and will display as "damaged".
+
 ## Configuration
 
 AstraNotes requires ftrack credentials for authentication. Upon first launch, you'll need to configure:
