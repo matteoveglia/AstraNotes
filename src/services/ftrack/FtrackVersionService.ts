@@ -1,6 +1,6 @@
-import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import type { AssetVersion } from "@/types";
+import type { VersionServiceContract } from "@/services/client/types";
 
 interface SearchVersionsOptions {
   searchTerm: string;
@@ -8,7 +8,10 @@ interface SearchVersionsOptions {
   projectId?: string | null;
 }
 
-export class FtrackVersionService extends BaseFtrackClient {
+export class FtrackVersionService
+  extends BaseFtrackClient
+  implements VersionServiceContract
+{
   /* helpers */
   // simple in-memory cache (5-minute TTL)
   private searchCache = new Map<string, { ts: number; data: AssetVersion[] }>();

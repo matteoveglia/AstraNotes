@@ -55,7 +55,8 @@ export const useAppModeStore = create<AppModeState>()(
         const nextMode: AppMode = get().appMode === "real" ? "demo" : "real";
         get().setMode(nextMode);
       },
-      setDemoSeedVersion: (seedVersion) => set({ demoSeedVersion: seedVersion }),
+      setDemoSeedVersion: (seedVersion) =>
+        set({ demoSeedVersion: seedVersion }),
     }),
     {
       name: "app-mode-storage",

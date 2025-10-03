@@ -78,19 +78,13 @@ export class RelatedNotesService extends BaseFtrackClient {
     // Pattern: shot_###
     if (firstPart?.toLowerCase() === "shot" && secondPart?.match(/^\d+$/)) {
       const shotName = `${firstPart}_${secondPart}`;
-      debugLog(
-        "[RelatedNotesService] Detected shot_number pattern:",
-        shotName,
-      );
+      debugLog("[RelatedNotesService] Detected shot_number pattern:", shotName);
       return shotName;
     }
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart?.match(/^[A-Z]{2,4}\d+$/i)) {
-      debugLog(
-        "[RelatedNotesService] Detected shot code pattern:",
-        firstPart,
-      );
+      debugLog("[RelatedNotesService] Detected shot code pattern:", firstPart);
       return firstPart;
     }
 

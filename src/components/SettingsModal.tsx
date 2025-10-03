@@ -575,7 +575,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
       </DialogContent>
 
-      <AlertDialog open={isModeDialogOpen} onOpenChange={(open) => (!open ? closeModeDialog() : openModeDialog(pendingMode ?? (isDemoMode ? "real" : "demo")))}>
+      <AlertDialog
+        open={isModeDialogOpen}
+        onOpenChange={(open) =>
+          !open
+            ? closeModeDialog()
+            : openModeDialog(pendingMode ?? (isDemoMode ? "real" : "demo"))
+        }
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -599,21 +606,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="underline font-semibold text-blue-500 hover:text-blue-600"
                   >
                     here
-                  </a>
-                  {" "}and stored in your download folder, e.g.
+                  </a>{" "}
+                  and stored in your download folder, e.g.
                   <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
                     ~/Downloads/AstraNotes_MockData
                   </code>
-                  . If they are missing, AstraNotes will fall back to thumbnails only.
+                  . If they are missing, AstraNotes will fall back to thumbnails
+                  only.
                 </p>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeModeDialog} disabled={isSwitchingMode}>
+            <AlertDialogCancel
+              onClick={closeModeDialog}
+              disabled={isSwitchingMode}
+            >
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmModeSwitch} disabled={isSwitchingMode}>
+            <AlertDialogAction
+              onClick={confirmModeSwitch}
+              disabled={isSwitchingMode}
+            >
               {isSwitchingMode
                 ? "Switching..."
                 : pendingMode === "demo"

@@ -314,11 +314,18 @@ class VideoService {
       }
 
       const downloadsDir = await homeDir();
-      const basePath = await join(downloadsDir, "Downloads", "AstraNotes_MockData");
+      const basePath = await join(
+        downloadsDir,
+        "Downloads",
+        "AstraNotes_MockData",
+      );
       const fullPath = await join(basePath, movieFilename.replace(/^\//, ""));
 
       const fileExists = await exists(fullPath).catch((error) => {
-        console.warn("[VideoService] Failed to stat demo file", { fullPath, error });
+        console.warn("[VideoService] Failed to stat demo file", {
+          fullPath,
+          error,
+        });
         return false;
       });
 

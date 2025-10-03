@@ -8,7 +8,10 @@ interface SwitchOptions {
   onBeforeReset?: () => void;
 }
 
-export async function switchAppMode(mode: AppMode, options?: SwitchOptions): Promise<void> {
+export async function switchAppMode(
+  mode: AppMode,
+  options?: SwitchOptions,
+): Promise<void> {
   const store = useAppModeStore.getState();
   const currentMode = store.appMode;
 
@@ -19,12 +22,6 @@ export async function switchAppMode(mode: AppMode, options?: SwitchOptions): Pro
   store.setMode(mode);
 
   options?.onBeforeReset?.();
-
-  try {
-    playlistStore.stopAutoRefresh?.();
-  } catch (error) {
-    console.warn("[switchAppMode] Failed to stop playlist auto-refresh", error);
-  }
 
   try {
     clearThumbnailCache();

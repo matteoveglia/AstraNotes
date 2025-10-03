@@ -9,6 +9,7 @@ import type {
   Project,
   AssetVersion,
 } from "@/types";
+import type { PlaylistServiceContract } from "@/services/client/types";
 
 // Local interface for ftrack session.create() responses
 interface CreateResponse {
@@ -25,7 +26,10 @@ interface CreateResponse {
  * ----------------------------------
  * Handles playlist-oriented operations (projects, review sessions, lists …).
  */
-export class FtrackPlaylistService extends BaseFtrackClient {
+export class FtrackPlaylistService
+  extends BaseFtrackClient
+  implements PlaylistServiceContract
+{
   /* ------------------------------------------------------------------ */
   /* helpers                                                            */
   /* ------------------------------------------------------------------ */

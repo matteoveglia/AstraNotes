@@ -2,17 +2,17 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { usePlaylistsStore } from "../../store/playlistsStore";
 import { db } from "@/store/db";
 import { TestDataFactory } from "../utils/testHelpers";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylists, mockGetLists } = vi.hoisted(() => ({
-  mockGetPlaylists: vi.fn(),
-  mockGetLists: vi.fn(),
-}));
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock(),
+);
+
+const mockGetPlaylists = playlistMocks.getPlaylists;
+const mockGetLists = playlistMocks.getLists;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
-    getPlaylists: mockGetPlaylists,
-    getLists: mockGetLists,
-  })),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({

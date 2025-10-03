@@ -234,11 +234,7 @@ export async function updateEntityStatusSuspense(
     // Perform the actual server update
     const statusService = statusClient();
 
-    await statusService.updateEntityStatus(
-      entityType,
-      entityId,
-      statusId,
-    );
+    await statusService.updateEntityStatus(entityType, entityId, statusId);
 
     // Server update succeeded - invalidate affected cache entries for fresh data
     // but only the specific ones, not everything

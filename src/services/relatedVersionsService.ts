@@ -115,18 +115,13 @@ class RelatedVersionsServiceImpl implements RelatedVersionsService {
 
     // Pattern: ASE###, sequence codes, etc. (single part shot codes)
     if (firstPart?.match(/^[A-Z]{2,4}\d+$/i)) {
-      debugLog(
-        "[RelatedVersionsService] Detected shot code pattern:",
-      );
+      debugLog("[RelatedVersionsService] Detected shot code pattern:");
       return firstPart;
     }
 
     // Default: use first component
     const fallback = firstPart ?? versionName;
-    debugLog(
-      "[RelatedVersionsService] Using default first part:",
-      fallback,
-    );
+    debugLog("[RelatedVersionsService] Using default first part:", fallback);
     return fallback;
   }
 

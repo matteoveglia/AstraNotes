@@ -62,7 +62,9 @@ Object.entries(demoThumbnailModules).forEach(([path, url]) => {
   }
 });
 
-const resolveDemoThumbnailAsset = (filename: string | undefined): string | null => {
+const resolveDemoThumbnailAsset = (
+  filename: string | undefined,
+): string | null => {
   if (!filename) {
     return null;
   }
@@ -87,25 +89,29 @@ const resolveDemoThumbnailAsset = (filename: string | undefined): string | null 
 
 const ensureDemoComponentMappings = (): Promise<DemoComponentMappings> => {
   if (!demoComponentMappingsPromise) {
-    demoComponentMappingsPromise = import("@/services/mock/demoSeed").then(({ demoSeed }) => {
-      const componentToThumbnail = new Map<string, string>();
+    demoComponentMappingsPromise = import("@/services/mock/demoSeed").then(
+      ({ demoSeed }) => {
+        const componentToThumbnail = new Map<string, string>();
 
-      for (const version of demoSeed.assetVersions) {
-        for (const componentId of version.componentIds) {
-          if (!componentToThumbnail.has(componentId)) {
-            componentToThumbnail.set(componentId, version.thumbnailFilename);
+        for (const version of demoSeed.assetVersions) {
+          for (const componentId of version.componentIds) {
+            if (!componentToThumbnail.has(componentId)) {
+              componentToThumbnail.set(componentId, version.thumbnailFilename);
+            }
           }
         }
-      }
 
-      return { componentToThumbnail } satisfies DemoComponentMappings;
-    });
+        return { componentToThumbnail } satisfies DemoComponentMappings;
+      },
+    );
   }
 
   return demoComponentMappingsPromise;
 };
 
-const resolveDemoThumbnailUrl = async (componentId: string): Promise<string> => {
+const resolveDemoThumbnailUrl = async (
+  componentId: string,
+): Promise<string> => {
   try {
     const { componentToThumbnail } = await ensureDemoComponentMappings();
     const filename = componentToThumbnail.get(componentId);
@@ -319,7 +325,10 @@ export async function fetchThumbnail(
       }
       return url;
     } catch (error) {
-      console.error("[ThumbnailService] Failed to resolve demo thumbnail:", error);
+      console.error(
+        "[ThumbnailService] Failed to resolve demo thumbnail:",
+        error,
+      );
       return DEMO_PLACEHOLDER_THUMBNAIL;
     }
   }

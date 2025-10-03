@@ -1,17 +1,11 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { createMockPlaylist } from "@/test/utils";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const mockGetPlaylists = vi.fn();
-const mockGetLists = vi.fn();
-const mockGetPlaylistVersions = vi.fn();
-const mockAddVersionsToPlaylist = vi.fn();
-const mockCreateReviewSession = vi.fn();
-const mockCreateList = vi.fn();
-const mockGetProjects = vi.fn();
-
-vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
+const {
+  service: playlistService,
+  mocks: {
     getPlaylists: mockGetPlaylists,
     getLists: mockGetLists,
     getPlaylistVersions: mockGetPlaylistVersions,
@@ -19,7 +13,11 @@ vi.mock("@/services/client", () => ({
     createReviewSession: mockCreateReviewSession,
     createList: mockCreateList,
     getProjects: mockGetProjects,
-  })),
+  },
+} = vi.hoisted(() => createPlaylistServiceMock());
+
+vi.mock("@/services/client", () => ({
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 // Mock the database with comprehensive methods

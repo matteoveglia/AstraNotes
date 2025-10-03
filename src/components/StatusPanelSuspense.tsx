@@ -41,7 +41,10 @@ interface StatusPanelSuspenseProps extends StatusPanelContentProps {
 /**
  * Internal component that uses Suspense-compatible fetch
  */
-function StatusPanelContent({ assetVersionId, onClose }: StatusPanelContentProps) {
+function StatusPanelContent({
+  assetVersionId,
+  onClose,
+}: StatusPanelContentProps) {
   // This will throw a promise if fetch is loading (Suspense will catch it)
   const { currentStatuses, versionStatuses, parentStatuses } =
     fetchStatusPanelDataSuspense(assetVersionId);
@@ -178,11 +181,7 @@ function StatusPanelContent({ assetVersionId, onClose }: StatusPanelContentProps
 /**
  * Loading skeleton for status panel
  */
-function StatusPanelLoading({
-  onClose,
-}: {
-  onClose?: () => void;
-}) {
+function StatusPanelLoading({ onClose }: { onClose?: () => void }) {
   return (
     <>
       <div className="flex items-center justify-between mb-3">

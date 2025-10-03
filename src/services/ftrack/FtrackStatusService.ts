@@ -1,5 +1,6 @@
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import { debugLog } from "@/lib/verboseLogging";
+import type { StatusServiceContract } from "@/services/client/types";
 
 interface Status {
   id: string;
@@ -16,7 +17,10 @@ interface StatusPanelData {
   projectId: string;
 }
 
-export class FtrackStatusService extends BaseFtrackClient {
+export class FtrackStatusService
+  extends BaseFtrackClient
+  implements StatusServiceContract
+{
   // Schema status mapping cache - similar to legacy service
   private schemaStatusMapping: {
     [projectSchemaId: string]: {
@@ -297,6 +301,10 @@ export class FtrackStatusService extends BaseFtrackClient {
   ): Promise<Status[]> {
     // Use fetchApplicableStatuses for proper schema-based status filtering
     return this.fetchApplicableStatuses(entityType, entityId);
+  }
+
+  async getStatuses(versionId: string): Promise<Status[]> {
+    return this.fetchApplicableStatuses("AssetVersion", versionId);
   }
 
   async updateEntityStatus(

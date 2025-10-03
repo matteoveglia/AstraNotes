@@ -15,9 +15,11 @@ export function useAppInitializer(): void {
     Promise.all([
       loadProjects(),
       fetchLabels(),
-      statusClient().ensureStatusMappingsInitialized().catch((error) => {
-        console.error("Failed to initialize status mappings:", error);
-      }),
+      statusClient()
+        .ensureStatusMappingsInitialized()
+        .catch((error) => {
+          console.error("Failed to initialize status mappings:", error);
+        }),
     ]).catch((error) => {
       console.error("Failed to initialize app:", error);
     });

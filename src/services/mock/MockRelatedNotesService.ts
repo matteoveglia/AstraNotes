@@ -30,10 +30,11 @@ const parseAuthor = (author: string) => {
   const parts = withoutAt.split(/\s+/).filter(Boolean);
   const firstName = parts[0] ?? "Demo";
   const lastName = parts.length > 1 ? parts.slice(1).join(" ") : undefined;
-  const username = withoutAt
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ".")
-    .replace(/(^\.+|\.+$)/g, "") || "demo.user";
+  const username =
+    withoutAt
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ".")
+      .replace(/(^\.+|\.+$)/g, "") || "demo.user";
   const id = `demo:user:${username}`;
   return {
     id,
@@ -55,7 +56,9 @@ const cloneNote = (note: ShotNote): ShotNote => ({
 
 const shotNotesByShot = new Map<string, ShotNote[]>();
 
-const buildShotNote = (seed: DemoNoteSeed): { shot: string; note: ShotNote } | null => {
+const buildShotNote = (
+  seed: DemoNoteSeed,
+): { shot: string; note: ShotNote } | null => {
   const versionSeed = versionSeedById.get(seed.versionId);
   if (!versionSeed) {
     return null;

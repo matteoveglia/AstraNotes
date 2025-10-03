@@ -937,7 +937,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                             <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">Open in ftrack</TooltipContent>
+                        <TooltipContent side="bottom">
+                          Open in ftrack
+                        </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   )}
@@ -1015,7 +1017,9 @@ export const MainContent: React.FC<MainContentProps> = ({
                           <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">Open in ftrack</TooltipContent>
+                      <TooltipContent side="bottom">
+                        Open in ftrack
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -1184,9 +1188,8 @@ export const MainContent: React.FC<MainContentProps> = ({
           <DialogHeader>
             <DialogTitle>Available in Live Mode</DialogTitle>
             <DialogDescription>
-              In live mode, this button opens the playlist in ftrack.
-              Demo mode keeps navigation inside AstraNotes so you can explore
-              safely.
+              In live mode, this button opens the playlist in ftrack. Demo mode
+              keeps navigation inside AstraNotes so you can explore safely.
             </DialogDescription>
           </DialogHeader>
         </DialogContent>

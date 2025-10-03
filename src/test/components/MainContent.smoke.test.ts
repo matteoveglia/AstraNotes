@@ -3,15 +3,18 @@ import "fake-indexeddb/auto";
 import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylistVersions } = vi.hoisted(() => ({
-  mockGetPlaylistVersions: vi.fn(async () => []),
-}));
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock({
+    getPlaylistVersions: vi.fn(async () => []),
+  }),
+);
+
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
-    getPlaylistVersions: mockGetPlaylistVersions,
-  })),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 describe("MainContent local-only init smoke test", () => {
@@ -24,7 +27,6 @@ describe("MainContent local-only init smoke test", () => {
     vi.clearAllMocks();
     mockGetPlaylistVersions.mockReset();
     mockGetPlaylistVersions.mockImplementation(async () => []);
-    mockGetPlaylistVersions.mockReset();
   });
 
   it("can initialize and retrieve local playlist with versions", async () => {

@@ -2,17 +2,17 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { usePlaylistsStore } from "@/store/playlistsStore";
 import { db } from "@/store/db";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const mockGetPlaylists = vi.fn();
-const mockGetLists = vi.fn();
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock(),
+);
 
-const playlistClientMock = {
-  getPlaylists: mockGetPlaylists,
-  getLists: mockGetLists,
-};
+const mockGetPlaylists = playlistMocks.getPlaylists;
+const mockGetLists = playlistMocks.getLists;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => playlistClientMock),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 describe("Simple Debug Test", () => {

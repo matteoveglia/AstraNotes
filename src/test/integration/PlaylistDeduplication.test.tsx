@@ -1,33 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import type { Playlist } from "@/types";
+import type { Playlist, CreatePlaylistRequest } from "@/types";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 import { db } from "@/store/db";
 import { TestDataFactory } from "@/test/utils/testHelpers";
 
-const {
-  mockGetPlaylists,
-  mockGetLists,
-  playlistServiceMock,
-} = vi.hoisted(() => {
-  const mockGetPlaylists = vi.fn();
-  const mockGetLists = vi.fn();
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock({
+    getPlaylists: vi.fn(async () => []),
+    getLists: vi.fn(async () => []),
+  }),
+);
 
-  const playlistServiceMock = {
-    getPlaylists: mockGetPlaylists,
-    getLists: mockGetLists,
-  };
+const mockGetPlaylists = playlistMocks.getPlaylists;
+const mockGetLists = playlistMocks.getLists;
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
-  return {
-    mockGetPlaylists,
-    mockGetLists,
-    playlistServiceMock,
-  };
-});
-
-const mockFtrackService = playlistServiceMock;
+const { service: ftrackPlaylistServiceMock, mocks: ftrackPlaylistMocks } =
+  vi.hoisted(() =>
+    createPlaylistServiceMock({
+      getPlaylists: vi.fn(async () => []),
+      getLists: vi.fn(async () => []),
+    }),
+  );
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => playlistServiceMock),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({
@@ -37,7 +35,7 @@ vi.mock("@/services/ftrack/FtrackNoteService", () => ({
 }));
 
 vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: mockFtrackService,
+  ftrackPlaylistService: ftrackPlaylistServiceMock,
 }));
 
 // Mock project store to provide selectedProjectId for reset method
@@ -51,8 +49,6 @@ vi.mock("@/store/projectStore", () => ({
 }));
 
 describe("Playlist Deduplication Integration Tests", () => {
-  let mockPlaylistClient: typeof playlistServiceMock;
-
   beforeEach(async () => {
     // Clear database
     await db.playlists.clear();
@@ -62,16 +58,15 @@ describe("Playlist Deduplication Integration Tests", () => {
     vi.clearAllMocks();
     mockGetPlaylists.mockReset();
     mockGetLists.mockReset();
+    mockGetPlaylistVersions.mockReset();
+    ftrackPlaylistMocks.getPlaylists.mockReset();
+    ftrackPlaylistMocks.getLists.mockReset();
+
     mockGetPlaylists.mockResolvedValue([]);
     mockGetLists.mockResolvedValue([]);
-
-    // Import service dynamically to get the mocked version
-    const { playlistClient } = await import("@/services/client");
-    mockPlaylistClient = playlistClient();
-    mockFtrackService.getPlaylists.mockReset();
-    mockFtrackService.getLists.mockReset();
-    mockFtrackService.getPlaylists.mockResolvedValue([]);
-    mockFtrackService.getLists.mockResolvedValue([]);
+    mockGetPlaylistVersions.mockResolvedValue([]);
+    ftrackPlaylistMocks.getPlaylists.mockResolvedValue([]);
+    ftrackPlaylistMocks.getLists.mockResolvedValue([]);
   });
 
   afterEach(async () => {
@@ -97,8 +92,8 @@ describe("Playlist Deduplication Integration Tests", () => {
       ];
 
       // Mock ftrack service to return the same playlists
-      mockPlaylistClient.getPlaylists.mockResolvedValue(ftrackPlaylists);
-      mockPlaylistClient.getLists.mockResolvedValue([]);
+      mockGetPlaylists.mockResolvedValue(ftrackPlaylists);
+      mockGetLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -208,8 +203,8 @@ describe("Playlist Deduplication Integration Tests", () => {
         name: "Test Playlist",
       });
 
-      mockPlaylistClient.getPlaylists.mockResolvedValue([ftrackPlaylist]);
-      mockPlaylistClient.getLists.mockResolvedValue([]);
+      mockGetPlaylists.mockResolvedValue([ftrackPlaylist]);
+      mockGetLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -254,8 +249,8 @@ describe("Playlist Deduplication Integration Tests", () => {
         name: "Ftrack Version", // Different name
       });
 
-      mockFtrackService.getPlaylists.mockResolvedValue([ftrackPlaylist]);
-      mockFtrackService.getLists.mockResolvedValue([]);
+      ftrackPlaylistMocks.getPlaylists.mockResolvedValue([ftrackPlaylist]);
+      ftrackPlaylistMocks.getLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -297,8 +292,8 @@ describe("Playlist Deduplication Integration Tests", () => {
         }),
       ];
 
-      mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
-      mockFtrackService.getLists.mockResolvedValue([]);
+      ftrackPlaylistMocks.getPlaylists.mockResolvedValue(ftrackPlaylists);
+      ftrackPlaylistMocks.getLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -390,8 +385,8 @@ describe("Playlist Deduplication Integration Tests", () => {
         }),
       );
 
-      mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
-      mockFtrackService.getLists.mockResolvedValue([]);
+      ftrackPlaylistMocks.getPlaylists.mockResolvedValue(ftrackPlaylists);
+      ftrackPlaylistMocks.getLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -473,8 +468,8 @@ describe("Playlist Deduplication Integration Tests", () => {
         }),
       ];
 
-      mockFtrackService.getPlaylists.mockResolvedValue(ftrackPlaylists);
-      mockFtrackService.getLists.mockResolvedValue([]);
+      ftrackPlaylistMocks.getPlaylists.mockResolvedValue(ftrackPlaylists);
+      ftrackPlaylistMocks.getLists.mockResolvedValue([]);
 
       // Import store and get direct access to store methods
       const { usePlaylistsStore } = await import("@/store/playlistsStore");
@@ -521,10 +516,10 @@ describe("Playlist Deduplication Integration Tests", () => {
   describe("Error Handling", () => {
     it.skip("should handle service errors gracefully during playlist loading", async () => {
       // Mock ftrack service to throw an error
-      mockFtrackService.getPlaylists.mockRejectedValueOnce(
+      ftrackPlaylistMocks.getPlaylists.mockRejectedValueOnce(
         new Error("Ftrack service error"),
       );
-      mockFtrackService.getLists.mockResolvedValue([]);
+      ftrackPlaylistMocks.getLists.mockResolvedValue([]);
 
       // Reset modules to ensure fresh store instance
       vi.resetModules();

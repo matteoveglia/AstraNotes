@@ -3,21 +3,15 @@ import { usePlaylistsStore } from "@/store/playlistsStore";
 import type { Playlist } from "@/types";
 import { db } from "@/store/db";
 import { TestDataFactory } from "@/test/utils/testHelpers";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylists, mockGetLists, playlistClientMock } = vi.hoisted(
-  () => {
-    const mockGetPlaylists = vi.fn();
-    const mockGetLists = vi.fn();
-    return {
-      mockGetPlaylists,
-      mockGetLists,
-      playlistClientMock: {
-        getPlaylists: mockGetPlaylists,
-        getLists: mockGetLists,
-      },
-    };
-  },
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock(),
 );
+
+const mockGetPlaylists = playlistMocks.getPlaylists;
+const mockGetLists = playlistMocks.getLists;
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
 const { mockFtrackService } = vi.hoisted(() => ({
   mockFtrackService: {
@@ -27,7 +21,7 @@ const { mockFtrackService } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => playlistClientMock),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
@@ -44,10 +38,12 @@ describe("Playlist Deduplication Performance Tests", () => {
     vi.clearAllMocks();
     mockGetPlaylists.mockReset();
     mockGetLists.mockReset();
+    mockGetPlaylistVersions.mockReset();
     mockFtrackService.getPlaylists.mockReset();
     mockFtrackService.getLists.mockReset();
     mockGetPlaylists.mockResolvedValue([]);
     mockGetLists.mockResolvedValue([]);
+    mockGetPlaylistVersions.mockResolvedValue([]);
     mockFtrackService.getPlaylists.mockResolvedValue([]);
     mockFtrackService.getLists.mockResolvedValue([]);
   });

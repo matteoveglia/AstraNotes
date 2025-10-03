@@ -2,6 +2,7 @@ import { Session } from "@ftrack/api";
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import { AttachmentService } from "@/services/attachmentService";
 import type { Attachment } from "@/components/NoteAttachments";
+import type { NoteServiceContract } from "@/services/client/types";
 
 interface Label {
   id: string;
@@ -9,7 +10,10 @@ interface Label {
   color: string;
 }
 
-export class FtrackNoteService extends BaseFtrackClient {
+export class FtrackNoteService
+  extends BaseFtrackClient
+  implements NoteServiceContract
+{
   /* -------------------------------------------------- */
   /* helpers                                            */
   /* -------------------------------------------------- */

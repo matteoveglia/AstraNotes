@@ -3,15 +3,16 @@ import "fake-indexeddb/auto";
 import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylistVersions } = vi.hoisted(() => ({
-  mockGetPlaylistVersions: vi.fn(async () => []),
-}));
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock(),
+);
+
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
-    getPlaylistVersions: mockGetPlaylistVersions,
-  })),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 describe("PlaylistStore conversions", () => {

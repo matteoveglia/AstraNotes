@@ -785,7 +785,6 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                           onRemoveAttachment={handleRemoveAttachment}
                           disabled={status === "published"}
                         />
-
                       </div>
                       <NoteLabelSelect
                         value={labelId ?? ""}
@@ -850,9 +849,8 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             <DialogHeader>
               <DialogTitle>Available in Live Mode</DialogTitle>
               <DialogDescription>
-                In live mode, this button opens the version in ftrack.
-                Demo mode keeps navigation inside AstraNotes so you can explore
-                safely.
+                In live mode, this button opens the version in ftrack. Demo mode
+                keeps navigation inside AstraNotes so you can explore safely.
               </DialogDescription>
             </DialogHeader>
           </DialogContent>

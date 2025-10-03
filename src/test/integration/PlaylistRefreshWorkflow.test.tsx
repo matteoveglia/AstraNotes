@@ -3,15 +3,16 @@ import { renderHook, act } from "@testing-library/react";
 import { usePlaylistModifications } from "@/features/playlists/hooks/usePlaylistModifications";
 import { playlistStore } from "@/store/playlist";
 import type { Playlist, AssetVersion } from "@/types";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylistVersions } = vi.hoisted(() => ({
-  mockGetPlaylistVersions: vi.fn(),
-}));
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock(),
+);
+
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
-    getPlaylistVersions: mockGetPlaylistVersions,
-  })),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 // Mock console methods to avoid noise in tests

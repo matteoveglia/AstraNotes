@@ -3,15 +3,24 @@ import "fake-indexeddb/auto";
 import { db } from "@/store/db";
 import { playlistStore, PlaylistRepository } from "@/store/playlist";
 import type { PlaylistEntity } from "@/store/playlist/types";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
-const { mockGetPlaylistVersions } = vi.hoisted(() => ({
-  mockGetPlaylistVersions: vi.fn(async (_playlistId: string) => []),
-}));
+const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
+  createPlaylistServiceMock({
+    getPlaylistVersions: vi.fn(async (_playlistId: string) => []),
+  }),
+);
+
+const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
+const mockGetPlaylists = playlistMocks.getPlaylists;
+const mockGetLists = playlistMocks.getLists;
+const mockAddVersionsToPlaylist = playlistMocks.addVersionsToPlaylist;
+const mockCreateReviewSession = playlistMocks.createReviewSession;
+const mockCreateList = playlistMocks.createList;
+const mockGetProjects = playlistMocks.getProjects;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => ({
-    getPlaylistVersions: mockGetPlaylistVersions,
-  })),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 describe("PlaylistStore refresh flows", () => {
@@ -24,7 +33,15 @@ describe("PlaylistStore refresh flows", () => {
     await db.attachments.clear();
     vi.clearAllMocks();
     mockGetPlaylistVersions.mockReset();
-    mockGetPlaylistVersions.mockImplementation(async (_playlistId: string) => []);
+    mockGetPlaylistVersions.mockImplementation(
+      async (_playlistId: string) => [],
+    );
+    mockGetPlaylists.mockReset();
+    mockGetLists.mockReset();
+    mockAddVersionsToPlaylist.mockClear();
+    mockCreateReviewSession.mockClear();
+    mockCreateList.mockClear();
+    mockGetProjects.mockClear();
   });
 
   async function seedSyncedPlaylist(id: string) {

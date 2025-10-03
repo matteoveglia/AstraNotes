@@ -1,5 +1,6 @@
 import { demoSeed } from "@/services/mock/demoSeed";
 import type { AssetVersion } from "@/types";
+import type { VersionServiceContract } from "@/services/client/types";
 
 const latency = async () =>
   new Promise((resolve) => setTimeout(resolve, 150 + Math.random() * 250));
@@ -14,8 +15,9 @@ const seededVersions = demoSeed.assetVersions.map<AssetVersion>((seed) => ({
   thumbnailId: seed.componentIds[0],
 }));
 
-const versionById = new Map(seededVersions.map((version) => [version.id, version]));
-const seedById = new Map(demoSeed.assetVersions.map((version) => [version.id, version]));
+const seedById = new Map(
+  demoSeed.assetVersions.map((version) => [version.id, version]),
+);
 
 const componentMetadata = new Map(
   demoSeed.assetVersions.flatMap((version) =>
@@ -29,7 +31,7 @@ interface SearchVersionsOptions {
   projectId?: string;
 }
 
-export const mockVersionService = {
+export const mockVersionService: VersionServiceContract = {
   async searchVersions({
     searchTerm,
     limit = 50,
@@ -41,8 +43,10 @@ export const mockVersionService = {
       return [];
     }
 
-    const filtered = seededVersions.filter((version) =>
-      version.name.toLowerCase().includes(term) || version.id.toLowerCase().includes(term),
+    const filtered = seededVersions.filter(
+      (version) =>
+        version.name.toLowerCase().includes(term) ||
+        version.id.toLowerCase().includes(term),
     );
 
     return filtered.slice(0, limit);

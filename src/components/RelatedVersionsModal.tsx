@@ -202,7 +202,8 @@ export const RelatedVersionsModal: React.FC<RelatedVersionsModalProps> = ({
 
       // For shot statuses, we need to get the parent entity from status panel data
       const statusService = statusClient();
-      const statusData = await statusService.fetchStatusPanelData(firstVersionId);
+      const statusData =
+        await statusService.fetchStatusPanelData(firstVersionId);
 
       const promises = [
         relatedVersionsService.fetchAllVersionStatuses(firstVersionId),

@@ -1,7 +1,11 @@
 import { BaseFtrackClient } from "./BaseFtrackClient";
 import type { FtrackSettings } from "@/types";
+import type { AuthServiceContract } from "@/services/client/types";
 
-export class FtrackAuthService extends BaseFtrackClient {
+export class FtrackAuthService
+  extends BaseFtrackClient
+  implements AuthServiceContract
+{
   /**
    * Updates the stored connection credentials/settings.
    */

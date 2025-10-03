@@ -29,7 +29,10 @@ const tailwindHexMap: Record<string, string> = {
   "bg-emerald-800/70": "rgba(6, 95, 70, 0.7)",
 };
 
-export const tailwindTokenToHex = (token?: string, fallback = "#64748B"): string => {
+export const tailwindTokenToHex = (
+  token?: string,
+  fallback = "#64748B",
+): string => {
   if (!token) {
     return fallback;
   }

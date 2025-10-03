@@ -6,45 +6,45 @@ import {
   TestDatabaseHelpers,
   TestConsoleHelpers,
 } from "../utils/testHelpers";
+import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
 const {
-  mockGetPlaylistVersions,
-  mockGetPlaylists,
-  mockGetLists,
-  mockCreateReviewSession,
-  mockAddVersionsToPlaylist,
-  playlistServiceMock,
-} = vi.hoisted(() => {
-  const mockGetPlaylistVersions = vi.fn();
-  const mockGetPlaylists = vi.fn();
-  const mockGetLists = vi.fn();
-  const mockCreateReviewSession = vi.fn();
-  const mockAddVersionsToPlaylist = vi.fn();
-
-  const playlistServiceMock = {
+  service: playlistService,
+  mocks: {
     getPlaylistVersions: mockGetPlaylistVersions,
     getPlaylists: mockGetPlaylists,
     getLists: mockGetLists,
     createReviewSession: mockCreateReviewSession,
     addVersionsToPlaylist: mockAddVersionsToPlaylist,
-  };
-
-  return {
-    mockGetPlaylistVersions,
-    mockGetPlaylists,
-    mockGetLists,
-    mockCreateReviewSession,
-    mockAddVersionsToPlaylist,
-    playlistServiceMock,
-  };
-});
+  },
+} = vi.hoisted(() =>
+  createPlaylistServiceMock({
+    getPlaylistVersions: vi.fn(async () => []),
+    getPlaylists: vi.fn(async () => []),
+    getLists: vi.fn(async () => []),
+    createReviewSession: vi.fn(async () => ({
+      id: "mock-review",
+      name: "Mock Review",
+      type: "reviewsession",
+      success: true,
+    })),
+    addVersionsToPlaylist: vi.fn(
+      async (playlistId: string, versionIds: string[]) => ({
+        playlistId,
+        syncedVersionIds: [...versionIds],
+        failedVersionIds: [],
+        success: true,
+      }),
+    ),
+  }),
+);
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => playlistServiceMock),
+  playlistClient: vi.fn(() => playlistService),
 }));
 
 vi.mock("@/services/ftrack/FtrackPlaylistService", () => ({
-  ftrackPlaylistService: playlistServiceMock,
+  ftrackPlaylistService: playlistService,
 }));
 
 vi.mock("@/services/ftrack/FtrackNoteService", () => ({
@@ -72,8 +72,6 @@ describe("Critical Workflows Integration Tests", () => {
     mockGetPlaylistVersions.mockResolvedValue([]);
     mockGetPlaylists.mockResolvedValue([]);
     mockGetLists.mockResolvedValue([]);
-    playlistServiceMock.getPlaylistVersions.mockReset();
-    playlistServiceMock.getPlaylistVersions.mockResolvedValue([]);
   });
 
   afterEach(async () => {

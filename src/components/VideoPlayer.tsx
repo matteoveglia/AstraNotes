@@ -249,39 +249,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Determine effective current time for display: if dragging, use dragTime.
   const effectiveCurrentTime = isDragging ? dragTime : currentTime;
 
-  const updateVolumeFromClientY = useCallback(
-    (clientY: number) => {
-      const video = videoRef.current;
-      const slider = sliderAreaRef.current;
-      if (!video || !slider) {
-        return;
+  const updateVolumeFromClientY = useCallback((clientY: number) => {
+    const video = videoRef.current;
+    const slider = sliderAreaRef.current;
+    if (!video || !slider) {
+      return;
+    }
+
+    const rect = slider.getBoundingClientRect();
+    if (rect.height === 0) {
+      return;
+    }
+
+    const relative = rect.bottom - clientY;
+    const percent = Math.min(Math.max(relative / rect.height, 0), 1);
+
+    video.volume = percent;
+
+    if (percent === 0) {
+      video.muted = true;
+      setIsMuted(true);
+    } else {
+      if (video.muted) {
+        video.muted = false;
       }
+      setIsMuted(false);
+      setPreviousVolume(percent);
+    }
 
-      const rect = slider.getBoundingClientRect();
-      if (rect.height === 0) {
-        return;
-      }
-
-      const relative = rect.bottom - clientY;
-      const percent = Math.min(Math.max(relative / rect.height, 0), 1);
-
-      video.volume = percent;
-
-      if (percent === 0) {
-        video.muted = true;
-        setIsMuted(true);
-      } else {
-        if (video.muted) {
-          video.muted = false;
-        }
-        setIsMuted(false);
-        setPreviousVolume(percent);
-      }
-
-      setVolume(percent);
-    },
-    [],
-  );
+    setVolume(percent);
+  }, []);
 
   const handleVolumePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -521,9 +518,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 aria-label={
                   isMuted || volume === 0 ? "Unmute audio" : "Mute audio"
                 }
-                title={
-                  isMuted || volume === 0 ? "Unmute audio" : "Mute audio"
-                }
+                title={isMuted || volume === 0 ? "Unmute audio" : "Mute audio"}
               >
                 <VolumeIcon className="h-4.5 w-4.5" />
               </button>

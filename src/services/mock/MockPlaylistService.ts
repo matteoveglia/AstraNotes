@@ -8,6 +8,7 @@ import type {
   CreatePlaylistResponse,
   SyncVersionsResponse,
 } from "@/types";
+import type { PlaylistServiceContract } from "@/services/client/types";
 
 const delay = async () =>
   new Promise((resolve) => setTimeout(resolve, 130 + Math.random() * 220));
@@ -35,8 +36,12 @@ const playlists = new Map<string, Playlist>(
       name: seed.name,
       title: seed.name,
       notes: [],
-      createdAt: seed.date ? `${seed.date}T00:00:00Z` : new Date().toISOString(),
-      updatedAt: seed.date ? `${seed.date}T00:00:00Z` : new Date().toISOString(),
+      createdAt: seed.date
+        ? `${seed.date}T00:00:00Z`
+        : new Date().toISOString(),
+      updatedAt: seed.date
+        ? `${seed.date}T00:00:00Z`
+        : new Date().toISOString(),
       type: seed.type,
       categoryName: seed.categoryName,
       description: seed.description,
@@ -51,7 +56,38 @@ const playlistAssignments = new Map<string, Set<string>>(
   demoSeed.playlists.map((seed) => [seed.id, new Set(seed.versionIds)]),
 );
 
-export const mockPlaylistService = {
+const ensurePlaylist = (playlistId: string): Playlist | undefined =>
+  playlists.get(playlistId);
+
+const createPlaylistInternal = (
+  request: CreatePlaylistRequest,
+): CreatePlaylistResponse => {
+  const id = `demo:playlist:${request.name}:${Date.now()}`;
+  const type = request.type ?? "list";
+  const playlist: Playlist = {
+    id,
+    name: request.name,
+    title: request.name,
+    notes: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    type,
+    categoryName: request.categoryName ?? "Demo",
+    categoryId: request.categoryId,
+    projectId: request.projectId ?? demoSeed.project.id,
+    versions: [],
+  };
+  playlists.set(id, playlist);
+  playlistAssignments.set(id, new Set());
+  return {
+    id,
+    name: playlist.name,
+    type,
+    success: true,
+  };
+};
+
+export const mockPlaylistService: PlaylistServiceContract = {
   async getProjects(): Promise<Project[]> {
     await delay();
     return [
@@ -113,12 +149,17 @@ export const mockPlaylistService = {
     }
     return Array.from(categories.values());
   },
-  async getListCategories(): Promise<PlaylistCategory[]> {
+  async getListCategories(
+    projectId?: string | null,
+  ): Promise<PlaylistCategory[]> {
+    if (projectId && projectId !== demoSeed.project.id) {
+      return [];
+    }
     return this.getPlaylistCategories();
   },
   async getPlaylistVersions(playlistId: string): Promise<AssetVersion[]> {
     await delay();
-    const playlist = playlists.get(playlistId);
+    const playlist = ensurePlaylist(playlistId);
     if (!playlist) {
       return [];
     }
@@ -128,41 +169,13 @@ export const mockPlaylistService = {
     request: CreatePlaylistRequest,
   ): Promise<CreatePlaylistResponse> {
     await delay();
-    return this.createPlaylist(request, "reviewsession");
+    return createPlaylistInternal({ ...request, type: "reviewsession" });
   },
   async createList(
     request: CreatePlaylistRequest,
   ): Promise<CreatePlaylistResponse> {
     await delay();
-    return this.createPlaylist(request, "list");
-  },
-  async createPlaylist(
-    request: CreatePlaylistRequest,
-    type: "reviewsession" | "list" = "list",
-  ): Promise<CreatePlaylistResponse> {
-    await delay();
-    const id = `demo:playlist:${request.name}:${Date.now()}`;
-    const playlist: Playlist = {
-      id,
-      name: request.name,
-      title: request.name,
-      notes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      type,
-      categoryName: request.categoryName ?? "Demo",
-      categoryId: request.categoryId,
-      projectId: request.projectId ?? demoSeed.project.id,
-      versions: [],
-    };
-    playlists.set(id, playlist);
-    playlistAssignments.set(id, new Set());
-    return {
-      id,
-      name: playlist.name,
-      type,
-      success: true,
-    };
+    return createPlaylistInternal({ ...request, type: "list" });
   },
   async addVersionsToPlaylist(
     playlistId: string,
@@ -170,7 +183,7 @@ export const mockPlaylistService = {
     _playlistType: "reviewsession" | "list" = "reviewsession",
   ): Promise<SyncVersionsResponse> {
     await delay();
-    const playlist = playlists.get(playlistId);
+    const playlist = ensurePlaylist(playlistId);
     if (!playlist) {
       return {
         playlistId,

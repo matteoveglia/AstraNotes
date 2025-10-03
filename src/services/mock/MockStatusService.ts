@@ -1,5 +1,6 @@
 import { demoSeed } from "@/services/mock/demoSeed";
 import { tailwindTokenToHex } from "@/services/mock/tailwindColorMap";
+import type { StatusServiceContract } from "@/services/client/types";
 
 type StatusWithColor = {
   id: string;
@@ -22,33 +23,47 @@ interface DemoStatusPanelData {
   projectId: string;
 }
 
-const versionSeedById = new Map(demoSeed.assetVersions.map((version) => [version.id, version]));
+const versionSeedById = new Map(
+  demoSeed.assetVersions.map((version) => [version.id, version]),
+);
 
-const versionStatuses: StatusWithColor[] = demoSeed.versionStatuses.map((status) => ({
-  id: status.id,
-  name: status.name,
-  color: tailwindTokenToHex(status.colorToken?.text ?? status.colorToken?.background),
-}));
+const versionStatuses: StatusWithColor[] = demoSeed.versionStatuses.map(
+  (status) => ({
+    id: status.id,
+    name: status.name,
+    color: tailwindTokenToHex(
+      status.colorToken?.text ?? status.colorToken?.background,
+    ),
+  }),
+);
 
 const shotStatuses: StatusWithColor[] = demoSeed.shotStatuses.map((status) => ({
   id: status.id,
   name: status.name,
-  color: tailwindTokenToHex(status.colorToken?.text ?? status.colorToken?.background),
+  color: tailwindTokenToHex(
+    status.colorToken?.text ?? status.colorToken?.background,
+  ),
 }));
 
-const versionStatusById = new Map(versionStatuses.map((status) => [status.id, status]));
+const versionStatusById = new Map(
+  versionStatuses.map((status) => [status.id, status]),
+);
 const versionStatusIdByName = new Map(
   versionStatuses.map((status) => [status.name.toLowerCase(), status.id]),
 );
 
-const shotStatusById = new Map(shotStatuses.map((status) => [status.id, status]));
+const shotStatusById = new Map(
+  shotStatuses.map((status) => [status.id, status]),
+);
 const shotStatusIdByName = new Map(
   shotStatuses.map((status) => [status.name.toLowerCase(), status.id]),
 );
 
 const defaultShotStatusByShot = new Map<string, string>();
 
-const normalizeVersionStatusId = (value?: string | null): string | undefined => {
+const normalizeVersionStatusId = (
+  value?: string | null,
+): string | undefined => {
   if (!value) {
     return undefined;
   }
@@ -75,7 +90,7 @@ for (const version of demoSeed.assetVersions) {
   }
 }
 
-export const mockStatusService = {
+export const mockStatusService: StatusServiceContract = {
   async fetchStatusPanelData(versionId: string): Promise<DemoStatusPanelData> {
     await delay();
     const version = versionSeedById.get(versionId);
@@ -84,10 +99,12 @@ export const mockStatusService = {
     }
 
     const defaultVersionStatusId = normalizeVersionStatusId(version.status);
-    const versionStatusId = assignments.get(versionId) ?? defaultVersionStatusId;
+    const versionStatusId =
+      assignments.get(versionId) ?? defaultVersionStatusId;
 
     const shotStatusId =
-      shotAssignments.get(version.shot) ?? defaultShotStatusByShot.get(version.shot);
+      shotAssignments.get(version.shot) ??
+      defaultShotStatusByShot.get(version.shot);
 
     return {
       versionId: version.id,
@@ -104,7 +121,8 @@ export const mockStatusService = {
     if (entityType === "AssetVersion") {
       const version = versionSeedById.get(entityId);
       const rawCurrent = assignments.get(entityId) ?? version?.status ?? null;
-      const current = normalizeVersionStatusId(rawCurrent) ?? rawCurrent ?? null;
+      const current =
+        normalizeVersionStatusId(rawCurrent) ?? rawCurrent ?? null;
       return versionStatuses.map((status) => ({
         ...status,
         isCurrent: current === status.id,
@@ -113,7 +131,9 @@ export const mockStatusService = {
 
     if (entityType === "Shot") {
       const rawCurrent =
-        shotAssignments.get(entityId) ?? defaultShotStatusByShot.get(entityId) ?? null;
+        shotAssignments.get(entityId) ??
+        defaultShotStatusByShot.get(entityId) ??
+        null;
       const current = normalizeShotStatusId(rawCurrent) ?? rawCurrent ?? null;
       return shotStatuses.map((status) => ({
         ...status,
