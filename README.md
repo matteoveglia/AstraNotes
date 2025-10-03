@@ -52,15 +52,15 @@ AstraNotes requires ftrack credentials for authentication. Upon first launch, yo
 
 These settings can be updated anytime through the settings panel.
 
-## Development
-**For detailed development instructions, see [Development Guide](./docs/development.md).**
-
 ## Demo Mode (Offline Mock Data)
 
 - **What it is**: A self-contained Big Buck Bunny dataset bundled with AstraNotes so you can explore playlists, notes, and status flows without an ftrack account.
 - **How to enable**: Open the Settings panel and click **Enable Demo Mode**. A confirmation dialog explains that caches will be cleared and the app will restart in mock mode.
 - **How to disable**: Return to Settings and click **Disable Demo Mode** to restore the live ftrack connection.
-- **Optional media**: Place the `AstraNotes_MockData` archive under `~/Downloads/` to unlock MOV previews. If the clips are missing, AstraNotes falls back to thumbnails. You can download the demo data from [here](https://drive.google.com/file/d/1oAtv3SXF21z1TcA_27aCD6KNXEbGxd9_/view?usp=sharing).
+- **Optional media**: Place the `AstraNotes_MockData` archive under `~/Downloads/` to unlock MOV previews. If the clips are missing, AstraNotes falls back to thumbnails. You can download the demo data from [here](https://drive.google.com/file/d/1oAtv3SXF21z1TcA_27aCD6KNZEbGxd9_/view?usp=sharing).
+
+## Development
+**For detailed development instructions, see [Development Guide](./docs/development.md).**
 
 ## Troubleshooting
 

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Settings, Download } from "lucide-react";
+import { Settings, Download, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isModeDialogOpen, setIsModeDialogOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -287,6 +288,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 md:gap-7">
           {/* Left Column */}
           <div className="space-y-4">
+            <div className="border p-4 rounded-md bg-muted/30">
+              <h1 className="text-3xl font-semibold mb-2 text-center">
+                AstraNotes
+              </h1>
+              <p className="text-sm text-muted-foreground text-center mb-2">
+                Version: {appVersion}
+              </p>
+              <p className="text-sm text-muted-foreground text-center">
+                by{" "}
+                <a
+                  href="https://astralumen.co/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                >
+                  Astra Lumen Images
+                </a>
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="serverUrl">ftrack URL</Label>
               <Input
@@ -300,14 +321,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="apiKey">API Key</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                value={settings.apiKey}
-                onChange={handleInputChange("apiKey")}
-                placeholder="Your ftrack API key"
-                disabled={isDemoMode || isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="apiKey"
+                  type={showApiKey ? "text" : "password"}
+                  value={settings.apiKey}
+                  onChange={handleInputChange("apiKey")}
+                  placeholder="Your ftrack API key"
+                  disabled={isDemoMode || isLoading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey((prev) => !prev)}
+                  className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                  disabled={isDemoMode || isLoading}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -410,27 +443,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Right Column */}
           <div className="space-y-4">
-            <div className="border p-4 rounded-md bg-muted/30">
-              <h1 className="text-3xl font-semibold mb-2 text-center">
-                AstraNotes
-              </h1>
-              <p className="text-sm text-muted-foreground text-center mb-2">
-                Version: {appVersion}
-              </p>
-              <p className="text-sm text-muted-foreground text-center">
-                by{" "}
-                <a
-                  href="https://astralumen.co/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium hover:underline"
-                >
-                  Astra Lumen Images
-                </a>
-              </p>
-            </div>
-
-            <div className="border-t pt-4 mt-4">
+            <div className="">
               <div className="flex justify-between items-center">
                 <div>
                   <h4 className="font-medium">Updates</h4>

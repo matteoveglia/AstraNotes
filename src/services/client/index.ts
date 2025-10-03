@@ -17,42 +17,47 @@ import type {
   VersionServiceContract,
 } from "./types";
 
-const versionServices: Record<"real" | "demo", VersionServiceContract> = {
-  real: ftrackVersionService,
-  demo: mockVersionService,
-};
-
-const noteServices: Record<"real" | "demo", NoteServiceContract> = {
-  real: ftrackNoteService,
-  demo: mockNoteService,
-};
-
-const playlistServices: Record<"real" | "demo", PlaylistServiceContract> = {
-  real: ftrackPlaylistService,
-  demo: mockPlaylistService,
-};
-
-const statusServices: Record<"real" | "demo", StatusServiceContract> = {
-  real: ftrackStatusService,
-  demo: mockStatusService,
-};
-
-const authServices: Record<"real" | "demo", AuthServiceContract> = {
-  real: ftrackAuthService,
-  demo: mockAuthService,
-};
-
 const getMode = () => useAppModeStore.getState().appMode;
 
-export const versionClient = (): VersionServiceContract =>
-  versionServices[getMode()];
+const versionServices: Record<"real" | "demo", () => VersionServiceContract> = {
+  real: () => ftrackVersionService,
+  demo: () => mockVersionService,
+};
 
-export const noteClient = (): NoteServiceContract => noteServices[getMode()];
+const noteServices: Record<"real" | "demo", () => NoteServiceContract> = {
+  real: () => ftrackNoteService,
+  demo: () => mockNoteService,
+};
+
+const playlistServices: Record<
+  "real" | "demo",
+  () => PlaylistServiceContract
+> = {
+  real: () => ftrackPlaylistService,
+  demo: () => mockPlaylistService,
+};
+
+const statusServices: Record<"real" | "demo", () => StatusServiceContract> = {
+  real: () => ftrackStatusService,
+  demo: () => mockStatusService,
+};
+
+const authServices: Record<"real" | "demo", () => AuthServiceContract> = {
+  real: () => ftrackAuthService,
+  demo: () => mockAuthService,
+};
+
+export const versionClient = (): VersionServiceContract =>
+  versionServices[getMode()]();
+
+export const noteClient = (): NoteServiceContract =>
+  noteServices[getMode()]();
 
 export const playlistClient = (): PlaylistServiceContract =>
-  playlistServices[getMode()];
+  playlistServices[getMode()]();
 
 export const statusClient = (): StatusServiceContract =>
-  statusServices[getMode()];
+  statusServices[getMode()]();
 
-export const authClient = (): AuthServiceContract => authServices[getMode()];
+export const authClient = (): AuthServiceContract =>
+  authServices[getMode()]();

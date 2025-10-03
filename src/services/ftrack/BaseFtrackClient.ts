@@ -15,84 +15,50 @@ import { safeConsoleError } from "@/utils/errorHandling";
  * methods (caching utilities etc.) will be migrated here incrementally in
  * later sub-phases.
  */
+type SessionReadyState =
+  | { kind: "idle" }
+  | { kind: "initializing"; promise: Promise<Session | null> }
+  | { kind: "ready"; session: Session };
+
 export class BaseFtrackClient {
-  private static _instance: BaseFtrackClient;
-  private session: Session | null = null;
-  private settings: FtrackSettings | null = null;
+  private static settings: FtrackSettings | null = null;
+  private static sessionState: SessionReadyState = { kind: "idle" };
 
   constructor() {
-    // Load persisted settings (same mechanism as monolith for now)
-    const saved = localStorage.getItem("ftrackSettings");
-    if (saved) {
-      try {
-        this.settings = JSON.parse(saved);
-      } catch (err) {
-        console.error("[BaseFtrackClient] Failed to parse saved settings", err);
-      }
-    }
+    BaseFtrackClient.ensureSettingsLoaded();
   }
 
   /**
-   * Singleton accessor so all wrapper services share the same session.
+   * Persist settings and reset the shared session.
    */
-  static get instance(): BaseFtrackClient {
-    if (!this._instance) {
-      this._instance = new BaseFtrackClient();
-    }
-    return this._instance;
-  }
-
   updateSettings(settings: FtrackSettings) {
-    // Update internal cache & persist
-    this.settings = { ...settings };
-    localStorage.setItem("ftrackSettings", JSON.stringify(settings));
-    // Invalidate existing session so a fresh one is created lazily
-    this.session = null;
+    BaseFtrackClient.settings = { ...settings };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ftrackSettings", JSON.stringify(settings));
+    }
+    BaseFtrackClient.resetSession();
   }
 
   /**
-   * Create a new Session if not already initialised.
+   * Returns the shared Session instance, creating it if necessary.
    */
-  private async initSession(): Promise<Session | null> {
-    if (
-      !this.settings?.serverUrl ||
-      !this.settings?.apiKey ||
-      !this.settings?.apiUser
-    ) {
-      return null;
-    }
-
-    try {
-      this.session = new Session(
-        this.settings.serverUrl,
-        this.settings.apiUser,
-        this.settings.apiKey,
-        {
-          autoConnectEventHub: false,
-        },
-      );
-      await this.session.initializing;
-      return this.session;
-    } catch (error) {
-      // Keep error small – full error handling is still inside monolith path
-      safeConsoleError(
-        "[BaseFtrackClient] Failed to initialise session",
-        error,
-      );
-      this.session = null;
-      return null;
-    }
-  }
-
   async getSession(): Promise<Session> {
-    if (this.session) return this.session;
-    const sess = await this.initSession();
-    if (!sess) {
+    const existing = BaseFtrackClient.getExistingSession();
+    if (existing) {
+      return existing;
+    }
+
+    const initialization = BaseFtrackClient.ensureSessionInitializing();
+    const session = await initialization;
+    if (!session) {
       throw new Error("Failed to initialise ftrack session – check settings");
     }
-    return sess;
+    return session;
   }
 
+  /**
+   * Alias kept for legacy usage in downstream services.
+   */
   async ensureSession(): Promise<Session> {
     return this.getSession();
   }
@@ -101,7 +67,6 @@ export class BaseFtrackClient {
     try {
       const session = await this.ensureSession();
       if (!session) return false;
-      // Simple query to validate
       const result = await session.query("select id from User limit 1");
       return !!result?.data?.length;
     } catch (err) {
@@ -109,11 +74,85 @@ export class BaseFtrackClient {
     }
   }
 
-  /** Protected getter for settings access in derived classes */
+  /** Convenience accessor for derived classes */
   protected getSettings(): FtrackSettings | null {
-    return this.settings;
+    BaseFtrackClient.ensureSettingsLoaded();
+    return BaseFtrackClient.settings;
+  }
+
+  /**
+   * Shared helpers
+   */
+  private static ensureSettingsLoaded() {
+    if (this.settings || typeof window === "undefined") {
+      return;
+    }
+
+    const saved = window.localStorage.getItem("ftrackSettings");
+    if (saved) {
+      try {
+        this.settings = JSON.parse(saved) as FtrackSettings;
+      } catch (err) {
+        console.error("[BaseFtrackClient] Failed to parse saved settings", err);
+        this.settings = null;
+      }
+    }
+  }
+
+  private static getExistingSession(): Session | null {
+    if (this.sessionState.kind === "ready") {
+      return this.sessionState.session;
+    }
+    return null;
+  }
+
+  private static resetSession() {
+    if (this.sessionState.kind === "ready") {
+      try {
+        const maybeClosable = this.sessionState.session as unknown as {
+          close?: () => void;
+        };
+        maybeClosable.close?.();
+      } catch (err) {
+        safeConsoleError("[BaseFtrackClient] Failed to close session", err);
+      }
+    }
+    this.sessionState = { kind: "idle" };
+  }
+
+  private static ensureSessionInitializing(): Promise<Session | null> {
+    if (this.sessionState.kind === "initializing") {
+      return this.sessionState.promise;
+    }
+
+    if (this.sessionState.kind === "ready") {
+      return Promise.resolve(this.sessionState.session);
+    }
+
+    const settings = this.settings;
+    if (!settings?.serverUrl || !settings?.apiKey || !settings?.apiUser) {
+      return Promise.resolve(null);
+    }
+
+    const initializationPromise = (async () => {
+      try {
+        const session = new Session(settings.serverUrl, settings.apiUser, settings.apiKey, {
+          autoConnectEventHub: false,
+        });
+        await session.initializing;
+        this.sessionState = { kind: "ready", session };
+        return session;
+      } catch (error) {
+        safeConsoleError("[BaseFtrackClient] Failed to initialise session", error);
+        this.sessionState = { kind: "idle" };
+        return null;
+      }
+    })();
+
+    this.sessionState = { kind: "initializing", promise: initializationPromise };
+    return initializationPromise;
   }
 }
 
-// Convenience singleton export
-export const baseFtrackClient = BaseFtrackClient.instance;
+// Convenience re-export for legacy imports
+export const baseFtrackClient = new BaseFtrackClient();
