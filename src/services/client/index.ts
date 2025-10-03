@@ -29,13 +29,11 @@ const noteServices: Record<"real" | "demo", () => NoteServiceContract> = {
   demo: () => mockNoteService,
 };
 
-const playlistServices: Record<
-  "real" | "demo",
-  () => PlaylistServiceContract
-> = {
-  real: () => ftrackPlaylistService,
-  demo: () => mockPlaylistService,
-};
+const playlistServices: Record<"real" | "demo", () => PlaylistServiceContract> =
+  {
+    real: () => ftrackPlaylistService,
+    demo: () => mockPlaylistService,
+  };
 
 const statusServices: Record<"real" | "demo", () => StatusServiceContract> = {
   real: () => ftrackStatusService,
@@ -50,8 +48,7 @@ const authServices: Record<"real" | "demo", () => AuthServiceContract> = {
 export const versionClient = (): VersionServiceContract =>
   versionServices[getMode()]();
 
-export const noteClient = (): NoteServiceContract =>
-  noteServices[getMode()]();
+export const noteClient = (): NoteServiceContract => noteServices[getMode()]();
 
 export const playlistClient = (): PlaylistServiceContract =>
   playlistServices[getMode()]();
@@ -59,5 +56,4 @@ export const playlistClient = (): PlaylistServiceContract =>
 export const statusClient = (): StatusServiceContract =>
   statusServices[getMode()]();
 
-export const authClient = (): AuthServiceContract =>
-  authServices[getMode()]();
+export const authClient = (): AuthServiceContract => authServices[getMode()]();

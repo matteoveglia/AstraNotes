@@ -136,20 +136,31 @@ export class BaseFtrackClient {
 
     const initializationPromise = (async () => {
       try {
-        const session = new Session(settings.serverUrl, settings.apiUser, settings.apiKey, {
-          autoConnectEventHub: false,
-        });
+        const session = new Session(
+          settings.serverUrl,
+          settings.apiUser,
+          settings.apiKey,
+          {
+            autoConnectEventHub: false,
+          },
+        );
         await session.initializing;
         this.sessionState = { kind: "ready", session };
         return session;
       } catch (error) {
-        safeConsoleError("[BaseFtrackClient] Failed to initialise session", error);
+        safeConsoleError(
+          "[BaseFtrackClient] Failed to initialise session",
+          error,
+        );
         this.sessionState = { kind: "idle" };
         return null;
       }
     })();
 
-    this.sessionState = { kind: "initializing", promise: initializationPromise };
+    this.sessionState = {
+      kind: "initializing",
+      promise: initializationPromise,
+    };
     return initializationPromise;
   }
 }

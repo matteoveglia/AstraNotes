@@ -338,7 +338,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   aria-label={showApiKey ? "Hide API key" : "Show API key"}
                   disabled={isDemoMode || isLoading}
                 >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showApiKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
