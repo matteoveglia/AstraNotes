@@ -1,15 +1,15 @@
 {
-  "version": "0.16.2",
+  "version": "0.16.3",
   "notes": "Re-release - Fix for API auth save failure. Added Demo Mode using Big Buck Bunny assets (bundled). Upgraded to React 19. Further removed legacy code. Switched to contract based services for potential future ShotGrid integration.",
-  "pub_date": "2025-10-03T22:56:21Z",
+  "pub_date": "2025-10-04T11:26:26Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.16.2/AstraNotes_0.16.2_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzloeHpIaFdOeHp4cTN2ZnlMYjlmeE1OWVMxeWROOW9nQUFUTHVhZFhXWndKNHlpSjl6eFhkcmxZU1lZbkJzUmd6K3pxZkhyM2JYQWNCRHp2cXduVlFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzU5NTMyMTMwCWZpbGU6QXN0cmFOb3Rlc18wLjE2LjJfeDY0X2VuLVVTLm1zaQo3eE5NSmYyL0pIQ3lYaDJacmFWaFNRRzdIWU9iV0lwc3IyUkJwa1k1ejhEZmxyRUdLRDhMZkkxUXh5dUU2SW4xYjdKTXZOajVMY3hmSERBUm56bERDUT09Cg=="
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.16.3/AstraNotes_0.16.3_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzdhR1Rna3dueFhXSXRISHl3cEtDWHc2aWtSZ2VJU2FoOEtsM1NqVWpUWWxHcU44UVFscEhOUHlkdFNCUmRtbVh4c0pTZ245eXlhYVJWWkJwYzZuV3c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzU5NTc3MTQyCWZpbGU6QXN0cmFOb3Rlc18wLjE2LjNfeDY0X2VuLVVTLm1zaQpUdWpYWVdXRC9uK1EwNmY0ek9ZUlp1QzVmb1RFem44ZDRpd0M0WkpJOTJQL3A4Kzl2OU9kb1luVFRxTk9XaDIrSDg2TzQyMGluYVpxN0E1VGhxUGVDZz09Cg=="
     },
     "darwin-aarch64": {
-      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.16.2/AstraNotes.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzVNcy9RRXVJQ1BTSFB0elZ3R1ZTaFBSN1c1ZEVDTVhhY2hIREt1dUZWQ1ZCaCtlNW5ldUZHYjFqL1JrdkxsK1gwUGJkUk9yWjQra2dIdVJSSVFJYndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzU5NTMxOTU0CWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CjJPclV4Vm9GS1A5R1pFb0dUWmkrTjR6Z01BdjQ3aHc1VHA1bGdZUFJuS1Njdks4WENKZkNBMWJpZFAxTmpNazZUcFdvMi9QVStTaW5rZUM2cHo2a0RBPT0K"
+      "url": "https://github.com/matteoveglia/AstraNotes/releases/download/v0.16.3/AstraNotes.app.tar.gz",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTRU92cFVmd3B1LzZNSkpTME9YSUx1OEczeWFCTVBjZERNaU9Edk52VjlOK3pmV1ZhSFE0bGp5M1dCdFE2bjhzWFlXbFoxZkxSbEF6ZExvK0Zya0tjNVJiNTROaFdwaFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzU5NTc2OTAxCWZpbGU6QXN0cmFOb3Rlcy5hcHAudGFyLmd6CnlhbUpJMGFVNGU3aHZIQU4yWDNWNm5WdVVLN0RPV2I1K2V6QTFpeC8xbFU5cnR2dDFZcURsWGJpMnAzcU5xdFpiY2tEUDNJWVAwLzJjU3NnTExScENnPT0K"
     }
   }
 }
