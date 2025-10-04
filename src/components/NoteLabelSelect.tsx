@@ -36,6 +36,7 @@ export const NoteLabelSelect = forwardRef<
   const isDemoMode = appMode === "demo";
   const hasSetDefault = useRef(false);
   const [internalValue, setInternalValue] = useState<string>(value || "");
+  const previousModeRef = useRef(appMode);
 
   // Fetch labels if needed
   useEffect(() => {
@@ -43,6 +44,16 @@ export const NoteLabelSelect = forwardRef<
       fetchLabels();
     }
   }, [fetchLabels]);
+
+  // Refetch labels whenever the application mode changes to ensure demo data is loaded
+  useEffect(() => {
+    if (previousModeRef.current !== appMode) {
+      previousModeRef.current = appMode;
+      fetchLabels();
+      // Allow default label recalculation for the new dataset
+      hasSetDefault.current = false;
+    }
+  }, [appMode, fetchLabels]);
 
   // Handle external value changes
   useEffect(() => {

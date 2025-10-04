@@ -80,6 +80,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const displayServerUrl = isDemoMode
+    ? "https://demo.ftrackapp.com"
+    : settings.serverUrl;
+  const displayApiUser = isDemoMode
+    ? "demouser@gmail.com"
+    : settings.apiUser;
 
   useEffect(() => {
     if (isOpen) {
@@ -312,7 +318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Label htmlFor="serverUrl">ftrack URL</Label>
               <Input
                 id="serverUrl"
-                value={settings.serverUrl}
+                value={displayServerUrl}
                 onChange={handleInputChange("serverUrl")}
                 placeholder="e.g. https://yourserver.ftrackapp.com"
                 disabled={isDemoMode || isLoading}
@@ -351,7 +357,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Label htmlFor="apiUser">API User</Label>
               <Input
                 id="apiUser"
-                value={settings.apiUser}
+                value={displayApiUser}
                 onChange={handleInputChange("apiUser")}
                 placeholder="Your ftrack account email"
                 disabled={isDemoMode || isLoading}

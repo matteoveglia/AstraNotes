@@ -36,7 +36,7 @@ import {
   exportPlaylistNotesToPDF,
 } from "../lib/exportUtils";
 import { useToast } from "./ui/toast";
-import { ftrackNoteService } from "../services/ftrack/FtrackNoteService";
+import { noteClient } from "@/services/client";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { MarkdownEditor } from "./MarkdownEditor";
 import * as ToggleGroup from "@radix-ui/react-toggle-group";
+import { useAppModeStore } from "@/store/appModeStore";
 
 interface PlaylistMenuProps {
   onClearAllNotes: () => void;
@@ -77,19 +78,27 @@ export const PlaylistMenu: React.FC<PlaylistMenuProps> = ({
   const toast = useToast();
 
   const { playlists, activePlaylistId } = usePlaylistsStore();
+  const appMode = useAppModeStore((state) => state.appMode);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchLabels = async () => {
       try {
-        const noteLabels = await ftrackNoteService.getNoteLabels();
-        setLabels(noteLabels);
+        const noteLabels = await noteClient().getNoteLabels();
+        if (isMounted) {
+          setLabels(noteLabels);
+        }
       } catch (error) {
         console.error("Failed to fetch note labels:", error);
       }
     };
 
     fetchLabels();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [appMode]);
 
   const handleExportClick = async () => {
     if (!activePlaylistId) return;
