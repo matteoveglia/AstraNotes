@@ -5,7 +5,48 @@ After then, I will only push security updates and critical bug fixes.
 
 # AstraNotes
 
-AstraNotes is a desktop app, for Windows and macOS, that integrates with [ftrack](https://www.ftrack.com/) to provide an better experience for note taking.
+<p align="center">
+  <img src="./docs/screenshots/anotes_1.png" width="720" alt="Drafting notes on a playlist view">
+</p>
+
+<details>
+  <summary><strong>Screenshots</strong></summary>
+
+  <table>
+    <tr>
+      <td><img src="./docs/screenshots/anotes_2.png" width="320" alt="AstraNotes screenshot 2"></td>
+      <td><img src="./docs/screenshots/anotes_3.png" width="320" alt="AstraNotes screenshot 3"></td>
+    </tr>
+    <tr>
+      <td align="center"><em>Further version details + dark mode</em></td>
+      <td align="center"><em>Notes related to the current shot</em></td>
+    </tr>
+    <tr>
+      <td><img src="./docs/screenshots/anotes_4.png" width="320" alt="AstraNotes screenshot 4"></td>
+      <td><img src="./docs/screenshots/anotes_5.png" width="320" alt="AstraNotes screenshot 5"></td>
+    </tr>
+    <tr>
+      <td align="center"><em>Other versions related to the current shot</em></td>
+      <td align="center"><em>Thumbnail and playable media previews</em></td>
+    </tr>
+    <tr>
+      <td><img src="./docs/screenshots/anotes_6.png" width="320" alt="AstraNotes screenshot 6"></td>
+      <td><img src="./docs/screenshots/anotes_7.png" width="320" alt="AstraNotes screenshot 7"></td>
+    </tr>
+    <tr>
+      <td align="center"><em>Add 1 or more versions to a playlist</em></td>
+      <td align="center"><em>Create a new local offline playlist</em></td>
+    </tr>
+    <tr>
+      <td><img src="./docs/screenshots/anotes_8.png" width="320" alt="AstraNotes screenshot 8"></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td align="center"><em>Change Shot/Version statuses live</em></td>
+      <td></td>
+    </tr>
+  </table>
+</details>
 
 ## Features
 
@@ -81,7 +122,10 @@ These settings can be updated anytime through the settings panel.
 
 ### Logs
 
-AstraNotes logs can be exported from the Settings panel for troubleshooting. Click "Export Logs" to save a log file with the last 24 hours of activity.
+AstraNotes logs can be exported from the Settings panel for troubleshooting.
+- Click "Export Logs" to save a log file with the last 24 hours of activity.
+- Toggle Debug logging if you need more detailed logs, please note, this will need to be toggled before the issue occurs and may cause performance degradation.
+
 ## 🛡️ Security
 
 ### VirusTotal Scan
