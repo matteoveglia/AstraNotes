@@ -1,68 +1,62 @@
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "platforms": [
-    "macOS",
-    "windows",
-    "linux"
-  ],
-  "description": "enables the default app permissions",
-  "windows": [
-    "main"
-  ],
-  "permissions": [
-    "core:default",
-    "updater:default",
-    "fs:allow-download-write",
-    "fs:allow-download-read",
-    "fs:allow-download-meta",
-    "fs:allow-download-read-recursive",
-    "fs:allow-download-meta-recursive",
-    {
-      "identifier": "fs:allow-stat",
-      "allow": [
-        {
-          "path": "$HOME/Downloads/AstraNotes_MockData/**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read",
-      "allow": [
-        {
-          "path": "$HOME/Downloads/AstraNotes_MockData/**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read-dir",
-      "allow": [
-        {
-          "path": "$HOME/Downloads/AstraNotes_MockData/**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [
-        {
-          "path": "$HOME/Downloads/AstraNotes_MockData/**"
-        }
-      ]
-    },
-    {
-      "identifier": "http:default",
-      "allow": [
-        {
-          "url": "https://**"
-        }
-      ]
-    },
-    "dialog:default",
-    "process:default",
-    "shell:default",
-    "core:app:allow-set-app-theme",
-    "core:window:allow-theme",
-    "core:window:allow-set-theme"
-  ]
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"platforms": ["macOS", "windows", "linux"],
+	"description": "enables the default app permissions",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"updater:default",
+		"fs:allow-download-write",
+		"fs:allow-download-read",
+		"fs:allow-download-meta",
+		"fs:allow-download-read-recursive",
+		"fs:allow-download-meta-recursive",
+		{
+			"identifier": "fs:allow-stat",
+			"allow": [
+				{
+					"path": "$HOME/Downloads/AstraNotes_MockData/**"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-read",
+			"allow": [
+				{
+					"path": "$HOME/Downloads/AstraNotes_MockData/**"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-read-dir",
+			"allow": [
+				{
+					"path": "$HOME/Downloads/AstraNotes_MockData/**"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-read-file",
+			"allow": [
+				{
+					"path": "$HOME/Downloads/AstraNotes_MockData/**"
+				}
+			]
+		},
+		{
+			"identifier": "http:default",
+			"allow": [
+				{
+					"url": "https://**"
+				}
+			]
+		},
+		"dialog:default",
+		"process:default",
+		"shell:default",
+		"core:app:allow-set-app-theme",
+		"core:window:allow-theme",
+		"core:window:allow-set-theme"
+	]
 }

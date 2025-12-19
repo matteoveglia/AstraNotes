@@ -8,20 +8,20 @@ import { statusClient } from "@/services/client";
  * loading the project list and label definitions.
  */
 export function useAppInitializer(): void {
-  const loadProjects = useProjectStore((state) => state.loadProjects);
-  const fetchLabels = useLabelStore((state) => state.fetchLabels);
+	const loadProjects = useProjectStore((state) => state.loadProjects);
+	const fetchLabels = useLabelStore((state) => state.fetchLabels);
 
-  useEffect(() => {
-    Promise.all([
-      loadProjects(),
-      fetchLabels(),
-      statusClient()
-        .ensureStatusMappingsInitialized()
-        .catch((error) => {
-          console.error("Failed to initialize status mappings:", error);
-        }),
-    ]).catch((error) => {
-      console.error("Failed to initialize app:", error);
-    });
-  }, [loadProjects, fetchLabels]);
+	useEffect(() => {
+		Promise.all([
+			loadProjects(),
+			fetchLabels(),
+			statusClient()
+				.ensureStatusMappingsInitialized()
+				.catch((error) => {
+					console.error("Failed to initialize status mappings:", error);
+				}),
+		]).catch((error) => {
+			console.error("Failed to initialize app:", error);
+		});
+	}, [loadProjects, fetchLabels]);
 }

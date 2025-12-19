@@ -3,30 +3,30 @@ import type { FtrackSettings } from "@/types";
 import type { AuthServiceContract } from "@/services/client/types";
 
 export class FtrackAuthService
-  extends BaseFtrackClient
-  implements AuthServiceContract
+	extends BaseFtrackClient
+	implements AuthServiceContract
 {
-  /**
-   * Updates the stored connection credentials/settings.
-   */
-  async updateSettings(settings: FtrackSettings) {
-    super.updateSettings(settings);
-  }
+	/**
+	 * Updates the stored connection credentials/settings.
+	 */
+	async updateSettings(settings: FtrackSettings) {
+		super.updateSettings(settings);
+	}
 
-  /**
-   * Lightweight connection test to validate credentials.
-   */
-  async testConnection(): Promise<boolean> {
-    return super.testConnection();
-  }
+	/**
+	 * Lightweight connection test to validate credentials.
+	 */
+	async testConnection(): Promise<boolean> {
+		return super.testConnection();
+	}
 
-  /**
-   * Exposes access to an initialised Session object when absolutely necessary.
-   * NOTE: New code should avoid depending directly on the Session.
-   */
-  async getSession() {
-    return super.getSession();
-  }
+	/**
+	 * Exposes access to an initialised Session object when absolutely necessary.
+	 * NOTE: New code should avoid depending directly on the Session.
+	 */
+	async getSession() {
+		return super.getSession();
+	}
 }
 
 export const ftrackAuthService = new FtrackAuthService();

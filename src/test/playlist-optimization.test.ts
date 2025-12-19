@@ -203,7 +203,7 @@ import { describe, it, expect } from "vitest";
 
 // Placeholder test to prevent empty test file
 describe("Placeholder", () => {
-  it("should pass", () => {
-    expect(true).toBe(true);
-  });
+	it("should pass", () => {
+		expect(true).toBe(true);
+	});
 });

@@ -6,60 +6,60 @@ import type { PlaylistEntity } from "@/store/playlist/types";
 import { createPlaylistServiceMock } from "@/test/utils/createPlaylistServiceMock";
 
 const { service: playlistService, mocks: playlistMocks } = vi.hoisted(() =>
-  createPlaylistServiceMock({
-    getPlaylistVersions: vi.fn(async () => []),
-  }),
+	createPlaylistServiceMock({
+		getPlaylistVersions: vi.fn(async () => []),
+	}),
 );
 
 const mockGetPlaylistVersions = playlistMocks.getPlaylistVersions;
 
 vi.mock("@/services/client", () => ({
-  playlistClient: vi.fn(() => playlistService),
+	playlistClient: vi.fn(() => playlistService),
 }));
 
 describe("MainContent local-only init smoke test", () => {
-  const repo = new PlaylistRepository();
-  const now = new Date().toISOString();
+	const repo = new PlaylistRepository();
+	const now = new Date().toISOString();
 
-  beforeEach(async () => {
-    await db.playlists.clear();
-    await db.versions.clear();
-    vi.clearAllMocks();
-    mockGetPlaylistVersions.mockReset();
-    mockGetPlaylistVersions.mockImplementation(async () => []);
-  });
+	beforeEach(async () => {
+		await db.playlists.clear();
+		await db.versions.clear();
+		vi.clearAllMocks();
+		mockGetPlaylistVersions.mockReset();
+		mockGetPlaylistVersions.mockImplementation(async () => []);
+	});
 
-  it("can initialize and retrieve local playlist with versions", async () => {
-    const playlistId = "local-playlist-test";
-    const entity: PlaylistEntity = {
-      id: playlistId,
-      name: "Local Test",
-      type: "list",
-      localStatus: "draft",
-      ftrackSyncStatus: "not_synced",
-      projectId: "test-project",
-      createdAt: now,
-      updatedAt: now,
-    };
+	it("can initialize and retrieve local playlist with versions", async () => {
+		const playlistId = "local-playlist-test";
+		const entity: PlaylistEntity = {
+			id: playlistId,
+			name: "Local Test",
+			type: "list",
+			localStatus: "draft",
+			ftrackSyncStatus: "not_synced",
+			projectId: "test-project",
+			createdAt: now,
+			updatedAt: now,
+		};
 
-    // Create playlist and add versions
-    await repo.createPlaylist(entity);
-    await playlistStore.addVersionsToPlaylist(playlistId, [
-      {
-        id: "v1",
-        name: "Version 1",
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
+		// Create playlist and add versions
+		await repo.createPlaylist(entity);
+		await playlistStore.addVersionsToPlaylist(playlistId, [
+			{
+				id: "v1",
+				name: "Version 1",
+				version: 1,
+				createdAt: now,
+				updatedAt: now,
+			},
+		]);
 
-    // Verify we can retrieve it (this is what MainContent does during init)
-    const playlist = await playlistStore.getPlaylist(playlistId);
-    expect(playlist).toBeTruthy();
-    expect(playlist!.id).toBe(playlistId);
-    expect(playlist!.versions?.length || 0).toBe(1);
-    expect(playlist!.versions![0].id).toBe("v1");
-    expect(playlist!.isLocalOnly).toBe(true);
-  });
+		// Verify we can retrieve it (this is what MainContent does during init)
+		const playlist = await playlistStore.getPlaylist(playlistId);
+		expect(playlist).toBeTruthy();
+		expect(playlist!.id).toBe(playlistId);
+		expect(playlist!.versions?.length || 0).toBe(1);
+		expect(playlist.versions![0].id).toBe("v1");
+		expect(playlist!.isLocalOnly).toBe(true);
+	});
 });

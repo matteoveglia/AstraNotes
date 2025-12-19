@@ -8,8 +8,8 @@
 import { checkForUpdates } from "./updater";
 
 export function addUpdateCheck() {
-  const checkUpdatesButton = document.getElementById("check-updates-button");
-  if (checkUpdatesButton) {
-    checkUpdatesButton.addEventListener("click", checkForUpdates);
-  }
+	const checkUpdatesButton = document.getElementById("check-updates-button");
+	if (checkUpdatesButton) {
+		checkUpdatesButton.addEventListener("click", checkForUpdates);
+	}
 }

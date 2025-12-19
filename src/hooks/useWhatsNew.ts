@@ -10,57 +10,57 @@ import { useWhatsNewStore } from "@/store/whatsNewStore";
 import { useUpdateStore } from "@/store/updateStore";
 
 export const useWhatsNew = () => {
-  const [shouldShowModal, setShouldShowModal] = useState(false);
-  const [isCheckingVersion, setIsCheckingVersion] = useState(true);
+	const [shouldShowModal, setShouldShowModal] = useState(false);
+	const [isCheckingVersion, setIsCheckingVersion] = useState(true);
 
-  const {
-    shouldShowForVersion,
-    shouldShowOnNextStart,
-    setShouldShowOnNextStart,
-  } = useWhatsNewStore();
+	const {
+		shouldShowForVersion,
+		shouldShowOnNextStart,
+		setShouldShowOnNextStart,
+	} = useWhatsNewStore();
 
-  const { resetUpdateState } = useUpdateStore();
+	const { resetUpdateState } = useUpdateStore();
 
-  useEffect(() => {
-    checkShouldShowModal();
-  }, []);
+	useEffect(() => {
+		checkShouldShowModal();
+	}, []);
 
-  const checkShouldShowModal = async () => {
-    setIsCheckingVersion(true);
-    try {
-      // Get current app version
-      const currentVersion = await getVersion();
+	const checkShouldShowModal = async () => {
+		setIsCheckingVersion(true);
+		try {
+			// Get current app version
+			const currentVersion = await getVersion();
 
-      // Check if we should show the modal
-      const shouldShow =
-        shouldShowForVersion(currentVersion) || shouldShowOnNextStart;
+			// Check if we should show the modal
+			const shouldShow =
+				shouldShowForVersion(currentVersion) || shouldShowOnNextStart;
 
-      if (shouldShow) {
-        setShouldShowModal(true);
-        // Reset the "show on next start" flag since we're showing it now
-        setShouldShowOnNextStart(false);
-        // Reset update state since we're showing the What's New modal
-        resetUpdateState();
-      }
-    } catch (error) {
-      console.error("Failed to check version for What's New modal:", error);
-    } finally {
-      setIsCheckingVersion(false);
-    }
-  };
+			if (shouldShow) {
+				setShouldShowModal(true);
+				// Reset the "show on next start" flag since we're showing it now
+				setShouldShowOnNextStart(false);
+				// Reset update state since we're showing the What's New modal
+				resetUpdateState();
+			}
+		} catch (error) {
+			console.error("Failed to check version for What's New modal:", error);
+		} finally {
+			setIsCheckingVersion(false);
+		}
+	};
 
-  const hideModal = () => {
-    setShouldShowModal(false);
-  };
+	const hideModal = () => {
+		setShouldShowModal(false);
+	};
 
-  const showModal = () => {
-    setShouldShowModal(true);
-  };
+	const showModal = () => {
+		setShouldShowModal(true);
+	};
 
-  return {
-    shouldShowModal,
-    isCheckingVersion,
-    hideModal,
-    showModal,
-  };
+	return {
+		shouldShowModal,
+		isCheckingVersion,
+		hideModal,
+		showModal,
+	};
 };

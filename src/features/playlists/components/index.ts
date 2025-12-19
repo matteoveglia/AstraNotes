@@ -6,7 +6,7 @@
 export { CreatePlaylistDialog } from "./CreatePlaylistDialog";
 export { SyncPlaylistButton } from "./SyncPlaylistButton";
 export {
-  SyncConflictDialog,
-  type SyncConflictDetails,
+	SyncConflictDialog,
+	type SyncConflictDetails,
 } from "./SyncConflictDialog";
 export { SyncConflictManager } from "./SyncConflictManager";

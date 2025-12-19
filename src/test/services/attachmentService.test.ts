@@ -4,32 +4,32 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Define the helper functions that are being tested
 const getAttachmentIconType = (filename: string): string => {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
+	const ext = filename.split(".").pop()?.toLowerCase() || "";
 
-  // Image files
-  if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+	// Image files
+	if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
 
-  // Video files
-  if (["mp4", "mov", "avi", "webm"].includes(ext)) return "video";
+	// Video files
+	if (["mp4", "mov", "avi", "webm"].includes(ext)) return "video";
 
-  // Document files
-  if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"].includes(ext))
-    return "document";
+	// Document files
+	if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"].includes(ext))
+		return "document";
 
-  // Audio files
-  if (["mp3", "wav", "ogg", "flac"].includes(ext)) return "audio";
+	// Audio files
+	if (["mp3", "wav", "ogg", "flac"].includes(ext)) return "audio";
 
-  // Compressed files
-  if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "compressed";
+	// Compressed files
+	if (["zip", "rar", "tar", "gz", "7z"].includes(ext)) return "compressed";
 
-  // Default
-  return "file";
+	// Default
+	return "file";
 };
 
 const getAttachmentDisplayName = (path: string): string => {
-  // Handle different path separators
-  const parts = path.split(/[/\\]/);
-  return parts[parts.length - 1];
+	// Handle different path separators
+	const parts = path.split(/[/\\]/);
+	return parts[parts.length - 1];
 };
 
 // Mock Tauri dialog and fs modules
@@ -38,132 +38,132 @@ const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
 
 // Helper function under test for saving the attachment
 async function saveAttachmentToFile(attachment: any): Promise<string | null> {
-  const savePath = await mockSave({
-    defaultPath: attachment.name,
-    filters: [
-      {
-        name: "Images",
-        extensions: [attachment.name.split(".").pop() || ""],
-      },
-    ],
-  });
-  if (!savePath) return null;
-  await mockWriteBinaryFile(savePath, attachment.data);
-  return savePath;
+	const savePath = await mockSave({
+		defaultPath: attachment.name,
+		filters: [
+			{
+				name: "Images",
+				extensions: [attachment.name.split(".").pop() || ""],
+			},
+		],
+	});
+	if (!savePath) return null;
+	await mockWriteBinaryFile(savePath, attachment.data);
+	return savePath;
 }
 
 describe("attachmentService", () => {
-  beforeEach(() => {
-    mockSave.mockReset();
-    mockSave.mockResolvedValue("/path/to/save/location.png");
-    vi.clearAllMocks();
-  });
+	beforeEach(() => {
+		mockSave.mockReset();
+		mockSave.mockResolvedValue("/path/to/save/location.png");
+		vi.clearAllMocks();
+	});
 
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
+	afterEach(() => {
+		vi.resetAllMocks();
+	});
 
-  describe("getAttachmentIconType", () => {
-    it("should return correct icon type for images", () => {
-      expect(getAttachmentIconType("image.png")).toBe("image");
-      expect(getAttachmentIconType("photo.jpg")).toBe("image");
-      expect(getAttachmentIconType("graphic.jpeg")).toBe("image");
-      expect(getAttachmentIconType("image.gif")).toBe("image");
-    });
+	describe("getAttachmentIconType", () => {
+		it("should return correct icon type for images", () => {
+			expect(getAttachmentIconType("image.png")).toBe("image");
+			expect(getAttachmentIconType("photo.jpg")).toBe("image");
+			expect(getAttachmentIconType("graphic.jpeg")).toBe("image");
+			expect(getAttachmentIconType("image.gif")).toBe("image");
+		});
 
-    it("should return correct icon type for videos", () => {
-      expect(getAttachmentIconType("video.mp4")).toBe("video");
-      expect(getAttachmentIconType("movie.mov")).toBe("video");
-      expect(getAttachmentIconType("clip.avi")).toBe("video");
-    });
+		it("should return correct icon type for videos", () => {
+			expect(getAttachmentIconType("video.mp4")).toBe("video");
+			expect(getAttachmentIconType("movie.mov")).toBe("video");
+			expect(getAttachmentIconType("clip.avi")).toBe("video");
+		});
 
-    it("should return correct icon type for documents", () => {
-      expect(getAttachmentIconType("doc.pdf")).toBe("document");
-      expect(getAttachmentIconType("document.docx")).toBe("document");
-      expect(getAttachmentIconType("spreadsheet.xlsx")).toBe("document");
-      expect(getAttachmentIconType("presentation.pptx")).toBe("document");
-      expect(getAttachmentIconType("text.txt")).toBe("document");
-    });
+		it("should return correct icon type for documents", () => {
+			expect(getAttachmentIconType("doc.pdf")).toBe("document");
+			expect(getAttachmentIconType("document.docx")).toBe("document");
+			expect(getAttachmentIconType("spreadsheet.xlsx")).toBe("document");
+			expect(getAttachmentIconType("presentation.pptx")).toBe("document");
+			expect(getAttachmentIconType("text.txt")).toBe("document");
+		});
 
-    it("should return correct icon type for audio", () => {
-      expect(getAttachmentIconType("sound.mp3")).toBe("audio");
-      expect(getAttachmentIconType("music.wav")).toBe("audio");
-      expect(getAttachmentIconType("audio.ogg")).toBe("audio");
-    });
+		it("should return correct icon type for audio", () => {
+			expect(getAttachmentIconType("sound.mp3")).toBe("audio");
+			expect(getAttachmentIconType("music.wav")).toBe("audio");
+			expect(getAttachmentIconType("audio.ogg")).toBe("audio");
+		});
 
-    it("should return correct icon type for compressed files", () => {
-      expect(getAttachmentIconType("archive.zip")).toBe("compressed");
-      expect(getAttachmentIconType("file.rar")).toBe("compressed");
-      expect(getAttachmentIconType("data.tar.gz")).toBe("compressed");
-    });
+		it("should return correct icon type for compressed files", () => {
+			expect(getAttachmentIconType("archive.zip")).toBe("compressed");
+			expect(getAttachmentIconType("file.rar")).toBe("compressed");
+			expect(getAttachmentIconType("data.tar.gz")).toBe("compressed");
+		});
 
-    it("should return fallback icon type for unknown extensions", () => {
-      expect(getAttachmentIconType("unknown")).toBe("file");
-      expect(getAttachmentIconType("file.xyz")).toBe("file");
-    });
-  });
+		it("should return fallback icon type for unknown extensions", () => {
+			expect(getAttachmentIconType("unknown")).toBe("file");
+			expect(getAttachmentIconType("file.xyz")).toBe("file");
+		});
+	});
 
-  describe("getAttachmentDisplayName", () => {
-    it("should return formatted name for file paths", () => {
-      expect(getAttachmentDisplayName("/path/to/file.txt")).toBe("file.txt");
-      expect(getAttachmentDisplayName("C:\\Users\\name\\file.jpg")).toBe(
-        "file.jpg",
-      );
-    });
+	describe("getAttachmentDisplayName", () => {
+		it("should return formatted name for file paths", () => {
+			expect(getAttachmentDisplayName("/path/to/file.txt")).toBe("file.txt");
+			expect(getAttachmentDisplayName("C:\\Users\\name\\file.jpg")).toBe(
+				"file.jpg",
+			);
+		});
 
-    it("should handle urls", () => {
-      expect(getAttachmentDisplayName("https://example.com/image.png")).toBe(
-        "image.png",
-      );
-    });
+		it("should handle urls", () => {
+			expect(getAttachmentDisplayName("https://example.com/image.png")).toBe(
+				"image.png",
+			);
+		});
 
-    it("should return original string if no path separators", () => {
-      expect(getAttachmentDisplayName("justfilename.mp4")).toBe(
-        "justfilename.mp4",
-      );
-    });
-  });
+		it("should return original string if no path separators", () => {
+			expect(getAttachmentDisplayName("justfilename.mp4")).toBe(
+				"justfilename.mp4",
+			);
+		});
+	});
 
-  describe("saveAttachmentToFile", () => {
-    it("should save attachment to the selected file path", async () => {
-      const mockAttachment = {
-        id: "attachment-1",
-        data: new Uint8Array([1, 2, 3]),
-        name: "test.png",
-        type: "image/png",
-      };
+	describe("saveAttachmentToFile", () => {
+		it("should save attachment to the selected file path", async () => {
+			const mockAttachment = {
+				id: "attachment-1",
+				data: new Uint8Array([1, 2, 3]),
+				name: "test.png",
+				type: "image/png",
+			};
 
-      const result = await saveAttachmentToFile(mockAttachment);
-      expect(result).toBe("/path/to/save/location.png");
+			const result = await saveAttachmentToFile(mockAttachment);
+			expect(result).toBe("/path/to/save/location.png");
 
-      // Verify mockSave was called
-      expect(mockSave).toHaveBeenCalledWith({
-        defaultPath: "test.png",
-        filters: [{ name: "Images", extensions: ["png"] }],
-      });
+			// Verify mockSave was called
+			expect(mockSave).toHaveBeenCalledWith({
+				defaultPath: "test.png",
+				filters: [{ name: "Images", extensions: ["png"] }],
+			});
 
-      expect(mockWriteBinaryFile).toHaveBeenCalledWith(
-        "/path/to/save/location.png",
-        mockAttachment.data,
-      );
-    });
+			expect(mockWriteBinaryFile).toHaveBeenCalledWith(
+				"/path/to/save/location.png",
+				mockAttachment.data,
+			);
+		});
 
-    it("should handle cancel action", async () => {
-      // Mock dialog.save to return null (user cancelled)
-      mockSave.mockResolvedValueOnce(null);
+		it("should handle cancel action", async () => {
+			// Mock dialog.save to return null (user cancelled)
+			mockSave.mockResolvedValueOnce(null);
 
-      const mockAttachment = {
-        id: "attachment-1",
-        data: new Uint8Array([1, 2, 3]),
-        name: "test.png",
-        type: "image/png",
-      };
+			const mockAttachment = {
+				id: "attachment-1",
+				data: new Uint8Array([1, 2, 3]),
+				name: "test.png",
+				type: "image/png",
+			};
 
-      const result = await saveAttachmentToFile(mockAttachment);
-      expect(result).toBeNull();
+			const result = await saveAttachmentToFile(mockAttachment);
+			expect(result).toBeNull();
 
-      // Verify mockWriteBinaryFile was not called
-      expect(mockWriteBinaryFile).not.toHaveBeenCalled();
-    });
-  });
+			// Verify mockWriteBinaryFile was not called
+			expect(mockWriteBinaryFile).not.toHaveBeenCalled();
+		});
+	});
 });

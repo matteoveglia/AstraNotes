@@ -6,7 +6,7 @@
  * @component
  */
 
-import React from "react";
+import type React from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
@@ -14,100 +14,100 @@ import type { Playlist } from "@/types";
 import { useProjectStore } from "../store/projectStore";
 
 interface PlaylistTabProps {
-  playlist: Playlist;
-  isActive: boolean;
-  onClick: () => void;
-  onClose?: () => void;
+	playlist: Playlist;
+	isActive: boolean;
+	onClick: () => void;
+	onClose?: () => void;
 }
 
 const PlaylistTab = ({
-  playlist,
-  isActive,
-  onClick,
-  onClose,
+	playlist,
+	isActive,
+	onClick,
+	onClose,
 }: PlaylistTabProps) => (
-  <motion.div
-    layout
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    transition={{ duration: 0.2 }}
-    className="flex-none"
-  >
-    <Button
-      variant={isActive ? "default" : "outline"}
-      className="justify-start group relative min-w-[120px]"
-      onClick={onClick}
-    >
-      <span className="truncate mr-6">{playlist.title}</span>
-      {!playlist.isQuickNotes && onClose && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-        >
-          <X className="h-4 w-4" />
-        </div>
-      )}
-    </Button>
-  </motion.div>
+	<motion.div
+		layout
+		initial={{ opacity: 0, x: 20 }}
+		animate={{ opacity: 1, x: 0 }}
+		exit={{ opacity: 0, x: -20 }}
+		transition={{ duration: 0.2 }}
+		className="flex-none"
+	>
+		<Button
+			variant={isActive ? "default" : "outline"}
+			className="justify-start group relative min-w-[120px]"
+			onClick={onClick}
+		>
+			<span className="truncate mr-6">{playlist.title}</span>
+			{!playlist.isQuickNotes && onClose && (
+				<div
+					onClick={(e) => {
+						e.stopPropagation();
+						onClose();
+					}}
+					className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+				>
+					<X className="h-4 w-4" />
+				</div>
+			)}
+		</Button>
+	</motion.div>
 );
 
 interface OpenPlaylistsBarProps {
-  playlists: Playlist[];
-  activePlaylist: string | null;
-  onPlaylistSelect: (playlistId: string) => void;
-  onPlaylistClose: (playlistId: string) => void;
-  onCloseAll: () => void;
+	playlists: Playlist[];
+	activePlaylist: string | null;
+	onPlaylistSelect: (playlistId: string) => void;
+	onPlaylistClose: (playlistId: string) => void;
+	onCloseAll: () => void;
 }
 
 export const OpenPlaylistsBar: React.FC<OpenPlaylistsBarProps> = ({
-  playlists,
-  activePlaylist,
-  onPlaylistSelect,
-  onPlaylistClose,
-  onCloseAll,
+	playlists,
+	activePlaylist,
+	onPlaylistSelect,
+	onPlaylistClose,
+	onCloseAll,
 }) => {
-  return (
-    <div className="h-14 border-t bg-background relative">
-      {playlists.length > 1 && (
-        <div className="absolute right-0 top-0 bottom-0 flex items-center bg-background px-4 z-10">
-          <div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-background" />
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2"
-            onClick={onCloseAll}
-          >
-            Close All
-          </Button>
-        </div>
-      )}
+	return (
+		<div className="h-14 border-t bg-background relative">
+			{playlists.length > 1 && (
+				<div className="absolute right-0 top-0 bottom-0 flex items-center bg-background px-4 z-10">
+					<div className="absolute -left-8 top-0 bottom-0 w-8 bg-gradient-to-r from-transparent to-background" />
+					<Button
+						size="sm"
+						variant="ghost"
+						className="h-7 px-2"
+						onClick={onCloseAll}
+					>
+						Close All
+					</Button>
+				</div>
+			)}
 
-      {/* Scrollable playlist container */}
-      <div className="absolute left-0 right-[100px] top-0 bottom-0 overflow-x-auto">
-        <div className="flex items-center gap-1 px-2 h-full">
-          <AnimatePresence mode="popLayout">
-            {playlists.map((playlist) => (
-              <PlaylistTab
-                key={playlist.id}
-                playlist={playlist}
-                isActive={
-                  activePlaylist !== null && playlist.id === activePlaylist
-                }
-                onClick={() => onPlaylistSelect(playlist.id)}
-                onClose={
-                  playlist.isQuickNotes
-                    ? undefined
-                    : () => onPlaylistClose(playlist.id)
-                }
-              />
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  );
+			{/* Scrollable playlist container */}
+			<div className="absolute left-0 right-[100px] top-0 bottom-0 overflow-x-auto">
+				<div className="flex items-center gap-1 px-2 h-full">
+					<AnimatePresence mode="popLayout">
+						{playlists.map((playlist) => (
+							<PlaylistTab
+								key={playlist.id}
+								playlist={playlist}
+								isActive={
+									activePlaylist !== null && playlist.id === activePlaylist
+								}
+								onClick={() => onPlaylistSelect(playlist.id)}
+								onClose={
+									playlist.isQuickNotes
+										? undefined
+										: () => onPlaylistClose(playlist.id)
+								}
+							/>
+						))}
+					</AnimatePresence>
+				</div>
+			</div>
+		</div>
+	);
 };

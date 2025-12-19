@@ -3,13 +3,14 @@
  * Modal for previewing note attachments (images) and providing open/download options.
  */
 
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Image as ImageIcon, Download } from "lucide-react";
@@ -22,233 +23,233 @@ import { downloadDir, join } from "@tauri-apps/api/path";
 import { useToast } from "./ui/toast";
 
 interface NoteAttachmentViewerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  attachment: NoteAttachment | null;
+	isOpen: boolean;
+	onClose: () => void;
+	attachment: NoteAttachment | null;
 }
 
 export const NoteAttachmentViewer: React.FC<NoteAttachmentViewerProps> = ({
-  isOpen,
-  onClose,
-  attachment,
+	isOpen,
+	onClose,
+	attachment,
 }) => {
-  const { showSuccess, showError } = useToast();
-  const [url, setUrl] = useState<string | null>(null);
-  const [displayUrl, setDisplayUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+	const { showSuccess, showError } = useToast();
+	const [url, setUrl] = useState<string | null>(null);
+	const [displayUrl, setDisplayUrl] = useState<string | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [imageLoading, setImageLoading] = useState(false);
+	const [downloading, setDownloading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!isOpen || !attachment) return;
-      setLoading(true);
-      setError(null);
-      setUrl(null);
-      setDisplayUrl(null);
-      // Immediately mark as loading for images to ensure we show overlay and avoid stale image
-      if (isImage(attachment)) {
-        setImageLoading(true);
-      } else {
-        setImageLoading(false);
-      }
-      try {
-        const u = await versionClient().getComponentUrl(attachment.id);
-        if (!u) {
-          throw new Error("Attachment URL not available");
-        }
-        setUrl(u);
-        // Start preload for images; only reveal once fully loaded
-        if (isImage(attachment)) {
-          try {
-            await new Promise<void>((resolve, reject) => {
-              const img = new Image();
-              img.onload = () => resolve();
-              img.onerror = () => reject(new Error("Image failed to load"));
-              img.src = u;
-            });
-            setDisplayUrl(u);
-            setImageLoading(false);
-          } catch (e) {
-            console.error("[NoteAttachmentViewer] Image preload failed", e);
-            setError("Failed to load attachment");
-            setImageLoading(false);
-          }
-        } else {
-          setDisplayUrl(u);
-        }
-      } catch (e) {
-        console.error("[NoteAttachmentViewer] Failed to get component URL", e);
-        setError("Failed to load attachment");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [isOpen, attachment?.id]);
+	useEffect(() => {
+		const load = async () => {
+			if (!isOpen || !attachment) return;
+			setLoading(true);
+			setError(null);
+			setUrl(null);
+			setDisplayUrl(null);
+			// Immediately mark as loading for images to ensure we show overlay and avoid stale image
+			if (isImage(attachment)) {
+				setImageLoading(true);
+			} else {
+				setImageLoading(false);
+			}
+			try {
+				const u = await versionClient().getComponentUrl(attachment.id);
+				if (!u) {
+					throw new Error("Attachment URL not available");
+				}
+				setUrl(u);
+				// Start preload for images; only reveal once fully loaded
+				if (isImage(attachment)) {
+					try {
+						await new Promise<void>((resolve, reject) => {
+							const img = new Image();
+							img.onload = () => resolve();
+							img.onerror = () => reject(new Error("Image failed to load"));
+							img.src = u;
+						});
+						setDisplayUrl(u);
+						setImageLoading(false);
+					} catch (e) {
+						console.error("[NoteAttachmentViewer] Image preload failed", e);
+						setError("Failed to load attachment");
+						setImageLoading(false);
+					}
+				} else {
+					setDisplayUrl(u);
+				}
+			} catch (e) {
+				console.error("[NoteAttachmentViewer] Failed to get component URL", e);
+				setError("Failed to load attachment");
+			} finally {
+				setLoading(false);
+			}
+		};
+		load();
+	}, [isOpen, attachment?.id]);
 
-  // Reset visual/loading state when modal closes to avoid jank on next open
-  useEffect(() => {
-    if (!isOpen) {
-      setImageLoading(false);
-      setDownloading(false);
-      setError(null);
-      setUrl(null);
-      setDisplayUrl(null);
-    }
-  }, [isOpen]);
+	// Reset visual/loading state when modal closes to avoid jank on next open
+	useEffect(() => {
+		if (!isOpen) {
+			setImageLoading(false);
+			setDownloading(false);
+			setError(null);
+			setUrl(null);
+			setDisplayUrl(null);
+		}
+	}, [isOpen]);
 
-  const isImage = (att?: NoteAttachment | null) => {
-    if (!att) return false;
-    const t = att.type?.toLowerCase() || "";
-    return (
-      t.startsWith("image/") ||
-      [".jpg", ".jpeg", ".png", ".gif", ".webp"].some((ext) => t.endsWith(ext))
-    );
-  };
+	const isImage = (att?: NoteAttachment | null) => {
+		if (!att) return false;
+		const t = att.type?.toLowerCase() || "";
+		return (
+			t.startsWith("image/") ||
+			[".jpg", ".jpeg", ".png", ".gif", ".webp"].some((ext) => t.endsWith(ext))
+		);
+	};
 
-  const handleDownload = async () => {
-    if (!url || !attachment) return;
-    setDownloading(true);
-    try {
-      // Determine filename (fallback to component id + extension)
-      let filename = attachment.name || `attachment-${attachment.id}`;
-      // Ensure extension present if we have a usable type
-      if (attachment.type) {
-        const type = attachment.type.toLowerCase();
-        // If type looks like an extension (starts with '.') or a mime type
-        const ext = type.startsWith(".")
-          ? type
-          : type.startsWith("image/")
-            ? `.${type.split("/")[1]}`
-            : type === "application/pdf"
-              ? ".pdf"
-              : "";
-        if (ext && !filename.toLowerCase().endsWith(ext)) {
-          filename += ext;
-        }
-      }
-      const downloads = await downloadDir();
-      const filePath = await join(downloads, filename);
+	const handleDownload = async () => {
+		if (!url || !attachment) return;
+		setDownloading(true);
+		try {
+			// Determine filename (fallback to component id + extension)
+			let filename = attachment.name || `attachment-${attachment.id}`;
+			// Ensure extension present if we have a usable type
+			if (attachment.type) {
+				const type = attachment.type.toLowerCase();
+				// If type looks like an extension (starts with '.') or a mime type
+				const ext = type.startsWith(".")
+					? type
+					: type.startsWith("image/")
+						? `.${type.split("/")[1]}`
+						: type === "application/pdf"
+							? ".pdf"
+							: "";
+				if (ext && !filename.toLowerCase().endsWith(ext)) {
+					filename += ext;
+				}
+			}
+			const downloads = await downloadDir();
+			const filePath = await join(downloads, filename);
 
-      // Fetch binary data via Tauri HTTP plugin
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(
-          `Download failed: ${response.status} ${response.statusText}`,
-        );
-      }
-      const buffer = await response.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
+			// Fetch binary data via Tauri HTTP plugin
+			const response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(
+					`Download failed: ${response.status} ${response.statusText}`,
+				);
+			}
+			const buffer = await response.arrayBuffer();
+			const bytes = new Uint8Array(buffer);
 
-      // Write to Downloads folder
-      await writeFile(filePath, bytes);
-      console.log(`[NoteAttachmentViewer] Saved attachment to ${filePath}`);
-      showSuccess(`Downloaded to ${filePath}`);
-    } catch (e) {
-      console.error("[NoteAttachmentViewer] Download failed", e);
-      setError("Failed to download file");
-      showError("Failed to download file");
-    } finally {
-      setDownloading(false);
-    }
-  };
+			// Write to Downloads folder
+			await writeFile(filePath, bytes);
+			console.log(`[NoteAttachmentViewer] Saved attachment to ${filePath}`);
+			showSuccess(`Downloaded to ${filePath}`);
+		} catch (e) {
+			console.error("[NoteAttachmentViewer] Download failed", e);
+			setError("Failed to download file");
+			showError("Failed to download file");
+		} finally {
+			setDownloading(false);
+		}
+	};
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-full">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span className="truncate mr-4">
-              {attachment?.name || "Attachment"}
-            </span>
-            <div className="flex items-center gap-2 mr-5">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleDownload}
-                disabled={!url || downloading}
-                className="flex items-center gap-2 ml-2"
-                aria-busy={downloading}
-              >
-                {downloading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" /> Download
-                  </>
-                )}
-              </Button>
-            </div>
-          </DialogTitle>
-          <DialogDescription>
-            {attachment?.size
-              ? `${(attachment.size / 1024).toFixed(0)} KB`
-              : ""}
-            {attachment?.name ? ` • ${attachment.name}` : ""}
-            {attachment?.type ? ` • ${attachment.type}` : ""}
-          </DialogDescription>
-        </DialogHeader>
+	return (
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="max-w-4xl w-full">
+				<DialogHeader>
+					<DialogTitle className="flex items-center justify-between">
+						<span className="truncate mr-4">
+							{attachment?.name || "Attachment"}
+						</span>
+						<div className="flex items-center gap-2 mr-5">
+							<Button
+								variant="default"
+								size="sm"
+								onClick={handleDownload}
+								disabled={!url || downloading}
+								className="flex items-center gap-2 ml-2"
+								aria-busy={downloading}
+							>
+								{downloading ? (
+									<>
+										<span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+										Downloading...
+									</>
+								) : (
+									<>
+										<Download className="w-4 h-4" /> Download
+									</>
+								)}
+							</Button>
+						</div>
+					</DialogTitle>
+					<DialogDescription>
+						{attachment?.size
+							? `${(attachment.size / 1024).toFixed(0)} KB`
+							: ""}
+						{attachment?.name ? ` • ${attachment.name}` : ""}
+						{attachment?.type ? ` • ${attachment.type}` : ""}
+					</DialogDescription>
+				</DialogHeader>
 
-        <div className="min-h-[300px] relative">
-          {/* Centered overlay spinner to avoid jank */}
-          <AnimatePresence>
-            {(loading || (isImage(attachment) && imageLoading)) && (
-              <motion.div
-                key="loading-overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center z-10"
-              >
-                <div className="flex items-center gap-2 text-zinc-500 bg-black/0 p-2 rounded">
-                  <span className="animate-spin rounded-full h-6 w-6 border-b-2 border-current" />
-                  <span className="text-sm">Loading attachment...</span>
-                </div>
-              </motion.div>
-            )}
-            {!loading && error && (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-red-500"
-              >
-                {error}
-              </motion.div>
-            )}
-            {!error && displayUrl && isImage(attachment) && (
-              <motion.img
-                key={displayUrl}
-                src={displayUrl}
-                alt={attachment?.name || "Attachment"}
-                className="max-h-[70vh] max-w-full object-contain block mx-auto"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: imageLoading ? 0.4 : 1 }}
-                exit={{ opacity: 0 }}
-                onLoad={() => setImageLoading(false)}
-              />
-            )}
-            {!loading && !error && displayUrl && !isImage(attachment) && (
-              <motion.div
-                key="fallback"
-                className="flex flex-col items-center gap-2 text-zinc-500"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <ImageIcon className="w-8 h-8" />
-                <p>Preview not supported. Use Download.</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+				<div className="min-h-[300px] relative">
+					{/* Centered overlay spinner to avoid jank */}
+					<AnimatePresence>
+						{(loading || (isImage(attachment) && imageLoading)) && (
+							<motion.div
+								key="loading-overlay"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className="absolute inset-0 flex items-center justify-center z-10"
+							>
+								<div className="flex items-center gap-2 text-zinc-500 bg-black/0 p-2 rounded">
+									<span className="animate-spin rounded-full h-6 w-6 border-b-2 border-current" />
+									<span className="text-sm">Loading attachment...</span>
+								</div>
+							</motion.div>
+						)}
+						{!loading && error && (
+							<motion.div
+								key="error"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								className="text-red-500"
+							>
+								{error}
+							</motion.div>
+						)}
+						{!error && displayUrl && isImage(attachment) && (
+							<motion.img
+								key={displayUrl}
+								src={displayUrl}
+								alt={attachment?.name || "Attachment"}
+								className="max-h-[70vh] max-w-full object-contain block mx-auto"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: imageLoading ? 0.4 : 1 }}
+								exit={{ opacity: 0 }}
+								onLoad={() => setImageLoading(false)}
+							/>
+						)}
+						{!loading && !error && displayUrl && !isImage(attachment) && (
+							<motion.div
+								key="fallback"
+								className="flex flex-col items-center gap-2 text-zinc-500"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+							>
+								<ImageIcon className="w-8 h-8" />
+								<p>Preview not supported. Use Download.</p>
+							</motion.div>
+						)}
+					</AnimatePresence>
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
 };

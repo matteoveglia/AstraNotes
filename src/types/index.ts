@@ -17,35 +17,35 @@
  * @property ftrackSyncState Sync state for local playlists
  */
 export interface Playlist {
-  id: string;
-  name: string;
-  title: string;
-  versions?: AssetVersion[];
-  notes: Note[];
-  createdAt: string;
-  updatedAt: string;
-  isQuickNotes?: boolean;
-  type?: "reviewsession" | "list";
-  categoryId?: string;
-  categoryName?: string;
-  isOpen?: boolean;
-  isLocalOnly?: boolean;
-  localVersions?: AssetVersion[];
-  ftrackSyncState?: "pending" | "syncing" | "synced" | "failed";
-  deletedInFtrack?: boolean; // Whether this playlist has been deleted in ftrack but still exists locally
-  ftrackId?: string; // CRITICAL FIX: Add ftrackId for synced playlists
-  projectId?: string; // CRITICAL FIX: Add projectId for ftrack playlists
-  description?: string; // CRITICAL FIX: Add description for ftrack playlists
+	id: string;
+	name: string;
+	title: string;
+	versions?: AssetVersion[];
+	notes: Note[];
+	createdAt: string;
+	updatedAt: string;
+	isQuickNotes?: boolean;
+	type?: "reviewsession" | "list";
+	categoryId?: string;
+	categoryName?: string;
+	isOpen?: boolean;
+	isLocalOnly?: boolean;
+	localVersions?: AssetVersion[];
+	ftrackSyncState?: "pending" | "syncing" | "synced" | "failed";
+	deletedInFtrack?: boolean; // Whether this playlist has been deleted in ftrack but still exists locally
+	ftrackId?: string; // CRITICAL FIX: Add ftrackId for synced playlists
+	projectId?: string; // CRITICAL FIX: Add projectId for ftrack playlists
+	description?: string; // CRITICAL FIX: Add description for ftrack playlists
 }
 
 /**
  * Represents a category/group of playlists for carousel organization
  */
 export interface PlaylistCategory {
-  id: string;
-  name: string;
-  type: "reviewsessions" | "lists";
-  playlists: Playlist[];
+	id: string;
+	name: string;
+	type: "reviewsessions" | "lists";
+	playlists: Playlist[];
 }
 
 /**
@@ -69,26 +69,26 @@ export type NoteStatus = "draft" | "published" | "empty" | "reviewed";
  * @property frameNumber Optional frame number context for the note.
  */
 export interface Note {
-  id: string;
-  content: string;
-  status?: NoteStatus;
-  selected?: boolean;
-  versionId?: string;
-  playlistId?: string;
-  createdAt: string;
-  updatedAt: string;
-  createdById?: string;
-  author?: string;
-  frameNumber?: number;
+	id: string;
+	content: string;
+	status?: NoteStatus;
+	selected?: boolean;
+	versionId?: string;
+	playlistId?: string;
+	createdAt: string;
+	updatedAt: string;
+	createdById?: string;
+	author?: string;
+	frameNumber?: number;
 }
 
 /**
  * Generic version object holding a thumbnail and metadata payload.
  */
 export interface Version {
-  id: string;
-  thumbnail?: string;
-  metadata: Record<string, unknown>;
+	id: string;
+	thumbnail?: string;
+	metadata: Record<string, unknown>;
 }
 
 /**
@@ -98,9 +98,9 @@ export interface Version {
  * @property apiUser Username or system identifier for API usage.
  */
 export interface FtrackSettings {
-  serverUrl: string;
-  apiKey: string;
-  apiUser: string;
+	serverUrl: string;
+	apiKey: string;
+	apiUser: string;
 }
 
 /**
@@ -117,21 +117,21 @@ export interface FtrackSettings {
  * @property user Optional user information for who created this version.
  */
 export interface AssetVersion {
-  id: string;
-  name: string;
-  version: number;
-  reviewSessionObjectId?: string;
-  createdAt: string;
-  updatedAt: string;
-  thumbnailId?: string;
-  thumbnailUrl?: string;
-  manuallyAdded?: boolean;
-  user?: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-  };
+	id: string;
+	name: string;
+	version: number;
+	reviewSessionObjectId?: string;
+	createdAt: string;
+	updatedAt: string;
+	thumbnailId?: string;
+	thumbnailUrl?: string;
+	manuallyAdded?: boolean;
+	user?: {
+		id: string;
+		username: string;
+		firstName?: string;
+		lastName?: string;
+	};
 }
 
 /**
@@ -141,9 +141,9 @@ export interface AssetVersion {
  * @property theme UI color scheme mode.
  */
 export interface Settings {
-  apiKey: string;
-  serverUrl: string;
-  theme: Theme;
+	apiKey: string;
+	serverUrl: string;
+	theme: Theme;
 }
 
 /**
@@ -164,53 +164,53 @@ export type ProjectStatus = "Active" | "On Hold" | "Completed" | "Cancelled";
  * @property status Current status of the project.
  */
 export interface Project {
-  id: string;
-  name: string;
-  fullName: string;
-  status: ProjectStatus;
+	id: string;
+	name: string;
+	fullName: string;
+	status: ProjectStatus;
 }
 
 /**
  * Request payload for creating a new playlist
  */
 export interface CreatePlaylistRequest {
-  name: string;
-  type: "reviewsession" | "list";
-  categoryId?: string;
-  categoryName?: string;
-  description?: string;
-  projectId: string;
-  ftrackId?: string; // Optional ftrack ID for test scenarios
+	name: string;
+	type: "reviewsession" | "list";
+	categoryId?: string;
+	categoryName?: string;
+	description?: string;
+	projectId: string;
+	ftrackId?: string; // Optional ftrack ID for test scenarios
 }
 
 /**
  * Request payload for syncing a local playlist to ftrack
  */
 export interface SyncPlaylistRequest {
-  playlistId: string;
-  versions: AssetVersion[];
-  removeLocalFlags?: boolean;
+	playlistId: string;
+	versions: AssetVersion[];
+	removeLocalFlags?: boolean;
 }
 
 /**
  * Response from playlist creation
  */
 export interface CreatePlaylistResponse {
-  id: string;
-  name: string;
-  type: "reviewsession" | "list";
-  ftrackUrl?: string;
-  success: boolean;
-  error?: string;
+	id: string;
+	name: string;
+	type: "reviewsession" | "list";
+	ftrackUrl?: string;
+	success: boolean;
+	error?: string;
 }
 
 /**
  * Response from version synchronization
  */
 export interface SyncVersionsResponse {
-  playlistId: string;
-  syncedVersionIds: string[];
-  failedVersionIds: string[];
-  success: boolean;
-  error?: string;
+	playlistId: string;
+	syncedVersionIds: string[];
+	failedVersionIds: string[];
+	success: boolean;
+	error?: string;
 }

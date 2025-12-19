@@ -1,10 +1,10 @@
-import React from "react";
+import type React from "react";
 import { ToastProvider } from "./ui/toast";
 import { ErrorBoundary } from "./ui/error-boundary";
 import { SyncConflictManager } from "@/features/playlists/components";
 
 interface AppProviderProps {
-  children: React.ReactNode;
+	children: React.ReactNode;
 }
 
 /**
@@ -16,14 +16,14 @@ interface AppProviderProps {
  * providers in one place.
  */
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  return (
-    <ToastProvider>
-      {/* Cross-playlist sync-conflict modal logic lives at the root level */}
-      <SyncConflictManager />
-      {/* Top-level error boundary so uncaught errors surface gracefully */}
-      <ErrorBoundary>{children}</ErrorBoundary>
-    </ToastProvider>
-  );
+	return (
+		<ToastProvider>
+			{/* Cross-playlist sync-conflict modal logic lives at the root level */}
+			<SyncConflictManager />
+			{/* Top-level error boundary so uncaught errors surface gracefully */}
+			<ErrorBoundary>{children}</ErrorBoundary>
+		</ToastProvider>
+	);
 };
 
 export default AppProvider;

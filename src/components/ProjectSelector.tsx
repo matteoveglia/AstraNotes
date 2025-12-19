@@ -5,144 +5,145 @@
  * @component
  */
 
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "./ui/select";
 import { useProjectStore } from "../store/projectStore";
 import { GlowEffect } from "./ui/glow-effect";
 import { AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 interface ProjectSelectorProps {
-  /** Callback when project selection changes */
-  onProjectChange?: (projectId: string | null) => void;
-  /** Additional CSS classes */
-  className?: string;
+	/** Callback when project selection changes */
+	onProjectChange?: (projectId: string | null) => void;
+	/** Additional CSS classes */
+	className?: string;
 }
 
 export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
-  onProjectChange,
-  className,
+	onProjectChange,
+	className,
 }) => {
-  const {
-    projects,
-    selectedProjectId,
-    isLoading,
-    error,
-    setSelectedProject,
-    loadProjects,
-  } = useProjectStore();
+	const {
+		projects,
+		selectedProjectId,
+		isLoading,
+		error,
+		setSelectedProject,
+		loadProjects,
+	} = useProjectStore();
 
-  // Load projects on mount (validation happens automatically in loadProjects)
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+	// Load projects on mount (validation happens automatically in loadProjects)
+	useEffect(() => {
+		loadProjects();
+	}, [loadProjects]);
 
-  const handleValueChange = (value: string) => {
-    const projectId = value === "none" ? null : value;
-    setSelectedProject(projectId);
-    onProjectChange?.(projectId);
-  };
+	const handleValueChange = (value: string) => {
+		const projectId = value === "none" ? null : value;
+		setSelectedProject(projectId);
+		onProjectChange?.(projectId);
+	};
 
-  const handleClear = () => {
-    setSelectedProject(null);
-    onProjectChange?.(null);
-  };
+	const handleClear = () => {
+		setSelectedProject(null);
+		onProjectChange?.(null);
+	};
 
-  const shouldShowGlow =
-    !selectedProjectId && !isLoading && projects.length > 0;
+	const shouldShowGlow =
+		!selectedProjectId && !isLoading && projects.length > 0;
 
-  return (
-    <TooltipProvider>
-      <div
-        className={cn(
-          "flex items-center gap-2 min-w-[200px] relative",
-          className,
-        )}
-      >
-        <div className="relative flex-1">
-          {shouldShowGlow && (
-            <GlowEffect
-              colors={["#3B82F6", "#8B5CF6", "#EF4444", "#10B981"]}
-              mode="pulse"
-              blur="soft"
-              duration={2.5}
-              scale={1.05}
-            />
-          )}
+	return (
+		<TooltipProvider>
+			<div
+				className={cn(
+					"flex items-center gap-2 min-w-[200px] relative",
+					className,
+				)}
+			>
+				<div className="relative flex-1">
+					{shouldShowGlow && (
+						<GlowEffect
+							colors={["#3B82F6", "#8B5CF6", "#EF4444", "#10B981"]}
+							mode="pulse"
+							blur="soft"
+							duration={2.5}
+							scale={1.05}
+						/>
+					)}
 
-          <Select
-            value={selectedProjectId || "none"}
-            onValueChange={handleValueChange}
-            disabled={isLoading}
-          >
-            <SelectTrigger
-              className={cn(
-                "w-full relative z-10 h-7 bg-white dark:bg-zinc-900",
-                selectedProjectId && "pr-8", // Add padding when X button is shown
-                shouldShowGlow && "ring-2 ring-blue-200 dark:ring-blue-800",
-              )}
-            >
-              <SelectValue
-                placeholder={
-                  isLoading ? "Loading projects..." : "Select project..."
-                }
-              />
-            </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-zinc-900">
-              <SelectItem value="none" disabled>
-                {isLoading ? "Loading projects..." : "Select a project"}
-              </SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+					<Select
+						value={selectedProjectId || "none"}
+						onValueChange={handleValueChange}
+						disabled={isLoading}
+					>
+						<SelectTrigger
+							className={cn(
+								"w-full relative z-10 h-7 bg-white dark:bg-zinc-900",
+								selectedProjectId && "pr-8", // Add padding when X button is shown
+								shouldShowGlow && "ring-2 ring-blue-200 dark:ring-blue-800",
+							)}
+						>
+							<SelectValue
+								placeholder={
+									isLoading ? "Loading projects..." : "Select project..."
+								}
+							/>
+						</SelectTrigger>
+						<SelectContent className="bg-white dark:bg-zinc-900">
+							<SelectItem value="none" disabled>
+								{isLoading ? "Loading projects..." : "Select a project"}
+							</SelectItem>
+							{projects.map((project) => (
+								<SelectItem key={project.id} value={project.id}>
+									{project.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 
-          {selectedProjectId && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleClear();
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 rounded-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center z-20"
-              title="Clear selection"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+					{selectedProjectId && (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								handleClear();
+							}}
+							onMouseDown={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+							}}
+							className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 rounded-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center z-20"
+							title="Clear selection"
+						>
+							<X className="w-3 h-3" />
+						</button>
+					)}
+				</div>
 
-        {error && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{error}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-    </TooltipProvider>
-  );
+				{error && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>{error}</p>
+						</TooltipContent>
+					</Tooltip>
+				)}
+			</div>
+		</TooltipProvider>
+	);
 };

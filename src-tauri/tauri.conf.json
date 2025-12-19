@@ -1,71 +1,63 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "AstraNotes",
-  "version": "0.16.3",
-  "identifier": "com.AstraLumen.Notes",
-  "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
-  },
-  "app": {
-    "macOSPrivateApi": true,
-    "windows": [
-      {
-        "title": "AstraNotes",
-        "width": 1280,
-        "height": 900,
-        "resizable": true,
-        "fullscreen": false,
-        "minWidth": 800,
-        "minHeight": 600,
-        "center": true,
-        "dragDropEnabled": false
-      }
-    ],
-    "security": {
-      "capabilities": [
-        "default"
-      ],
-      "csp": null,
-      "assetProtocol": {
-        "scope": [
-          "**"
-        ],
-        "enable": true
-      }
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": [
-      "msi",
-      "app",
-      "dmg"
-    ],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/icon.ico",
-      "icons/icon.icns"
-    ],
-    "macOS": {
-      "minimumSystemVersion": "10.13"
-    },
-    "windows": {
-      "nsis": {
-        "installMode": "perMachine"
-      }
-    },
-    "createUpdaterArtifacts": true
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGNkUwQTdGNTRGQTNBODQKUldTRU92cFVmd3B1L3hGeFJxRFZocFlibGgvVU9EbXM2ZmdYMEFabUhoTkgwdUNWVXF1YjRTNGgK",
-      "endpoints": [
-        "https://github.com/matteoveglia/AstraNotes/releases/latest/download/latest.json"
-      ]
-    }
-  }
+	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+	"productName": "AstraNotes",
+	"version": "0.16.3",
+	"identifier": "com.AstraLumen.Notes",
+	"build": {
+		"frontendDist": "../dist",
+		"devUrl": "http://localhost:5173",
+		"beforeDevCommand": "pnpm dev",
+		"beforeBuildCommand": "pnpm build"
+	},
+	"app": {
+		"macOSPrivateApi": true,
+		"windows": [
+			{
+				"title": "AstraNotes",
+				"width": 1280,
+				"height": 900,
+				"resizable": true,
+				"fullscreen": false,
+				"minWidth": 800,
+				"minHeight": 600,
+				"center": true,
+				"dragDropEnabled": false
+			}
+		],
+		"security": {
+			"capabilities": ["default"],
+			"csp": null,
+			"assetProtocol": {
+				"scope": ["**"],
+				"enable": true
+			}
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": ["msi", "app", "dmg"],
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/icon.ico",
+			"icons/icon.icns"
+		],
+		"macOS": {
+			"minimumSystemVersion": "10.13"
+		},
+		"windows": {
+			"nsis": {
+				"installMode": "perMachine"
+			}
+		},
+		"createUpdaterArtifacts": true
+	},
+	"plugins": {
+		"updater": {
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGNkUwQTdGNTRGQTNBODQKUldTRU92cFVmd3B1L3hGeFJxRFZocFlibGgvVU9EbXM2ZmdYMEFabUhoTkgwdUNWVXF1YjRTNGgK",
+			"endpoints": [
+				"https://github.com/matteoveglia/AstraNotes/releases/latest/download/latest.json"
+			]
+		}
+	}
 }
